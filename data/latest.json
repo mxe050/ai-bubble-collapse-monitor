@@ -1,10 +1,10 @@
 {
-  "schemaVersion": 9,
-  "generatedAtUtc": "2026-07-18T23:02:39.759927+00:00",
-  "generatedAtJst": "2026-07-19T08:02:39.759927+09:00",
+  "schemaVersion": 10,
+  "generatedAtUtc": "2026-07-18T23:49:42.297875+00:00",
+  "generatedAtJst": "2026-07-19T08:49:42.297875+09:00",
   "marketDate": "2026-07-17",
   "dataQuality": {
-    "successfulRequests": 67,
+    "successfulRequests": 68,
     "failedRequests": 0,
     "companyCoverage": 26,
     "expectedCompanies": 26,
@@ -104,6 +104,37 @@
         "tradingDaysSince120dLow": 74,
         "reboundFrom120dLowPct": 25.609968611520294,
         "sourceUrl": "https://finance.yahoo.com/quote/%5EN225"
+      },
+      "VIX": {
+        "symbol": "^VIX",
+        "date": "2026-07-17",
+        "close": 18.770000457763672,
+        "change1dPct": 12.193669882519643,
+        "change5dPct": 24.883571465327915,
+        "change20dPct": 1.7895873869231416,
+        "change60dPct": -0.7928098199017297,
+        "peak3y": 52.33000183105469,
+        "peak3yDate": "2025-04-08",
+        "drawdown3yPct": 64.13147372254664,
+        "peak2026": 35.29999923706055,
+        "peak2026Date": "2026-03-09",
+        "drawdownFrom2026HighPct": 46.82719302141645,
+        "low2026": 14.430000305175781,
+        "low2026Date": "2026-01-09",
+        "riseFrom2026LowToHighPct": 144.62923416847798,
+        "trailingDividendPerShare": 0,
+        "trailingDividendYieldPct": 0.0,
+        "sma200": 18.69035006046295,
+        "belowSma200": false,
+        "weeksBelowSma200": 0.0,
+        "sma50": 17.322800006866455,
+        "aboveSma50": true,
+        "sma50Slope20dPct": -2.9643739499940036,
+        "low120d": 15.029999732971191,
+        "low120dDate": "2026-07-10",
+        "tradingDaysSince120dLow": 5,
+        "reboundFrom120dLowPct": 24.883571465327915,
+        "sourceUrl": "https://finance.yahoo.com/quote/%5EVIX"
       },
       "KIOXIA": {
         "symbol": "285A.T",
@@ -2174,7 +2205,7 @@
     },
     "sakakibaraAnalysis": {
       "asOfDate": "2026-07-17",
-      "methodLabel": "榊原式 proxy v1.0",
+      "methodLabel": "榊原式 proxy v1.1",
       "stage": "揺り戻しを強く確認",
       "confirmationCount": 4,
       "confirmationMax": 4,
@@ -3844,6 +3875,131 @@
       },
       "basketAdvantage5dPctPoints": 7.8170259059225415,
       "basketAdvantage20dPctPoints": 12.138892288736736,
+      "marketPath": {
+        "label": "揺り戻し・評価正常化が優勢",
+        "statusCode": "normalization-strong",
+        "horizon": "直近1・5・20営業日を使うルールベースの方向判定",
+        "routeIndex": 83.0,
+        "normalization": {
+          "score": 100.0,
+          "rawScore": 100.0,
+          "knownMax": 100.0,
+          "maxScore": 100.0,
+          "coveragePct": 100.0,
+          "components": [
+            {
+              "id": "ntReversal",
+              "label": "NT倍率の反転",
+              "score": 25.0,
+              "knownMax": 25.0,
+              "maxScore": 25.0,
+              "coveragePct": 100.0,
+              "detail": "直近ピークから9.2%低下、20日変化は-7.1%。"
+            },
+            {
+              "id": "topixRelative",
+              "label": "TOPIXの相対的な強さ",
+              "score": 25.0,
+              "knownMax": 25.0,
+              "maxScore": 25.0,
+              "coveragePct": 100.0,
+              "detail": "TOPIX優位は5日+3.5ポイント、20日+6.9ポイント。"
+            },
+            {
+              "id": "basketRotation",
+              "label": "分散型株への相対回復",
+              "score": 30.0,
+              "knownMax": 30.0,
+              "maxScore": 30.0,
+              "coveragePct": 100.0,
+              "detail": "分散型8社のAI連動8社に対する優位は5日+7.8ポイント、20日+12.1ポイント。"
+            },
+            {
+              "id": "breadth",
+              "label": "分散型株への広がり",
+              "score": 20.0,
+              "knownMax": 20.0,
+              "maxScore": 20.0,
+              "coveragePct": 100.0,
+              "detail": "5日で日経平均を上回った分散型株は8/8社、上昇は6/8社。"
+            }
+          ]
+        },
+        "panic": {
+          "score": 17.0,
+          "rawScore": 17.0,
+          "knownMax": 100.0,
+          "maxScore": 100.0,
+          "coveragePct": 100.0,
+          "components": [
+            {
+              "id": "nikkeiSpeed",
+              "label": "日経平均の下落速度",
+              "score": 12.0,
+              "knownMax": 30.0,
+              "maxScore": 30.0,
+              "coveragePct": 100.0,
+              "detail": "日経平均は1日-4.0%、5日-6.4%、20日-10.0%。"
+            },
+            {
+              "id": "broadContagion",
+              "label": "市場全体への波及",
+              "score": 3.0,
+              "knownMax": 30.0,
+              "maxScore": 30.0,
+              "coveragePct": 100.0,
+              "detail": "TOPIXは1日-2.7%、5日-2.9%、20日-3.1%。分散型8社の5日上昇比率は75.0%。"
+            },
+            {
+              "id": "volatility",
+              "label": "予想変動率の急上昇",
+              "score": 2.0,
+              "knownMax": 20.0,
+              "maxScore": 20.0,
+              "coveragePct": 100.0,
+              "detail": "VIXは18.8、5日変化は+24.9%。VIXは米国S&P 500の30日予想変動率です。"
+            },
+            {
+              "id": "credit",
+              "label": "信用市場への波及",
+              "score": 0.0,
+              "knownMax": 20.0,
+              "maxScore": 20.0,
+              "coveragePct": 100.0,
+              "detail": "米国HY OASは2.7%、3か月低値から+0.1ポイント。信用不安が強いほど上昇します。"
+            }
+          ]
+        },
+        "valuationAnchor": {
+          "currentPrice": 64141.12109375,
+          "peak2026": 72831.7265625,
+          "lower": 57688.67434166844,
+          "upper": 61121.200000000004,
+          "moveFromCurrentToUpperPct": -4.708244948409956,
+          "moveFromCurrentToLowerPct": -10.059766093970401,
+          "drawdownFromPeakToUpperPct": 16.07888088778274,
+          "drawdownFromPeakToLowerPct": 20.79183473405187
+        },
+        "inputs": {
+          "nikkei1dPct": -4.031415032398211,
+          "nikkei5dPct": -6.442170255928259,
+          "nikkei20dPct": -9.977452870655378,
+          "topix1dPct": -2.719923351676312,
+          "topix5dPct": -2.8956314047293374,
+          "topix20dPct": -3.1088070092164077,
+          "vix": 18.770000457763672,
+          "vix5dPct": 24.883571465327915,
+          "highYieldOasPct": 2.71,
+          "highYieldOasRise3mPctPoints": 0.08000000000000007,
+          "diversifiedPositive5dPct": 75.0
+        },
+        "rules": {
+          "formula": "市場経路指数 = 正常化スコア - パニックスコア（-100～+100）",
+          "positiveMeaning": "プラスほど、AI期待の剥落と優良Non-AIへの相対回復による評価正常化が優勢。",
+          "negativeMeaning": "マイナスほど、TOPIX・分散型株・予想変動率・信用市場まで悪化するパニック型暴落が優勢。",
+          "thresholdCaveat": "各配点と閾値は公式の売買基準ではなく、本サイト独自の早期警戒ルール。統計モデルによる確率予測ではない。"
+        }
+      },
       "kioxiaCase": {
         "date": "2026-07-17",
         "close": 52110.0,
@@ -6159,471 +6315,478 @@
       "name": "Yahoo Finance chart",
       "url": "https://finance.yahoo.com/quote/%5ESOX",
       "ok": true,
-      "retrieved_at": "2026-07-18T23:02:39.759927+00:00",
+      "retrieved_at": "2026-07-18T23:49:42.297875+00:00",
       "note": "SOX"
     },
     {
       "name": "Yahoo Finance chart",
       "url": "https://finance.yahoo.com/quote/%5EIXIC",
       "ok": true,
-      "retrieved_at": "2026-07-18T23:02:39.759927+00:00",
+      "retrieved_at": "2026-07-18T23:49:42.297875+00:00",
       "note": "NASDAQ"
     },
     {
       "name": "Yahoo Finance chart",
       "url": "https://finance.yahoo.com/quote/%5EN225",
       "ok": true,
-      "retrieved_at": "2026-07-18T23:02:39.759927+00:00",
+      "retrieved_at": "2026-07-18T23:49:42.297875+00:00",
       "note": "NIKKEI"
+    },
+    {
+      "name": "Yahoo Finance chart",
+      "url": "https://finance.yahoo.com/quote/%5EVIX",
+      "ok": true,
+      "retrieved_at": "2026-07-18T23:49:42.297875+00:00",
+      "note": "VIX"
     },
     {
       "name": "Yahoo Finance chart",
       "url": "https://finance.yahoo.com/quote/285A.T",
       "ok": true,
-      "retrieved_at": "2026-07-18T23:02:39.759927+00:00",
+      "retrieved_at": "2026-07-18T23:49:42.297875+00:00",
       "note": "KIOXIA"
     },
     {
       "name": "Yahoo Finance chart",
       "url": "https://finance.yahoo.com/quote/NVDA",
       "ok": true,
-      "retrieved_at": "2026-07-18T23:02:39.759927+00:00",
+      "retrieved_at": "2026-07-18T23:49:42.297875+00:00",
       "note": "NVDA"
     },
     {
       "name": "Yahoo Finance chart",
       "url": "https://finance.yahoo.com/quote/AVGO",
       "ok": true,
-      "retrieved_at": "2026-07-18T23:02:39.759927+00:00",
+      "retrieved_at": "2026-07-18T23:49:42.297875+00:00",
       "note": "AVGO"
     },
     {
       "name": "Yahoo Finance chart",
       "url": "https://finance.yahoo.com/quote/AMD",
       "ok": true,
-      "retrieved_at": "2026-07-18T23:02:39.759927+00:00",
+      "retrieved_at": "2026-07-18T23:49:42.297875+00:00",
       "note": "AMD"
     },
     {
       "name": "Yahoo Finance chart",
       "url": "https://finance.yahoo.com/quote/MU",
       "ok": true,
-      "retrieved_at": "2026-07-18T23:02:39.759927+00:00",
+      "retrieved_at": "2026-07-18T23:49:42.297875+00:00",
       "note": "MU"
     },
     {
       "name": "Yahoo Finance chart",
       "url": "https://finance.yahoo.com/quote/ARM",
       "ok": true,
-      "retrieved_at": "2026-07-18T23:02:39.759927+00:00",
+      "retrieved_at": "2026-07-18T23:49:42.297875+00:00",
       "note": "ARM"
     },
     {
       "name": "Yahoo Finance chart",
       "url": "https://finance.yahoo.com/quote/MRVL",
       "ok": true,
-      "retrieved_at": "2026-07-18T23:02:39.759927+00:00",
+      "retrieved_at": "2026-07-18T23:49:42.297875+00:00",
       "note": "MRVL"
     },
     {
       "name": "Yahoo Finance chart",
       "url": "https://finance.yahoo.com/quote/MSFT",
       "ok": true,
-      "retrieved_at": "2026-07-18T23:02:39.759927+00:00",
+      "retrieved_at": "2026-07-18T23:49:42.297875+00:00",
       "note": "MSFT"
     },
     {
       "name": "Yahoo Finance chart",
       "url": "https://finance.yahoo.com/quote/GOOGL",
       "ok": true,
-      "retrieved_at": "2026-07-18T23:02:39.759927+00:00",
+      "retrieved_at": "2026-07-18T23:49:42.297875+00:00",
       "note": "GOOGL"
     },
     {
       "name": "Yahoo Finance chart",
       "url": "https://finance.yahoo.com/quote/AMZN",
       "ok": true,
-      "retrieved_at": "2026-07-18T23:02:39.759927+00:00",
+      "retrieved_at": "2026-07-18T23:49:42.297875+00:00",
       "note": "AMZN"
     },
     {
       "name": "Yahoo Finance chart",
       "url": "https://finance.yahoo.com/quote/META",
       "ok": true,
-      "retrieved_at": "2026-07-18T23:02:39.759927+00:00",
+      "retrieved_at": "2026-07-18T23:49:42.297875+00:00",
       "note": "META"
     },
     {
       "name": "Yahoo Finance chart",
       "url": "https://finance.yahoo.com/quote/6857.T",
       "ok": true,
-      "retrieved_at": "2026-07-18T23:02:39.759927+00:00",
+      "retrieved_at": "2026-07-18T23:49:42.297875+00:00",
       "note": "6857.T"
     },
     {
       "name": "Yahoo Finance chart",
       "url": "https://finance.yahoo.com/quote/8035.T",
       "ok": true,
-      "retrieved_at": "2026-07-18T23:02:39.759927+00:00",
+      "retrieved_at": "2026-07-18T23:49:42.297875+00:00",
       "note": "8035.T"
     },
     {
       "name": "Yahoo Finance chart",
       "url": "https://finance.yahoo.com/quote/9984.T",
       "ok": true,
-      "retrieved_at": "2026-07-18T23:02:39.759927+00:00",
+      "retrieved_at": "2026-07-18T23:49:42.297875+00:00",
       "note": "9984.T"
     },
     {
       "name": "Yahoo Finance chart",
       "url": "https://finance.yahoo.com/quote/6702.T",
       "ok": true,
-      "retrieved_at": "2026-07-18T23:02:39.759927+00:00",
+      "retrieved_at": "2026-07-18T23:49:42.297875+00:00",
       "note": "6702.T"
     },
     {
       "name": "Yahoo Finance chart",
       "url": "https://finance.yahoo.com/quote/6861.T",
       "ok": true,
-      "retrieved_at": "2026-07-18T23:02:39.759927+00:00",
+      "retrieved_at": "2026-07-18T23:49:42.297875+00:00",
       "note": "6861.T"
     },
     {
       "name": "Yahoo Finance chart",
       "url": "https://finance.yahoo.com/quote/6501.T",
       "ok": true,
-      "retrieved_at": "2026-07-18T23:02:39.759927+00:00",
+      "retrieved_at": "2026-07-18T23:49:42.297875+00:00",
       "note": "6501.T"
     },
     {
       "name": "Yahoo Finance chart",
       "url": "https://finance.yahoo.com/quote/4063.T",
       "ok": true,
-      "retrieved_at": "2026-07-18T23:02:39.759927+00:00",
+      "retrieved_at": "2026-07-18T23:49:42.297875+00:00",
       "note": "4063.T"
     },
     {
       "name": "Yahoo Finance chart",
       "url": "https://finance.yahoo.com/quote/7741.T",
       "ok": true,
-      "retrieved_at": "2026-07-18T23:02:39.759927+00:00",
+      "retrieved_at": "2026-07-18T23:49:42.297875+00:00",
       "note": "7741.T"
     },
     {
       "name": "Yahoo Finance chart",
       "url": "https://finance.yahoo.com/quote/7267.T",
       "ok": true,
-      "retrieved_at": "2026-07-18T23:02:39.759927+00:00",
+      "retrieved_at": "2026-07-18T23:49:42.297875+00:00",
       "note": "7267.T"
     },
     {
       "name": "Yahoo Finance chart",
       "url": "https://finance.yahoo.com/quote/7751.T",
       "ok": true,
-      "retrieved_at": "2026-07-18T23:02:39.759927+00:00",
+      "retrieved_at": "2026-07-18T23:49:42.297875+00:00",
       "note": "7751.T"
     },
     {
       "name": "Yahoo Finance chart",
       "url": "https://finance.yahoo.com/quote/7203.T",
       "ok": true,
-      "retrieved_at": "2026-07-18T23:02:39.759927+00:00",
+      "retrieved_at": "2026-07-18T23:49:42.297875+00:00",
       "note": "7203.T"
     },
     {
       "name": "Yahoo Finance chart",
       "url": "https://finance.yahoo.com/quote/9983.T",
       "ok": true,
-      "retrieved_at": "2026-07-18T23:02:39.759927+00:00",
+      "retrieved_at": "2026-07-18T23:49:42.297875+00:00",
       "note": "9983.T"
     },
     {
       "name": "Yahoo Finance chart",
       "url": "https://finance.yahoo.com/quote/6758.T",
       "ok": true,
-      "retrieved_at": "2026-07-18T23:02:39.759927+00:00",
+      "retrieved_at": "2026-07-18T23:49:42.297875+00:00",
       "note": "6758.T"
     },
     {
       "name": "Yahoo Finance chart",
       "url": "https://finance.yahoo.com/quote/7974.T",
       "ok": true,
-      "retrieved_at": "2026-07-18T23:02:39.759927+00:00",
+      "retrieved_at": "2026-07-18T23:49:42.297875+00:00",
       "note": "7974.T"
     },
     {
       "name": "Yahoo Finance chart",
       "url": "https://finance.yahoo.com/quote/6098.T",
       "ok": true,
-      "retrieved_at": "2026-07-18T23:02:39.759927+00:00",
+      "retrieved_at": "2026-07-18T23:49:42.297875+00:00",
       "note": "6098.T"
     },
     {
       "name": "Yahoo Finance chart",
       "url": "https://finance.yahoo.com/quote/6367.T",
       "ok": true,
-      "retrieved_at": "2026-07-18T23:02:39.759927+00:00",
+      "retrieved_at": "2026-07-18T23:49:42.297875+00:00",
       "note": "6367.T"
     },
     {
       "name": "Yahoo!ファイナンス日本版 TOPIX",
       "url": "https://finance.yahoo.co.jp/quote/998405/history",
       "ok": true,
-      "retrieved_at": "2026-07-18T23:02:39.759927+00:00",
+      "retrieved_at": "2026-07-18T23:49:42.297875+00:00",
       "note": "Yahoo!ファイナンス日本版のTOPIX日次履歴。直近約430日を取得。"
     },
     {
       "name": "Yahoo Finance fundamentals",
       "url": "https://finance.yahoo.com/quote/NVDA/financials/",
       "ok": true,
-      "retrieved_at": "2026-07-18T23:02:39.759927+00:00",
+      "retrieved_at": "2026-07-18T23:49:42.297875+00:00",
       "note": "NVDA"
     },
     {
       "name": "Yahoo Finance fundamentals",
       "url": "https://finance.yahoo.com/quote/AVGO/financials/",
       "ok": true,
-      "retrieved_at": "2026-07-18T23:02:39.759927+00:00",
+      "retrieved_at": "2026-07-18T23:49:42.297875+00:00",
       "note": "AVGO"
     },
     {
       "name": "Yahoo Finance fundamentals",
       "url": "https://finance.yahoo.com/quote/AMD/financials/",
       "ok": true,
-      "retrieved_at": "2026-07-18T23:02:39.759927+00:00",
+      "retrieved_at": "2026-07-18T23:49:42.297875+00:00",
       "note": "AMD"
     },
     {
       "name": "Yahoo Finance fundamentals",
       "url": "https://finance.yahoo.com/quote/MU/financials/",
       "ok": true,
-      "retrieved_at": "2026-07-18T23:02:39.759927+00:00",
+      "retrieved_at": "2026-07-18T23:49:42.297875+00:00",
       "note": "MU"
     },
     {
       "name": "Yahoo Finance fundamentals",
       "url": "https://finance.yahoo.com/quote/ARM/financials/",
       "ok": true,
-      "retrieved_at": "2026-07-18T23:02:39.759927+00:00",
+      "retrieved_at": "2026-07-18T23:49:42.297875+00:00",
       "note": "ARM"
     },
     {
       "name": "Yahoo Finance fundamentals",
       "url": "https://finance.yahoo.com/quote/MRVL/financials/",
       "ok": true,
-      "retrieved_at": "2026-07-18T23:02:39.759927+00:00",
+      "retrieved_at": "2026-07-18T23:49:42.297875+00:00",
       "note": "MRVL"
     },
     {
       "name": "Yahoo Finance fundamentals",
       "url": "https://finance.yahoo.com/quote/MSFT/financials/",
       "ok": true,
-      "retrieved_at": "2026-07-18T23:02:39.759927+00:00",
+      "retrieved_at": "2026-07-18T23:49:42.297875+00:00",
       "note": "MSFT"
     },
     {
       "name": "Yahoo Finance fundamentals",
       "url": "https://finance.yahoo.com/quote/GOOGL/financials/",
       "ok": true,
-      "retrieved_at": "2026-07-18T23:02:39.759927+00:00",
+      "retrieved_at": "2026-07-18T23:49:42.297875+00:00",
       "note": "GOOGL"
     },
     {
       "name": "Yahoo Finance fundamentals",
       "url": "https://finance.yahoo.com/quote/AMZN/financials/",
       "ok": true,
-      "retrieved_at": "2026-07-18T23:02:39.759927+00:00",
+      "retrieved_at": "2026-07-18T23:49:42.297875+00:00",
       "note": "AMZN"
     },
     {
       "name": "Yahoo Finance fundamentals",
       "url": "https://finance.yahoo.com/quote/META/financials/",
       "ok": true,
-      "retrieved_at": "2026-07-18T23:02:39.759927+00:00",
+      "retrieved_at": "2026-07-18T23:49:42.297875+00:00",
       "note": "META"
     },
     {
       "name": "Yahoo Finance fundamentals",
       "url": "https://finance.yahoo.com/quote/6857.T/financials/",
       "ok": true,
-      "retrieved_at": "2026-07-18T23:02:39.759927+00:00",
+      "retrieved_at": "2026-07-18T23:49:42.297875+00:00",
       "note": "6857.T"
     },
     {
       "name": "Yahoo Finance fundamentals",
       "url": "https://finance.yahoo.com/quote/8035.T/financials/",
       "ok": true,
-      "retrieved_at": "2026-07-18T23:02:39.759927+00:00",
+      "retrieved_at": "2026-07-18T23:49:42.297875+00:00",
       "note": "8035.T"
     },
     {
       "name": "Yahoo Finance fundamentals",
       "url": "https://finance.yahoo.com/quote/9984.T/financials/",
       "ok": true,
-      "retrieved_at": "2026-07-18T23:02:39.759927+00:00",
+      "retrieved_at": "2026-07-18T23:49:42.297875+00:00",
       "note": "9984.T"
     },
     {
       "name": "Yahoo Finance fundamentals",
       "url": "https://finance.yahoo.com/quote/6702.T/financials/",
       "ok": true,
-      "retrieved_at": "2026-07-18T23:02:39.759927+00:00",
+      "retrieved_at": "2026-07-18T23:49:42.297875+00:00",
       "note": "6702.T"
     },
     {
       "name": "Yahoo Finance fundamentals",
       "url": "https://finance.yahoo.com/quote/6861.T/financials/",
       "ok": true,
-      "retrieved_at": "2026-07-18T23:02:39.759927+00:00",
+      "retrieved_at": "2026-07-18T23:49:42.297875+00:00",
       "note": "6861.T"
     },
     {
       "name": "Yahoo Finance fundamentals",
       "url": "https://finance.yahoo.com/quote/6501.T/financials/",
       "ok": true,
-      "retrieved_at": "2026-07-18T23:02:39.759927+00:00",
+      "retrieved_at": "2026-07-18T23:49:42.297875+00:00",
       "note": "6501.T"
     },
     {
       "name": "Yahoo Finance fundamentals",
       "url": "https://finance.yahoo.com/quote/4063.T/financials/",
       "ok": true,
-      "retrieved_at": "2026-07-18T23:02:39.759927+00:00",
+      "retrieved_at": "2026-07-18T23:49:42.297875+00:00",
       "note": "4063.T"
     },
     {
       "name": "Yahoo Finance fundamentals",
       "url": "https://finance.yahoo.com/quote/7741.T/financials/",
       "ok": true,
-      "retrieved_at": "2026-07-18T23:02:39.759927+00:00",
+      "retrieved_at": "2026-07-18T23:49:42.297875+00:00",
       "note": "7741.T"
     },
     {
       "name": "Yahoo Finance fundamentals",
       "url": "https://finance.yahoo.com/quote/7267.T/financials/",
       "ok": true,
-      "retrieved_at": "2026-07-18T23:02:39.759927+00:00",
+      "retrieved_at": "2026-07-18T23:49:42.297875+00:00",
       "note": "7267.T"
     },
     {
       "name": "Honda Cash Flows (Non-financial Services Businesses)",
       "url": "https://global.honda/en/investors/financial_data/cashflow.html",
       "ok": true,
-      "retrieved_at": "2026-07-18T23:02:39.759927+00:00",
+      "retrieved_at": "2026-07-18T23:49:42.297875+00:00",
       "note": "7267.T: Honda公式・非金融事業FCFのFY2022～FY2026における5年中央値"
     },
     {
       "name": "Yahoo Finance fundamentals",
       "url": "https://finance.yahoo.com/quote/7751.T/financials/",
       "ok": true,
-      "retrieved_at": "2026-07-18T23:02:39.759927+00:00",
+      "retrieved_at": "2026-07-18T23:49:42.297875+00:00",
       "note": "7751.T"
     },
     {
       "name": "Yahoo Finance fundamentals",
       "url": "https://finance.yahoo.com/quote/7203.T/financials/",
       "ok": true,
-      "retrieved_at": "2026-07-18T23:02:39.759927+00:00",
+      "retrieved_at": "2026-07-18T23:49:42.297875+00:00",
       "note": "7203.T"
     },
     {
       "name": "Toyota FY2026 Financial Summary（過去5年は各年度版）",
       "url": "https://global.toyota/pages/global_toyota/ir/financial-results/2026_4q_summary_en.pdf",
       "ok": true,
-      "retrieved_at": "2026-07-18T23:02:39.759927+00:00",
+      "retrieved_at": "2026-07-18T23:49:42.297875+00:00",
       "note": "7203.T: Toyota公式・非金融事業CFから算出した調整後FCFのFY2022～FY2026における5年中央値"
     },
     {
       "name": "Yahoo Finance fundamentals",
       "url": "https://finance.yahoo.com/quote/9983.T/financials/",
       "ok": true,
-      "retrieved_at": "2026-07-18T23:02:39.759927+00:00",
+      "retrieved_at": "2026-07-18T23:49:42.297875+00:00",
       "note": "9983.T"
     },
     {
       "name": "Yahoo Finance fundamentals",
       "url": "https://finance.yahoo.com/quote/6758.T/financials/",
       "ok": true,
-      "retrieved_at": "2026-07-18T23:02:39.759927+00:00",
+      "retrieved_at": "2026-07-18T23:49:42.297875+00:00",
       "note": "6758.T"
     },
     {
       "name": "Yahoo Finance fundamentals",
       "url": "https://finance.yahoo.com/quote/7974.T/financials/",
       "ok": true,
-      "retrieved_at": "2026-07-18T23:02:39.759927+00:00",
+      "retrieved_at": "2026-07-18T23:49:42.297875+00:00",
       "note": "7974.T"
     },
     {
       "name": "Yahoo Finance fundamentals",
       "url": "https://finance.yahoo.com/quote/6098.T/financials/",
       "ok": true,
-      "retrieved_at": "2026-07-18T23:02:39.759927+00:00",
+      "retrieved_at": "2026-07-18T23:49:42.297875+00:00",
       "note": "6098.T"
     },
     {
       "name": "Yahoo Finance fundamentals",
       "url": "https://finance.yahoo.com/quote/6367.T/financials/",
       "ok": true,
-      "retrieved_at": "2026-07-18T23:02:39.759927+00:00",
+      "retrieved_at": "2026-07-18T23:49:42.297875+00:00",
       "note": "6367.T"
     },
     {
       "name": "Yahoo Finance historical chart",
       "url": "https://finance.yahoo.com/quote/%5EN225/history/",
       "ok": true,
-      "retrieved_at": "2026-07-18T23:02:39.759927+00:00",
+      "retrieved_at": "2026-07-18T23:49:42.297875+00:00",
       "note": "日本の資産バブル・最初の下落局面"
     },
     {
       "name": "Yahoo Finance historical chart",
       "url": "https://finance.yahoo.com/quote/%5EN225/history/",
       "ok": true,
-      "retrieved_at": "2026-07-18T23:02:39.759927+00:00",
+      "retrieved_at": "2026-07-18T23:49:42.297875+00:00",
       "note": "日本の資産バブル・長期的な最低値"
     },
     {
       "name": "Yahoo Finance historical chart",
       "url": "https://finance.yahoo.com/quote/%5EIXIC/history/",
       "ok": true,
-      "retrieved_at": "2026-07-18T23:02:39.759927+00:00",
+      "retrieved_at": "2026-07-18T23:49:42.297875+00:00",
       "note": "米国ITバブル"
     },
     {
       "name": "Yahoo Finance historical chart",
       "url": "https://finance.yahoo.com/quote/%5EN225/history/",
       "ok": true,
-      "retrieved_at": "2026-07-18T23:02:39.759927+00:00",
+      "retrieved_at": "2026-07-18T23:49:42.297875+00:00",
       "note": "世界金融危機"
     },
     {
       "name": "Yahoo Finance historical chart",
       "url": "https://finance.yahoo.com/quote/%5EN225/history/",
       "ok": true,
-      "retrieved_at": "2026-07-18T23:02:39.759927+00:00",
+      "retrieved_at": "2026-07-18T23:49:42.297875+00:00",
       "note": "コロナ急落"
     },
     {
       "name": "Yahoo Finance historical chart",
       "url": "https://finance.yahoo.com/quote/%5EIXIC/history/",
       "ok": true,
-      "retrieved_at": "2026-07-18T23:02:39.759927+00:00",
+      "retrieved_at": "2026-07-18T23:49:42.297875+00:00",
       "note": "2021年以降の成長株再評価"
     },
     {
       "name": "財務省 国債金利情報",
       "url": "https://www.mof.go.jp/jgbs/reference/interest_rate/jgbcm.csv",
       "ok": true,
-      "retrieved_at": "2026-07-18T23:02:39.759927+00:00",
+      "retrieved_at": "2026-07-18T23:49:42.297875+00:00",
       "note": "財務省が公表する、15時時点の流通市場価格から算出したコンスタント・マチュリティー・ベースの10年国債金利。"
     },
     {
       "name": "FRED",
       "url": "https://fred.stlouisfed.org/series/BAMLH0A0HYM2",
       "ok": true,
-      "retrieved_at": "2026-07-18T23:02:39.759927+00:00",
+      "retrieved_at": "2026-07-18T23:49:42.297875+00:00",
       "note": "BAMLH0A0HYM2"
     }
   ],
-  "methodVersion": "3.6.0"
+  "methodVersion": "3.7.0"
 }

@@ -214,6 +214,7 @@
           <p class="section-kicker">SAKAKIBARA-STYLE ROTATION AUDIT</p>
           <h2>「榊原式」：AI一極集中からの揺り戻しを、毎回同じ手順で確かめる</h2>
           <p>榊原先生の2026年7月18日付「市況展望」の着眼点を、別の日にも再現できるよう定量化しました。NT倍率の歪みだけで結論を出さず、日経平均とTOPIX、AI連動株と分散型株、銘柄の広がりを順番に確認します。</p>
+          <p class="nt-definition-line"><strong>NT倍率は「日経平均÷TOPIX」です。</strong> 値が上がれば日経平均がTOPIXより強く、下がればTOPIXが日経平均より相対的に強いことを示します。</p>
         </div>
 
         <div class="sakakibara-origin">
@@ -374,6 +375,102 @@
           </div>
         </div>
 
+
+        <div class="market-path-section">
+          <div class="section-heading compact-heading">
+            <p class="section-kicker">NORMALIZATION OR PANIC?</p>
+            <h3>「約6万円への評価正常化」と「パニック型暴落」は、同じ下落ではない</h3>
+            <p>榊原先生の約6万円は、AI期待の上乗せが縮み、現在の利益・純資産へ評価が近づく場合の参考帯です。市場参加者が現金化を急ぐパニックでは、企業価値に関係なく幅広い株が同時に売られ、この帯を一時的に下回ることがあります。</p>
+          </div>
+
+          <div class="path-distinction-grid">
+            <article class="path-definition normalization">
+              <span>経路A・評価正常化</span>
+              <h4>期待の上乗せが縮む</h4>
+              <strong>日経平均は下がっても、TOPIXや優良Non-AIは相対的に残る</strong>
+              <p>少数の高株価AI・半導体銘柄が下がり、NT倍率が低下します。分散型株が上昇または日経平均より底堅く、VIXと信用スプレッドが平静なら、約6万円への下落は「評価の正常化」と読めます。</p>
+            </article>
+            <article class="path-definition panic">
+              <span>経路B・パニック型暴落</span>
+              <h4>換金・信用不安が市場全体へ波及</h4>
+              <strong>日経平均だけでなく、TOPIX、分散型株、信用市場まで同時に悪化</strong>
+              <p>値下がりが広範囲かつ短期間に進み、VIXが急上昇し、米国ハイイールド債OASも拡大する状態です。この局面ではPERやPBRの評価帯は短期的な下値支持にならず、約6万円は底値保証になりません。</p>
+            </article>
+          </div>
+
+          <div id="marketPathPanel" class="market-path-panel" aria-live="polite">
+            <div class="market-path-heading">
+              <div>
+                <span>5～20営業日の相場経路予測指数</span>
+                <h3 id="marketPathLabel">計算中</h3>
+                <p>相対的な評価正常化と、市場全体へ波及するパニックを別々に採点します。</p>
+              </div>
+              <div class="path-asof"><span>判定日</span><strong id="marketPathAsOf">―</strong></div>
+            </div>
+
+            <div class="path-score-overview">
+              <div class="path-index-value">
+                <span>市場経路指数</span>
+                <strong id="marketPathIndex">―</strong>
+                <small>正常化スコア − パニックスコア</small>
+              </div>
+              <div class="path-score normalization">
+                <span>評価正常化</span>
+                <strong id="marketPathNormalizationScore">―</strong>
+                <small id="marketPathNormalizationCoverage">取得率 ―</small>
+              </div>
+              <div class="path-score panic">
+                <span>パニック波及</span>
+                <strong id="marketPathPanicScore">―</strong>
+                <small id="marketPathPanicCoverage">取得率 ―</small>
+              </div>
+            </div>
+
+            <div class="path-axis" aria-label="市場経路指数の方向">
+              <div class="path-axis-labels"><span>−100　パニック型</span><span>0　分岐不明</span><span>＋100　評価正常化</span></div>
+              <div class="path-axis-track"><i id="marketPathMarker" aria-hidden="true"></i></div>
+              <p>＋40以上は評価正常化優勢、＋15～＋39は正常化方向、−14～＋14は分岐不明、−15以下はパニック方向への警戒です。パニックスコアが50点以上なら、指数がプラスでも混在局面として扱います。</p>
+            </div>
+
+            <div class="path-evidence-grid">
+              <section>
+                <h4><i data-lucide="git-branch" aria-hidden="true"></i>評価正常化を支える根拠</h4>
+                <div id="marketPathNormalizationComponents" class="path-component-list"></div>
+              </section>
+              <section>
+                <h4><i data-lucide="triangle-alert" aria-hidden="true"></i>パニック波及を示す根拠</h4>
+                <div id="marketPathPanicComponents" class="path-component-list"></div>
+              </section>
+            </div>
+
+            <div class="path-numbers">
+              <div><span>現在値から約6万円帯</span><strong id="marketPathCurrentToRange">―</strong><small>追加で必要な値幅</small></div>
+              <div><span>2026年高値から約6万円帯</span><strong id="marketPathPeakToRange">―</strong><small>評価正常化帯までの総下落率</small></div>
+              <div><span>VIX</span><strong id="marketPathVix">―</strong><small>S&amp;P 500の30日予想変動率</small></div>
+              <div><span>米国HY OAS</span><strong id="marketPathHyOas">―</strong><small>信用不安が強いほど拡大</small></div>
+            </div>
+
+            <div id="marketPathInterpretation" class="path-current-reading">
+              現在の経路を計算しています。
+            </div>
+          </div>
+
+          <div class="path-method-grid">
+            <div>
+              <h4>評価正常化スコア・100点</h4>
+              <p>NT倍率の反転25点、TOPIXの相対優位25点、分散型株のAI連動株に対する優位30点、分散型銘柄への広がり20点です。相対価格の変化を中心に見ます。</p>
+            </div>
+            <div>
+              <h4>パニックスコア・100点</h4>
+              <p>日経平均の下落速度30点、TOPIXと分散型株への波及30点、VIXの水準と急上昇20点、米国HY OASの水準と拡大20点です。絶対下落と信用・変動率を中心に見ます。</p>
+            </div>
+            <div>
+              <h4>予測ではなく早期警戒</h4>
+              <p>直近1・5・20営業日のルールベース判定で、統計モデルによる暴落確率ではありません。閾値は公式な売買基準ではなく、同じ条件を毎回適用するための本サイト独自ルールです。</p>
+            </div>
+          </div>
+        </div>
+
         <div class="en-ai-section">
           <div class="section-heading compact-heading">
             <p class="section-kicker">EXCELLENT NON-AI PROXY</p>
@@ -409,7 +506,9 @@
           <a href="https://indexes.nikkei.co.jp/nkave/archives/faq/faq_nikkei_stock_average_en.pdf" target="_blank" rel="noopener">日経指数の価格加重に関する資料</a> /
           <a href="https://www.jpx.co.jp/markets/indices/topix/" target="_blank" rel="noopener">JPX・TOPIX公式定義</a> /
           <a href="https://indexes.nikkei.co.jp/en/nkave/archives/summary?dt=07172026&amp;idx=nk225" target="_blank" rel="noopener">日経公式・2026年7月17日サマリー</a> /
-          <a href="https://www.mof.go.jp/jgbs/reference/interest_rate/index.htm" target="_blank" rel="noopener">財務省・国債金利情報</a>。
+          <a href="https://www.mof.go.jp/jgbs/reference/interest_rate/index.htm" target="_blank" rel="noopener">財務省・国債金利情報</a> /
+          <a href="https://www.cboe.com/tradable-products/vix/vix-options/specifications" target="_blank" rel="noopener">Cboe・VIX公式定義</a> /
+          <a href="https://fred.stlouisfed.org/series/BAMLH0A0HYM2" target="_blank" rel="noopener">FRED・米国HY OAS</a>。
           榊原先生の見解は、ユーザー提供「市況展望」（2026年7月18日執筆）を要約・計算化しています。
         </p>
       </div>
@@ -998,7 +1097,7 @@
   <footer>
     <div class="content footer-inner">
       <p><strong>重要：</strong>本サイトは教育・調査用です。投資助言、価格予測、売買推奨ではありません。取得値には遅延・欠損・定義差があり、重要な判断では企業IRと提出資料を確認してください。</p>
-      <p>Method v3.6 / <a href="https://github.com/mxe050/ai-bubble-collapse-monitor" target="_blank" rel="noopener">GitHub</a></p>
+      <p>Method v3.7 / <a href="https://github.com/mxe050/ai-bubble-collapse-monitor" target="_blank" rel="noopener">GitHub</a></p>
     </div>
   </footer>
 

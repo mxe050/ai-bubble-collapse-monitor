@@ -4147,3 +4147,477 @@ footer {
   html { scroll-behavior: auto; }
   *, *::before, *::after { animation-duration: 0.01ms !important; }
 }
+
+
+.nt-definition-line {
+  margin-top: 14px !important;
+  padding: 14px 18px;
+  border-left: 5px solid #0b668b;
+  background: #eaf4f8;
+  color: #17324a !important;
+  font-size: 1.04rem !important;
+  font-weight: 650;
+}
+
+.nt-definition-line strong {
+  color: #064f70;
+  font-size: 1.12rem;
+}
+
+.market-path-section {
+  margin-top: 34px;
+  padding-top: 30px;
+  border-top: 4px solid #173854;
+}
+
+.path-distinction-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin: 20px 0 26px;
+  border: 1px solid #9aacbc;
+  background: #fff;
+}
+
+.path-definition {
+  padding: 24px 26px;
+  border-left: 7px solid;
+}
+
+.path-definition + .path-definition {
+  border-left-width: 1px;
+  border-left-color: #9aacbc;
+  border-right: 7px solid #b33b2e;
+}
+
+.path-definition.normalization {
+  border-left-color: #087f75;
+}
+
+.path-definition > span {
+  display: block;
+  margin-bottom: 7px;
+  color: #52677a;
+  font-size: 0.82rem;
+  font-weight: 800;
+  letter-spacing: 0;
+}
+
+.path-definition h4 {
+  margin: 0 0 10px;
+  color: #10283f;
+  font-size: 1.28rem;
+}
+
+.path-definition strong {
+  display: block;
+  margin-bottom: 10px;
+  color: #172b3e;
+  font-size: 1rem;
+  line-height: 1.55;
+}
+
+.path-definition p {
+  margin: 0;
+  color: #455b6e;
+  font-size: 0.93rem;
+  line-height: 1.75;
+}
+
+.market-path-panel {
+  overflow: hidden;
+  border: 2px solid #5f7487;
+  background: #fff;
+}
+
+.market-path-panel.is-normalization-strong,
+.market-path-panel.is-normalization-watch {
+  border-color: #087f75;
+}
+
+.market-path-panel.is-panic,
+.market-path-panel.is-panic-watch {
+  border-color: #b33b2e;
+}
+
+.market-path-panel.is-mixed {
+  border-color: #b16a00;
+}
+
+.market-path-heading {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 22px;
+  align-items: center;
+  padding: 23px 26px;
+  background: #122b43;
+  color: #fff;
+}
+
+.market-path-heading span {
+  display: block;
+  color: #b8d8e5;
+  font-size: 0.82rem;
+  font-weight: 800;
+}
+
+.market-path-heading h3 {
+  margin: 5px 0 6px;
+  color: #fff;
+  font-size: 1.55rem;
+}
+
+.market-path-heading p {
+  margin: 0;
+  color: #dce8ef;
+  font-size: 0.94rem;
+}
+
+.path-asof {
+  min-width: 130px;
+  padding-left: 20px;
+  border-left: 1px solid #49667e;
+}
+
+.path-asof strong {
+  display: block;
+  margin-top: 5px;
+  color: #fff;
+  font-size: 1.05rem;
+}
+
+.path-score-overview {
+  display: grid;
+  grid-template-columns: 1.15fr repeat(2, minmax(0, 1fr));
+  border-bottom: 1px solid #aab8c4;
+}
+
+.path-score-overview > div {
+  min-height: 132px;
+  padding: 22px 24px;
+  border-right: 1px solid #aab8c4;
+}
+
+.path-score-overview > div:last-child {
+  border-right: 0;
+}
+
+.path-score-overview span,
+.path-numbers span {
+  display: block;
+  color: #52677a;
+  font-size: 0.86rem;
+  font-weight: 800;
+}
+
+.path-score-overview strong {
+  display: block;
+  margin: 8px 0 5px;
+  color: #122b43;
+  font-size: 2.05rem;
+}
+
+.path-score.normalization strong {
+  color: #067267;
+}
+
+.path-score.panic strong {
+  color: #aa3026;
+}
+
+.path-score-overview small,
+.path-numbers small {
+  color: #66798a;
+  font-size: 0.84rem;
+  font-weight: 650;
+}
+
+.path-axis {
+  padding: 22px 26px 20px;
+  border-bottom: 1px solid #aab8c4;
+  background: #f7f9fb;
+}
+
+.path-axis-labels {
+  display: flex;
+  justify-content: space-between;
+  gap: 14px;
+  color: #42596d;
+  font-size: 0.82rem;
+  font-weight: 800;
+}
+
+.path-axis-track {
+  position: relative;
+  height: 15px;
+  margin: 12px 8px 10px;
+  border: 1px solid #6d7f8f;
+  background: linear-gradient(90deg, #b33b2e 0%, #d5aa50 36%, #d9e0e5 50%, #70b7ae 70%, #087f75 100%);
+}
+
+.path-axis-track::after {
+  position: absolute;
+  top: -4px;
+  bottom: -4px;
+  left: 50%;
+  width: 2px;
+  background: #344b5e;
+  content: "";
+}
+
+.path-axis-track i {
+  position: absolute;
+  z-index: 2;
+  top: 50%;
+  width: 20px;
+  height: 28px;
+  border: 3px solid #fff;
+  background: #101f2d;
+  box-shadow: 0 0 0 2px #101f2d;
+  transform: translate(-50%, -50%);
+}
+
+.path-axis p {
+  margin: 0;
+  color: #52677a;
+  font-size: 0.88rem;
+  line-height: 1.65;
+}
+
+.path-evidence-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  border-bottom: 1px solid #aab8c4;
+}
+
+.path-evidence-grid > section {
+  padding: 24px 26px;
+}
+
+.path-evidence-grid > section + section {
+  border-left: 1px solid #aab8c4;
+}
+
+.path-evidence-grid h4 {
+  display: flex;
+  gap: 9px;
+  align-items: center;
+  margin: 0 0 14px;
+  color: #163149;
+  font-size: 1.03rem;
+}
+
+.path-evidence-grid h4 svg {
+  width: 20px;
+  color: #0b668b;
+}
+
+.path-evidence-grid > section + section h4 svg {
+  color: #b33b2e;
+}
+
+.path-component {
+  padding: 12px 0 14px;
+  border-bottom: 1px solid #d5dde3;
+}
+
+.path-component:last-child {
+  border-bottom: 0;
+}
+
+.path-component > div:first-child {
+  display: flex;
+  justify-content: space-between;
+  gap: 14px;
+  align-items: baseline;
+}
+
+.path-component span {
+  color: #263f55;
+  font-size: 0.9rem;
+  font-weight: 800;
+}
+
+.path-component strong {
+  flex: none;
+  color: #112b42;
+  font-size: 0.9rem;
+}
+
+.path-component-bar {
+  height: 7px;
+  margin: 8px 0;
+  background: #e0e6eb;
+}
+
+.path-component-bar i {
+  display: block;
+  height: 100%;
+  background: #0b7f75;
+}
+
+.path-evidence-grid > section + section .path-component-bar i {
+  background: #b33b2e;
+}
+
+.path-component p {
+  margin: 0;
+  color: #596d7e;
+  font-size: 0.88rem;
+  line-height: 1.55;
+}
+
+.path-numbers {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  border-bottom: 1px solid #aab8c4;
+  background: #f7f9fb;
+}
+
+.path-numbers > div {
+  min-height: 112px;
+  padding: 18px 19px;
+  border-right: 1px solid #aab8c4;
+}
+
+.path-numbers > div:last-child {
+  border-right: 0;
+}
+
+.path-numbers strong {
+  display: block;
+  margin: 8px 0 4px;
+  color: #122b43;
+  font-size: 1.05rem;
+  line-height: 1.45;
+}
+
+.path-current-reading {
+  padding: 22px 26px;
+  border-left: 7px solid #087f75;
+  background: #edf7f5;
+  color: #284456;
+  font-size: 0.92rem;
+  line-height: 1.72;
+}
+
+.is-panic .path-current-reading,
+.is-panic-watch .path-current-reading {
+  border-left-color: #b33b2e;
+  background: #fff1ef;
+}
+
+.is-mixed .path-current-reading {
+  border-left-color: #b16a00;
+  background: #fff7e8;
+}
+
+.path-current-reading p {
+  margin: 0 0 9px;
+}
+
+.path-current-reading p:last-child {
+  margin-bottom: 0;
+}
+
+.path-current-reading strong {
+  color: #122b43;
+}
+
+.path-method-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin-top: 18px;
+  border-top: 1px solid #9aacbc;
+  border-bottom: 1px solid #9aacbc;
+}
+
+.path-method-grid > div {
+  padding: 20px 22px;
+  border-right: 1px solid #9aacbc;
+}
+
+.path-method-grid > div:last-child {
+  border-right: 0;
+}
+
+.path-method-grid h4 {
+  margin: 0 0 8px;
+  color: #173854;
+  font-size: 0.98rem;
+}
+
+.path-method-grid p {
+  margin: 0;
+  color: #566b7d;
+  font-size: 0.88rem;
+  line-height: 1.65;
+}
+
+@media (max-width: 980px) {
+  .path-evidence-grid,
+  .path-distinction-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .path-definition + .path-definition {
+    border-top: 1px solid #9aacbc;
+    border-left: 7px solid #b33b2e;
+    border-right: 0;
+  }
+
+  .path-evidence-grid > section + section {
+    border-top: 1px solid #aab8c4;
+    border-left: 0;
+  }
+
+  .path-numbers {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .path-numbers > div:nth-child(2) {
+    border-right: 0;
+  }
+
+  .path-numbers > div:nth-child(-n + 2) {
+    border-bottom: 1px solid #aab8c4;
+  }
+}
+
+@media (max-width: 700px) {
+  .market-path-heading,
+  .path-score-overview,
+  .path-method-grid,
+  .path-numbers {
+    grid-template-columns: 1fr;
+  }
+
+  .path-asof {
+    padding: 14px 0 0;
+    border-top: 1px solid #49667e;
+    border-left: 0;
+  }
+
+  .path-score-overview > div,
+  .path-method-grid > div,
+  .path-numbers > div,
+  .path-numbers > div:nth-child(2) {
+    min-height: 0;
+    border-right: 0;
+    border-bottom: 1px solid #aab8c4;
+  }
+
+  .path-score-overview > div:last-child,
+  .path-method-grid > div:last-child,
+  .path-numbers > div:last-child {
+    border-bottom: 0;
+  }
+
+  .path-axis-labels {
+    font-size: 0.75rem;
+  }
+
+  .path-axis {
+    padding-right: 18px;
+    padding-left: 18px;
+  }
+}

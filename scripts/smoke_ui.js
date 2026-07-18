@@ -89,6 +89,11 @@ setTimeout(() => {
   assert.match(elements.get("sakFairRange").textContent, /円/);
   assert.match(elements.get("enAiProxyRows").innerHTML, /トヨタ自動車/);
   assert.match(elements.get("enAiProxyInterpretation").textContent, /代理上位/);
+  assert.match(elements.get("marketPathLabel").textContent, /正常化|パニック|分岐|歪み/);
+  assert.match(elements.get("marketPathIndex").textContent, /[+−-]?\d|未確認/);
+  assert.match(elements.get("marketPathNormalizationComponents").innerHTML, /NT倍率/);
+  assert.match(elements.get("marketPathPanicComponents").innerHTML, /VIX|予想変動率/);
+  assert.match(elements.get("marketPathInterpretation").innerHTML, /パニック|約6万円/);
   console.log(JSON.stringify({
     headline: elements.get("headlineConclusion").textContent,
     transmission: elements.get("japanTransmissionStatus").textContent,
@@ -96,6 +101,9 @@ setTimeout(() => {
     dotcomRows: (elements.get("dotcomComparisonRows").innerHTML.match(/<tr/g) || []).length,
     sakakibara: elements.get("sakakibaraStage").textContent,
     ntRatio: elements.get("sakakibaraNtLatest").textContent,
+    marketPath: elements.get("marketPathLabel").textContent,
+    marketPathIndex: elements.get("marketPathIndex").textContent,
+    panicScore: elements.get("marketPathPanicScore").textContent,
     enAiRows: (elements.get("enAiProxyRows").innerHTML.match(/<tr/g) || []).length,
     health: elements.get("dataHealth").textContent,
   }, null, 2));

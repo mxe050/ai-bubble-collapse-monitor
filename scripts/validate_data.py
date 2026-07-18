@@ -62,15 +62,15 @@ def check_yoy_dates(company: dict[str, Any], prefix: str) -> None:
 
 def main() -> None:
     data = json.loads(DATA_FILE.read_text(encoding="utf-8"))
-    require(data.get("schemaVersion") == 9, "schemaVersion must be 9")
-    require(data.get("methodVersion") == "3.6.0", "methodVersion must be 3.6.0")
+    require(data.get("schemaVersion") == 10, "schemaVersion must be 10")
+    require(data.get("methodVersion") == "3.7.0", "methodVersion must be 3.7.0")
 
     generated = datetime.fromisoformat(data["generatedAtUtc"]).date()
     market_day = date.fromisoformat(data["marketDate"])
     require(0 <= (generated - market_day).days <= 10, "market date is future-dated or stale")
 
     series = data["market"]["series"]
-    for key in ("SOX", "NASDAQ", "NIKKEI"):
+    for key in ("SOX", "NASDAQ", "NIKKEI", "VIX"):
         row = series.get(key)
         require(bool(row), f"missing core market series: {key}")
         require(finite(row.get("close")) and row["close"] > 0, f"invalid close: {key}")
@@ -185,7 +185,7 @@ def main() -> None:
 
 
     sakakibara = data["market"].get("sakakibaraAnalysis") or {}
-    require(sakakibara.get("methodLabel") == "榊原式 proxy v1.0", "Sakakibara method label changed")
+    require(sakakibara.get("methodLabel") == "榊原式 proxy v1.1", "Sakakibara method label changed")
     nt = sakakibara.get("ntRatio") or {}
     require(finite(nt.get("latest")) and finite(nt.get("peak252d")), "NT ratio values are missing")
     require(nt.get("latestDate") == topix.get("date") == series["NIKKEI"].get("date"), "NT ratio inputs are not aligned to one market date")
@@ -219,6 +219,58 @@ def main() -> None:
     require(close_enough(article["earningsFairValue"], article["eps"] * article["targetPe"]), "article earnings fair-value identity failed")
     require(close_enough(article["targetPb"], (1 + article["roePct"] / 100) ** article["growthYears"]), "article target PBR identity failed")
     require(close_enough(article["bookFairValue"], article["bps"] * article["targetPb"]), "article book fair-value identity failed")
+
+
+    market_path = sakakibara.get("marketPath") or {}
+    require(
+        market_path.get("statusCode") in {
+            "insufficient", "panic", "mixed", "neutral", "normalization-strong",
+            "normalization-watch", "panic-watch", "unclear",
+        },
+        "market path status is invalid",
+    )
+    for axis_name in ("normalization", "panic"):
+        axis = market_path.get(axis_name) or {}
+        components = axis.get("components") or []
+        require(len(components) == 4, f"{axis_name}: market path must contain four components")
+        component_score = sum(component["score"] for component in components)
+        component_known = sum(component["knownMax"] for component in components)
+        component_max = sum(component["maxScore"] for component in components)
+        require(close_enough(axis["rawScore"], component_score), f"{axis_name}: raw score identity failed")
+        require(close_enough(axis["knownMax"], component_known), f"{axis_name}: known maximum identity failed")
+        require(close_enough(axis["maxScore"], component_max), f"{axis_name}: maximum identity failed")
+        require(close_enough(component_max, 100.0), f"{axis_name}: maximum must be 100")
+        require(close_enough(axis["coveragePct"], component_known / component_max * 100.0), f"{axis_name}: coverage identity failed")
+        if component_known >= 60:
+            require(finite(axis.get("score")), f"{axis_name}: normalized score is missing")
+            require(close_enough(axis["score"], component_score / component_known * 100.0, relative=1e-3), f"{axis_name}: normalized score identity failed")
+        require(0 <= axis.get("coveragePct", -1) <= 100, f"{axis_name}: coverage out of range")
+        for component in components:
+            require(0 <= component["score"] <= component["knownMax"] <= component["maxScore"], f"{axis_name}: component score out of range")
+            require(bool(component.get("detail")), f"{axis_name}: component explanation is missing")
+
+    normalization_score = market_path["normalization"].get("score")
+    panic_score = market_path["panic"].get("score")
+    if finite(normalization_score) and finite(panic_score):
+        expected_route = max(-100.0, min(100.0, normalization_score - panic_score))
+        require(close_enough(market_path["routeIndex"], expected_route, relative=1e-3), "market path route-index identity failed")
+        require(-100 <= market_path["routeIndex"] <= 100, "market path route index out of range")
+
+    valuation_anchor = market_path.get("valuationAnchor") or {}
+    expected_lower = min(article["earningsFairValue"], article["bookFairValue"])
+    expected_upper = max(article["earningsFairValue"], article["bookFairValue"])
+    require(close_enough(valuation_anchor["lower"], expected_lower), "market path lower valuation anchor failed")
+    require(close_enough(valuation_anchor["upper"], expected_upper), "market path upper valuation anchor failed")
+    require(close_enough(
+        valuation_anchor["drawdownFromPeakToUpperPct"],
+        (1 - valuation_anchor["upper"] / valuation_anchor["peak2026"]) * 100,
+    ), "market path upper peak-drawdown identity failed")
+    require(close_enough(
+        valuation_anchor["drawdownFromPeakToLowerPct"],
+        (1 - valuation_anchor["lower"] / valuation_anchor["peak2026"]) * 100,
+    ), "market path lower peak-drawdown identity failed")
+    require("正常化スコア - パニックスコア" in market_path.get("rules", {}).get("formula", ""), "market path formula explanation is missing")
+    require("確率予測ではない" in market_path.get("rules", {}).get("thresholdCaveat", ""), "market path forecast caveat is missing")
 
     en_ai = sakakibara.get("enAiProxy") or []
     diversified_tickers = {company["ticker"] for company in companies if company.get("category") == "japan-diversified"}
@@ -330,12 +382,12 @@ def main() -> None:
     require(len(html_id_list) == len(html_ids), "index.html contains duplicate element ids")
     missing_ids = sorted(referenced_ids - html_ids)
     require(not missing_ids, f"app.js references missing HTML ids: {missing_ids}")
-    require("Method v3.6" in index_source, "public method label is missing")
+    require("Method v3.7" in index_source, "public method label is missing")
     require("評価への脆弱性は別枠20点" in index_source, "valuation/collapse score separation is missing")
 
     print(
         "Data and logic audit passed: schema, formulas, coverage, YoY dates, baskets, "
-        "automaker DCF overrides, Nikkei reference, Sakakibara rotation audit, dot-com spillovers, history, and UI contracts."
+        "automaker DCF overrides, Nikkei reference, Sakakibara rotation and market-path audit, dot-com spillovers, history, and UI contracts."
     )
 
 

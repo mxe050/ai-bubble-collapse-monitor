@@ -1175,6 +1175,86 @@
       : "代理スコアに必要な財務・価格データを取得できませんでした。";
   }
 
+  function renderMarketPathComponents(targetId, components) {
+    byId(targetId).innerHTML = (components || []).map(function (component) {
+      var score = finite(component.score);
+      var known = finite(component.knownMax);
+      var maximum = finite(component.maxScore);
+      var width = maximum && score !== null ? clamp(score / maximum * 100, 0, 100) : 0;
+      return "<article class=\"path-component\"><div><span>" + escapeHtml(component.label || component.id) + "</span><strong>"
+        + (score === null || known === null ? "未確認" : numberOne.format(score) + "/" + numberOne.format(known) + "点")
+        + "</strong></div><div class=\"path-component-bar\"><i style=\"width:" + width + "%\"></i></div><p>"
+        + escapeHtml(component.detail || "内訳を確認できません。") + "</p></article>";
+    }).join("");
+  }
+
+  function renderSakakibaraMarketPath(analysis) {
+    var path = analysis.marketPath || {};
+    var panel = byId("marketPathPanel");
+    var route = finite(path.routeIndex);
+    var normalization = path.normalization || {};
+    var panic = path.panic || {};
+    var anchor = path.valuationAnchor || {};
+    var inputs = path.inputs || {};
+
+    panel.className = "market-path-panel is-" + escapeHtml(path.statusCode || "insufficient");
+    byId("marketPathLabel").textContent = path.label || "データ不足";
+    byId("marketPathAsOf").textContent = analysis.asOfDate || "未確認";
+    byId("marketPathIndex").textContent = route === null
+      ? "未確認"
+      : (route > 0 ? "+" : "") + numberOne.format(route);
+    byId("marketPathMarker").style.left = route === null ? "50%" : clamp((route + 100) / 2, 0, 100) + "%";
+
+    byId("marketPathNormalizationScore").textContent = finite(normalization.score) === null
+      ? "未確認" : numberOne.format(normalization.score) + "/100";
+    byId("marketPathNormalizationCoverage").textContent = "取得率 " + formatPercent(normalization.coveragePct, false);
+    byId("marketPathPanicScore").textContent = finite(panic.score) === null
+      ? "未確認" : numberOne.format(panic.score) + "/100";
+    byId("marketPathPanicCoverage").textContent = "取得率 " + formatPercent(panic.coveragePct, false);
+
+    renderMarketPathComponents("marketPathNormalizationComponents", normalization.components);
+    renderMarketPathComponents("marketPathPanicComponents", panic.components);
+
+    var currentUpper = finite(anchor.moveFromCurrentToUpperPct);
+    var currentLower = finite(anchor.moveFromCurrentToLowerPct);
+    byId("marketPathCurrentToRange").textContent = currentUpper === null || currentLower === null
+      ? "未確認"
+      : "上端 " + formatPercent(currentUpper, true) + " / 下端 " + formatPercent(currentLower, true);
+    var peakUpper = finite(anchor.drawdownFromPeakToUpperPct);
+    var peakLower = finite(anchor.drawdownFromPeakToLowerPct);
+    byId("marketPathPeakToRange").textContent = peakUpper === null || peakLower === null
+      ? "未確認"
+      : "上端 −" + formatPercent(peakUpper, false) + " / 下端 −" + formatPercent(peakLower, false);
+
+    byId("marketPathVix").textContent = finite(inputs.vix) === null
+      ? "未確認"
+      : numberOne.format(inputs.vix) + "（5日 " + formatPercent(inputs.vix5dPct, true) + "）";
+    byId("marketPathHyOas").textContent = finite(inputs.highYieldOasPct) === null
+      ? "未確認"
+      : numberTwo.format(inputs.highYieldOasPct) + "%（3か月低値から " + formatPctPoints(inputs.highYieldOasRise3mPctPoints, true) + "）";
+
+    var positiveBreadth = finite(inputs.diversifiedPositive5dPct);
+    var reading;
+    if (path.statusCode === "normalization-strong" || path.statusCode === "normalization-watch") {
+      reading = "<p><strong>現在の結論：</strong>" + escapeHtml(path.label) + "です。正常化" + numberOne.format(normalization.score)
+        + "点に対し、パニックは" + numberOne.format(panic.score) + "点です。</p>"
+        + "<p><strong>なぜパニック型ではないのか：</strong>日経平均は5日で" + formatPercent(inputs.nikkei5dPct, true)
+        + "と急落していますが、TOPIXは" + formatPercent(inputs.topix5dPct, true) + "にとどまり、分散型8社のうち"
+        + (positiveBreadth === null ? "上昇比率は未確認" : formatPercent(positiveBreadth, false) + "が上昇")
+        + "しています。VIXは" + (finite(inputs.vix) === null ? "未確認" : numberOne.format(inputs.vix))
+        + "、米国HY OASは" + (finite(inputs.highYieldOasPct) === null ? "未確認" : numberTwo.format(inputs.highYieldOasPct) + "%")
+        + "で、現時点では信用・流動性危機を伴う全面的な投げ売りを示していません。</p>"
+        + "<p><strong>残る警戒：</strong>日経平均の下落速度にはパニック点が付きます。TOPIXと分散型株まで下落が広がり、VIXとHY OASが同時に上昇すれば、約6万円への評価正常化からパニック経路へ判定が変わります。</p>";
+    } else if (path.statusCode === "panic" || path.statusCode === "panic-watch" || path.statusCode === "mixed") {
+      reading = "<p><strong>現在の結論：</strong>" + escapeHtml(path.label) + "です。正常化" + numberOne.format(normalization.score)
+        + "点、パニック" + numberOne.format(panic.score) + "点で、市場全体への波及を警戒します。</p>"
+        + "<p><strong>読み方：</strong>約6万円は評価アンカーであり、パニック時の下限ではありません。TOPIX、分散型株、VIX、HY OASの悪化が続く間は、企業価値からの一時的な下方乖離を想定します。</p>";
+    } else {
+      reading = "<p><strong>現在の結論：</strong>" + escapeHtml(path.label || "方向不明") + "です。データ取得率と各内訳を確認し、単独の指数だけで判断しません。</p>";
+    }
+    byId("marketPathInterpretation").innerHTML = reading;
+  }
+
   function renderSakakibaraMethod() {
     var analysis = state.data && state.data.market ? state.data.market.sakakibaraAnalysis || {} : {};
     if (!analysis.ntRatio) {
@@ -1253,6 +1333,7 @@
 
     renderNtRatioChart(analysis);
     renderSakakibaraFairValue(analysis);
+    renderSakakibaraMarketPath(analysis);
     renderEnAiProxy(analysis);
   }
 
@@ -1752,7 +1833,7 @@
       var response = await fetch("data/latest.json?ts=" + Date.now(), { cache: "no-store" });
       if (!response.ok) throw new Error("HTTP " + response.status);
       var payload = await response.json();
-      if (!payload.companies || !payload.market || Number(payload.schemaVersion) < 9) throw new Error("データ形式が古いか不正です");
+      if (!payload.companies || !payload.market || Number(payload.schemaVersion) < 10) throw new Error("データ形式が古いか不正です");
       state.data = payload;
       renderAll();
     } catch (error) {

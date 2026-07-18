@@ -412,6 +412,7 @@ PRICE_SYMBOLS = {
     "SOX": "^SOX",
     "NASDAQ": "^IXIC",
     "NIKKEI": "^N225",
+    "VIX": "^VIX",
     "KIOXIA": "285A.T",
     **{k: k for k in COMPANIES},
 }
@@ -1082,10 +1083,280 @@ def build_en_ai_proxy(
     return output
 
 
+def score_at_or_above(value: Any, bands: list[tuple[float, float]]) -> float | None:
+    numeric = finite(value)
+    if numeric is None:
+        return None
+    for threshold, score in bands:
+        if numeric >= threshold:
+            return score
+    return 0.0
+
+
+def score_at_or_below(value: Any, bands: list[tuple[float, float]]) -> float | None:
+    numeric = finite(value)
+    if numeric is None:
+        return None
+    for threshold, score in bands:
+        if numeric <= threshold:
+            return score
+    return 0.0
+
+
+def market_path_component(
+    component_id: str,
+    label: str,
+    parts: list[tuple[float | None, float]],
+    detail: str,
+) -> dict[str, Any]:
+    maximum = sum(maximum for _, maximum in parts)
+    known_maximum = sum(maximum for score, maximum in parts if score is not None)
+    observed = sum(score for score, _ in parts if score is not None)
+    return {
+        "id": component_id,
+        "label": label,
+        "score": round(observed, 2),
+        "knownMax": round(known_maximum, 2),
+        "maxScore": round(maximum, 2),
+        "coveragePct": round(known_maximum / maximum * 100.0, 1) if maximum else 0.0,
+        "detail": detail,
+    }
+
+
+def market_path_axis(components: list[dict[str, Any]]) -> dict[str, Any]:
+    raw_score = sum(component["score"] for component in components)
+    known_maximum = sum(component["knownMax"] for component in components)
+    total_maximum = sum(component["maxScore"] for component in components)
+    normalized = raw_score / known_maximum * 100.0 if known_maximum >= 60.0 else None
+    return {
+        "score": round(normalized, 1) if normalized is not None else None,
+        "rawScore": round(raw_score, 2),
+        "knownMax": round(known_maximum, 2),
+        "maxScore": round(total_maximum, 2),
+        "coveragePct": round(known_maximum / total_maximum * 100.0, 1) if total_maximum else 0.0,
+        "components": components,
+    }
+
+
+def format_path_value(value: Any, suffix: str = "%") -> str:
+    numeric = finite(value)
+    if numeric is None:
+        return "未確認"
+    sign = "+" if numeric > 0 else ""
+    return f"{sign}{numeric:.1f}{suffix}"
+
+
+def build_market_path_indicator(
+    nikkei: dict[str, Any],
+    topix: dict[str, Any],
+    vix: dict[str, Any],
+    high_yield_oas: dict[str, Any] | None,
+    distortion: bool,
+    nt_drawdown: float | None,
+    nt_change_20d: float | None,
+    topix_advantage_5d: float | None,
+    topix_advantage_20d: float | None,
+    basket_advantage_5d: float | None,
+    basket_advantage_20d: float | None,
+    japan_diversified: dict[str, Any],
+    earnings_fair_value: float,
+    book_fair_value: float,
+) -> dict[str, Any]:
+    diversified_coverage = finite(japan_diversified.get("positive5dCoverage"))
+    diversified_positive = finite(japan_diversified.get("positive5dCount"))
+    diversified_outperform = finite(japan_diversified.get("outperformNikkei5dCount"))
+    positive_pct = (
+        diversified_positive / diversified_coverage * 100.0
+        if diversified_positive is not None and diversified_coverage else None
+    )
+    outperform_pct = (
+        diversified_outperform / diversified_coverage * 100.0
+        if diversified_outperform is not None and diversified_coverage else None
+    )
+
+    normalization_components = [
+        market_path_component(
+            "ntReversal",
+            "NT倍率の反転",
+            [
+                (score_at_or_above(nt_drawdown, [(8.0, 15.0), (5.0, 10.0), (2.5, 5.0)]), 15.0),
+                (score_at_or_below(nt_change_20d, [(-6.0, 10.0), (-3.0, 7.0), (-0.01, 3.0)]), 10.0),
+            ],
+            f"直近ピークから{format_path_value(nt_drawdown).lstrip('+')}低下、20日変化は{format_path_value(nt_change_20d)}。",
+        ),
+        market_path_component(
+            "topixRelative",
+            "TOPIXの相対的な強さ",
+            [
+                (score_at_or_above(topix_advantage_5d, [(3.0, 12.0), (1.0, 8.0), (0.1, 4.0)]), 12.0),
+                (score_at_or_above(topix_advantage_20d, [(5.0, 13.0), (2.0, 9.0), (0.1, 4.0)]), 13.0),
+            ],
+            f"TOPIX優位は5日{format_path_value(topix_advantage_5d, 'ポイント')}、20日{format_path_value(topix_advantage_20d, 'ポイント')}。",
+        ),
+        market_path_component(
+            "basketRotation",
+            "分散型株への相対回復",
+            [
+                (score_at_or_above(basket_advantage_5d, [(6.0, 15.0), (2.0, 10.0), (0.1, 5.0)]), 15.0),
+                (score_at_or_above(basket_advantage_20d, [(8.0, 15.0), (4.0, 10.0), (0.1, 5.0)]), 15.0),
+            ],
+            f"分散型8社のAI連動8社に対する優位は5日{format_path_value(basket_advantage_5d, 'ポイント')}、20日{format_path_value(basket_advantage_20d, 'ポイント')}。",
+        ),
+        market_path_component(
+            "breadth",
+            "分散型株への広がり",
+            [
+                (score_at_or_above(outperform_pct, [(75.0, 10.0), (50.0, 5.0)]), 10.0),
+                (score_at_or_above(positive_pct, [(75.0, 10.0), (50.0, 6.0), (25.0, 3.0)]), 10.0),
+            ],
+            (
+                f"5日で日経平均を上回った分散型株は{int(diversified_outperform) if diversified_outperform is not None else '未確認'}/"
+                f"{int(diversified_coverage) if diversified_coverage is not None else '未確認'}社、上昇は"
+                f"{int(diversified_positive) if diversified_positive is not None else '未確認'}/"
+                f"{int(diversified_coverage) if diversified_coverage is not None else '未確認'}社。"
+            ),
+        ),
+    ]
+
+    vix_close = finite(vix.get("close"))
+    vix_change_5d = finite(vix.get("change5dPct"))
+    oas = high_yield_oas or {}
+    oas_value = finite(oas.get("valuePct"))
+    oas_rise = finite(oas.get("riseFrom3mLowPctPoints"))
+
+    panic_components = [
+        market_path_component(
+            "nikkeiSpeed",
+            "日経平均の下落速度",
+            [
+                (score_at_or_below(nikkei.get("change1dPct"), [(-7.0, 10.0), (-5.0, 7.0), (-3.0, 4.0)]), 10.0),
+                (score_at_or_below(nikkei.get("change5dPct"), [(-12.0, 10.0), (-8.0, 7.0), (-5.0, 4.0)]), 10.0),
+                (score_at_or_below(nikkei.get("change20dPct"), [(-20.0, 10.0), (-12.0, 7.0), (-8.0, 4.0)]), 10.0),
+            ],
+            f"日経平均は1日{format_path_value(nikkei.get('change1dPct'))}、5日{format_path_value(nikkei.get('change5dPct'))}、20日{format_path_value(nikkei.get('change20dPct'))}。",
+        ),
+        market_path_component(
+            "broadContagion",
+            "市場全体への波及",
+            [
+                (score_at_or_below(topix.get("change1dPct"), [(-5.0, 8.0), (-3.0, 5.0), (-2.0, 3.0)]), 8.0),
+                (score_at_or_below(topix.get("change5dPct"), [(-10.0, 8.0), (-6.0, 5.0), (-3.0, 3.0)]), 8.0),
+                (score_at_or_below(topix.get("change20dPct"), [(-15.0, 8.0), (-10.0, 5.0), (-5.0, 3.0)]), 8.0),
+                (score_at_or_below(positive_pct, [(25.0, 6.0), (50.0, 3.0)]), 6.0),
+            ],
+            (
+                f"TOPIXは1日{format_path_value(topix.get('change1dPct'))}、5日{format_path_value(topix.get('change5dPct'))}、"
+                f"20日{format_path_value(topix.get('change20dPct'))}。分散型8社の5日上昇比率は"
+                f"{format_path_value(positive_pct).lstrip('+')}。"
+            ),
+        ),
+        market_path_component(
+            "volatility",
+            "予想変動率の急上昇",
+            [
+                (score_at_or_above(vix_close, [(40.0, 12.0), (30.0, 9.0), (25.0, 6.0), (20.0, 3.0)]), 12.0),
+                (score_at_or_above(vix_change_5d, [(100.0, 8.0), (50.0, 6.0), (25.0, 3.0), (20.0, 2.0)]), 8.0),
+            ],
+            f"VIXは{format_path_value(vix_close, '').lstrip('+')}、5日変化は{format_path_value(vix_change_5d)}。VIXは米国S&P 500の30日予想変動率です。",
+        ),
+        market_path_component(
+            "credit",
+            "信用市場への波及",
+            [
+                (score_at_or_above(oas_value, [(6.0, 12.0), (5.0, 9.0), (4.0, 6.0), (3.5, 3.0)]), 12.0),
+                (score_at_or_above(oas_rise, [(2.0, 8.0), (1.0, 5.0), (0.5, 3.0)]), 8.0),
+            ],
+            f"米国HY OASは{format_path_value(oas_value).lstrip('+')}、3か月低値から{format_path_value(oas_rise, 'ポイント')}。信用不安が強いほど上昇します。",
+        ),
+    ]
+
+    normalization = market_path_axis(normalization_components)
+    panic = market_path_axis(panic_components)
+    normalization_score = finite(normalization.get("score"))
+    panic_score = finite(panic.get("score"))
+    route_index = (
+        max(-100.0, min(100.0, normalization_score - panic_score))
+        if normalization_score is not None and panic_score is not None else None
+    )
+
+    if route_index is None:
+        status_code = "insufficient"
+        label = "データ不足"
+    elif panic_score is not None and panic_score >= 65.0 and route_index <= -15.0:
+        status_code = "panic"
+        label = "パニック型暴落が優勢"
+    elif panic_score is not None and panic_score >= 50.0:
+        status_code = "mixed"
+        label = "正常化にパニックが重なる移行局面"
+    elif not distortion:
+        status_code = "neutral"
+        label = "一極集中の歪みは未確認"
+    elif route_index >= 40.0:
+        status_code = "normalization-strong"
+        label = "揺り戻し・評価正常化が優勢"
+    elif route_index >= 15.0:
+        status_code = "normalization-watch"
+        label = "評価正常化方向だが確認途上"
+    elif route_index <= -40.0:
+        status_code = "panic"
+        label = "パニック型暴落が優勢"
+    elif route_index <= -15.0:
+        status_code = "panic-watch"
+        label = "パニック方向への警戒"
+    else:
+        status_code = "unclear"
+        label = "二つの経路が拮抗"
+
+    current_price = finite(nikkei.get("close"))
+    peak_price = finite(nikkei.get("peak2026"))
+    lower_anchor = min(earnings_fair_value, book_fair_value)
+    upper_anchor = max(earnings_fair_value, book_fair_value)
+    valuation_anchor = {
+        "currentPrice": current_price,
+        "peak2026": peak_price,
+        "lower": lower_anchor,
+        "upper": upper_anchor,
+        "moveFromCurrentToUpperPct": pct_change(upper_anchor, current_price) if current_price else None,
+        "moveFromCurrentToLowerPct": pct_change(lower_anchor, current_price) if current_price else None,
+        "drawdownFromPeakToUpperPct": (1.0 - upper_anchor / peak_price) * 100.0 if peak_price else None,
+        "drawdownFromPeakToLowerPct": (1.0 - lower_anchor / peak_price) * 100.0 if peak_price else None,
+    }
+
+    return {
+        "label": label,
+        "statusCode": status_code,
+        "horizon": "直近1・5・20営業日を使うルールベースの方向判定",
+        "routeIndex": round(route_index, 1) if route_index is not None else None,
+        "normalization": normalization,
+        "panic": panic,
+        "valuationAnchor": valuation_anchor,
+        "inputs": {
+            "nikkei1dPct": nikkei.get("change1dPct"),
+            "nikkei5dPct": nikkei.get("change5dPct"),
+            "nikkei20dPct": nikkei.get("change20dPct"),
+            "topix1dPct": topix.get("change1dPct"),
+            "topix5dPct": topix.get("change5dPct"),
+            "topix20dPct": topix.get("change20dPct"),
+            "vix": vix_close,
+            "vix5dPct": vix_change_5d,
+            "highYieldOasPct": oas_value,
+            "highYieldOasRise3mPctPoints": oas_rise,
+            "diversifiedPositive5dPct": positive_pct,
+        },
+        "rules": {
+            "formula": "市場経路指数 = 正常化スコア - パニックスコア（-100～+100）",
+            "positiveMeaning": "プラスほど、AI期待の剥落と優良Non-AIへの相対回復による評価正常化が優勢。",
+            "negativeMeaning": "マイナスほど、TOPIX・分散型株・予想変動率・信用市場まで悪化するパニック型暴落が優勢。",
+            "thresholdCaveat": "各配点と閾値は公式の売買基準ではなく、本サイト独自の早期警戒ルール。統計モデルによる確率予測ではない。",
+        },
+    }
+
+
 def build_sakakibara_analysis(
     prices: dict[str, dict[str, Any]],
     companies: list[dict[str, Any]],
     jgb: dict[str, Any] | None,
+    high_yield_oas: dict[str, Any] | None,
 ) -> dict[str, Any]:
     nikkei = prices.get("NIKKEI") or {}
     topix = prices.get("TOPIX") or {}
@@ -1183,9 +1454,27 @@ def build_sakakibara_analysis(
         None,
     )
     target_pb = 1.106 ** 5
+    article_earnings_fair_value = 3682.0 * 16.6
+    article_book_fair_value = 34859.0 * target_pb
+    market_path = build_market_path_indicator(
+        nikkei,
+        topix,
+        prices.get("VIX") or {},
+        high_yield_oas,
+        distortion,
+        nt_drawdown,
+        nt_change_20d,
+        topix_advantage_5d,
+        topix_advantage_20d,
+        basket_advantage_5d,
+        basket_advantage_20d,
+        japan_diversified,
+        article_earnings_fair_value,
+        article_book_fair_value,
+    )
     return {
         "asOfDate": latest_nt["date"],
-        "methodLabel": "榊原式 proxy v1.0",
+        "methodLabel": "榊原式 proxy v1.1",
         "stage": stage,
         "confirmationCount": confirmation_count,
         "confirmationMax": 4,
@@ -1223,6 +1512,7 @@ def build_sakakibara_analysis(
         "japanDiversifiedBasket": japan_diversified,
         "basketAdvantage5dPctPoints": basket_advantage_5d,
         "basketAdvantage20dPctPoints": basket_advantage_20d,
+        "marketPath": market_path,
         "kioxiaCase": {
             "date": kioxia.get("date"),
             "close": kioxia.get("close"),
@@ -1250,8 +1540,8 @@ def build_sakakibara_analysis(
             "targetPe": 16.6,
             "growthYears": 5,
             "targetPb": target_pb,
-            "earningsFairValue": 3682.0 * 16.6,
-            "bookFairValue": 34859.0 * target_pb,
+            "earningsFairValue": article_earnings_fair_value,
+            "bookFairValue": article_book_fair_value,
             "interpretation": "ユーザー提供の榊原先生『市況展望』（2026年7月18日執筆）に記載された入力を、そのまま再計算した参考シナリオ。",
         },
         "enAiProxy": build_en_ai_proxy(companies, nikkei),
@@ -1745,12 +2035,14 @@ def main() -> None:
     ]
     sakakibara_analysis: dict[str, Any] = {}
     try:
-        sakakibara_analysis = build_sakakibara_analysis(prices, companies, jgb_yield)
+        sakakibara_analysis = build_sakakibara_analysis(
+            prices, companies, jgb_yield, macro.get("highYieldOas")
+        )
     except Exception as exc:
         errors.append(f"Sakakibara analysis: {exc}")
 
     payload = {
-        "schemaVersion": 9,
+        "schemaVersion": 10,
         "generatedAtUtc": NOW.isoformat(),
         "generatedAtJst": NOW.astimezone(JST).isoformat(),
         "marketDate": prices.get("SOX", {}).get("date"),
@@ -1820,7 +2112,7 @@ def main() -> None:
             "note": "These fields require a consistent paid consensus series, product-level pricing, or verified project announcements. Missing is not zero.",
         },
         "sourceStatus": [status.__dict__ for status in statuses],
-        "methodVersion": "3.6.0",
+        "methodVersion": "3.7.0",
     }
     OUTPUT.parent.mkdir(parents=True, exist_ok=True)
     OUTPUT.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
