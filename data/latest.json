@@ -1,0 +1,1570 @@
+{
+  "schemaVersion": 2,
+  "generatedAtUtc": "2026-07-18T08:39:35.168397+00:00",
+  "generatedAtJst": "2026-07-18T17:39:35.168397+09:00",
+  "marketDate": "2026-07-17",
+  "dataQuality": {
+    "successfulRequests": 24,
+    "failedRequests": 0,
+    "companyCoverage": 10,
+    "expectedCompanies": 10,
+    "warnings": []
+  },
+  "market": {
+    "series": {
+      "SOX": {
+        "symbol": "^SOX",
+        "date": "2026-07-17",
+        "close": 11673.8896484375,
+        "change1dPct": -1.6314333394775615,
+        "change5dPct": -9.973428971563681,
+        "peak3y": 14634.7197265625,
+        "peak3yDate": "2026-06-22",
+        "drawdown3yPct": 20.231546168602023,
+        "sma200": 8982.614353027344,
+        "belowSma200": false,
+        "weeksBelowSma200": 0.0,
+        "sourceUrl": "https://finance.yahoo.com/quote/%5ESOX"
+      },
+      "NASDAQ": {
+        "symbol": "^IXIC",
+        "date": "2026-07-17",
+        "close": 25520.240234375,
+        "change1dPct": -1.3975337843293634,
+        "change5dPct": -2.89696543983049,
+        "peak3y": 27093.900390625,
+        "peak3yDate": "2026-06-02",
+        "drawdown3yPct": 5.808171335842493,
+        "sma200": 23877.25724609375,
+        "belowSma200": false,
+        "weeksBelowSma200": 0.0,
+        "sourceUrl": "https://finance.yahoo.com/quote/%5EIXIC"
+      },
+      "NVDA": {
+        "symbol": "NVDA",
+        "date": "2026-07-17",
+        "close": 202.80999755859375,
+        "change1dPct": -2.2131130535045007,
+        "change5dPct": -3.8632958361285996,
+        "peak3y": 235.74000549316406,
+        "peak3yDate": "2026-05-14",
+        "drawdown3yPct": 13.968782203801721,
+        "sma200": 192.3950003814697,
+        "belowSma200": false,
+        "weeksBelowSma200": 0.0,
+        "sourceUrl": "https://finance.yahoo.com/quote/NVDA"
+      },
+      "AVGO": {
+        "symbol": "AVGO",
+        "date": "2026-07-17",
+        "close": 370.8299865722656,
+        "change1dPct": -0.9667580496069306,
+        "change5dPct": -7.2855500561298525,
+        "peak3y": 481.57000732421875,
+        "peak3yDate": "2026-06-02",
+        "drawdown3yPct": 22.99562245731741,
+        "sma200": 363.62620010375974,
+        "belowSma200": false,
+        "weeksBelowSma200": 0.0,
+        "sourceUrl": "https://finance.yahoo.com/quote/AVGO"
+      },
+      "AMD": {
+        "symbol": "AMD",
+        "date": "2026-07-17",
+        "close": 495.760009765625,
+        "change1dPct": -1.034054507632809,
+        "change5dPct": -11.136604572850196,
+        "peak3y": 580.9099731445312,
+        "peak3yDate": "2026-06-30",
+        "drawdown3yPct": 14.658030902444297,
+        "sma200": 296.68619979858397,
+        "belowSma200": false,
+        "weeksBelowSma200": 0.0,
+        "sourceUrl": "https://finance.yahoo.com/quote/AMD"
+      },
+      "MU": {
+        "symbol": "MU",
+        "date": "2026-07-17",
+        "close": 848.9500122070312,
+        "change1dPct": -0.4981246998586264,
+        "change5dPct": -13.3105256010168,
+        "peak3y": 1213.56005859375,
+        "peak3yDate": "2026-06-25",
+        "drawdown3yPct": 30.044664357957018,
+        "sma200": 483.08570053100584,
+        "belowSma200": false,
+        "weeksBelowSma200": 0.0,
+        "sourceUrl": "https://finance.yahoo.com/quote/MU"
+      },
+      "ARM": {
+        "symbol": "ARM",
+        "date": "2026-07-17",
+        "close": 267.19000244140625,
+        "change1dPct": 1.9770209086343193,
+        "change5dPct": -17.37840058794864,
+        "peak3y": 439.4599914550781,
+        "peak3yDate": "2026-06-18",
+        "drawdown3yPct": 39.20038054960947,
+        "sma200": 184.74217517852784,
+        "belowSma200": false,
+        "weeksBelowSma200": 0.0,
+        "sourceUrl": "https://finance.yahoo.com/quote/ARM"
+      },
+      "MRVL": {
+        "symbol": "MRVL",
+        "date": "2026-07-17",
+        "close": 188.67999267578125,
+        "change1dPct": 0.20180011570101186,
+        "change5dPct": -19.986432030347522,
+        "peak3y": 316.42999267578125,
+        "peak3yDate": "2026-06-04",
+        "drawdown3yPct": 40.37227916346555,
+        "sma200": 129.86080017089844,
+        "belowSma200": false,
+        "weeksBelowSma200": 0.0,
+        "sourceUrl": "https://finance.yahoo.com/quote/MRVL"
+      },
+      "MSFT": {
+        "symbol": "MSFT",
+        "date": "2026-07-17",
+        "close": 393.82000732421875,
+        "change1dPct": -1.8150083940457584,
+        "change5dPct": 2.264347203972572,
+        "peak3y": 542.0700073242188,
+        "peak3yDate": "2025-10-28",
+        "drawdown3yPct": 27.348866013044294,
+        "sma200": 439.34854919433593,
+        "belowSma200": true,
+        "weeksBelowSma200": 6.4,
+        "sourceUrl": "https://finance.yahoo.com/quote/MSFT"
+      },
+      "GOOGL": {
+        "symbol": "GOOGL",
+        "date": "2026-07-17",
+        "close": 346.7699890136719,
+        "change1dPct": -2.1694980045105727,
+        "change5dPct": -2.9144979773709556,
+        "peak3y": 402.6199951171875,
+        "peak3yDate": "2026-05-13",
+        "drawdown3yPct": 13.871642437246512,
+        "sma200": 321.65599990844726,
+        "belowSma200": false,
+        "weeksBelowSma200": 0.0,
+        "sourceUrl": "https://finance.yahoo.com/quote/GOOGL"
+      },
+      "AMZN": {
+        "symbol": "AMZN",
+        "date": "2026-07-17",
+        "close": 247.22999572753906,
+        "change1dPct": -1.0644698341695902,
+        "change5dPct": 0.7703592638215628,
+        "peak3y": 274.989990234375,
+        "peak3yDate": "2026-05-06",
+        "drawdown3yPct": 10.094910903184505,
+        "sma200": 234.06250007629396,
+        "belowSma200": false,
+        "weeksBelowSma200": 0.0,
+        "sourceUrl": "https://finance.yahoo.com/quote/AMZN"
+      },
+      "META": {
+        "symbol": "META",
+        "date": "2026-07-17",
+        "close": 646.010009765625,
+        "change1dPct": -2.788390296205223,
+        "change5dPct": -3.4667759664811504,
+        "peak3y": 790.0,
+        "peak3yDate": "2025-08-12",
+        "drawdown3yPct": 18.22658104232595,
+        "sma200": 640.5055487060547,
+        "belowSma200": false,
+        "weeksBelowSma200": 0.0,
+        "sourceUrl": "https://finance.yahoo.com/quote/META"
+      }
+    },
+    "aiBasket": {
+      "constituents": [
+        "NVDA",
+        "AVGO",
+        "AMD",
+        "MU",
+        "ARM",
+        "MRVL",
+        "MSFT",
+        "GOOGL",
+        "AMZN",
+        "META"
+      ],
+      "medianDrawdown3yPct": 20.611101749821678,
+      "breadthBelowSma200Pct": 10.0,
+      "medianChange1dPct": -1.0492621709011996,
+      "medianChange5dPct": -5.574422946129226
+    },
+    "normalizedChart": [
+      {
+        "date": "2023-07-19",
+        "sox": 100.0,
+        "aiBasket": 100.0
+      },
+      {
+        "date": "2023-07-26",
+        "sox": 97.30933862347727,
+        "aiBasket": 97.91075618405517
+      },
+      {
+        "date": "2023-08-02",
+        "sox": 97.63103968962982,
+        "aiBasket": 97.57138618915751
+      },
+      {
+        "date": "2023-08-09",
+        "sox": 94.97114586626589,
+        "aiBasket": 96.56523101536662
+      },
+      {
+        "date": "2023-08-16",
+        "sox": 91.54106781198257,
+        "aiBasket": 94.63738892352609
+      },
+      {
+        "date": "2023-08-23",
+        "sox": 94.74834922219613,
+        "aiBasket": 97.68622602953333
+      },
+      {
+        "date": "2023-08-30",
+        "sox": 95.85076009213954,
+        "aiBasket": 98.27635603687513
+      },
+      {
+        "date": "2023-09-07",
+        "sox": 94.22489623576872,
+        "aiBasket": 97.63645484147082
+      },
+      {
+        "date": "2023-09-14",
+        "sox": 94.28065801077975,
+        "aiBasket": 99.42413918593446
+      },
+      {
+        "date": "2023-09-21",
+        "sox": 87.82611214172674,
+        "aiBasket": 92.09754906623647
+      },
+      {
+        "date": "2023-09-28",
+        "sox": 89.98674445700792,
+        "aiBasket": 93.41681822976005
+      },
+      {
+        "date": "2023-10-05",
+        "sox": 89.61822096754483,
+        "aiBasket": 94.6721801993113
+      },
+      {
+        "date": "2023-10-12",
+        "sox": 93.34396551054263,
+        "aiBasket": 99.07897779301207
+      },
+      {
+        "date": "2023-10-19",
+        "sox": 88.58683042120465,
+        "aiBasket": 94.98748668583458
+      },
+      {
+        "date": "2023-10-26",
+        "sox": 83.86915178075161,
+        "aiBasket": 88.9277978473996
+      },
+      {
+        "date": "2023-11-02",
+        "sox": 88.60708524538809,
+        "aiBasket": 96.3980827874052
+      },
+      {
+        "date": "2023-11-09",
+        "sox": 90.81138680748201,
+        "aiBasket": 100.5738035809242
+      },
+      {
+        "date": "2023-11-16",
+        "sox": 97.9598434303375,
+        "aiBasket": 105.02355739983716
+      },
+      {
+        "date": "2023-11-24",
+        "sox": 98.58667051469794,
+        "aiBasket": 105.84293529634733
+      },
+      {
+        "date": "2023-12-01",
+        "sox": 98.33257329578035,
+        "aiBasket": 103.22763130597235
+      },
+      {
+        "date": "2023-12-08",
+        "sox": 99.27689507031359,
+        "aiBasket": 104.73209704201048
+      },
+      {
+        "date": "2023-12-15",
+        "sox": 108.29480003948213,
+        "aiBasket": 110.51864004984496
+      },
+      {
+        "date": "2023-12-22",
+        "sox": 108.7117257514787,
+        "aiBasket": 113.29495493324835
+      },
+      {
+        "date": "2024-01-02",
+        "sox": 105.82324910884233,
+        "aiBasket": 110.57371541762214
+      },
+      {
+        "date": "2024-01-09",
+        "sox": 106.91776740461914,
+        "aiBasket": 114.71438795144334
+      },
+      {
+        "date": "2024-01-17",
+        "sox": 107.05718147506882,
+        "aiBasket": 117.90356825791068
+      },
+      {
+        "date": "2024-01-24",
+        "sox": 117.93085604118112,
+        "aiBasket": 127.0065080914927
+      },
+      {
+        "date": "2024-01-31",
+        "sox": 112.08051273347073,
+        "aiBasket": 122.85370475714078
+      },
+      {
+        "date": "2024-02-07",
+        "sox": 115.96855274785847,
+        "aiBasket": 131.3830412059613
+      },
+      {
+        "date": "2024-02-14",
+        "sox": 120.08991497918744,
+        "aiBasket": 132.50401734141352
+      },
+      {
+        "date": "2024-02-22",
+        "sox": 122.77190030388016,
+        "aiBasket": 135.92475078373994
+      },
+      {
+        "date": "2024-02-29",
+        "sox": 124.33831618705311,
+        "aiBasket": 138.00031412633896
+      },
+      {
+        "date": "2024-03-07",
+        "sox": 135.88354028382057,
+        "aiBasket": 148.28558971679118
+      },
+      {
+        "date": "2024-03-14",
+        "sox": 125.83055857012502,
+        "aiBasket": 139.29522860249014
+      },
+      {
+        "date": "2024-03-21",
+        "sox": 128.83529816045225,
+        "aiBasket": 144.66369505501999
+      },
+      {
+        "date": "2024-03-28",
+        "sox": 129.0281107290266,
+        "aiBasket": 145.84051432444932
+      },
+      {
+        "date": "2024-04-05",
+        "sox": 126.76383459399385,
+        "aiBasket": 147.91751807118766
+      },
+      {
+        "date": "2024-04-12",
+        "sox": 124.81521005004046,
+        "aiBasket": 146.6395355557205
+      },
+      {
+        "date": "2024-04-19",
+        "sox": 113.2892004218706,
+        "aiBasket": 133.37905439813207
+      },
+      {
+        "date": "2024-04-26",
+        "sox": 124.55848625436604,
+        "aiBasket": 142.4273903515679
+      },
+      {
+        "date": "2024-05-03",
+        "sox": 124.05607156978549,
+        "aiBasket": 141.4298402861727
+      },
+      {
+        "date": "2024-05-10",
+        "sox": 126.47185430346619,
+        "aiBasket": 144.93662136994038
+      },
+      {
+        "date": "2024-05-17",
+        "sox": 131.0748497954513,
+        "aiBasket": 149.26213005930262
+      },
+      {
+        "date": "2024-05-24",
+        "sox": 137.3326400198207,
+        "aiBasket": 154.53492889962206
+      },
+      {
+        "date": "2024-06-03",
+        "sox": 135.53315879762894,
+        "aiBasket": 152.6512241823938
+      },
+      {
+        "date": "2024-06-10",
+        "sox": 141.05417176489067,
+        "aiBasket": 158.97508121877536
+      },
+      {
+        "date": "2024-06-17",
+        "sox": 149.6214871703285,
+        "aiBasket": 169.10986299818038
+      },
+      {
+        "date": "2024-06-25",
+        "sox": 143.82296898346792,
+        "aiBasket": 164.3495138294272
+      },
+      {
+        "date": "2024-07-02",
+        "sox": 145.8570825000053,
+        "aiBasket": 165.4350196666226
+      },
+      {
+        "date": "2024-07-10",
+        "sox": 155.3147881601626,
+        "aiBasket": 174.10685412254333
+      },
+      {
+        "date": "2024-07-17",
+        "sox": 142.27232540473204,
+        "aiBasket": 156.2616765766849
+      },
+      {
+        "date": "2024-07-24",
+        "sox": 134.3005429307549,
+        "aiBasket": 149.38193676108065
+      },
+      {
+        "date": "2024-07-31",
+        "sox": 137.65513740753278,
+        "aiBasket": 152.09153361703505
+      },
+      {
+        "date": "2024-08-07",
+        "sox": 116.42993118433115,
+        "aiBasket": 134.2659936877807
+      },
+      {
+        "date": "2024-08-14",
+        "sox": 129.76831730639867,
+        "aiBasket": 148.84418901372334
+      },
+      {
+        "date": "2024-08-21",
+        "sox": 138.56921180670014,
+        "aiBasket": 158.40551389104834
+      },
+      {
+        "date": "2024-08-28",
+        "sox": 133.08818188806427,
+        "aiBasket": 150.79161228297818
+      },
+      {
+        "date": "2024-09-05",
+        "sox": 124.74603282553063,
+        "aiBasket": 144.44244164006219
+      },
+      {
+        "date": "2024-09-12",
+        "sox": 128.8500301093035,
+        "aiBasket": 151.56557182681843
+      },
+      {
+        "date": "2024-09-19",
+        "sox": 133.2746752597469,
+        "aiBasket": 155.0928374516924
+      },
+      {
+        "date": "2024-09-26",
+        "sox": 139.68898120225163,
+        "aiBasket": 162.41280441965822
+      },
+      {
+        "date": "2024-10-03",
+        "sox": 134.8150565654818,
+        "aiBasket": 158.933965253388
+      },
+      {
+        "date": "2024-10-10",
+        "sox": 139.25338046529453,
+        "aiBasket": 164.35370618605424
+      },
+      {
+        "date": "2024-10-17",
+        "sox": 136.90888135508757,
+        "aiBasket": 165.8546370077114
+      },
+      {
+        "date": "2024-10-24",
+        "sox": 135.6673132926169,
+        "aiBasket": 164.42090556618683
+      },
+      {
+        "date": "2024-10-31",
+        "sox": 130.12079234765807,
+        "aiBasket": 160.17013216876413
+      },
+      {
+        "date": "2024-11-07",
+        "sox": 140.30687535685962,
+        "aiBasket": 175.2133935664361
+      },
+      {
+        "date": "2024-11-14",
+        "sox": 131.6422289066139,
+        "aiBasket": 168.2082680134086
+      },
+      {
+        "date": "2024-11-21",
+        "sox": 130.54954728798242,
+        "aiBasket": 165.52330880481736
+      },
+      {
+        "date": "2024-11-29",
+        "sox": 129.58971008693456,
+        "aiBasket": 164.03915730784686
+      },
+      {
+        "date": "2024-12-06",
+        "sox": 133.13394468994483,
+        "aiBasket": 175.8528184233213
+      },
+      {
+        "date": "2024-12-13",
+        "sox": 135.46134857441422,
+        "aiBasket": 181.24879643772252
+      },
+      {
+        "date": "2024-12-20",
+        "sox": 130.59848253220494,
+        "aiBasket": 174.8748978573415
+      },
+      {
+        "date": "2024-12-30",
+        "sox": 132.2188170912955,
+        "aiBasket": 176.33110882591137
+      },
+      {
+        "date": "2025-01-07",
+        "sox": 137.10458380028922,
+        "aiBasket": 181.49430118928854
+      },
+      {
+        "date": "2025-01-15",
+        "sox": 135.56367589481337,
+        "aiBasket": 180.17506456654274
+      },
+      {
+        "date": "2025-01-23",
+        "sox": 143.21875357822918,
+        "aiBasket": 189.08965010686825
+      },
+      {
+        "date": "2025-01-30",
+        "sox": 132.32456088806293,
+        "aiBasket": 176.539018911703
+      },
+      {
+        "date": "2025-02-06",
+        "sox": 133.95700724119598,
+        "aiBasket": 180.85715762002076
+      },
+      {
+        "date": "2025-02-13",
+        "sox": 135.63522924010564,
+        "aiBasket": 179.8746275590539
+      },
+      {
+        "date": "2025-02-21",
+        "sox": 135.114396408487,
+        "aiBasket": 174.6851842733525
+      },
+      {
+        "date": "2025-02-28",
+        "sox": 125.38601848146745,
+        "aiBasket": 164.003435939017
+      },
+      {
+        "date": "2025-03-07",
+        "sox": 121.77811668538342,
+        "aiBasket": 154.58784935777905
+      },
+      {
+        "date": "2025-03-14",
+        "sox": 120.96794940583816,
+        "aiBasket": 156.17308901812277
+      },
+      {
+        "date": "2025-03-21",
+        "sox": 119.89368593424476,
+        "aiBasket": 153.92692575841915
+      },
+      {
+        "date": "2025-03-28",
+        "sox": 112.71155903770705,
+        "aiBasket": 144.21616808641485
+      },
+      {
+        "date": "2025-04-04",
+        "sox": 94.63392295165063,
+        "aiBasket": 124.21537203026426
+      },
+      {
+        "date": "2025-04-11",
+        "sox": 104.97782533444382,
+        "aiBasket": 139.2084125076383
+      },
+      {
+        "date": "2025-04-21",
+        "sox": 98.69136111198343,
+        "aiBasket": 126.76070668844608
+      },
+      {
+        "date": "2025-04-28",
+        "sox": 111.41501909983683,
+        "aiBasket": 143.56262682144705
+      },
+      {
+        "date": "2025-05-05",
+        "sox": 114.58626695948182,
+        "aiBasket": 150.42212443132027
+      },
+      {
+        "date": "2025-05-12",
+        "sox": 125.75901806872885,
+        "aiBasket": 161.46352501681736
+      },
+      {
+        "date": "2025-05-19",
+        "sox": 128.830828484602,
+        "aiBasket": 167.80505381070276
+      },
+      {
+        "date": "2025-05-27",
+        "sox": 127.8675619632897,
+        "aiBasket": 168.906211859581
+      },
+      {
+        "date": "2025-06-03",
+        "sox": 130.58533038257664,
+        "aiBasket": 174.18536782785984
+      },
+      {
+        "date": "2025-06-10",
+        "sox": 137.90028885280182,
+        "aiBasket": 180.62883522385678
+      },
+      {
+        "date": "2025-06-17",
+        "sox": 137.4044502430354,
+        "aiBasket": 182.44514024792755
+      },
+      {
+        "date": "2025-06-25",
+        "sox": 144.4974019688023,
+        "aiBasket": 190.6125588835951
+      },
+      {
+        "date": "2025-07-02",
+        "sox": 147.59473320626867,
+        "aiBasket": 191.77175911297383
+      },
+      {
+        "date": "2025-07-10",
+        "sox": 150.15229970923346,
+        "aiBasket": 195.59334300224685
+      },
+      {
+        "date": "2025-07-17",
+        "sox": 150.92460318301286,
+        "aiBasket": 198.78071425762596
+      },
+      {
+        "date": "2025-07-24",
+        "sox": 148.47120067759258,
+        "aiBasket": 201.3918163503294
+      },
+      {
+        "date": "2025-07-31",
+        "sox": 147.51240383213053,
+        "aiBasket": 207.86390246007767
+      },
+      {
+        "date": "2025-08-07",
+        "sox": 148.19053585954788,
+        "aiBasket": 207.83202690875336
+      },
+      {
+        "date": "2025-08-14",
+        "sox": 154.81369639688256,
+        "aiBasket": 214.69331276456992
+      },
+      {
+        "date": "2025-08-21",
+        "sox": 147.38982168754796,
+        "aiBasket": 202.65421525489964
+      },
+      {
+        "date": "2025-08-28",
+        "sox": 153.96037362636937,
+        "aiBasket": 211.23955636395567
+      },
+      {
+        "date": "2025-09-05",
+        "sox": 151.54958716827988,
+        "aiBasket": 210.731492981244
+      },
+      {
+        "date": "2025-09-12",
+        "sox": 157.871571185464,
+        "aiBasket": 222.93428400572603
+      },
+      {
+        "date": "2025-09-19",
+        "sox": 163.93496904203607,
+        "aiBasket": 225.413826402838
+      },
+      {
+        "date": "2025-09-26",
+        "sox": 165.84991689035917,
+        "aiBasket": 222.13615781609744
+      },
+      {
+        "date": "2025-10-03",
+        "sox": 173.18067335281367,
+        "aiBasket": 229.96269943513556
+      },
+      {
+        "date": "2025-10-10",
+        "sox": 168.54743048546268,
+        "aiBasket": 229.39889621557975
+      },
+      {
+        "date": "2025-10-17",
+        "sox": 178.2900137615925,
+        "aiBasket": 239.8837457953784
+      },
+      {
+        "date": "2025-10-24",
+        "sox": 183.52351611417683,
+        "aiBasket": 247.87314101852704
+      },
+      {
+        "date": "2025-10-31",
+        "sox": 190.14483997436616,
+        "aiBasket": 256.59214546557524
+      },
+      {
+        "date": "2025-11-07",
+        "sox": 182.7454328871428,
+        "aiBasket": 248.71281703075405
+      },
+      {
+        "date": "2025-11-14",
+        "sox": 179.1638482342115,
+        "aiBasket": 249.33314212214904
+      },
+      {
+        "date": "2025-11-21",
+        "sox": 168.5166565103558,
+        "aiBasket": 233.25232518477173
+      },
+      {
+        "date": "2025-12-01",
+        "sox": 184.6701164087259,
+        "aiBasket": 253.21531048908906
+      },
+      {
+        "date": "2025-12-08",
+        "sox": 193.99999961468313,
+        "aiBasket": 258.1470964943831
+      },
+      {
+        "date": "2025-12-15",
+        "sox": 183.87784067647775,
+        "aiBasket": 242.15053232430765
+      },
+      {
+        "date": "2025-12-22",
+        "sox": 187.95920701528468,
+        "aiBasket": 253.01363391391146
+      },
+      {
+        "date": "2025-12-30",
+        "sox": 188.57815436937466,
+        "aiBasket": 259.01409094155997
+      },
+      {
+        "date": "2026-01-07",
+        "sox": 199.25165039248697,
+        "aiBasket": 266.50985744403965
+      },
+      {
+        "date": "2026-01-14",
+        "sox": 202.5817772471536,
+        "aiBasket": 263.2494501125697
+      },
+      {
+        "date": "2026-01-22",
+        "sox": 211.88560018788053,
+        "aiBasket": 276.25614967642787
+      },
+      {
+        "date": "2026-01-29",
+        "sox": 218.862019244138,
+        "aiBasket": 288.74712045943016
+      },
+      {
+        "date": "2026-02-05",
+        "sox": 200.29777288767838,
+        "aiBasket": 259.59369300188183
+      },
+      {
+        "date": "2026-02-12",
+        "sox": 212.66237333751013,
+        "aiBasket": 268.5912752718762
+      },
+      {
+        "date": "2026-02-20",
+        "sox": 217.28455761030062,
+        "aiBasket": 273.0100179397803
+      },
+      {
+        "date": "2026-02-27",
+        "sox": 213.0219510533247,
+        "aiBasket": 265.3858958073668
+      },
+      {
+        "date": "2026-03-06",
+        "sox": 197.6699759607218,
+        "aiBasket": 259.7264411111419
+      },
+      {
+        "date": "2026-03-13",
+        "sox": 201.13951046389005,
+        "aiBasket": 266.998676698018
+      },
+      {
+        "date": "2026-03-20",
+        "sox": 201.77001732448926,
+        "aiBasket": 262.55596651428675
+      },
+      {
+        "date": "2026-03-27",
+        "sox": 196.1687813820533,
+        "aiBasket": 244.0337147726007
+      },
+      {
+        "date": "2026-04-06",
+        "sox": 208.22772279198816,
+        "aiBasket": 261.4499653107844
+      },
+      {
+        "date": "2026-04-13",
+        "sox": 237.77822688601216,
+        "aiBasket": 293.5235913357372
+      },
+      {
+        "date": "2026-04-20",
+        "sox": 252.50049143957534,
+        "aiBasket": 312.6954715475203
+      },
+      {
+        "date": "2026-04-27",
+        "sox": 273.7761998623263,
+        "aiBasket": 341.60574799973443
+      },
+      {
+        "date": "2026-05-04",
+        "sox": 277.10685331673386,
+        "aiBasket": 348.719760024719
+      },
+      {
+        "date": "2026-05-11",
+        "sox": 317.78329251864244,
+        "aiBasket": 404.7841440064199
+      },
+      {
+        "date": "2026-05-18",
+        "sox": 297.3048561037309,
+        "aiBasket": 382.30970603499634
+      },
+      {
+        "date": "2026-05-26",
+        "sox": 338.71809825053936,
+        "aiBasket": 431.04710720558836
+      },
+      {
+        "date": "2026-06-02",
+        "sox": 361.05990142695043,
+        "aiBasket": 481.79044111659204
+      },
+      {
+        "date": "2026-06-09",
+        "sox": 332.9548108707397,
+        "aiBasket": 434.5084480923723
+      },
+      {
+        "date": "2026-06-16",
+        "sox": 349.69513407068854,
+        "aiBasket": 453.181893145537
+      },
+      {
+        "date": "2026-06-24",
+        "sox": 354.0085253929285,
+        "aiBasket": 451.5666330164192
+      },
+      {
+        "date": "2026-07-01",
+        "sox": 351.2486803699479,
+        "aiBasket": 452.7070173345227
+      },
+      {
+        "date": "2026-07-09",
+        "sox": 340.90371836572467,
+        "aiBasket": 447.46671211211685
+      },
+      {
+        "date": "2026-07-16",
+        "sox": 312.16627142787326,
+        "aiBasket": 409.4328174069719
+      },
+      {
+        "date": "2026-07-17",
+        "sox": 307.0734868011949,
+        "aiBasket": 404.94843223472714
+      }
+    ]
+  },
+  "macro": {
+    "highYieldOas": {
+      "seriesId": "BAMLH0A0HYM2",
+      "date": "2026-07-16",
+      "valuePct": 2.71,
+      "change3mPctPoints": -0.22999999999999998,
+      "riseFrom3mLowPctPoints": 0.08000000000000007,
+      "sourceUrl": "https://fred.stlouisfed.org/series/BAMLH0A0HYM2"
+    },
+    "real10yYield": {
+      "seriesId": "DFII10",
+      "date": "2026-07-16",
+      "valuePct": 2.35,
+      "change3mPctPoints": 0.40000000000000013,
+      "riseFrom3mLowPctPoints": 0.4600000000000002,
+      "sourceUrl": "https://fred.stlouisfed.org/series/DFII10"
+    }
+  },
+  "companies": [
+    {
+      "ticker": "NVDA",
+      "name": "NVIDIA",
+      "group": "AI accelerator",
+      "price": 202.80999755859375,
+      "priceDate": "2026-07-17",
+      "change1dPct": -2.2131130535045007,
+      "change5dPct": -3.8632958361285996,
+      "drawdown3yPct": 13.968782203801721,
+      "belowSma200": false,
+      "weeksBelowSma200": 0.0,
+      "marketCap": 4912261010000.0,
+      "enterpriseValue": 4844037010000.0,
+      "cash": 80572000000.0,
+      "debt": 12348000000.0,
+      "shares": 24391000000.0,
+      "ttmRevenue": 253491000000.0,
+      "revenueGrowthYoYPct": null,
+      "ttmOperatingIncome": 162285000000.0,
+      "operatingMarginPct": 64.02002437956376,
+      "ttmFreeCashFlow": 119076000000.0,
+      "freeCashFlowGrowthYoYPct": null,
+      "freeCashFlowMarginPct": 46.97444879699871,
+      "freeCashFlowYieldPct": 2.424056860121934,
+      "ttmCapex": 6572000000.0,
+      "capexGrowthYoYPct": null,
+      "trailingPe": 31.761103,
+      "filingDate": "2026-04-30",
+      "assumptions": {
+        "discountRatePct": 10.5,
+        "terminalGrowthPct": 3.0,
+        "bearGrowthPct": 8.0,
+        "baseGrowthPct": 14.000000000000002,
+        "bullGrowthPct": 20.0,
+        "forecastYears": 10
+      },
+      "irUrl": "https://investor.nvidia.com/financial-info/quarterly-results/default.aspx",
+      "marketSourceUrl": "https://finance.yahoo.com/quote/NVDA",
+      "fundamentalsSourceUrl": "https://finance.yahoo.com/quote/NVDA/financials/"
+    },
+    {
+      "ticker": "AVGO",
+      "name": "Broadcom",
+      "group": "AI networking / ASIC",
+      "price": 370.8299865722656,
+      "priceDate": "2026-07-17",
+      "change1dPct": -0.9667580496069306,
+      "change5dPct": -7.2855500561298525,
+      "drawdown3yPct": 22.99562245731741,
+      "belowSma200": false,
+      "weeksBelowSma200": 0.0,
+      "marketCap": 1781475905141.0,
+      "enterpriseValue": 1826754905141.0,
+      "cash": 19628000000.0,
+      "debt": 64907000000.0,
+      "shares": 4876000000.0,
+      "ttmRevenue": 75465000000.0,
+      "revenueGrowthYoYPct": null,
+      "ttmOperatingIncome": 33253000000.0,
+      "operatingMarginPct": 44.06413569204267,
+      "ttmFreeCashFlow": 32762000000.0,
+      "freeCashFlowGrowthYoYPct": null,
+      "freeCashFlowMarginPct": 43.413502948386665,
+      "freeCashFlowYieldPct": 1.83903694153006,
+      "ttmCapex": 860000000.0,
+      "capexGrowthYoYPct": null,
+      "trailingPe": 62.304493,
+      "filingDate": "2026-04-30",
+      "assumptions": {
+        "discountRatePct": 9.5,
+        "terminalGrowthPct": 3.0,
+        "bearGrowthPct": 6.0,
+        "baseGrowthPct": 11.0,
+        "bullGrowthPct": 16.0,
+        "forecastYears": 10
+      },
+      "irUrl": "https://investors.broadcom.com/financial-information/quarterly-results",
+      "marketSourceUrl": "https://finance.yahoo.com/quote/AVGO",
+      "fundamentalsSourceUrl": "https://finance.yahoo.com/quote/AVGO/financials/"
+    },
+    {
+      "ticker": "AMD",
+      "name": "AMD",
+      "group": "AI accelerator / CPU",
+      "price": 495.760009765625,
+      "priceDate": "2026-07-17",
+      "change1dPct": -1.034054507632809,
+      "change5dPct": -11.136604572850196,
+      "drawdown3yPct": 14.658030902444297,
+      "belowSma200": false,
+      "weeksBelowSma200": 0.0,
+      "marketCap": 816833084100.0,
+      "enterpriseValue": 808357084100.0,
+      "cash": 12347000000.0,
+      "debt": 3871000000.0,
+      "shares": 1650000000.0,
+      "ttmRevenue": 37454000000.0,
+      "revenueGrowthYoYPct": 26.533783783783793,
+      "ttmOperatingIncome": 4364000000.0,
+      "operatingMarginPct": 11.651625994553319,
+      "ttmFreeCashFlow": 8574000000.0,
+      "freeCashFlowGrowthYoYPct": 112.07024486767251,
+      "freeCashFlowMarginPct": 22.892080952635233,
+      "freeCashFlowYieldPct": 1.0496636542883142,
+      "ttmCapex": 1151000000.0,
+      "capexGrowthYoYPct": 38.0095923261391,
+      "trailingPe": 166.98,
+      "filingDate": "2026-03-31",
+      "assumptions": {
+        "discountRatePct": 10.5,
+        "terminalGrowthPct": 3.0,
+        "bearGrowthPct": 5.0,
+        "baseGrowthPct": 11.0,
+        "bullGrowthPct": 18.0,
+        "forecastYears": 10
+      },
+      "irUrl": "https://ir.amd.com/financial-information/quarterly-results",
+      "marketSourceUrl": "https://finance.yahoo.com/quote/AMD",
+      "fundamentalsSourceUrl": "https://finance.yahoo.com/quote/AMD/financials/"
+    },
+    {
+      "ticker": "MU",
+      "name": "Micron",
+      "group": "Memory / HBM",
+      "price": 848.9500122070312,
+      "priceDate": "2026-07-17",
+      "change1dPct": -0.4981246998586264,
+      "change5dPct": -13.3105256010168,
+      "drawdown3yPct": 30.044664357957018,
+      "belowSma200": false,
+      "weeksBelowSma200": 0.0,
+      "marketCap": 958798315541.0,
+      "enterpriseValue": 939152315541.0,
+      "cash": 26022000000.0,
+      "debt": 6376000000.0,
+      "shares": 1145000000.0,
+      "ttmRevenue": 90274000000.0,
+      "revenueGrowthYoYPct": null,
+      "ttmOperatingIncome": 59282000000.0,
+      "operatingMarginPct": 65.66896337815983,
+      "ttmFreeCashFlow": 26172000000.0,
+      "freeCashFlowGrowthYoYPct": null,
+      "freeCashFlowMarginPct": 28.99173626957928,
+      "freeCashFlowYieldPct": 2.729666873187246,
+      "ttmCapex": 25260000000.0,
+      "capexGrowthYoYPct": null,
+      "trailingPe": 19.285714,
+      "filingDate": "2026-05-31",
+      "assumptions": {
+        "discountRatePct": 11.0,
+        "terminalGrowthPct": 2.5,
+        "bearGrowthPct": 0.0,
+        "baseGrowthPct": 7.000000000000001,
+        "bullGrowthPct": 13.0,
+        "forecastYears": 10
+      },
+      "irUrl": "https://investors.micron.com/quarterly-results",
+      "marketSourceUrl": "https://finance.yahoo.com/quote/MU",
+      "fundamentalsSourceUrl": "https://finance.yahoo.com/quote/MU/financials/"
+    },
+    {
+      "ticker": "ARM",
+      "name": "Arm Holdings",
+      "group": "CPU architecture",
+      "price": 267.19000244140625,
+      "priceDate": "2026-07-17",
+      "change1dPct": 1.9770209086343193,
+      "change5dPct": -17.37840058794864,
+      "drawdown3yPct": 39.20038054960947,
+      "belowSma200": false,
+      "weeksBelowSma200": 0.0,
+      "marketCap": 279847315907.0,
+      "enterpriseValue": 276703315907.0,
+      "cash": 3601000000.0,
+      "debt": 457000000.0,
+      "shares": 1068000000.0,
+      "ttmRevenue": 4920000000.0,
+      "revenueGrowthYoYPct": 19.388497937393833,
+      "ttmOperatingIncome": 908000000.0,
+      "operatingMarginPct": 18.455284552845526,
+      "ttmFreeCashFlow": 949000000.0,
+      "freeCashFlowGrowthYoYPct": 44.44444444444444,
+      "freeCashFlowMarginPct": 19.288617886178862,
+      "freeCashFlowYieldPct": 0.339113490127372,
+      "ttmCapex": 575000000.0,
+      "capexGrowthYoYPct": 58.83977900552486,
+      "trailingPe": 308.247059,
+      "filingDate": "2026-03-31",
+      "assumptions": {
+        "discountRatePct": 11.0,
+        "terminalGrowthPct": 3.0,
+        "bearGrowthPct": 8.0,
+        "baseGrowthPct": 16.0,
+        "bullGrowthPct": 24.0,
+        "forecastYears": 10
+      },
+      "irUrl": "https://investors.arm.com/financials/quarterly-results",
+      "marketSourceUrl": "https://finance.yahoo.com/quote/ARM",
+      "fundamentalsSourceUrl": "https://finance.yahoo.com/quote/ARM/financials/"
+    },
+    {
+      "ticker": "MRVL",
+      "name": "Marvell Technology",
+      "group": "AI networking / custom silicon",
+      "price": 188.67999267578125,
+      "priceDate": "2026-07-17",
+      "change1dPct": 0.20180011570101186,
+      "change5dPct": -19.986432030347522,
+      "drawdown3yPct": 40.37227916346555,
+      "belowSma200": false,
+      "weeksBelowSma200": 0.0,
+      "marketCap": 165616968691.0,
+      "enterpriseValue": 167050568691.0,
+      "cash": 3843600000.0,
+      "debt": 5277200000.0,
+      "shares": 893300000.0,
+      "ttmRevenue": 8717100000.0,
+      "revenueGrowthYoYPct": null,
+      "ttmOperatingIncome": 1430200000.0,
+      "operatingMarginPct": 16.40683254752154,
+      "ttmFreeCashFlow": 1661500000.0,
+      "freeCashFlowGrowthYoYPct": null,
+      "freeCashFlowMarginPct": 19.06023792316252,
+      "freeCashFlowYieldPct": 1.0032184583090304,
+      "ttmCapex": 394900000.0,
+      "capexGrowthYoYPct": null,
+      "trailingPe": 64.707904,
+      "filingDate": "2026-04-30",
+      "assumptions": {
+        "discountRatePct": 11.0,
+        "terminalGrowthPct": 3.0,
+        "bearGrowthPct": 4.0,
+        "baseGrowthPct": 10.0,
+        "bullGrowthPct": 16.0,
+        "forecastYears": 10
+      },
+      "irUrl": "https://investor.marvell.com/quarterly-results",
+      "marketSourceUrl": "https://finance.yahoo.com/quote/MRVL",
+      "fundamentalsSourceUrl": "https://finance.yahoo.com/quote/MRVL/financials/"
+    },
+    {
+      "ticker": "MSFT",
+      "name": "Microsoft",
+      "group": "Hyperscaler / software",
+      "price": 393.82000732421875,
+      "priceDate": "2026-07-17",
+      "change1dPct": -1.8150083940457584,
+      "change5dPct": 2.264347203972572,
+      "drawdown3yPct": 27.348866013044294,
+      "belowSma200": true,
+      "weeksBelowSma200": 6.4,
+      "marketCap": 2925466155129.0,
+      "enterpriseValue": 2904203155129.0,
+      "cash": 78228000000.0,
+      "debt": 56965000000.0,
+      "shares": 7445000000.0,
+      "ttmRevenue": 318273000000.0,
+      "revenueGrowthYoYPct": 12.973335605060266,
+      "ttmOperatingIncome": 148957000000.0,
+      "operatingMarginPct": 46.80164512855316,
+      "ttmFreeCashFlow": 72916000000.0,
+      "freeCashFlowGrowthYoYPct": 1.8223457290081235,
+      "freeCashFlowMarginPct": 22.909891822429174,
+      "freeCashFlowYieldPct": 2.49245747971351,
+      "ttmCapex": 97225000000.0,
+      "capexGrowthYoYPct": 50.617341327012745,
+      "trailingPe": 23.88922,
+      "filingDate": "2026-03-31",
+      "assumptions": {
+        "discountRatePct": 8.5,
+        "terminalGrowthPct": 3.0,
+        "bearGrowthPct": 5.0,
+        "baseGrowthPct": 9.0,
+        "bullGrowthPct": 13.0,
+        "forecastYears": 10
+      },
+      "irUrl": "https://www.microsoft.com/en-us/Investor/earnings/FY-2026-Q3/press-release-webcast",
+      "marketSourceUrl": "https://finance.yahoo.com/quote/MSFT",
+      "fundamentalsSourceUrl": "https://finance.yahoo.com/quote/MSFT/financials/"
+    },
+    {
+      "ticker": "GOOGL",
+      "name": "Alphabet",
+      "group": "Hyperscaler / advertising",
+      "price": 346.7699890136719,
+      "priceDate": "2026-07-17",
+      "change1dPct": -2.1694980045105727,
+      "change5dPct": -2.9144979773709556,
+      "drawdown3yPct": 13.871642437246512,
+      "belowSma200": false,
+      "weeksBelowSma200": 0.0,
+      "marketCap": 4227911519048.0,
+      "enterpriseValue": 4191555519048.0,
+      "cash": 126840000000.0,
+      "debt": 90484000000.0,
+      "shares": 12238000000.0,
+      "ttmRevenue": 422498000000.0,
+      "revenueGrowthYoYPct": 13.75851846666254,
+      "ttmOperatingIncome": 138129000000.0,
+      "operatingMarginPct": 32.693409199570176,
+      "ttmFreeCashFlow": 64429000000.0,
+      "freeCashFlowGrowthYoYPct": -3.445330296127558,
+      "freeCashFlowMarginPct": 15.249539642791207,
+      "freeCashFlowYieldPct": 1.5238966026069414,
+      "ttmCapex": 109924000000.0,
+      "capexGrowthYoYPct": 64.11466109286354,
+      "trailingPe": 27.037376,
+      "filingDate": "2026-03-31",
+      "assumptions": {
+        "discountRatePct": 9.0,
+        "terminalGrowthPct": 3.0,
+        "bearGrowthPct": 4.0,
+        "baseGrowthPct": 8.0,
+        "bullGrowthPct": 12.0,
+        "forecastYears": 10
+      },
+      "irUrl": "https://abc.xyz/investor/",
+      "marketSourceUrl": "https://finance.yahoo.com/quote/GOOGL",
+      "fundamentalsSourceUrl": "https://finance.yahoo.com/quote/GOOGL/financials/"
+    },
+    {
+      "ticker": "AMZN",
+      "name": "Amazon",
+      "group": "Hyperscaler / commerce",
+      "price": 247.22999572753906,
+      "priceDate": "2026-07-17",
+      "change1dPct": -1.0644698341695902,
+      "change5dPct": 0.7703592638215628,
+      "drawdown3yPct": 10.094910903184505,
+      "belowSma200": false,
+      "weeksBelowSma200": 0.0,
+      "marketCap": 2659480165862.0,
+      "enterpriseValue": 2726279165862.0,
+      "cash": 143089000000.0,
+      "debt": 209888000000.0,
+      "shares": 10874000000.0,
+      "ttmRevenue": 742776000000.0,
+      "revenueGrowthYoYPct": 10.855802208232967,
+      "ttmOperatingIncome": 85422000000.0,
+      "operatingMarginPct": 11.500371579049403,
+      "ttmFreeCashFlow": -2472000000.0,
+      "freeCashFlowGrowthYoYPct": -118.33691862621467,
+      "freeCashFlowMarginPct": -0.33280558337910754,
+      "freeCashFlowYieldPct": -0.09295049580483586,
+      "ttmCapex": 151003000000.0,
+      "capexGrowthYoYPct": 40.26436055584455,
+      "trailingPe": 29.891148,
+      "filingDate": "2026-03-31",
+      "assumptions": {
+        "discountRatePct": 9.5,
+        "terminalGrowthPct": 3.0,
+        "bearGrowthPct": 5.0,
+        "baseGrowthPct": 10.0,
+        "bullGrowthPct": 15.0,
+        "forecastYears": 10
+      },
+      "irUrl": "https://ir.aboutamazon.com/quarterly-results/default.aspx",
+      "marketSourceUrl": "https://finance.yahoo.com/quote/AMZN",
+      "fundamentalsSourceUrl": "https://finance.yahoo.com/quote/AMZN/financials/"
+    },
+    {
+      "ticker": "META",
+      "name": "Meta Platforms",
+      "group": "Hyperscaler / advertising",
+      "price": 646.010009765625,
+      "priceDate": "2026-07-17",
+      "change1dPct": -2.788390296205223,
+      "change5dPct": -3.4667759664811504,
+      "drawdown3yPct": 18.22658104232595,
+      "belowSma200": false,
+      "weeksBelowSma200": 0.0,
+      "marketCap": 1686883822439.0,
+      "enterpriseValue": 1692472822439.0,
+      "cash": 81180000000.0,
+      "debt": 86769000000.0,
+      "shares": 2564000000.0,
+      "ttmRevenue": 214963000000.0,
+      "revenueGrowthYoYPct": 20.22270195297644,
+      "ttmOperatingIncome": 88593000000.0,
+      "operatingMarginPct": 41.213139005317196,
+      "ttmFreeCashFlow": 48253000000.0,
+      "freeCashFlowGrowthYoYPct": -3.757703891337738,
+      "freeCashFlowMarginPct": 22.44711880649228,
+      "freeCashFlowYieldPct": 2.860481519719174,
+      "ttmCapex": 75747000000.0,
+      "capexGrowthYoYPct": 45.21490740385721,
+      "trailingPe": 24.165091,
+      "filingDate": "2026-03-31",
+      "assumptions": {
+        "discountRatePct": 9.0,
+        "terminalGrowthPct": 3.0,
+        "bearGrowthPct": 3.0,
+        "baseGrowthPct": 8.0,
+        "bullGrowthPct": 12.0,
+        "forecastYears": 10
+      },
+      "irUrl": "https://investor.atmeta.com/investor-events/",
+      "marketSourceUrl": "https://finance.yahoo.com/quote/META",
+      "fundamentalsSourceUrl": "https://finance.yahoo.com/quote/META/financials/"
+    }
+  ],
+  "derived": {
+    "medianRevenueGrowthYoYPct": 16.573508202028187,
+    "medianFreeCashFlowGrowthYoYPct": -0.8114922835597171,
+    "medianHyperscalerCapexGrowthYoYPct": 47.91612436543498,
+    "hyperscalersWithCapexCuts": 0
+  },
+  "manualInputs": {
+    "forwardEpsRevision3mPct": null,
+    "companiesWithEpsCuts": null,
+    "memoryOrGpuPriceDropPct": null,
+    "majorProjectCancellations90d": null,
+    "supplierInventoryGapPctPoints": null,
+    "note": "These fields require a consistent paid consensus series, product-level pricing, or verified project announcements. Missing is not zero."
+  },
+  "sourceStatus": [
+    {
+      "name": "Yahoo Finance chart",
+      "url": "https://finance.yahoo.com/quote/%5ESOX",
+      "ok": true,
+      "retrieved_at": "2026-07-18T08:39:35.168397+00:00",
+      "note": "SOX"
+    },
+    {
+      "name": "Yahoo Finance chart",
+      "url": "https://finance.yahoo.com/quote/%5EIXIC",
+      "ok": true,
+      "retrieved_at": "2026-07-18T08:39:35.168397+00:00",
+      "note": "NASDAQ"
+    },
+    {
+      "name": "Yahoo Finance chart",
+      "url": "https://finance.yahoo.com/quote/NVDA",
+      "ok": true,
+      "retrieved_at": "2026-07-18T08:39:35.168397+00:00",
+      "note": "NVDA"
+    },
+    {
+      "name": "Yahoo Finance chart",
+      "url": "https://finance.yahoo.com/quote/AVGO",
+      "ok": true,
+      "retrieved_at": "2026-07-18T08:39:35.168397+00:00",
+      "note": "AVGO"
+    },
+    {
+      "name": "Yahoo Finance chart",
+      "url": "https://finance.yahoo.com/quote/AMD",
+      "ok": true,
+      "retrieved_at": "2026-07-18T08:39:35.168397+00:00",
+      "note": "AMD"
+    },
+    {
+      "name": "Yahoo Finance chart",
+      "url": "https://finance.yahoo.com/quote/MU",
+      "ok": true,
+      "retrieved_at": "2026-07-18T08:39:35.168397+00:00",
+      "note": "MU"
+    },
+    {
+      "name": "Yahoo Finance chart",
+      "url": "https://finance.yahoo.com/quote/ARM",
+      "ok": true,
+      "retrieved_at": "2026-07-18T08:39:35.168397+00:00",
+      "note": "ARM"
+    },
+    {
+      "name": "Yahoo Finance chart",
+      "url": "https://finance.yahoo.com/quote/MRVL",
+      "ok": true,
+      "retrieved_at": "2026-07-18T08:39:35.168397+00:00",
+      "note": "MRVL"
+    },
+    {
+      "name": "Yahoo Finance chart",
+      "url": "https://finance.yahoo.com/quote/MSFT",
+      "ok": true,
+      "retrieved_at": "2026-07-18T08:39:35.168397+00:00",
+      "note": "MSFT"
+    },
+    {
+      "name": "Yahoo Finance chart",
+      "url": "https://finance.yahoo.com/quote/GOOGL",
+      "ok": true,
+      "retrieved_at": "2026-07-18T08:39:35.168397+00:00",
+      "note": "GOOGL"
+    },
+    {
+      "name": "Yahoo Finance chart",
+      "url": "https://finance.yahoo.com/quote/AMZN",
+      "ok": true,
+      "retrieved_at": "2026-07-18T08:39:35.168397+00:00",
+      "note": "AMZN"
+    },
+    {
+      "name": "Yahoo Finance chart",
+      "url": "https://finance.yahoo.com/quote/META",
+      "ok": true,
+      "retrieved_at": "2026-07-18T08:39:35.168397+00:00",
+      "note": "META"
+    },
+    {
+      "name": "Yahoo Finance fundamentals",
+      "url": "https://finance.yahoo.com/quote/NVDA/financials/",
+      "ok": true,
+      "retrieved_at": "2026-07-18T08:39:35.168397+00:00",
+      "note": "NVDA"
+    },
+    {
+      "name": "Yahoo Finance fundamentals",
+      "url": "https://finance.yahoo.com/quote/AVGO/financials/",
+      "ok": true,
+      "retrieved_at": "2026-07-18T08:39:35.168397+00:00",
+      "note": "AVGO"
+    },
+    {
+      "name": "Yahoo Finance fundamentals",
+      "url": "https://finance.yahoo.com/quote/AMD/financials/",
+      "ok": true,
+      "retrieved_at": "2026-07-18T08:39:35.168397+00:00",
+      "note": "AMD"
+    },
+    {
+      "name": "Yahoo Finance fundamentals",
+      "url": "https://finance.yahoo.com/quote/MU/financials/",
+      "ok": true,
+      "retrieved_at": "2026-07-18T08:39:35.168397+00:00",
+      "note": "MU"
+    },
+    {
+      "name": "Yahoo Finance fundamentals",
+      "url": "https://finance.yahoo.com/quote/ARM/financials/",
+      "ok": true,
+      "retrieved_at": "2026-07-18T08:39:35.168397+00:00",
+      "note": "ARM"
+    },
+    {
+      "name": "Yahoo Finance fundamentals",
+      "url": "https://finance.yahoo.com/quote/MRVL/financials/",
+      "ok": true,
+      "retrieved_at": "2026-07-18T08:39:35.168397+00:00",
+      "note": "MRVL"
+    },
+    {
+      "name": "Yahoo Finance fundamentals",
+      "url": "https://finance.yahoo.com/quote/MSFT/financials/",
+      "ok": true,
+      "retrieved_at": "2026-07-18T08:39:35.168397+00:00",
+      "note": "MSFT"
+    },
+    {
+      "name": "Yahoo Finance fundamentals",
+      "url": "https://finance.yahoo.com/quote/GOOGL/financials/",
+      "ok": true,
+      "retrieved_at": "2026-07-18T08:39:35.168397+00:00",
+      "note": "GOOGL"
+    },
+    {
+      "name": "Yahoo Finance fundamentals",
+      "url": "https://finance.yahoo.com/quote/AMZN/financials/",
+      "ok": true,
+      "retrieved_at": "2026-07-18T08:39:35.168397+00:00",
+      "note": "AMZN"
+    },
+    {
+      "name": "Yahoo Finance fundamentals",
+      "url": "https://finance.yahoo.com/quote/META/financials/",
+      "ok": true,
+      "retrieved_at": "2026-07-18T08:39:35.168397+00:00",
+      "note": "META"
+    },
+    {
+      "name": "FRED",
+      "url": "https://fred.stlouisfed.org/series/BAMLH0A0HYM2",
+      "ok": true,
+      "retrieved_at": "2026-07-18T08:39:35.168397+00:00",
+      "note": "BAMLH0A0HYM2"
+    },
+    {
+      "name": "FRED",
+      "url": "https://fred.stlouisfed.org/series/DFII10",
+      "ok": true,
+      "retrieved_at": "2026-07-18T08:39:35.168397+00:00",
+      "note": "DFII10"
+    }
+  ],
+  "methodVersion": "2.0.0"
+}

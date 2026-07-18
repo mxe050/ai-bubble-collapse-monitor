@@ -1,0 +1,411 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="AI関連株の割高とバブル崩壊を、企業価値、価格、設備投資、供給、信用市場から分けて検証するモニター">
+  <title>AIバブル崩壊モニター</title>
+  <link rel="stylesheet" href="styles.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.9/dist/chart.umd.min.js" defer></script>
+  <script src="https://unpkg.com/lucide@0.468.0/dist/umd/lucide.min.js" defer></script>
+  <script src="app.js" defer></script>
+</head>
+<body>
+  <header class="site-header">
+    <div class="header-inner">
+      <div>
+        <p class="eyebrow">VALUATION / CAPITAL CYCLE / COLLAPSE</p>
+        <h1>AIバブル崩壊モニター</h1>
+        <p class="header-summary">「AIは本物か」と「株価に織り込まれた期待は実現可能か」を分けて考えます。</p>
+      </div>
+      <div class="header-actions">
+        <button id="refreshButton" class="command primary" type="button">
+          <i data-lucide="refresh-cw" aria-hidden="true"></i>
+          最新データを再読込
+        </button>
+        <a class="command" href="#methodology">
+          <i data-lucide="calculator" aria-hidden="true"></i>
+          計算根拠
+        </a>
+      </div>
+    </div>
+  </header>
+
+  <nav class="section-nav" aria-label="ページ内ナビゲーション">
+    <div class="nav-inner">
+      <a href="#today">今日の判定</a>
+      <a href="#signals">崩壊シグナル</a>
+      <a href="#valuation">企業価値</a>
+      <a href="#manual-inputs">未取得データ</a>
+      <a href="#history">過去との比較</a>
+      <a href="#methodology">計算根拠</a>
+      <a href="#sources">出典</a>
+    </div>
+  </nav>
+
+  <main>
+    <section id="today" class="band band-strong">
+      <div class="content">
+        <div class="section-heading heading-row">
+          <div>
+            <p class="section-kicker">CURRENT ASSESSMENT</p>
+            <h2>今日の判定</h2>
+          </div>
+          <div class="data-stamp" aria-live="polite">
+            <span id="dataHealth" class="status-dot">読込中</span>
+            <span>市場日 <strong id="marketDate">―</strong></span>
+            <span>生成 <strong id="generatedAt">―</strong></span>
+          </div>
+        </div>
+
+        <div class="verdict-grid">
+          <article class="verdict-panel">
+            <p class="label">評価水準</p>
+            <strong id="bubbleRegime" class="verdict-value">計算中</strong>
+            <p id="bubbleReason" class="supporting">企業価値シナリオを計算しています。</p>
+          </article>
+          <article class="verdict-panel">
+            <p class="label">崩壊段階</p>
+            <strong id="collapseRegime" class="verdict-value">計算中</strong>
+            <p id="collapseReason" class="supporting">価格・利益・波及の3ゲートを確認しています。</p>
+          </article>
+          <article class="verdict-panel metric-verdict">
+            <p class="label">観測された崩壊証拠</p>
+            <strong><span id="evidenceScore">―</span><small>/100点</small></strong>
+            <p id="scoreRange" class="supporting">未確認項目を含む範囲を計算中</p>
+          </article>
+          <article class="verdict-panel metric-verdict">
+            <p class="label">判定に使えたデータ</p>
+            <strong><span id="coverageValue">―</span><small>%</small></strong>
+            <p id="coverageReason" class="supporting">欠損を0として扱いません。</p>
+          </article>
+        </div>
+
+        <div class="plain-conclusion">
+          <div class="conclusion-icon"><i data-lucide="scan-search" aria-hidden="true"></i></div>
+          <div>
+            <p class="label">一言でいうと</p>
+            <p id="headlineConclusion" class="conclusion-text">最新データを読み込んでいます。</p>
+            <p id="uncertaintySummary" class="supporting"></p>
+          </div>
+        </div>
+
+        <div class="hypothesis-note">
+          <strong>出発点：</strong>AI関連株には実体のある利益成長と、実現可能性を超える期待が混在している、という仮説から始めます。高値そのものをバブル崩壊とは判定しません。
+        </div>
+      </div>
+    </section>
+
+    <section id="signals" class="band">
+      <div class="content">
+        <div class="section-heading">
+          <p class="section-kicker">FIVE-LAYER MONITOR</p>
+          <h2>どこが悪化すると「崩壊」なのか</h2>
+          <p>価格だけでなく、株価を支えた将来キャッシュフロー仮説が壊れ、投資・供給・信用へ伝わったかを順番に確認します。点数は確率ではなく、観測された証拠の強さです。</p>
+        </div>
+
+        <div id="signalGrid" class="signal-grid" aria-live="polite"></div>
+
+        <div class="gate-section">
+          <h3>崩壊確認に必要な3つのゲート</h3>
+          <div class="gate-flow">
+            <article id="gatePrice" class="gate-card">
+              <span class="gate-number">A</span>
+              <div><strong>価格レジーム転換</strong><p>SOXが3年高値から35%以上下落し、200日線を6週以上下回る。</p><span class="gate-result">判定中</span></div>
+            </article>
+            <i data-lucide="chevron-right" class="flow-arrow" aria-hidden="true"></i>
+            <article id="gateFundamental" class="gate-card">
+              <span class="gate-number">B</span>
+              <div><strong>利益仮説の破綻</strong><p>EPS・FCFの下方修正、または複数社による設備投資削減を確認する。</p><span class="gate-result">判定中</span></div>
+            </article>
+            <i data-lucide="chevron-right" class="flow-arrow" aria-hidden="true"></i>
+            <article id="gateTransmission" class="gate-card">
+              <span class="gate-number">C</span>
+              <div><strong>実体・信用への波及</strong><p>製品価格、在庫、計画中止、信用スプレッドの悪化を確認する。</p><span class="gate-result">判定中</span></div>
+            </article>
+          </div>
+          <p class="method-note">A・B・Cがすべて充足し、観測点が65点以上の場合のみ「崩壊確認」とします。未確認項目が残る場合は確認済みとは表示しません。</p>
+        </div>
+
+        <div class="chart-layout">
+          <div class="chart-panel">
+            <div class="panel-heading">
+              <div><h3>AI相場の価格経路</h3><p>3年前を100としたSOXと主要AI株の等ウェイト指数</p></div>
+              <span class="source-chip">週次表示</span>
+            </div>
+            <div class="chart-frame"><canvas id="marketChart"></canvas></div>
+          </div>
+          <aside class="reading-panel">
+            <h3>この図で確認すること</h3>
+            <ul id="marketReading">
+              <li>指数と個別株が一緒に下がっているか</li>
+              <li>一時的な急落か、200日線下で持続しているか</li>
+              <li>利益悪化を伴う下落か、評価倍率だけの調整か</li>
+            </ul>
+          </aside>
+        </div>
+      </div>
+    </section>
+
+    <section id="valuation" class="band band-muted">
+      <div class="content">
+        <div class="section-heading">
+          <p class="section-kicker">VALUE BEFORE NARRATIVE</p>
+          <h2>企業の実力と「期待の上乗せ」を分ける</h2>
+          <p>直近12か月のフリーキャッシュフローを出発点に、10年間の成長とその後の永続成長を割り引きます。これは目標株価ではなく、現在価格がどの程度強い前提を要求しているかを見るストレステストです。</p>
+        </div>
+
+        <div class="valuation-overview">
+          <div class="chart-panel">
+            <div class="panel-heading">
+              <div><h3>現在の時価総額を3つに分解</h3><p>利益稼得力、合理的成長、基準シナリオを超える上乗せ</p></div>
+            </div>
+            <div class="chart-frame chart-tall"><canvas id="valuationChart"></canvas></div>
+          </div>
+          <div class="definition-list">
+            <div><span class="definition-mark existing"></span><p><strong>既存利益の価値</strong>現在のFCFを成長ゼロで継続すると仮定した価値。事業の「すでにある実」を近似します。</p></div>
+            <div><span class="definition-mark growth"></span><p><strong>合理的な成長価値</strong>基準シナリオで追加される価値。成長期待のすべてがバブルではありません。</p></div>
+            <div><span class="definition-mark premium"></span><p><strong>モデル超過分</strong>市場価値が基準DCFを上回る部分。競争優位の長期化や予想以上の成長が実現すれば正当化されます。</p></div>
+          </div>
+        </div>
+
+        <div class="table-wrap">
+          <table class="company-table">
+            <thead>
+              <tr>
+                <th>企業</th>
+                <th>株価 / 1日</th>
+                <th>3年高値から</th>
+                <th>売上成長</th>
+                <th>FCF / 利回り</th>
+                <th>市場が要求するFCF成長</th>
+                <th>基準DCFとの差</th>
+                <th><span class="sr-only">詳細</span></th>
+              </tr>
+            </thead>
+            <tbody id="companyRows"></tbody>
+          </table>
+        </div>
+
+        <div id="companyDetail" class="company-detail">
+          <div class="detail-heading">
+            <div>
+              <p class="section-kicker">COMPANY STRESS TEST</p>
+              <h3 id="detailCompanyName">企業を選択</h3>
+              <p id="detailCompanyContext">企業一覧から詳細を開いてください。</p>
+            </div>
+            <label class="select-control">分析対象
+              <select id="companySelect"></select>
+            </label>
+          </div>
+
+          <div class="fundamental-strip" id="fundamentalStrip"></div>
+
+          <div class="assumption-layout">
+            <form id="valuationControls" class="assumption-panel">
+              <h4>基準シナリオの前提</h4>
+              <label>今後10年のFCF成長率
+                <div class="range-row"><input id="baseGrowthInput" type="range" min="-10" max="35" step="0.5"><output id="baseGrowthOutput"></output></div>
+              </label>
+              <label>株主資本コスト
+                <div class="range-row"><input id="discountInput" type="range" min="6" max="16" step="0.25"><output id="discountOutput"></output></div>
+              </label>
+              <label>10年後の永続成長率
+                <div class="range-row"><input id="terminalInput" type="range" min="0" max="4" step="0.25"><output id="terminalOutput"></output></div>
+              </label>
+              <button id="resetAssumptions" type="button" class="command">
+                <i data-lucide="rotate-ccw" aria-hidden="true"></i>
+                初期前提へ戻す
+              </button>
+            </form>
+
+            <div class="scenario-panel">
+              <h4>どこまで下がり得るか</h4>
+              <div class="scenario-grid">
+                <article><span>弱気シナリオ</span><strong id="bearValue">―</strong><p id="bearDownside">―</p></article>
+                <article class="scenario-main"><span>基準シナリオ</span><strong id="baseValue">―</strong><p id="baseDownside">―</p></article>
+                <article><span>強気シナリオ</span><strong id="bullValue">―</strong><p id="bullDownside">―</p></article>
+                <article><span>現在価格が要求</span><strong id="impliedGrowth">―</strong><p>10年間のFCF年平均成長率</p></article>
+              </div>
+              <div id="scenarioExplanation" class="scenario-explanation"></div>
+            </div>
+          </div>
+
+          <div class="sensitivity-panel">
+            <div class="panel-heading"><div><h4>基準価値の感度</h4><p>成長率と株主資本コストを少し変えたときの1株価値</p></div></div>
+            <div class="table-wrap"><table id="sensitivityTable" class="sensitivity-table"></table></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="manual-inputs" class="band">
+      <div class="content">
+        <div class="section-heading">
+          <p class="section-kicker">UNKNOWN IS NOT ZERO</p>
+          <h2>自動取得できない重要データ</h2>
+          <p>予想EPSの修正履歴、同一仕様のメモリー・GPU価格、正式な計画中止は、無料データだけでは定義をそろえにくい項目です。確認できた値だけを入力してください。空欄は「悪化なし」ではなく「未確認」です。</p>
+        </div>
+
+        <form id="manualForm" class="manual-grid">
+          <label>
+            <span>12か月先予想EPSの3か月下方修正率</span>
+            <small>中核企業の中央値。同じコンセンサス提供元で比較。</small>
+            <div class="input-unit"><input id="manualEpsCut" type="number" min="0" max="100" step="0.1" placeholder="未確認"><span>%</span></div>
+          </label>
+          <label>
+            <span>10%以上下方修正された中核企業</span>
+            <small>1社固有の問題と、相場全体への拡散を分ける。</small>
+            <div class="input-unit"><input id="manualEpsCompanies" type="number" min="0" max="20" step="1" placeholder="未確認"><span>社</span></div>
+          </label>
+          <label>
+            <span>同一製品のメモリー・GPU価格低下</span>
+            <small>同じ仕様・契約期間・数量条件で2四半期比較。</small>
+            <div class="input-unit"><input id="manualPriceDrop" type="number" min="0" max="100" step="0.1" placeholder="未確認"><span>%</span></div>
+          </label>
+          <label>
+            <span>大規模データセンター延期・中止</span>
+            <small>重複報道を除き、正式発表を優先した直近90日。</small>
+            <div class="input-unit"><input id="manualCancellations" type="number" min="0" max="50" step="1" placeholder="未確認"><span>件</span></div>
+          </label>
+          <label>
+            <span>在庫増加率－売上増加率</span>
+            <small>主要供給企業の中央値。前年比の差を使用。</small>
+            <div class="input-unit"><input id="manualInventoryGap" type="number" min="-100" max="200" step="0.1" placeholder="未確認"><span>pt</span></div>
+          </label>
+          <div class="manual-actions">
+            <button id="applyManual" type="submit" class="command primary">
+              <i data-lucide="check" aria-hidden="true"></i>
+              入力値で再判定
+            </button>
+            <button id="clearManual" type="button" class="command">
+              <i data-lucide="eraser" aria-hidden="true"></i>
+              未確認へ戻す
+            </button>
+            <p id="manualMessage" aria-live="polite"></p>
+          </div>
+        </form>
+      </div>
+    </section>
+
+    <section id="history" class="band band-dark">
+      <div class="content">
+        <div class="section-heading">
+          <p class="section-kicker">HISTORY AS A MAP, NOT A FORECAST</p>
+          <h2>ITバブルから何を学び、何を同一視しないか</h2>
+          <p>新技術が本物でも、投資家が支払った価格が正しいとは限りません。一方、現在のAI中核企業は利益とキャッシュフローを持つため、2000年の無収益企業をそのまま当てはめるのも誤りです。</p>
+        </div>
+
+        <div class="comparison-table-wrap">
+          <table class="comparison-table">
+            <thead><tr><th>観点</th><th>1990年代末のIT相場</th><th>現在のAI相場</th><th>今回の監視方法</th></tr></thead>
+            <tbody>
+              <tr><th>技術の実体</th><td>インターネットは社会基盤として定着した。</td><td>AI利用と売上はすでに拡大している。</td><td>技術の成否ではなく、企業が獲得できるFCFを測る。</td></tr>
+              <tr><th>上場企業の質</th><td>売上・利益が乏しく外部資金依存の企業が多数。</td><td>相場を牽引する大企業は大きな利益と現金を持つ。</td><td>赤字企業と高収益企業を同じ倍率で扱わない。</td></tr>
+              <tr><th>過剰投資</th><td>通信・IT設備投資が需要を上回り、2001年に急反転。</td><td>GPU、データセンター、電力への投資が急増。</td><td>CapExだけでなく、顧客側の増分収益とFCFを追う。</td></tr>
+              <tr><th>崩壊の確認</th><td>価格下落、利益悪化、投資縮小が連鎖。</td><td>高値からの調整だけでは未確認。</td><td>価格・利益・実体波及の3ゲートを要求する。</td></tr>
+              <tr><th>下落後</th><td>NASDAQは約78%下落した一方、実力のある企業は存続。</td><td>同じ下落率を機械的に当てはめられない。</td><td>各社のFCFと資本コストから弱気価値を別々に計算。</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="history-insights">
+          <article><span>1</span><div><strong>正しい物語でも価格は間違う</strong><p>インターネットの長期的成功は、2000年時点のすべての株価を正当化しませんでした。AIでも同じ区別が必要です。</p></div></article>
+          <article><span>2</span><div><strong>崩壊は利益予想の変更で深くなる</strong><p>倍率だけが下がる調整と、売上・利益・投資計画そのものが下がる崩壊を分けます。</p></div></article>
+          <article><span>3</span><div><strong>信用への波及が社会的損失を拡大する</strong><p>自己資金中心なら株主損失にとどまりやすく、債務依存が高まるほど設備・雇用・金融へ伝播します。</p></div></article>
+        </div>
+
+        <p class="dark-source">参考：IMFの2003年分析では株式バストの実質価格下落中央値は約45.5%、2000年開始局面は約43.6%。NASDAQ単独では約78%下落しました。比較値は予測値ではありません。</p>
+      </div>
+    </section>
+
+    <section id="methodology" class="band">
+      <div class="content">
+        <div class="section-heading">
+          <p class="section-kicker">TRANSPARENT METHOD</p>
+          <h2>なぜこのデータを入れ、どう計算するのか</h2>
+          <p>真の本源価値は観測できないため、単一の「正解価格」は出せません。その代わり、入力、式、閾値、欠損、感度を公開し、どの仮定で結論が変わるかを示します。</p>
+        </div>
+
+        <div class="method-steps">
+          <article><span>STEP 1</span><h3>現在の実力を測る</h3><p>売上、営業利益、FCF、現金、負債、CapExを使います。PERだけでは、会計利益の質、再投資負担、資本構成を区別できません。</p></article>
+          <article><span>STEP 2</span><h3>合理的な成長を加える</h3><p>FCFが一定期間成長し、その後は経済全体に近い永続成長へ落ち着くと仮定して現在価値へ割り引きます。</p></article>
+          <article><span>STEP 3</span><h3>市場の要求を逆算する</h3><p>現在の時価総額に一致する10年間のFCF成長率を解きます。高いほど競争、価格低下、顧客内製化に弱くなります。</p></article>
+          <article><span>STEP 4</span><h3>崩壊の連鎖を確認する</h3><p>高評価であることと、崩壊が始まったことは別です。価格、利益、供給・信用の順に証拠を積み上げます。</p></article>
+        </div>
+
+        <div class="formula-section">
+          <div>
+            <h3>株主価値DCF</h3>
+            <div class="formula">株主価値 = Σ FCF<sub>t</sub> ÷ (1+r)<sup>t</sup> + 継続価値 ÷ (1+r)<sup>n</sup></div>
+            <p>ここでのFCFはYahoo Financeが集計する営業キャッシュフロー－設備投資の近似値です。厳密なFCFEではないため、負債発行、買収、株式報酬、希薄化が大きい企業では誤差が増えます。</p>
+          </div>
+          <div>
+            <h3>継続価値</h3>
+            <div class="formula">TV = FCF<sub>n</sub> × (1+g) ÷ (r−g)</div>
+            <p>永続成長率gが株主資本コストrに近づくと価値が急増します。そのためgは0～4%、rは6～16%の範囲で感度を表示します。</p>
+          </div>
+          <div>
+            <h3>市場の暗黙成長率</h3>
+            <div class="formula">現在の時価総額 = DCF(FCF成長率 x) となる x を二分法で逆算</div>
+            <p>xは予測ではありません。現在価格を正当化するために必要な条件です。売上成長率ではなくFCF成長率である点に注意してください。</p>
+          </div>
+        </div>
+
+        <div class="weight-table-wrap">
+          <table class="weight-table">
+            <thead><tr><th>評価層</th><th>最大点</th><th>高得点になる条件</th><th>なぜ必要か</th></tr></thead>
+            <tbody>
+              <tr><th>価格レジーム</th><td>30</td><td>SOX下落、200日線割れの持続、下落銘柄の拡大</td><td>短期ノイズと長期トレンド転換を分ける。</td></tr>
+              <tr><th>企業価値の脆弱性</th><td>20</td><td>基準DCFを超える上乗せ、極端な暗黙FCF成長</td><td>下落した場合の距離を測る。</td></tr>
+              <tr><th>基礎収益</th><td>25</td><td>売上・FCF悪化、EPS下方修正、CapEx削減</td><td>株価を支えた将来利益仮説の破綻を捉える。</td></tr>
+              <tr><th>資本循環・供給</th><td>15</td><td>製品価格下落、在庫乖離、計画中止</td><td>過剰投資が供給過剰へ変わったかを見る。</td></tr>
+              <tr><th>信用市場</th><td>10</td><td>HY OASの水準・上昇速度</td><td>株主損失が資金調達や実体経済へ広がったかを見る。</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="limitations">
+          <h3>このモニターができないこと</h3>
+          <ul>
+            <li>将来の技術進歩、競争優位、規制、戦争、金利を正確に予言すること。</li>
+            <li>非公開の契約価格、顧客別採算、データセンターの実利用率を完全に把握すること。</li>
+            <li>DCFの弱気値を「必ず止まる底値」と保証すること。</li>
+            <li>個人の資産状況、税金、損失許容度を踏まえた売買判断を行うこと。</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <section id="sources" class="band band-muted">
+      <div class="content">
+        <div class="section-heading">
+          <p class="section-kicker">DATA PROVENANCE</p>
+          <h2>取得元・更新状況・検証先</h2>
+          <p>GitHub Actionsが6時間ごとにデータを生成します。ブラウザーのボタンは、公開済みの最新データパッケージをキャッシュを使わず再読込します。</p>
+        </div>
+
+        <div id="sourceStatusList" class="source-status-list"></div>
+
+        <div class="official-links">
+          <a href="https://fred.stlouisfed.org/series/BAMLH0A0HYM2" target="_blank" rel="noopener">FRED：米国ハイイールドOAS</a>
+          <a href="https://fred.stlouisfed.org/series/DFII10" target="_blank" rel="noopener">FRED：米10年実質金利</a>
+          <a href="https://www.sec.gov/search-filings/edgar-application-programming-interfaces" target="_blank" rel="noopener">SEC：EDGAR API仕様</a>
+          <a href="https://www.federalreserve.gov/newsevents/speech/files/jefferson20251121a.pdf" target="_blank" rel="noopener">FRB：AIとITバブルの比較</a>
+          <a href="https://www.elibrary.imf.org/display/book/9781589062122/ch02.xml" target="_blank" rel="noopener">IMF：資産バブル崩壊の歴史分析</a>
+          <a href="https://indexes.nasdaq.com/docs/Nasdaq-100_A%20Tale%20of%20Three%20Crises%20over%20Two%20Decades.pdf" target="_blank" rel="noopener">Nasdaq：Tech Bubble比較</a>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <div class="content footer-inner">
+      <p><strong>重要：</strong>本サイトは教育・調査用です。投資助言、価格予測、売買推奨ではありません。取得値には遅延・欠損・定義差があり、重要な判断では企業IRと提出資料を確認してください。</p>
+      <p>Method v2.0 / <a href="https://github.com/mxe050/ai-bubble-collapse-monitor" target="_blank" rel="noopener">GitHub</a></p>
+    </div>
+  </footer>
+
+  <noscript>このモニターの計算とグラフ表示にはJavaScriptが必要です。</noscript>
+</body>
+</html>
