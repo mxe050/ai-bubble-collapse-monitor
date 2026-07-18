@@ -84,11 +84,19 @@ setTimeout(() => {
   assert.match(elements.get("dotcomComparisonRows").innerHTML, /本田技研工業/);
   assert.match(elements.get("dotcomKeyFinding").innerHTML, /最大下落中央値/);
   assert.match(elements.get("dotcomWindowBasis").innerHTML, /2000-03-10/);
+  assert.notStrictEqual(elements.get("sakakibaraStage").textContent, "計算中");
+  assert.match(elements.get("sakakibaraNtLatest").textContent, /倍/);
+  assert.match(elements.get("sakFairRange").textContent, /円/);
+  assert.match(elements.get("enAiProxyRows").innerHTML, /トヨタ自動車/);
+  assert.match(elements.get("enAiProxyInterpretation").textContent, /代理上位/);
   console.log(JSON.stringify({
     headline: elements.get("headlineConclusion").textContent,
     transmission: elements.get("japanTransmissionStatus").textContent,
     nikkeiZone: elements.get("nikkeiZone").textContent,
     dotcomRows: (elements.get("dotcomComparisonRows").innerHTML.match(/<tr/g) || []).length,
+    sakakibara: elements.get("sakakibaraStage").textContent,
+    ntRatio: elements.get("sakakibaraNtLatest").textContent,
+    enAiRows: (elements.get("enAiProxyRows").innerHTML.match(/<tr/g) || []).length,
     health: elements.get("dataHealth").textContent,
   }, null, 2));
 }, 50);

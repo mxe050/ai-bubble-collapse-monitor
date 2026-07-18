@@ -8,13 +8,17 @@
     marketChart: null,
     valuationChart: null,
     nikkeiBottomChart: null,
+    ntRatioChart: null,
     valuations: [],
     companyFilter: "all",
     nikkeiBottom: loadNikkeiBottom(),
     nikkeiBottomInitialized: false,
+    sakakibaraFairValue: loadSakakibaraFairValue(),
+    sakakibaraInitialized: false,
   };
 
   var numberOne = new Intl.NumberFormat("ja-JP", { maximumFractionDigits: 1 });
+  var numberTwo = new Intl.NumberFormat("ja-JP", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   var nikkeiFormat = new Intl.NumberFormat("ja-JP", { maximumFractionDigits: 0 });
   var moneyFormatters = {};
   var priceFormatters = {};
@@ -52,6 +56,13 @@
     var number = Number(value);
     var prefix = signed && number > 0 ? "+" : "";
     return prefix + numberOne.format(number) + "%";
+  }
+
+  function formatPctPoints(value, signed) {
+    if (value === null || value === undefined || !Number.isFinite(Number(value))) return "未確認";
+    var number = Number(value);
+    var prefix = signed && number > 0 ? "+" : "";
+    return prefix + numberOne.format(number) + "ポイント";
   }
 
   function formatMoney(value, currency) {
@@ -209,6 +220,20 @@
 
   function saveNikkeiBottom() {
     localStorage.setItem("aiBubbleNikkeiBottomV4", JSON.stringify(state.nikkeiBottom));
+  }
+
+  function loadSakakibaraFairValue() {
+    var empty = { eps: null, targetPe: null, bps: null, roePct: null, growthYears: null };
+    try {
+      var parsed = JSON.parse(localStorage.getItem("aiBubbleSakakibaraFairValueV1") || "null");
+      return parsed ? Object.assign(empty, parsed) : empty;
+    } catch (error) {
+      return empty;
+    }
+  }
+
+  function saveSakakibaraFairValue() {
+    localStorage.setItem("aiBubbleSakakibaraFairValueV1", JSON.stringify(state.sakakibaraFairValue));
   }
 
   function inputOrNull(id) {
@@ -956,6 +981,281 @@
     byId("sensitivityTable").innerHTML = html;
   }
 
+
+  function renderNtRatioChart(analysis) {
+    if (typeof Chart === "undefined") return;
+    var nt = analysis.ntRatio || {};
+    var rows = Array.isArray(nt.history) ? nt.history : [];
+    if (!rows.length) return;
+    if (state.ntRatioChart) state.ntRatioChart.destroy();
+    state.ntRatioChart = new Chart(byId("ntRatioChart"), {
+      type: "line",
+      data: {
+        labels: rows.map(function (row) { return row.date; }),
+        datasets: [
+          {
+            label: "NT倍率",
+            data: rows.map(function (row) { return row.ntRatio; }),
+            borderColor: "#b33b2e",
+            backgroundColor: "rgba(179,59,46,.08)",
+            borderWidth: 3,
+            pointRadius: 0,
+            tension: 0.12,
+            fill: true,
+          },
+          {
+            label: "2021年高値 15.68",
+            data: rows.map(function () { return 15.68; }),
+            borderColor: "#7b8794",
+            borderWidth: 1.5,
+            borderDash: [6, 5],
+            pointRadius: 0,
+          },
+          {
+            label: "2025年高値 15.78",
+            data: rows.map(function () { return 15.78; }),
+            borderColor: "#16796f",
+            borderWidth: 1.5,
+            borderDash: [3, 4],
+            pointRadius: 0,
+          },
+        ],
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        interaction: { mode: "index", intersect: false },
+        plugins: {
+          legend: { position: "bottom", labels: { color: chartTextColor(), boxWidth: 18 } },
+          tooltip: {
+            callbacks: {
+              title: function (items) { return items[0] ? items[0].label : ""; },
+              label: function (context) { return context.datasetIndex === 0 ? "NT倍率 " + numberTwo.format(context.parsed.y) + "倍" : context.dataset.label; },
+            },
+          },
+        },
+        scales: {
+          x: {
+            grid: { display: false },
+            ticks: { color: chartTextColor(), maxTicksLimit: 8, maxRotation: 0 },
+          },
+          y: {
+            grid: { color: "rgba(100,115,134,.15)" },
+            ticks: { color: chartTextColor(), callback: function (value) { return numberOne.format(value) + "倍"; } },
+          },
+        },
+      },
+    });
+  }
+
+  function renderSakakibaraGate(id, passed) {
+    var element = byId(id);
+    if (!element) return;
+    element.classList.remove("is-pass", "is-fail", "is-unknown");
+    var status = passed === true ? "is-pass" : passed === false ? "is-fail" : "is-unknown";
+    element.classList.add(status);
+    var label = passed === true ? "確認" : passed === false ? "未確認" : "データ不足";
+    element.querySelector("em").textContent = label;
+  }
+
+  function initializeSakakibaraFairValue(analysis) {
+    if (state.sakakibaraInitialized) return;
+    var article = analysis.articleScenario || {};
+    var settings = state.sakakibaraFairValue;
+    if (finite(settings.eps) === null) settings.eps = finite(article.eps);
+    if (finite(settings.targetPe) === null) settings.targetPe = finite(article.targetPe);
+    if (finite(settings.bps) === null) settings.bps = finite(article.bps);
+    if (finite(settings.roePct) === null) settings.roePct = finite(article.roePct);
+    if (finite(settings.growthYears) === null) settings.growthYears = finite(article.growthYears);
+    state.sakakibaraInitialized = true;
+    syncSakakibaraControls();
+  }
+
+  function syncSakakibaraControls() {
+    var settings = state.sakakibaraFairValue;
+    byId("sakEpsInput").value = finite(settings.eps) === null ? "" : settings.eps;
+    byId("sakTargetPeInput").value = finite(settings.targetPe) === null ? "" : settings.targetPe;
+    byId("sakBpsInput").value = finite(settings.bps) === null ? "" : settings.bps;
+    byId("sakRoeInput").value = finite(settings.roePct) === null ? "" : settings.roePct;
+    byId("sakGrowthYearsInput").value = finite(settings.growthYears) === null ? "" : settings.growthYears;
+  }
+
+  function readSakakibaraControls() {
+    var read = function (id) {
+      var value = byId(id).value.trim();
+      return value === "" ? null : finite(value);
+    };
+    state.sakakibaraFairValue = {
+      eps: read("sakEpsInput"),
+      targetPe: read("sakTargetPeInput"),
+      bps: read("sakBpsInput"),
+      roePct: read("sakRoeInput"),
+      growthYears: read("sakGrowthYearsInput"),
+    };
+    saveSakakibaraFairValue();
+  }
+
+  function renderSakakibaraFairValue(analysis) {
+    initializeSakakibaraFairValue(analysis);
+    var settings = state.sakakibaraFairValue;
+    var eps = finite(settings.eps);
+    var targetPe = finite(settings.targetPe);
+    var bps = finite(settings.bps);
+    var roePct = finite(settings.roePct);
+    var years = finite(settings.growthYears);
+    var valid = [eps, targetPe, bps, roePct, years].every(function (value) { return value !== null; })
+      && eps > 0 && targetPe > 0 && bps > 0 && roePct > -100 && years >= 0;
+    var jgb = analysis.jgb || {};
+    byId("sakJgbYield").textContent = finite(jgb.tenYearPct) === null ? "未確認" : numberTwo.format(jgb.tenYearPct) + "%";
+    byId("sakJgbDate").textContent = jgb.date ? "基準日 " + jgb.date : "基準日未確認";
+    if (!valid) {
+      byId("sakPeFairValue").textContent = "入力を確認";
+      byId("sakPbFairValue").textContent = "入力を確認";
+      byId("sakFairRange").textContent = "算定不可";
+      byId("sakPeFormula").textContent = "正のEPS・PERを入力してください。";
+      byId("sakPbFormula").textContent = "正のBPS、ROEは−100%超、年数は0以上で入力してください。";
+      return;
+    }
+    var targetPb = Math.pow(1 + roePct / 100, years);
+    var earningsValue = eps * targetPe;
+    var bookValue = bps * targetPb;
+    byId("sakPeFairValue").textContent = formatNikkei(earningsValue);
+    byId("sakPbFairValue").textContent = formatNikkei(bookValue);
+    byId("sakPeFormula").textContent = nikkeiFormat.format(eps) + "円 × " + numberOne.format(targetPe) + "倍";
+    byId("sakPbFormula").textContent = nikkeiFormat.format(bps) + "円 × (1 + " + numberOne.format(roePct) + "%)^" + nikkeiFormat.format(years) + "年 = PBR " + numberTwo.format(targetPb) + "倍";
+    byId("sakFairRange").textContent = formatNikkei(Math.min(earningsValue, bookValue)) + " ～ " + formatNikkei(Math.max(earningsValue, bookValue));
+  }
+
+  function proxyDimension(row) {
+    var dimensions = [
+      { label: "品質", value: finite(row.qualityScore), max: finite(row.qualityMax) },
+      { label: "相対割安", value: finite(row.valueScore), max: finite(row.valueMax) },
+      { label: "売られすぎ", value: finite(row.oversoldScore), max: finite(row.oversoldMax) },
+      { label: "相対回復", value: finite(row.rotationScore), max: finite(row.rotationMax) },
+    ].filter(function (item) { return item.value !== null && item.max > 0; });
+    dimensions.sort(function (a, b) { return b.value / b.max - a.value / a.max; });
+    return dimensions[0] ? dimensions[0].label + "が相対的な強み" : "取得項目が不足";
+  }
+
+  function proxyScoreCell(value, maximum) {
+    var score = finite(value);
+    var max = finite(maximum);
+    return score === null || max === null || max <= 0
+      ? "<span class=\"unknown\">未確認</span>"
+      : "<strong>" + numberOne.format(score) + "</strong><small>/" + numberOne.format(max) + "</small>";
+  }
+
+  function renderEnAiProxy(analysis) {
+    var rows = Array.isArray(analysis.enAiProxy) ? analysis.enAiProxy : [];
+    byId("enAiProxyRows").innerHTML = rows.map(function (row) {
+      var pe = finite(row.approxTrailingPe);
+      var pb = finite(row.approxPriceToBook);
+      var dividend = finite(row.trailingDividendYieldPct);
+      var score = finite(row.score);
+      var coverage = finite(row.coveragePct);
+      return "<tr>"
+        + "<th><strong>" + escapeHtml(row.name) + "</strong><small>" + escapeHtml(String(row.ticker).replace(".T", "")) + "・" + escapeHtml(proxyDimension(row)) + "</small></th>"
+        + "<td><strong class=\"proxy-total\">" + (score === null ? "未確認" : numberOne.format(score)) + "</strong><small>取得率 " + formatPercent(coverage, false) + "</small></td>"
+        + "<td>" + proxyScoreCell(row.qualityScore, row.qualityMax) + "</td>"
+        + "<td>" + proxyScoreCell(row.valueScore, row.valueMax) + "</td>"
+        + "<td>" + proxyScoreCell(row.oversoldScore, row.oversoldMax) + "</td>"
+        + "<td>" + proxyScoreCell(row.rotationScore, row.rotationMax) + "</td>"
+        + "<td><strong>" + (pe === null ? "PER未確認" : "PER " + numberOne.format(pe) + "倍") + "</strong><small>"
+        + (pb === null ? "PBR未確認" : "PBR " + numberOne.format(pb) + "倍") + " / "
+        + (dividend === null ? "配当未確認" : "配当 " + numberOne.format(dividend) + "%") + "</small></td>"
+        + "<td class=\"" + cssValueClass(row.change20dPct, false) + "\"><strong>" + formatPercent(row.change20dPct, true) + "</strong><small>高値から " + formatDrawdown(row.drawdownFrom2026HighPct) + "</small></td>"
+        + "</tr>";
+    }).join("");
+    var leaders = rows.filter(function (row) { return finite(row.score) !== null; }).slice(0, 3);
+    var leaderText = leaders.map(function (row) {
+      return row.name + "（" + numberOne.format(row.score) + "点、" + proxyDimension(row) + "）";
+    }).join("、");
+    byId("enAiProxyInterpretation").textContent = leaders.length
+      ? "現在の代理上位は " + leaderText + " です。これは8社内の相対順位で、割安の絶対判定でも購入推奨でもありません。PERは時価総額÷TTM純利益、PBRは時価総額÷直近株主資本、配当利回りは直近365日の実績配当÷株価という近似です。"
+      : "代理スコアに必要な財務・価格データを取得できませんでした。";
+  }
+
+  function renderSakakibaraMethod() {
+    var analysis = state.data && state.data.market ? state.data.market.sakakibaraAnalysis || {} : {};
+    if (!analysis.ntRatio) {
+      byId("sakakibaraStage").textContent = "計算データ不足";
+      byId("sakakibaraStageReason").textContent = "日経平均とTOPIXの同日終値を十分に取得できませんでした。";
+      return;
+    }
+    var nt = analysis.ntRatio || {};
+    var gates = analysis.gates || {};
+    var relative = analysis.relativeMarket || {};
+    var nikkei = relative.nikkei || {};
+    var topix = relative.topix || {};
+    var ai = analysis.japanAiBasket || {};
+    var diversified = analysis.japanDiversifiedBasket || {};
+    var kioxia = analysis.kioxiaCase || {};
+
+    byId("sakakibaraStage").textContent = analysis.stage || "未判定";
+    byId("sakakibaraAsOf").textContent = analysis.asOfDate || "未確認";
+    byId("sakakibaraGateCount").textContent = (analysis.confirmationCount || 0) + "/" + (analysis.confirmationMax || 4);
+    byId("sakakibaraNtLatest").textContent = finite(nt.latest) === null ? "未確認" : numberTwo.format(nt.latest) + "倍";
+    byId("sakakibaraNtDate").textContent = nt.latestDate ? nt.latestDate + "・日経平均÷TOPIX" : "日付未確認";
+    var stageReason = gates.distortion
+      ? "直近のNT倍率には一極集中の歪みが残っています。そのうえで、揺り戻しを示す4条件のうち" + (analysis.confirmationCount || 0) + "条件を確認しました。"
+      : "NT倍率が本ルールの高水準条件に達していないため、揺り戻しの前提となる一極集中の歪みを確認していません。";
+    byId("sakakibaraStageReason").textContent = stageReason;
+
+    byId("sakNtPeak").textContent = finite(nt.peak252d) === null ? "未確認" : numberTwo.format(nt.peak252d) + "倍";
+    byId("sakNtPeakDate").textContent = nt.peak252dDate || "日付未確認";
+    byId("sakNtPeakDecline").textContent = finite(nt.declineFromPeakPct) === null ? "未確認" : "−" + formatPercent(nt.declineFromPeakPct, false);
+    byId("sakNt20dChange").textContent = formatPercent(nt.change20dPct, true);
+    byId("sakNtInterpretation").textContent = gates.ntReversal
+      ? "NT倍率は直近ピークから" + formatPercent(nt.declineFromPeakPct, false) + "低下し、20日でも" + formatPercent(nt.change20dPct, true) + "です。高株価の集中銘柄が市場全体より弱くなり、歪みが縮小している動きと整合します。"
+      : "NT倍率の水準が高くても、ピークから十分に低下し20日方向も下向きになるまでは、集中の修正が始まったとは判定しません。";
+
+    renderSakakibaraGate("sakGateNt", gates.ntReversal);
+    renderSakakibaraGate("sakGateMarket", gates.broadOutperformance);
+    renderSakakibaraGate("sakGateBasket", gates.basketRotation);
+    renderSakakibaraGate("sakGateBreadth", gates.breadthConfirmation);
+
+    byId("sakNikkei5d").textContent = formatPercent(nikkei.change5dPct, true);
+    byId("sakTopix5d").textContent = formatPercent(topix.change5dPct, true);
+    byId("sakMarketSpread5d").textContent = "TOPIX優位 " + formatPctPoints(relative.topixAdvantage5dPctPoints, true);
+    byId("sakNikkei20d").textContent = formatPercent(nikkei.change20dPct, true);
+    byId("sakTopix20d").textContent = formatPercent(topix.change20dPct, true);
+    byId("sakMarketSpread20d").textContent = "TOPIX優位 " + formatPctPoints(relative.topixAdvantage20dPctPoints, true);
+    byId("sakMarketInterpretation").textContent = finite(relative.topixAdvantage20dPctPoints) !== null && relative.topixAdvantage20dPctPoints > 0
+      ? "20日ではTOPIXが日経平均を" + formatPctPoints(relative.topixAdvantage20dPctPoints, false) + "上回りました。市場全体も下落し得ますが、価格加重の日経平均に大きく効く銘柄の下落が、幅広い日本株より強い状態です。"
+      : "TOPIXの相対優位を確認できません。日経平均の集中銘柄だけが特に弱い、という揺り戻し像とはまだ一致しません。";
+
+    byId("sakAi5d").textContent = formatPercent(ai.medianChange5dPct, true);
+    byId("sakDiv5d").textContent = formatPercent(diversified.medianChange5dPct, true);
+    byId("sakBasketSpread5d").textContent = "分散型優位 " + formatPctPoints(analysis.basketAdvantage5dPctPoints, true);
+    byId("sakAi20d").textContent = formatPercent(ai.medianChange20dPct, true);
+    byId("sakDiv20d").textContent = formatPercent(diversified.medianChange20dPct, true);
+    byId("sakBasketSpread20d").textContent = "分散型優位 " + formatPctPoints(analysis.basketAdvantage20dPctPoints, true);
+    byId("sakBasketInterpretation").textContent = gates.basketRotation
+      ? "分散型8社の中央値はAI連動8社を、5日で" + formatPctPoints(analysis.basketAdvantage5dPctPoints, false) + "、20日で" + formatPctPoints(analysis.basketAdvantage20dPctPoints, false) + "上回りました。榊原先生のいうEN-AI側への相対回復と整合する価格差です。"
+      : "分散型8社がAI連動8社を十分に上回っていません。指数差だけで揺り戻しと判断せず、企業群でも確認できるまで保留します。";
+
+    var breadthCoverage = diversified.positive5dCoverage || diversified.count || 0;
+    byId("sakBreadthOutperform").textContent = finite(diversified.outperformNikkei5dCount) === null ? "未確認" : diversified.outperformNikkei5dCount + "/" + breadthCoverage + "社";
+    byId("sakBreadthPositive").textContent = finite(diversified.positive5dCount) === null ? "未確認" : diversified.positive5dCount + "/" + breadthCoverage + "社";
+    byId("sakBreadthInterpretation").textContent = gates.breadthConfirmation
+      ? "相対的な強さが複数の分散型企業へ広がっています。1社の決算や材料だけで生じた指数差である可能性は下がりますが、8社の小標本である点は残ります。"
+      : "分散型企業への広がりが基準に達していません。少数銘柄の上昇だけなら、継続的な揺り戻しとは区別します。";
+
+    byId("sakKioxiaStartDate").textContent = formatShortDate(kioxia.articleStartDate) || "3/31";
+    byId("sakKioxiaStart").textContent = formatPrice(kioxia.articleStartLow, "JPY");
+    byId("sakKioxiaPeakDate").textContent = formatShortDate(kioxia.peak2026Date) || "高値日未確認";
+    byId("sakKioxiaPeak").textContent = formatPrice(kioxia.peak2026, "JPY");
+    byId("sakKioxiaRise").textContent = "起点から " + formatPercent(kioxia.riseFromArticleStartToPeakPct, true) + "（約" + (finite(kioxia.riseFromArticleStartToPeakPct) === null ? "―" : numberTwo.format(1 + kioxia.riseFromArticleStartToPeakPct / 100)) + "倍）";
+    byId("sakKioxiaCurrentDate").textContent = formatShortDate(kioxia.date) || "最新";
+    byId("sakKioxiaCurrent").textContent = formatPrice(kioxia.close, "JPY");
+    byId("sakKioxiaFall").textContent = "高値から −" + formatPercent(kioxia.drawdownFrom2026HighPct, false);
+    byId("sakKioxiaInterpretation").textContent = "3月31日の日中安値" + formatPrice(kioxia.articleStartLow, "JPY") + "から6月22日の日中高値" + formatPrice(kioxia.peak2026, "JPY") + "まで" + formatPercent(kioxia.riseFromArticleStartToPeakPct, true) + "上昇し、その後は最新値まで" + formatPercent(kioxia.drawdownFrom2026HighPct, false) + "下落しました。短期間の急騰と急落は期待の過熱・剥落と整合しますが、1社の事例だけで市場全体のバブル崩壊を証明するものではありません。";
+
+    renderNtRatioChart(analysis);
+    renderSakakibaraFairValue(analysis);
+    renderEnAiProxy(analysis);
+  }
+
   function initializeNikkeiSettings() {
     if (state.nikkeiBottomInitialized || !state.data) return;
     var reference = state.data.market.nikkeiValuationReference || {};
@@ -982,6 +1282,27 @@
     byId("nikkeiTargetPe").value = settings.targetPe;
     byId("nikkeiTargetPb").value = settings.targetPb;
     byId("nikkeiHistoricalDrawdown").value = settings.historyDrawdown;
+    ["sakEpsInput", "sakTargetPeInput", "sakBpsInput", "sakRoeInput", "sakGrowthYearsInput"].forEach(function (id) {
+      byId(id).addEventListener("input", function () {
+        readSakakibaraControls();
+        if (state.data) renderSakakibaraFairValue(state.data.market.sakakibaraAnalysis || {});
+      });
+    });
+    byId("resetSakakibaraAssumptions").addEventListener("click", function () {
+      var article = state.data && state.data.market.sakakibaraAnalysis
+        ? state.data.market.sakakibaraAnalysis.articleScenario || {}
+        : {};
+      state.sakakibaraFairValue = {
+        eps: finite(article.eps),
+        targetPe: finite(article.targetPe),
+        bps: finite(article.bps),
+        roePct: finite(article.roePct),
+        growthYears: finite(article.growthYears),
+      };
+      saveSakakibaraFairValue();
+      syncSakakibaraControls();
+      if (state.data) renderSakakibaraFairValue(state.data.market.sakakibaraAnalysis || {});
+    });
     document.querySelectorAll('input[name="nikkeiScenario"]').forEach(function (input) {
       input.checked = input.value === settings.scenario;
     });
@@ -1405,6 +1726,7 @@
     renderSignals(evidence);
     renderGates(gates);
     renderJapanTransmission(transmission);
+    renderSakakibaraMethod();
     renderMarketReading();
     renderMarketChart();
     renderDotComComparison();
@@ -1430,7 +1752,7 @@
       var response = await fetch("data/latest.json?ts=" + Date.now(), { cache: "no-store" });
       if (!response.ok) throw new Error("HTTP " + response.status);
       var payload = await response.json();
-      if (!payload.companies || !payload.market || Number(payload.schemaVersion) < 8) throw new Error("データ形式が古いか不正です");
+      if (!payload.companies || !payload.market || Number(payload.schemaVersion) < 9) throw new Error("データ形式が古いか不正です");
       state.data = payload;
       renderAll();
     } catch (error) {

@@ -12,6 +12,7 @@ import csv
 import io
 import json
 import math
+import re
 import statistics
 import time
 import urllib.error
@@ -407,7 +408,13 @@ JAPAN_AI_TICKERS = tuple(
     symbol for symbol, profile in COMPANIES.items() if profile.get("category") == "japan-ai"
 )
 CHART_TICKERS = tuple(symbol for symbol in OVERSEAS_AI_TICKERS if symbol != "ARM")
-PRICE_SYMBOLS = {"SOX": "^SOX", "NASDAQ": "^IXIC", "NIKKEI": "^N225", **{k: k for k in COMPANIES}}
+PRICE_SYMBOLS = {
+    "SOX": "^SOX",
+    "NASDAQ": "^IXIC",
+    "NIKKEI": "^N225",
+    "KIOXIA": "285A.T",
+    **{k: k for k in COMPANIES},
+}
 HYPERSCALERS = {"MSFT", "GOOGL", "AMZN", "META"}
 
 HISTORICAL_EPISODES: list[dict[str, str]] = [
@@ -646,12 +653,14 @@ FUNDAMENTAL_TYPES = [
     "trailingFreeCashFlow",
     "trailingCapitalExpenditure",
     "trailingMarketCap",
+    "trailingNetIncome",
     "quarterlyTotalRevenue",
     "quarterlyFreeCashFlow",
     "quarterlyCapitalExpenditure",
     "quarterlyCashCashEquivalentsAndShortTermInvestments",
     "quarterlyCashAndCashEquivalents",
     "quarterlyTotalDebt",
+    "quarterlyStockholdersEquity",
 ]
 
 
@@ -726,14 +735,21 @@ def fetch_price_series(symbol: str) -> dict[str, Any]:
     quote = result["indicators"]["quote"][0]
     closes = quote.get("close", [])
     highs = quote.get("high", [])
+    lows = quote.get("low", [])
     points: list[dict[str, Any]] = []
     for index, (timestamp, close) in enumerate(zip(timestamps, closes)):
         value = finite(close)
         if value is None:
             continue
         high = finite(highs[index]) if index < len(highs) else None
+        low = finite(lows[index]) if index < len(lows) else None
         date = datetime.fromtimestamp(timestamp, timezone.utc).date().isoformat()
-        points.append({"date": date, "close": value, "high": high if high is not None else value})
+        points.append({
+            "date": date,
+            "close": value,
+            "high": high if high is not None else value,
+            "low": low if low is not None else value,
+        })
     if len(points) < 210:
         raise RuntimeError(f"Insufficient price history for {symbol}")
 
@@ -745,6 +761,15 @@ def fetch_price_series(symbol: str) -> dict[str, Any]:
     peak_row = max(three_year, key=lambda row: row["close"])
     rows_2026 = [row for row in points if row["date"] >= "2026-01-01"]
     peak_2026_row = max(rows_2026, key=lambda row: row["high"]) if rows_2026 else None
+    low_2026_row = min(rows_2026, key=lambda row: row["low"]) if rows_2026 else None
+    latest_market_day = datetime.fromisoformat(points[-1]["date"]).date()
+    dividend_cutoff = latest_market_day - timedelta(days=365)
+    dividends = (result.get("events") or {}).get("dividends") or {}
+    trailing_dividend = sum(
+        finite(event.get("amount")) or 0.0
+        for event in dividends.values()
+        if dividend_cutoff <= datetime.fromtimestamp(event["date"], timezone.utc).date() <= latest_market_day
+    )
     below_days = 0
     for value, average in reversed(list(zip(values, sma200))):
         if average is not None and value < average:
@@ -763,12 +788,19 @@ def fetch_price_series(symbol: str) -> dict[str, Any]:
         "close": last,
         "change1dPct": pct_change(last, values[-2]) if len(values) > 1 else None,
         "change5dPct": pct_change(last, values[-6]) if len(values) > 5 else None,
+        "change20dPct": pct_change(last, values[-21]) if len(values) > 20 else None,
+        "change60dPct": pct_change(last, values[-61]) if len(values) > 60 else None,
         "peak3y": peak_row["close"],
         "peak3yDate": peak_row["date"],
         "drawdown3yPct": (1.0 - last / peak_row["close"]) * 100.0,
         "peak2026": peak_2026_row["high"] if peak_2026_row else None,
         "peak2026Date": peak_2026_row["date"] if peak_2026_row else None,
         "drawdownFrom2026HighPct": (1.0 - last / peak_2026_row["high"]) * 100.0 if peak_2026_row else None,
+        "low2026": low_2026_row["low"] if low_2026_row else None,
+        "low2026Date": low_2026_row["date"] if low_2026_row else None,
+        "riseFrom2026LowToHighPct": pct_change(peak_2026_row["high"], low_2026_row["low"]) if peak_2026_row and low_2026_row else None,
+        "trailingDividendPerShare": trailing_dividend,
+        "trailingDividendYieldPct": trailing_dividend / last * 100.0 if last else None,
         "sma200": latest_sma,
         "belowSma200": bool(latest_sma is not None and last < latest_sma),
         "weeksBelowSma200": below_days / 5.0,
@@ -781,6 +813,454 @@ def fetch_price_series(symbol: str) -> dict[str, Any]:
         "reboundFrom120dLowPct": pct_change(last, low_120_row["close"]),
         "history": points,
         "sourceUrl": f"https://finance.yahoo.com/quote/{urllib.parse.quote(symbol)}",
+    }
+
+
+
+def fetch_topix_series() -> dict[str, Any]:
+    """Fetch recent TOPIX closes from Yahoo! Finance Japan's public history table."""
+
+    start_day = NOW.date() - timedelta(days=430)
+    end_day = NOW.date() + timedelta(days=1)
+    points_by_date: dict[str, dict[str, Any]] = {}
+    base = "https://finance.yahoo.co.jp/quote/998405/history"
+    for page in range(1, 31):
+        query = urllib.parse.urlencode({
+            "from": start_day.strftime("%Y%m%d"),
+            "to": end_day.strftime("%Y%m%d"),
+            "timeFrame": "d",
+            "page": page,
+        })
+        html = request(f"{base}?{query}").decode("utf-8", errors="replace")
+        page_rows: list[dict[str, Any]] = []
+        for date_text, body in re.findall(
+            r'<tr[^>]*>\s*<th[^>]*scope="row"[^>]*>(\d{4}/\d{1,2}/\d{1,2})</th>(.*?)</tr>',
+            html,
+            flags=re.DOTALL,
+        ):
+            cells = re.findall(r"<td[^>]*>(.*?)</td>", body, flags=re.DOTALL)
+            values: list[float] = []
+            for cell in cells[:4]:
+                text = re.sub(r"<[^>]+>", "", cell).strip().replace(",", "")
+                value = finite(text)
+                if value is not None:
+                    values.append(value)
+            if len(values) != 4:
+                continue
+            date_value = datetime.strptime(date_text, "%Y/%m/%d").date().isoformat()
+            row = {
+                "date": date_value,
+                "open": values[0],
+                "high": values[1],
+                "low": values[2],
+                "close": values[3],
+            }
+            points_by_date[date_value] = row
+            page_rows.append(row)
+        if not page_rows:
+            break
+        if min(datetime.fromisoformat(row["date"]).date() for row in page_rows) <= start_day:
+            break
+
+    points = sorted(points_by_date.values(), key=lambda row: row["date"])
+    if len(points) < 120:
+        raise RuntimeError("Insufficient TOPIX history from Yahoo! Finance Japan")
+    values = [row["close"] for row in points]
+    sma50 = moving_average(values, 50)
+    sma200 = moving_average(values, 200)
+    peak_row = max(points, key=lambda row: row["close"])
+    rows_2026 = [row for row in points if row["date"] >= "2026-01-01"]
+    peak_2026 = max(rows_2026, key=lambda row: row["high"]) if rows_2026 else None
+    last = values[-1]
+    return {
+        "symbol": "998405",
+        "date": points[-1]["date"],
+        "close": last,
+        "change1dPct": pct_change(last, values[-2]) if len(values) > 1 else None,
+        "change5dPct": pct_change(last, values[-6]) if len(values) > 5 else None,
+        "change20dPct": pct_change(last, values[-21]) if len(values) > 20 else None,
+        "change60dPct": pct_change(last, values[-61]) if len(values) > 60 else None,
+        "peak3y": peak_row["close"],
+        "peak3yDate": peak_row["date"],
+        "drawdown3yPct": (1.0 - last / peak_row["close"]) * 100.0,
+        "peak2026": peak_2026["high"] if peak_2026 else None,
+        "peak2026Date": peak_2026["date"] if peak_2026 else None,
+        "drawdownFrom2026HighPct": (1.0 - last / peak_2026["high"]) * 100.0 if peak_2026 else None,
+        "sma50": sma50[-1],
+        "sma200": sma200[-1],
+        "history": points,
+        "sourceUrl": "https://finance.yahoo.co.jp/quote/998405/history",
+        "sourceNote": "Yahoo!ファイナンス日本版のTOPIX日次履歴。直近約430日を取得。",
+    }
+
+
+def fetch_mof_jgb_yield() -> dict[str, Any]:
+    """Return the latest 10-year constant-maturity JGB yield from MOF Japan."""
+
+    url = "https://www.mof.go.jp/jgbs/reference/interest_rate/jgbcm.csv"
+    text = request(url).decode("cp932", errors="replace")
+    rows = list(csv.reader(io.StringIO(text)))
+    if len(rows) < 3:
+        raise RuntimeError("MOF JGB CSV has no data rows")
+    header = rows[1]
+    ten_year_index = header.index("10年")
+    observations: list[dict[str, Any]] = []
+    for row in rows[2:]:
+        if len(row) <= ten_year_index:
+            continue
+        match = re.fullmatch(r"R(\d+)\.(\d+)\.(\d+)", row[0].strip())
+        value = finite(row[ten_year_index])
+        if not match or value is None:
+            continue
+        year = 2018 + int(match.group(1))
+        date_value = datetime(year, int(match.group(2)), int(match.group(3))).date().isoformat()
+        observations.append({"date": date_value, "tenYearPct": value})
+    if not observations:
+        raise RuntimeError("MOF JGB CSV contains no valid 10-year observation")
+    latest_row = observations[-1]
+    return {
+        **latest_row,
+        "sourceUrl": url,
+        "definitionUrl": "https://www.mof.go.jp/jgbs/reference/interest_rate/qa.htm",
+        "definition": "財務省が公表する、15時時点の流通市場価格から算出したコンスタント・マチュリティー・ベースの10年国債金利。",
+    }
+
+
+def basket_summary(
+    companies: list[dict[str, Any]],
+    tickers: tuple[str, ...],
+    nikkei: dict[str, Any],
+) -> dict[str, Any]:
+    rows = [company for company in companies if company["ticker"] in tickers]
+    count = len(rows)
+    result: dict[str, Any] = {
+        "constituents": [row["ticker"] for row in rows],
+        "count": count,
+    }
+    for days in (1, 5, 20, 60):
+        key = f"change{days}dPct"
+        values = [finite(row.get(key)) for row in rows]
+        usable = [value for value in values if value is not None]
+        nikkei_value = finite(nikkei.get(key))
+        result[f"medianChange{days}dPct"] = median(usable)
+        result[f"positive{days}dCount"] = sum(1 for value in usable if value > 0)
+        result[f"positive{days}dCoverage"] = len(usable)
+        result[f"outperformNikkei{days}dCount"] = (
+            sum(1 for value in usable if nikkei_value is not None and value > nikkei_value)
+            if nikkei_value is not None else None
+        )
+    return result
+
+
+def relative_rank_points(
+    rows: list[dict[str, Any]],
+    key: str,
+    max_points: float,
+    *,
+    higher_is_better: bool,
+) -> dict[str, float | None]:
+    usable = [(row["ticker"], finite(row.get(key))) for row in rows]
+    usable = [(ticker, value) for ticker, value in usable if value is not None and value > 0]
+    if not usable:
+        return {row["ticker"]: None for row in rows}
+    ordered = sorted(usable, key=lambda item: item[1], reverse=higher_is_better)
+    if len(ordered) == 1:
+        return {ordered[0][0]: max_points / 2.0}
+    return {
+        ticker: max_points * (len(ordered) - 1 - index) / (len(ordered) - 1)
+        for index, (ticker, _value) in enumerate(ordered)
+    }
+
+
+def build_en_ai_proxy(
+    companies: list[dict[str, Any]],
+    nikkei: dict[str, Any],
+) -> list[dict[str, Any]]:
+    """Transparent proxy for the article's proprietary EN-AI universe."""
+
+    rows = [company for company in companies if company.get("category") == "japan-diversified"]
+    pe_points = relative_rank_points(rows, "approxTrailingPe", 10.0, higher_is_better=False)
+    pb_points = relative_rank_points(rows, "approxPriceToBook", 8.0, higher_is_better=False)
+    dividend_points = relative_rank_points(rows, "trailingDividendYieldPct", 7.0, higher_is_better=True)
+    nikkei_5d = finite(nikkei.get("change5dPct"))
+    nikkei_20d = finite(nikkei.get("change20dPct"))
+    output: list[dict[str, Any]] = []
+    for company in rows:
+        available = 0.0
+        earned = 0.0
+        quality_earned = 0.0
+        quality_available = 0.0
+
+        def add_quality(value: Any, maximum: float, points: float) -> None:
+            nonlocal available, earned, quality_earned, quality_available
+            if value is None:
+                return
+            available += maximum
+            quality_available += maximum
+            earned += points
+            quality_earned += points
+
+        fcf = finite(company.get("ttmFreeCashFlow"))
+        operating_income = finite(company.get("ttmOperatingIncome"))
+        operating_margin = finite(company.get("operatingMarginPct"))
+        fcf_margin = finite(company.get("freeCashFlowMarginPct"))
+        add_quality(fcf, 12.0, 12.0 if fcf is not None and fcf > 0 else 0.0)
+        add_quality(operating_income, 8.0, 8.0 if operating_income is not None and operating_income > 0 else 0.0)
+        add_quality(
+            operating_margin,
+            10.0,
+            10.0 if operating_margin is not None and operating_margin >= 15
+            else 6.0 if operating_margin is not None and operating_margin >= 8
+            else 3.0 if operating_margin is not None and operating_margin > 0 else 0.0,
+        )
+        add_quality(
+            fcf_margin,
+            10.0,
+            10.0 if fcf_margin is not None and fcf_margin >= 10
+            else 6.0 if fcf_margin is not None and fcf_margin >= 5
+            else 3.0 if fcf_margin is not None and fcf_margin > 0 else 0.0,
+        )
+
+        value_earned = 0.0
+        value_available = 0.0
+        for points_map, maximum in ((pe_points, 10.0), (pb_points, 8.0), (dividend_points, 7.0)):
+            points = points_map.get(company["ticker"])
+            if points is None:
+                continue
+            available += maximum
+            value_available += maximum
+            earned += points
+            value_earned += points
+
+        drawdown = finite(company.get("drawdownFrom2026HighPct"))
+        oversold_earned = 0.0
+        oversold_available = 0.0
+        if drawdown is not None:
+            oversold_available = 15.0
+            available += 15.0
+            oversold_earned = 15.0 if drawdown >= 20 else 10.0 if drawdown >= 10 else 5.0 if drawdown >= 5 else 0.0
+            earned += oversold_earned
+
+        rotation_earned = 0.0
+        rotation_available = 0.0
+        change_20d = finite(company.get("change20dPct"))
+        change_5d = finite(company.get("change5dPct"))
+        if change_20d is not None and nikkei_20d is not None:
+            rotation_available += 10.0
+            available += 10.0
+            points = 10.0 if change_20d - nikkei_20d >= 5 else 6.0 if change_20d > nikkei_20d else 0.0
+            rotation_earned += points
+            earned += points
+        if change_5d is not None and nikkei_5d is not None:
+            rotation_available += 5.0
+            available += 5.0
+            points = 5.0 if change_5d - nikkei_5d >= 3 else 3.0 if change_5d > nikkei_5d else 0.0
+            rotation_earned += points
+            earned += points
+
+        output.append({
+            "ticker": company["ticker"],
+            "name": company["name"],
+            "score": earned / available * 100.0 if available >= 50 else None,
+            "coveragePct": available / 95.0 * 100.0,
+            "qualityScore": quality_earned,
+            "qualityMax": quality_available,
+            "valueScore": value_earned,
+            "valueMax": value_available,
+            "oversoldScore": oversold_earned,
+            "oversoldMax": oversold_available,
+            "rotationScore": rotation_earned,
+            "rotationMax": rotation_available,
+            "approxTrailingPe": company.get("approxTrailingPe"),
+            "approxPriceToBook": company.get("approxPriceToBook"),
+            "trailingDividendYieldPct": company.get("trailingDividendYieldPct"),
+            "drawdownFrom2026HighPct": company.get("drawdownFrom2026HighPct"),
+            "change5dPct": company.get("change5dPct"),
+            "change20dPct": company.get("change20dPct"),
+        })
+    output.sort(key=lambda row: (row["score"] is not None, row["score"] or -1), reverse=True)
+    return output
+
+
+def build_sakakibara_analysis(
+    prices: dict[str, dict[str, Any]],
+    companies: list[dict[str, Any]],
+    jgb: dict[str, Any] | None,
+) -> dict[str, Any]:
+    nikkei = prices.get("NIKKEI") or {}
+    topix = prices.get("TOPIX") or {}
+    nikkei_map = {row["date"]: row["close"] for row in nikkei.get("history", [])}
+    topix_map = {row["date"]: row["close"] for row in topix.get("history", [])}
+    dates = sorted(set(nikkei_map).intersection(topix_map))
+    nt_rows = [
+        {
+            "date": date,
+            "nikkei": nikkei_map[date],
+            "topix": topix_map[date],
+            "ntRatio": nikkei_map[date] / topix_map[date],
+        }
+        for date in dates
+        if topix_map[date] > 0
+    ]
+    if len(nt_rows) < 60:
+        raise RuntimeError("Insufficient aligned Nikkei/TOPIX history for NT ratio")
+    recent_nt = nt_rows[-252:]
+    peak_nt = max(recent_nt, key=lambda row: row["ntRatio"])
+    latest_nt = nt_rows[-1]
+    nt_values = [row["ntRatio"] for row in nt_rows]
+    nt_change_5d = pct_change(nt_values[-1], nt_values[-6]) if len(nt_values) > 5 else None
+    nt_change_20d = pct_change(nt_values[-1], nt_values[-21]) if len(nt_values) > 20 else None
+    nt_drawdown = (1.0 - latest_nt["ntRatio"] / peak_nt["ntRatio"]) * 100.0
+
+    japan_ai = basket_summary(companies, JAPAN_AI_TICKERS, nikkei)
+    diversified_tickers = tuple(
+        company["ticker"] for company in companies
+        if company.get("category") == "japan-diversified"
+    )
+    japan_diversified = basket_summary(companies, diversified_tickers, nikkei)
+
+    topix_advantage_5d = None
+    topix_advantage_20d = None
+    if finite(topix.get("change5dPct")) is not None and finite(nikkei.get("change5dPct")) is not None:
+        topix_advantage_5d = topix["change5dPct"] - nikkei["change5dPct"]
+    if finite(topix.get("change20dPct")) is not None and finite(nikkei.get("change20dPct")) is not None:
+        topix_advantage_20d = topix["change20dPct"] - nikkei["change20dPct"]
+
+    ai_5d = finite(japan_ai.get("medianChange5dPct"))
+    ai_20d = finite(japan_ai.get("medianChange20dPct"))
+    diversified_5d = finite(japan_diversified.get("medianChange5dPct"))
+    diversified_20d = finite(japan_diversified.get("medianChange20dPct"))
+    basket_advantage_5d = diversified_5d - ai_5d if diversified_5d is not None and ai_5d is not None else None
+    basket_advantage_20d = diversified_20d - ai_20d if diversified_20d is not None and ai_20d is not None else None
+
+    breadth_coverage = japan_diversified.get("positive5dCoverage") or 0
+    outperform_count = japan_diversified.get("outperformNikkei5dCount")
+    positive_count = japan_diversified.get("positive5dCount") or 0
+    distortion = latest_nt["ntRatio"] >= 15.5 or peak_nt["ntRatio"] >= 16.0
+    nt_reversal = nt_drawdown >= 5.0 and nt_change_20d is not None and nt_change_20d < 0
+    broad_outperformance = (
+        (topix_advantage_5d is not None and topix_advantage_5d >= 1.0)
+        or (topix_advantage_20d is not None and topix_advantage_20d >= 2.0)
+    )
+    basket_rotation = (
+        (basket_advantage_5d is not None and basket_advantage_5d >= 2.0)
+        or (basket_advantage_20d is not None and basket_advantage_20d >= 4.0)
+    )
+    breadth_confirmation = bool(
+        breadth_coverage
+        and outperform_count is not None
+        and (
+            outperform_count / breadth_coverage >= 0.75
+            or (
+                finite(nikkei.get("change5dPct")) is not None
+                and nikkei["change5dPct"] < 0
+                and positive_count / breadth_coverage >= 0.5
+            )
+        )
+    )
+    gates = {
+        "distortion": distortion,
+        "ntReversal": nt_reversal,
+        "broadOutperformance": broad_outperformance,
+        "basketRotation": basket_rotation,
+        "breadthConfirmation": breadth_confirmation,
+    }
+    confirmation_count = sum(1 for key, value in gates.items() if key != "distortion" and value)
+    if not distortion:
+        stage = "通常域"
+    elif confirmation_count >= 4:
+        stage = "揺り戻しを強く確認"
+    elif confirmation_count == 3:
+        stage = "揺り戻し進行と整合"
+    elif confirmation_count == 2:
+        stage = "初期兆候"
+    else:
+        stage = "歪みはあるが揺り戻し未確認"
+
+    kioxia = prices.get("KIOXIA") or {}
+    kioxia_article_start = next(
+        (row for row in kioxia.get("history", []) if row["date"] == "2026-03-31"),
+        None,
+    )
+    target_pb = 1.106 ** 5
+    return {
+        "asOfDate": latest_nt["date"],
+        "methodLabel": "榊原式 proxy v1.0",
+        "stage": stage,
+        "confirmationCount": confirmation_count,
+        "confirmationMax": 4,
+        "gates": gates,
+        "ntRatio": {
+            "latest": latest_nt["ntRatio"],
+            "latestDate": latest_nt["date"],
+            "peak252d": peak_nt["ntRatio"],
+            "peak252dDate": peak_nt["date"],
+            "declineFromPeakPct": nt_drawdown,
+            "change5dPct": nt_change_5d,
+            "change20dPct": nt_change_20d,
+            "average20d": statistics.mean(nt_values[-20:]),
+            "average60d": statistics.mean(nt_values[-60:]),
+            "history": nt_rows[-260:],
+            "historicalReference": [
+                {"date": "2021-03", "value": 15.68},
+                {"date": "2025-11", "value": 15.78},
+                {"date": "2026-06-25", "value": 18.02},
+            ],
+        },
+        "relativeMarket": {
+            "nikkei": {
+                "change5dPct": nikkei.get("change5dPct"),
+                "change20dPct": nikkei.get("change20dPct"),
+            },
+            "topix": {
+                "change5dPct": topix.get("change5dPct"),
+                "change20dPct": topix.get("change20dPct"),
+            },
+            "topixAdvantage5dPctPoints": topix_advantage_5d,
+            "topixAdvantage20dPctPoints": topix_advantage_20d,
+        },
+        "japanAiBasket": japan_ai,
+        "japanDiversifiedBasket": japan_diversified,
+        "basketAdvantage5dPctPoints": basket_advantage_5d,
+        "basketAdvantage20dPctPoints": basket_advantage_20d,
+        "kioxiaCase": {
+            "date": kioxia.get("date"),
+            "close": kioxia.get("close"),
+            "low2026": kioxia.get("low2026"),
+            "low2026Date": kioxia.get("low2026Date"),
+            "peak2026": kioxia.get("peak2026"),
+            "peak2026Date": kioxia.get("peak2026Date"),
+            "riseFrom2026LowToHighPct": kioxia.get("riseFrom2026LowToHighPct"),
+            "articleStartDate": kioxia_article_start["date"] if kioxia_article_start else None,
+            "articleStartLow": kioxia_article_start["low"] if kioxia_article_start else None,
+            "articleStartClose": kioxia_article_start["close"] if kioxia_article_start else None,
+            "riseFromArticleStartToPeakPct": (
+                pct_change(kioxia.get("peak2026"), kioxia_article_start["low"])
+                if kioxia_article_start and finite(kioxia.get("peak2026")) is not None else None
+            ),
+            "drawdownFrom2026HighPct": kioxia.get("drawdownFrom2026HighPct"),
+            "sourceUrl": kioxia.get("sourceUrl"),
+        },
+        "jgb": jgb,
+        "articleScenario": {
+            "asOfDate": "2026-07-17",
+            "eps": 3682.0,
+            "bps": 34859.0,
+            "roePct": 10.6,
+            "targetPe": 16.6,
+            "growthYears": 5,
+            "targetPb": target_pb,
+            "earningsFairValue": 3682.0 * 16.6,
+            "bookFairValue": 34859.0 * target_pb,
+            "interpretation": "ユーザー提供の榊原先生『市況展望』（2026年7月18日執筆）に記載された入力を、そのまま再計算した参考シナリオ。",
+        },
+        "enAiProxy": build_en_ai_proxy(companies, nikkei),
+        "methodNotes": {
+            "indexCorrection": "日経平均は価格加重指数、TOPIXは浮動株調整時価総額加重指数。原文の『日経平均は時価総額加重』は公式定義に合わせて補正。",
+            "flowCaveat": "相対騰落だけでは資金の移動元・移動先を直接証明できないため、『資金移動と整合する値動き』として判定。",
+            "classificationCaveat": "AI連動8社と日本・分散型8社は本サイト独自の固定監視群。榊原先生の正式な投資対象銘柄やEN-AI推奨銘柄ではない。",
+            "scoreCaveat": "EN-AI proxyは品質40、相対割安25、年初来高値からの調整15、直近の相対回復15を、取得できた項目だけで100点換算した研究用スクリーニング。",
+        },
     }
 
 
@@ -961,6 +1441,8 @@ def build_company(symbol: str, price: dict[str, Any]) -> dict[str, Any]:
     fcf = latest(data, "trailingFreeCashFlow")
     capex = latest(data, "trailingCapitalExpenditure")
     market_cap = latest(data, "trailingMarketCap")
+    net_income = latest(data, "trailingNetIncome")
+    stockholders_equity = latest(data, "quarterlyStockholdersEquity")
     cash = first_available(data, [
         "quarterlyCashCashEquivalentsAndShortTermInvestments",
         "quarterlyCashAndCashEquivalents",
@@ -991,13 +1473,23 @@ def build_company(symbol: str, price: dict[str, Any]) -> dict[str, Any]:
         "priceDate": price["date"],
         "change1dPct": price["change1dPct"],
         "change5dPct": price["change5dPct"],
+        "change20dPct": price.get("change20dPct"),
+        "change60dPct": price.get("change60dPct"),
         "drawdown3yPct": price["drawdown3yPct"],
         "peak2026": price.get("peak2026"),
         "peak2026Date": price.get("peak2026Date"),
         "drawdownFrom2026HighPct": price.get("drawdownFrom2026HighPct"),
+        "low2026": price.get("low2026"),
+        "low2026Date": price.get("low2026Date"),
+        "trailingDividendPerShare": price.get("trailingDividendPerShare"),
+        "trailingDividendYieldPct": price.get("trailingDividendYieldPct"),
         "belowSma200": price["belowSma200"],
         "weeksBelowSma200": price["weeksBelowSma200"],
         "marketCap": market_cap,
+        "trailingNetIncome": net_income,
+        "stockholdersEquity": stockholders_equity,
+        "approxTrailingPe": market_cap / net_income if market_cap is not None and net_income is not None and net_income > 0 else None,
+        "approxPriceToBook": market_cap / stockholders_equity if market_cap is not None and stockholders_equity is not None and stockholders_equity > 0 else None,
         "enterpriseValue": enterprise_value,
         "cash": cash,
         "debt": debt,
@@ -1156,6 +1648,25 @@ def main() -> None:
             errors.append(f"Price {label}: {exc}")
             statuses.append(SourceStatus("Yahoo Finance chart", f"https://finance.yahoo.com/quote/{symbol}", False, NOW.isoformat(), str(exc)))
 
+    try:
+        prices["TOPIX"] = fetch_topix_series()
+        statuses.append(SourceStatus(
+            "Yahoo!ファイナンス日本版 TOPIX",
+            prices["TOPIX"]["sourceUrl"],
+            True,
+            NOW.isoformat(),
+            prices["TOPIX"].get("sourceNote", ""),
+        ))
+    except Exception as exc:
+        errors.append(f"TOPIX: {exc}")
+        statuses.append(SourceStatus(
+            "Yahoo!ファイナンス日本版 TOPIX",
+            "https://finance.yahoo.co.jp/quote/998405/history",
+            False,
+            NOW.isoformat(),
+            str(exc),
+        ))
+
     for symbol in COMPANIES:
         if symbol not in prices:
             continue
@@ -1184,6 +1695,27 @@ def main() -> None:
             statuses.append(SourceStatus("Yahoo Finance historical chart", f"https://finance.yahoo.com/quote/{episode['symbol']}/history/", False, NOW.isoformat(), str(exc)))
 
     macro: dict[str, Any] = {}
+    jgb_yield: dict[str, Any] | None = None
+    try:
+        jgb_yield = fetch_mof_jgb_yield()
+        macro["jgb10y"] = jgb_yield
+        statuses.append(SourceStatus(
+            "財務省 国債金利情報",
+            jgb_yield["sourceUrl"],
+            True,
+            NOW.isoformat(),
+            jgb_yield["definition"],
+        ))
+    except Exception as exc:
+        errors.append(f"MOF JGB: {exc}")
+        statuses.append(SourceStatus(
+            "財務省 国債金利情報",
+            "https://www.mof.go.jp/jgbs/reference/interest_rate/index.htm",
+            False,
+            NOW.isoformat(),
+            str(exc),
+        ))
+
     for key, series in {"highYieldOas": "BAMLH0A0HYM2"}.items():
         try:
             macro[key] = fetch_fred(series)
@@ -1211,8 +1743,14 @@ def main() -> None:
     hyperscaler_capex = [
         company.get("capexGrowthYoYPct") for company in overseas_ai_companies if company["ticker"] in HYPERSCALERS
     ]
+    sakakibara_analysis: dict[str, Any] = {}
+    try:
+        sakakibara_analysis = build_sakakibara_analysis(prices, companies, jgb_yield)
+    except Exception as exc:
+        errors.append(f"Sakakibara analysis: {exc}")
+
     payload = {
-        "schemaVersion": 8,
+        "schemaVersion": 9,
         "generatedAtUtc": NOW.isoformat(),
         "generatedAtJst": NOW.astimezone(JST).isoformat(),
         "marketDate": prices.get("SOX", {}).get("date"),
@@ -1243,13 +1781,19 @@ def main() -> None:
             "normalizedChart": sampled_chart(prices) if "SOX" in prices else [],
             "historicalEpisodes": historical_episodes,
             "dotComComparison": build_dotcom_comparison(),
+            "sakakibaraAnalysis": sakakibara_analysis,
             "nikkeiValuationReference": {
                 "date": "2026-07-17",
                 "indexPe": 22.99,
                 "indexPb": 2.71,
+                "marketCapPe": 17.42,
+                "marketCapPb": 1.84,
+                "impliedEps": 64141.12 / 17.42,
+                "impliedBps": 64141.12 / 1.84,
+                "impliedRoePct": (64141.12 / 17.42) / (64141.12 / 1.84) * 100.0,
                 "price": 64141.12,
                 "sourceUrl": "https://indexes.nikkei.co.jp/en/nkave/archives/summary?dt=07172026&idx=nk225",
-                "note": "日経公式2026年7月17日の日次サマリーにある指数ベースPER 22.99倍・PBR 2.71倍・終値64,141.12円。自動更新ではありません。",
+                "note": "日経公式2026年7月17日の日次サマリー。市場全体の実力を見る時価総額ベースはPER 17.42倍・PBR 1.84倍、日経平均の値動きへの寄与を反映する指数ウエートベースはPER 22.99倍・PBR 2.71倍。終値64,141.12円。自動更新ではありません。",
             },
         },
         "macro": macro,
@@ -1276,7 +1820,7 @@ def main() -> None:
             "note": "These fields require a consistent paid consensus series, product-level pricing, or verified project announcements. Missing is not zero.",
         },
         "sourceStatus": [status.__dict__ for status in statuses],
-        "methodVersion": "3.5.0",
+        "methodVersion": "3.6.0",
     }
     OUTPUT.parent.mkdir(parents=True, exist_ok=True)
     OUTPUT.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")

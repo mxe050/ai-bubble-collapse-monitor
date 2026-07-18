@@ -62,8 +62,8 @@ def check_yoy_dates(company: dict[str, Any], prefix: str) -> None:
 
 def main() -> None:
     data = json.loads(DATA_FILE.read_text(encoding="utf-8"))
-    require(data.get("schemaVersion") == 8, "schemaVersion must be 8")
-    require(data.get("methodVersion") == "3.5.0", "methodVersion must be 3.5.0")
+    require(data.get("schemaVersion") == 9, "schemaVersion must be 9")
+    require(data.get("methodVersion") == "3.6.0", "methodVersion must be 3.6.0")
 
     generated = datetime.fromisoformat(data["generatedAtUtc"]).date()
     market_day = date.fromisoformat(data["marketDate"])
@@ -78,6 +78,14 @@ def main() -> None:
         require(finite(row.get("weeksBelowSma200")) and row["weeksBelowSma200"] >= 0, f"invalid SMA duration: {key}")
         calculated_drawdown = (1 - row["close"] / row["peak3y"]) * 100
         require(close_enough(calculated_drawdown, row["drawdown3yPct"]), f"{key}: drawdown identity failed")
+
+    topix = series.get("TOPIX")
+    require(bool(topix), "missing TOPIX series")
+    require(finite(topix.get("close")) and topix["close"] > 0, "invalid TOPIX close")
+    require(finite(topix.get("change20dPct")), "TOPIX 20-day return is missing")
+    kioxia_series = series.get("KIOXIA")
+    require(bool(kioxia_series), "missing Kioxia series")
+    require(finite(kioxia_series.get("peak2026")) and kioxia_series["peak2026"] > 0, "Kioxia 2026 peak is missing")
 
     companies = data.get("companies") or []
     require(len(companies) == 26, f"expected 26 companies, got {len(companies)}")
@@ -99,6 +107,14 @@ def main() -> None:
         require(bool(price_row), f"{ticker}: market series is missing")
         calculated_drawdown = (1 - company["price"] / price_row["peak3y"]) * 100
         require(close_enough(calculated_drawdown, company["drawdown3yPct"]), f"{ticker}: company drawdown identity failed")
+        if finite(company.get("approxTrailingPe")):
+            require(finite(company.get("trailingNetIncome")) and company["trailingNetIncome"] > 0, f"{ticker}: PE has no positive net income")
+            require(close_enough(company["approxTrailingPe"], company["marketCap"] / company["trailingNetIncome"]), f"{ticker}: approximate PE identity failed")
+        if finite(company.get("approxPriceToBook")):
+            require(finite(company.get("stockholdersEquity")) and company["stockholdersEquity"] > 0, f"{ticker}: PBR has no positive equity")
+            require(close_enough(company["approxPriceToBook"], company["marketCap"] / company["stockholdersEquity"]), f"{ticker}: approximate PBR identity failed")
+        if finite(company.get("trailingDividendYieldPct")):
+            require(0 <= company["trailingDividendYieldPct"] <= 20, f"{ticker}: trailing dividend yield out of range")
         if finite(company.get("enterpriseValue")):
             expected_ev = company["marketCap"] + (company.get("debt") or 0) - (company.get("cash") or 0)
             require(close_enough(company["enterpriseValue"], expected_ev), f"{ticker}: EV identity failed")
@@ -162,7 +178,65 @@ def main() -> None:
     reference = data["market"]["nikkeiValuationReference"]
     require(reference.get("date") == "2026-07-17", "Nikkei reference date changed without audit")
     require(reference.get("price") == 64141.12, "Nikkei reference close changed without audit")
-    require(reference.get("indexPe") == 22.99 and reference.get("indexPb") == 2.71, "Nikkei official PE/PB changed without audit")
+    require(reference.get("indexPe") == 22.99 and reference.get("indexPb") == 2.71, "Nikkei official index-weight PE/PB changed without audit")
+    require(reference.get("marketCapPe") == 17.42 and reference.get("marketCapPb") == 1.84, "Nikkei official market-cap PE/PB changed without audit")
+    require(close_enough(reference["impliedEps"], reference["price"] / reference["marketCapPe"]), "Nikkei implied EPS identity failed")
+    require(close_enough(reference["impliedBps"], reference["price"] / reference["marketCapPb"]), "Nikkei implied BPS identity failed")
+
+
+    sakakibara = data["market"].get("sakakibaraAnalysis") or {}
+    require(sakakibara.get("methodLabel") == "榊原式 proxy v1.0", "Sakakibara method label changed")
+    nt = sakakibara.get("ntRatio") or {}
+    require(finite(nt.get("latest")) and finite(nt.get("peak252d")), "NT ratio values are missing")
+    require(nt.get("latestDate") == topix.get("date") == series["NIKKEI"].get("date"), "NT ratio inputs are not aligned to one market date")
+    expected_nt = series["NIKKEI"]["close"] / topix["close"]
+    require(close_enough(nt["latest"], expected_nt), "latest NT ratio identity failed")
+    require(nt["peak252d"] >= nt["latest"], "NT peak is below latest ratio")
+    expected_nt_decline = (1 - nt["latest"] / nt["peak252d"]) * 100
+    require(close_enough(nt["declineFromPeakPct"], expected_nt_decline), "NT peak decline identity failed")
+    require(len(nt.get("history") or []) >= 200, "NT ratio history is too short")
+
+    gates = sakakibara.get("gates") or {}
+    for key in ("distortion", "ntReversal", "broadOutperformance", "basketRotation", "breadthConfirmation"):
+        require(isinstance(gates.get(key), bool), f"Sakakibara gate is not boolean: {key}")
+    expected_confirmation = sum(
+        1 for key in ("ntReversal", "broadOutperformance", "basketRotation", "breadthConfirmation")
+        if gates[key]
+    )
+    require(sakakibara.get("confirmationCount") == expected_confirmation, "Sakakibara confirmation count failed")
+    require(sakakibara.get("confirmationMax") == 4, "Sakakibara confirmation maximum changed")
+
+    kioxia = sakakibara.get("kioxiaCase") or {}
+    require(kioxia.get("articleStartDate") == "2026-03-31", "Kioxia article start date changed")
+    require(close_enough(kioxia.get("articleStartLow"), 18540.0), "Kioxia article start price changed")
+    require(close_enough(kioxia.get("peak2026"), 112700.0), "Kioxia article peak changed")
+    require(close_enough(kioxia.get("close"), 52110.0), "Kioxia article end price changed")
+    expected_kioxia_rise = (kioxia["peak2026"] / kioxia["articleStartLow"] - 1) * 100
+    require(close_enough(kioxia["riseFromArticleStartToPeakPct"], expected_kioxia_rise), "Kioxia rise identity failed")
+
+    article = sakakibara.get("articleScenario") or {}
+    require(article.get("asOfDate") == "2026-07-17", "article valuation date changed")
+    require(close_enough(article["earningsFairValue"], article["eps"] * article["targetPe"]), "article earnings fair-value identity failed")
+    require(close_enough(article["targetPb"], (1 + article["roePct"] / 100) ** article["growthYears"]), "article target PBR identity failed")
+    require(close_enough(article["bookFairValue"], article["bps"] * article["targetPb"]), "article book fair-value identity failed")
+
+    en_ai = sakakibara.get("enAiProxy") or []
+    diversified_tickers = {company["ticker"] for company in companies if company.get("category") == "japan-diversified"}
+    require(len(en_ai) == 8, "EN-AI proxy must contain 8 diversified companies")
+    require(len({row["ticker"] for row in en_ai}) == 8, "EN-AI proxy contains duplicate tickers")
+    for row in en_ai:
+        require(row["ticker"] in diversified_tickers, f"EN-AI proxy includes non-diversified ticker: {row['ticker']}")
+        require(row.get("score") is None or 0 <= row["score"] <= 100, f"EN-AI proxy score out of range: {row['ticker']}")
+        require(row.get("coveragePct") is None or 0 <= row["coveragePct"] <= 100, f"EN-AI proxy coverage out of range: {row['ticker']}")
+    notes = sakakibara.get("methodNotes") or {}
+    require("価格加重" in notes.get("indexCorrection", ""), "Nikkei price-weight correction is missing")
+    require("証明" in notes.get("flowCaveat", ""), "fund-flow caveat is missing")
+    require("正式" in notes.get("classificationCaveat", ""), "EN-AI proxy caveat is missing")
+
+    jgb = data.get("macro", {}).get("jgb10y") or {}
+    require(finite(jgb.get("tenYearPct")) and 0 <= jgb["tenYearPct"] <= 10, "10-year JGB yield is invalid")
+    jgb_day = date.fromisoformat(jgb["date"])
+    require(0 <= (generated - jgb_day).days <= 14, "10-year JGB yield is future-dated or stale")
 
     episodes = data["market"].get("historicalEpisodes") or []
     require(len(episodes) == 6, "historical episode count must be 6")
@@ -256,12 +330,12 @@ def main() -> None:
     require(len(html_id_list) == len(html_ids), "index.html contains duplicate element ids")
     missing_ids = sorted(referenced_ids - html_ids)
     require(not missing_ids, f"app.js references missing HTML ids: {missing_ids}")
-    require("Method v3.5" in index_source, "public method label is missing")
+    require("Method v3.6" in index_source, "public method label is missing")
     require("評価への脆弱性は別枠20点" in index_source, "valuation/collapse score separation is missing")
 
     print(
         "Data and logic audit passed: schema, formulas, coverage, YoY dates, baskets, "
-        "automaker DCF overrides, Nikkei reference, dot-com spillovers, history, and UI contracts."
+        "automaker DCF overrides, Nikkei reference, Sakakibara rotation audit, dot-com spillovers, history, and UI contracts."
     )
 
 

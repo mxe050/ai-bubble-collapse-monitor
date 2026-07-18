@@ -37,6 +37,7 @@
       <a href="#today">今日の判定</a>
       <a href="#analysis-map">計算の地図</a>
       <a href="#us-japan-link">米国→日本</a>
+      <a href="#sakakibara-method">榊原式</a>
       <a href="#nikkei-bottom">日経底値</a>
       <a href="#signals">崩壊シグナル</a>
       <a href="#valuation">企業価値</a>
@@ -119,7 +120,7 @@
       <div class="content">
         <div class="section-heading">
           <p class="section-kicker">HOW THE SECTIONS CONNECT</p>
-          <h2>このページが答える4つの質問</h2>
+          <h2>このページが答える5つの質問</h2>
           <p>同じデータを並べているのではありません。各章は「入力データ → 計算 → 答え」の役割が異なります。最初に全体のつながりを示します。</p>
         </div>
         <div class="analysis-map-grid">
@@ -134,6 +135,9 @@
           </a>
           <a href="#valuation" class="map-item">
             <span>04</span><div><strong>何が残る企業か</strong><p>各社のFCFから本体価値と期待の上乗せを分け、指数下落後に残る企業の条件を見ます。</p><small>入力：企業FCF、成長率、資本コスト</small></div>
+          </a>
+          <a href="#sakakibara-method" class="map-item">
+            <span>05</span><div><strong>AI一極集中からの揺り戻しが始まったか</strong><p>NT倍率、TOPIX、AI連動株と分散型株を同じ期間で比較し、優良Non-AIへの相対回復を確認します。</p><small>入力：日経平均、TOPIX、日本企業16社、国債金利</small></div>
           </a>
         </div>
         <p class="map-footnote">「米国AI相場の崩壊」「日本への波及」「日経の底値ゾーン」「底打ち確認」「企業別FCFストレス」は別の問いです。SOX下落だけで日本崩壊や底打ちを決めないことが、このモニターの中心です。</p>
@@ -199,6 +203,214 @@
           <a href="https://indexes.nikkei.co.jp/en/nkave/archives/summary?dt=07172026&amp;idx=nk225" target="_blank" rel="noopener">日経公式・2026年7月17日構成</a> /
           <a href="https://indexes.nikkei.co.jp/en/nkave/index/profile?cid=2&amp;idx=nkscd" target="_blank" rel="noopener">日経半導体株指数</a> /
           <a href="https://www.meti.go.jp/english/press/2026/0218_002.html" target="_blank" rel="noopener">経産省・日米AI/データセンター供給網</a>
+        </p>
+      </div>
+    </section>
+
+
+    <section id="sakakibara-method" class="band band-sakakibara">
+      <div class="content">
+        <div class="section-heading">
+          <p class="section-kicker">SAKAKIBARA-STYLE ROTATION AUDIT</p>
+          <h2>「榊原式」：AI一極集中からの揺り戻しを、毎回同じ手順で確かめる</h2>
+          <p>榊原先生の2026年7月18日付「市況展望」の着眼点を、別の日にも再現できるよう定量化しました。NT倍率の歪みだけで結論を出さず、日経平均とTOPIX、AI連動株と分散型株、銘柄の広がりを順番に確認します。</p>
+        </div>
+
+        <div class="sakakibara-origin">
+          <div>
+            <span>榊原先生の着眼点</span>
+            <strong>上がりすぎたAI株と、売られすぎた優良Non-AI株の価格差は修正される</strong>
+            <p>AI株が下がる一方で、優良なNon-AI株が相対的に強くなり、TOPIXが日経平均より底堅く、NT倍率が低下する現象を「揺り戻し相場」と捉えます。</p>
+          </div>
+          <div>
+            <span>このサイトでの再現方法</span>
+            <strong>価格から直接確認できる四条件に分け、毎日同じ窓で再計算</strong>
+            <p>直近5日と20日を使い、NT倍率の反転、市場全体の相対差、二つの企業群の相対差、個別銘柄への広がりを確認します。相対価格だけで資金の移動経路そのものは断定しません。</p>
+          </div>
+        </div>
+
+        <div class="sakakibara-status" aria-live="polite">
+          <div>
+            <p class="label">現在の榊原式判定</p>
+            <strong id="sakakibaraStage">計算中</strong>
+            <p id="sakakibaraStageReason">NT倍率と二つの日本株群を照合しています。</p>
+          </div>
+          <div class="sakakibara-status-metrics">
+            <div><span>判定日</span><strong id="sakakibaraAsOf">―</strong></div>
+            <div><span>揺り戻し確認</span><strong id="sakakibaraGateCount">―</strong><small>前提の歪みを除く4条件</small></div>
+            <div><span>最新NT倍率</span><strong id="sakakibaraNtLatest">―</strong><small id="sakakibaraNtDate">日経平均÷TOPIX</small></div>
+          </div>
+        </div>
+
+        <div class="sakakibara-chain" aria-label="榊原式の解析手順">
+          <div><span>01</span><strong>一極集中の歪み</strong><p>NT倍率が通常より高いか</p></div>
+          <i data-lucide="arrow-right" aria-hidden="true"></i>
+          <div><span>02</span><strong>NT倍率の反転</strong><p>ピークから低下したか</p></div>
+          <i data-lucide="arrow-right" aria-hidden="true"></i>
+          <div><span>03</span><strong>TOPIXの優位</strong><p>日経平均より底堅いか</p></div>
+          <i data-lucide="arrow-right" aria-hidden="true"></i>
+          <div><span>04</span><strong>Non-AIの優位</strong><p>AI連動群を上回るか</p></div>
+          <i data-lucide="arrow-right" aria-hidden="true"></i>
+          <div><span>05</span><strong>銘柄への広がり</strong><p>一部だけの偶然ではないか</p></div>
+        </div>
+
+        <div class="sakakibara-nt-layout">
+          <div class="chart-panel">
+            <div class="panel-heading">
+              <div><h3>NT倍率の歪みと正常化</h3><p>日経平均終値 ÷ TOPIX終値。直近約1年を日次で表示します。</p></div>
+              <span class="source-chip">毎日再計算</span>
+            </div>
+            <div class="chart-frame chart-nt"><canvas id="ntRatioChart"></canvas></div>
+          </div>
+          <aside class="nt-reading">
+            <h3>現在の数字が意味すること</h3>
+            <div><span>直近252取引日の最高</span><strong id="sakNtPeak">―</strong><small id="sakNtPeakDate">―</small></div>
+            <div><span>ピークからの低下</span><strong id="sakNtPeakDecline">―</strong><small>高い値から正常化した幅</small></div>
+            <div><span>20日変化</span><strong id="sakNt20dChange">―</strong><small>短期の方向</small></div>
+            <p id="sakNtInterpretation">NT倍率を計算しています。</p>
+          </aside>
+        </div>
+
+        <div class="sakakibara-gates">
+          <article id="sakGateNt" class="sak-gate">
+            <span>条件1</span><strong>NT倍率がピークアウト</strong><em>判定中</em>
+            <p>直近252取引日のピークから5%以上低下し、20日変化もマイナスなら、集中の歪みが縮小方向へ向いたとみなします。</p>
+          </article>
+          <article id="sakGateMarket" class="sak-gate">
+            <span>条件2</span><strong>TOPIXが日経平均より強い</strong><em>判定中</em>
+            <p>5日で1ポイント以上、または20日で2ポイント以上TOPIXが優位なら、日経平均の高ウエート銘柄以外が相対的に底堅いと確認します。</p>
+          </article>
+          <article id="sakGateBasket" class="sak-gate">
+            <span>条件3</span><strong>分散型株がAI連動株より強い</strong><em>判定中</em>
+            <p>国内分散型8社の中央値が、AI連動8社を5日で2ポイント、または20日で4ポイント以上上回るかを見ます。</p>
+          </article>
+          <article id="sakGateBreadth" class="sak-gate">
+            <span>条件4</span><strong>強さが複数銘柄へ広がる</strong><em>判定中</em>
+            <p>分散型8社の75%以上が日経平均を上回る、または日経平均下落時にも半数以上が上昇すれば、一部銘柄だけの動きではないと確認します。</p>
+          </article>
+        </div>
+
+        <div class="rotation-comparison">
+          <div class="section-heading compact-heading">
+            <p class="section-kicker">RELATIVE PERFORMANCE</p>
+            <h3>「日経が下がった」だけではなく、何が相対的に残ったかを見る</h3>
+            <p>揺り戻しでは、日経平均の絶対下落と同時に、TOPIXやNon-AI側の相対優位が現れます。二つの比較が同じ方向を示すほど、仮説との整合性が高まります。</p>
+          </div>
+          <div class="rotation-compare-grid">
+            <article>
+              <h4>指数で確認：TOPIX 対 日経平均</h4>
+              <div class="compare-period"><span>5日</span><div><small>日経平均</small><strong id="sakNikkei5d">―</strong></div><div><small>TOPIX</small><strong id="sakTopix5d">―</strong></div><em id="sakMarketSpread5d">差 ―</em></div>
+              <div class="compare-period"><span>20日</span><div><small>日経平均</small><strong id="sakNikkei20d">―</strong></div><div><small>TOPIX</small><strong id="sakTopix20d">―</strong></div><em id="sakMarketSpread20d">差 ―</em></div>
+              <p id="sakMarketInterpretation">指数間の差を計算しています。</p>
+            </article>
+            <article>
+              <h4>企業群で確認：分散型8社 対 AI連動8社</h4>
+              <div class="compare-period"><span>5日</span><div><small>AI連動</small><strong id="sakAi5d">―</strong></div><div><small>分散型</small><strong id="sakDiv5d">―</strong></div><em id="sakBasketSpread5d">差 ―</em></div>
+              <div class="compare-period"><span>20日</span><div><small>AI連動</small><strong id="sakAi20d">―</strong></div><div><small>分散型</small><strong id="sakDiv20d">―</strong></div><em id="sakBasketSpread20d">差 ―</em></div>
+              <p id="sakBasketInterpretation">企業群の差を計算しています。</p>
+            </article>
+          </div>
+          <div class="breadth-result">
+            <div><span>分散型8社のうち、5日で日経平均を上回った企業</span><strong id="sakBreadthOutperform">―</strong></div>
+            <div><span>分散型8社のうち、5日で上昇した企業</span><strong id="sakBreadthPositive">―</strong></div>
+            <p id="sakBreadthInterpretation">値動きの広がりを確認しています。</p>
+          </div>
+        </div>
+
+        <div class="kioxia-case">
+          <div>
+            <p class="section-kicker">THE ARTICLE'S CONCRETE EXAMPLE</p>
+            <h3>キオクシアで「期待の急膨張と剥落」を確認する</h3>
+            <p>榊原先生が示した2026年3月31日から6月22日、そして7月17日までの区間を、同じ価格系列で再計算します。全AI株が同じ経路をたどるという意味ではなく、集中相場の極端さを可視化する事例です。</p>
+          </div>
+          <div class="kioxia-path">
+            <div><span id="sakKioxiaStartDate">3/31</span><strong id="sakKioxiaStart">―</strong><small>原文の起点・日中安値</small></div>
+            <i data-lucide="trending-up" aria-hidden="true"></i>
+            <div class="peak"><span id="sakKioxiaPeakDate">6/22</span><strong id="sakKioxiaPeak">―</strong><small id="sakKioxiaRise">上昇率 ―</small></div>
+            <i data-lucide="trending-down" aria-hidden="true"></i>
+            <div class="current"><span id="sakKioxiaCurrentDate">7/17</span><strong id="sakKioxiaCurrent">―</strong><small id="sakKioxiaFall">高値から ―</small></div>
+          </div>
+          <p id="sakKioxiaInterpretation" class="case-interpretation">キオクシアの価格経路を計算しています。</p>
+        </div>
+
+        <div class="sakakibara-fair-value">
+          <div class="section-heading compact-heading">
+            <p class="section-kicker">FAIR-VALUE REPRODUCTION</p>
+            <h3>榊原先生の「約6万円」を再現し、別の日の入力でも計算する</h3>
+            <p>利益からの価格と純資産からの価格を別々に出します。初期値は原文の2026年7月17日値です。別の日に再計算するときは、同じ日の公式終値・時価総額ベースPER・PBRから得たEPSとBPSへ置き換えます。</p>
+          </div>
+          <div class="fair-value-layout">
+            <form id="sakakibaraFairValueForm" class="sakakibara-controls">
+              <div class="control-heading">
+                <div><h4>再計算する前提</h4><p>入力を変えると、その場で二つの適正値を再計算します。</p></div>
+                <button id="resetSakakibaraAssumptions" type="button" class="icon-button" title="榊原先生の2026年7月17日値へ戻す"><i data-lucide="rotate-ccw" aria-hidden="true"></i></button>
+              </div>
+              <label>日経平均のEPS
+                <div class="input-unit"><input id="sakEpsInput" type="number" min="1" max="20000" step="1"><span>円</span></div>
+              </label>
+              <label>目標PER
+                <div class="input-unit"><input id="sakTargetPeInput" type="number" min="5" max="40" step="0.1"><span>倍</span></div>
+              </label>
+              <label>日経平均のBPS
+                <div class="input-unit"><input id="sakBpsInput" type="number" min="1000" max="100000" step="1"><span>円</span></div>
+              </label>
+              <label>ROE
+                <div class="input-unit"><input id="sakRoeInput" type="number" min="-20" max="40" step="0.1"><span>%</span></div>
+              </label>
+              <label>織り込む年数
+                <div class="input-unit"><input id="sakGrowthYearsInput" type="number" min="0" max="15" step="1"><span>年</span></div>
+              </label>
+            </form>
+            <div class="fair-value-results">
+              <div class="jgb-context"><span>財務省・10年国債金利</span><strong id="sakJgbYield">―</strong><small id="sakJgbDate">―</small><p>原文は2%台後半の長期金利を背景に目標PER 16.6倍を置いています。ただし「金利から16.6倍が一意に決まる」公式式ではなく、投資家の要求利回り・成長率も含む判断値です。</p></div>
+              <article><span>利益からの適正値</span><strong id="sakPeFairValue">―</strong><p id="sakPeFormula">EPS × 目標PER</p></article>
+              <article><span>純資産からの適正値</span><strong id="sakPbFairValue">―</strong><p id="sakPbFormula">BPS × (1 + ROE) の年数乗</p></article>
+              <div class="fair-range"><span>二つの計算が示す範囲</span><strong id="sakFairRange">―</strong><p>予測区間ではありません。二つの前提が示す評価アンカーを並べた範囲です。</p></div>
+            </div>
+          </div>
+          <div class="valuation-basis-note">
+            <div><strong>時価総額ベース</strong><p>2026年7月17日の公式値はPER 17.42倍、PBR 1.84倍。終値から逆算するとEPS約3,682円、BPS約34,859円で、原文の入力と一致します。市場全体の利益・純資産を見る榊原式はこちらを使います。</p></div>
+            <div><strong>指数ウエートベース</strong><p>同日の公式値はPER 22.99倍、PBR 2.71倍。日経平均の価格加重ウエートを反映し、高株価のAI・半導体銘柄の影響を強く受けます。既存の底値ストレス計算はこちらを使います。</p></div>
+          </div>
+        </div>
+
+        <div class="en-ai-section">
+          <div class="section-heading compact-heading">
+            <p class="section-kicker">EXCELLENT NON-AI PROXY</p>
+            <h3>EN-AIを「優良・相対的に割安・売られすぎ・回復」の四面で探す</h3>
+            <p>榊原先生の正式な投資対象銘柄は公開資料だけでは再現できないため、サイト既存の日本・分散型8社を使った透明な代理スクリーニングです。点数だけで買わず、内訳と欠損率を必ず確認します。</p>
+          </div>
+          <div class="en-ai-formula">
+            <div><span>品質</span><strong>最大40</strong><p>FCF、営業利益、営業利益率、FCF利益率</p></div>
+            <div><span>相対割安</span><strong>最大25</strong><p>8社内で低いPER・PBR、高い実績配当利回り</p></div>
+            <div><span>売られすぎ</span><strong>最大15</strong><p>2026年高値からの下落幅</p></div>
+            <div><span>相対回復</span><strong>最大15</strong><p>5日・20日で日経平均を上回ったか</p></div>
+          </div>
+          <div class="table-wrap">
+            <table class="en-ai-table">
+              <thead>
+                <tr><th>企業</th><th>代理スコア</th><th>品質</th><th>相対割安</th><th>売られすぎ</th><th>相対回復</th><th>PER / PBR / 配当</th><th>20日騰落</th></tr>
+              </thead>
+              <tbody id="enAiProxyRows"></tbody>
+            </table>
+          </div>
+          <p id="enAiProxyInterpretation" class="method-note">代理候補を計算しています。</p>
+        </div>
+
+        <div class="sakakibara-audit-notes">
+          <div><i data-lucide="scale" aria-hidden="true"></i><p><strong>公式定義への補正：</strong>日経平均は構成銘柄の調整後株価を合計して除数で割る価格加重指数です。TOPIXは浮動株調整時価総額加重です。したがって、NT倍率上昇は「少数の高株価銘柄の寄与が市場全体より強い」ことを示しやすい一方、それだけで資金移動は証明しません。</p></div>
+          <div><i data-lucide="tags" aria-hidden="true"></i><p><strong>分類の限界：</strong>AI連動8社と分散型8社は本サイト独自の固定監視群です。信越化学、HOYA、ソニーなどはAI感応部分と非AI事業を併せ持つため、二分法は近似です。</p></div>
+          <div><i data-lucide="landmark" aria-hidden="true"></i><p><strong>適正値の限界：</strong>PER 16.6倍と「ROEを5年複利したPBR」は榊原先生の判断を再現するシナリオで、金融理論から一意に決まる公正価値ではありません。後者は利益を全額内部留保し、ROEが一定で、5年後の株価がその時点のBPSと等しいという強い仮定です。配当・自社株買い・増資・利益減少・資本コストを入れると結果は変わります。</p></div>
+          <div><i data-lucide="circle-dollar-sign" aria-hidden="true"></i><p><strong>利用目的：</strong>これは研究用の相場観測で、売買推奨ではありません。高得点でも企業固有の業績悪化や会計要因があれば、価格がさらに下落することがあります。</p></div>
+        </div>
+
+        <p class="transmission-sources">定義・数値の照合：
+          <a href="https://indexes.nikkei.co.jp/en/nkave/index/profile" target="_blank" rel="noopener">日経平均公式プロフィール</a> /
+          <a href="https://indexes.nikkei.co.jp/nkave/archives/faq/faq_nikkei_stock_average_en.pdf" target="_blank" rel="noopener">日経指数の価格加重に関する資料</a> /
+          <a href="https://www.jpx.co.jp/markets/indices/topix/" target="_blank" rel="noopener">JPX・TOPIX公式定義</a> /
+          <a href="https://indexes.nikkei.co.jp/en/nkave/archives/summary?dt=07172026&amp;idx=nk225" target="_blank" rel="noopener">日経公式・2026年7月17日サマリー</a> /
+          <a href="https://www.mof.go.jp/jgbs/reference/interest_rate/index.htm" target="_blank" rel="noopener">財務省・国債金利情報</a>。
+          榊原先生の見解は、ユーザー提供「市況展望」（2026年7月18日執筆）を要約・計算化しています。
         </p>
       </div>
     </section>
@@ -786,7 +998,7 @@
   <footer>
     <div class="content footer-inner">
       <p><strong>重要：</strong>本サイトは教育・調査用です。投資助言、価格予測、売買推奨ではありません。取得値には遅延・欠損・定義差があり、重要な判断では企業IRと提出資料を確認してください。</p>
-      <p>Method v3.5 / <a href="https://github.com/mxe050/ai-bubble-collapse-monitor" target="_blank" rel="noopener">GitHub</a></p>
+      <p>Method v3.6 / <a href="https://github.com/mxe050/ai-bubble-collapse-monitor" target="_blank" rel="noopener">GitHub</a></p>
     </div>
   </footer>
 
