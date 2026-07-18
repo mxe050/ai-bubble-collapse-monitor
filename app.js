@@ -7,7 +7,10 @@
     selectedTicker: "NVDA",
     marketChart: null,
     valuationChart: null,
+    nikkeiBottomChart: null,
     valuations: [],
+    nikkeiBottom: loadNikkeiBottom(),
+    nikkeiBottomInitialized: false,
   };
 
   var moneyCompact = new Intl.NumberFormat("ja-JP", {
@@ -23,12 +26,20 @@
     style: "currency",
     currency: "USD",
   });
+  var nikkeiFormat = new Intl.NumberFormat("ja-JP", { maximumFractionDigits: 0 });
+
+  var NIKKEI_PRESETS = {
+    mild: { label: "急落・利益減速", epsCut: 10, targetPe: 18, targetPb: 2.0, historyDrawdown: 35 },
+    standard: { label: "標準的な株価崩壊", epsCut: 25, targetPe: 16, targetPb: 1.5, historyDrawdown: 50 },
+    severe: { label: "深い信用収縮", epsCut: 40, targetPe: 14, targetPb: 1.0, historyDrawdown: 65 },
+  };
 
   function byId(id) {
     return document.getElementById(id);
   }
 
   function finite(value) {
+    if (value === null || value === undefined || value === "") return null;
     var number = Number(value);
     return Number.isFinite(number) ? number : null;
   }
@@ -52,6 +63,16 @@
   function formatPrice(value) {
     if (value === null || value === undefined || !Number.isFinite(Number(value))) return "算定不可";
     return priceFormat.format(Number(value));
+  }
+
+  function formatNikkei(value) {
+    if (value === null || value === undefined || !Number.isFinite(Number(value))) return "算定不可";
+    return nikkeiFormat.format(Number(value)) + "円";
+  }
+
+  function formatHistoricalIndex(value, indexName) {
+    if (value === null || value === undefined || !Number.isFinite(Number(value))) return "未確認";
+    return nikkeiFormat.format(Number(value)) + (indexName === "日経平均" ? "円" : "pt");
   }
 
   function cssValueClass(value, inverse) {
@@ -87,6 +108,29 @@
 
   function saveManual() {
     localStorage.setItem("aiBubbleManualV2", JSON.stringify(state.manual));
+  }
+
+  function loadNikkeiBottom() {
+    var empty = {
+      scenario: "standard",
+      referencePrice: null,
+      currentPe: null,
+      currentPb: null,
+      epsCut: null,
+      targetPe: null,
+      targetPb: null,
+      historyDrawdown: null,
+    };
+    try {
+      var parsed = JSON.parse(localStorage.getItem("aiBubbleNikkeiBottomV3") || "null");
+      return parsed ? Object.assign(empty, parsed) : empty;
+    } catch (error) {
+      return empty;
+    }
+  }
+
+  function saveNikkeiBottom() {
+    localStorage.setItem("aiBubbleNikkeiBottomV3", JSON.stringify(state.nikkeiBottom));
   }
 
   function inputOrNull(id) {
@@ -630,6 +674,341 @@
     byId("sensitivityTable").innerHTML = html;
   }
 
+  function initializeNikkeiSettings() {
+    if (state.nikkeiBottomInitialized || !state.data) return;
+    var reference = state.data.market.nikkeiValuationReference || {};
+    var scenario = NIKKEI_PRESETS[state.nikkeiBottom.scenario] ? state.nikkeiBottom.scenario : "standard";
+    var preset = NIKKEI_PRESETS[scenario];
+    state.nikkeiBottom.scenario = scenario;
+    if (finite(state.nikkeiBottom.referencePrice) === null) state.nikkeiBottom.referencePrice = finite(reference.price);
+    if (finite(state.nikkeiBottom.currentPe) === null) state.nikkeiBottom.currentPe = finite(reference.indexPe);
+    if (finite(state.nikkeiBottom.currentPb) === null) state.nikkeiBottom.currentPb = finite(reference.indexPb);
+    if (finite(state.nikkeiBottom.epsCut) === null) state.nikkeiBottom.epsCut = preset.epsCut;
+    if (finite(state.nikkeiBottom.targetPe) === null) state.nikkeiBottom.targetPe = preset.targetPe;
+    if (finite(state.nikkeiBottom.targetPb) === null) state.nikkeiBottom.targetPb = preset.targetPb;
+    if (finite(state.nikkeiBottom.historyDrawdown) === null) state.nikkeiBottom.historyDrawdown = preset.historyDrawdown;
+    state.nikkeiBottomInitialized = true;
+    syncNikkeiControls();
+  }
+
+  function syncNikkeiControls() {
+    var settings = state.nikkeiBottom;
+    byId("nikkeiReferencePrice").value = finite(settings.referencePrice) === null ? "" : settings.referencePrice;
+    byId("nikkeiCurrentPe").value = finite(settings.currentPe) === null ? "" : settings.currentPe;
+    byId("nikkeiCurrentPb").value = finite(settings.currentPb) === null ? "" : settings.currentPb;
+    byId("nikkeiEpsCut").value = settings.epsCut;
+    byId("nikkeiTargetPe").value = settings.targetPe;
+    byId("nikkeiTargetPb").value = settings.targetPb;
+    byId("nikkeiHistoricalDrawdown").value = settings.historyDrawdown;
+    document.querySelectorAll('input[name="nikkeiScenario"]').forEach(function (input) {
+      input.checked = input.value === settings.scenario;
+    });
+    updateNikkeiOutputs();
+  }
+
+  function updateNikkeiOutputs() {
+    byId("nikkeiEpsCutOutput").textContent = formatPercent(finite(byId("nikkeiEpsCut").value), false);
+    byId("nikkeiTargetPeOutput").textContent = numberOne.format(finite(byId("nikkeiTargetPe").value)) + "倍";
+    byId("nikkeiTargetPbOutput").textContent = numberOne.format(finite(byId("nikkeiTargetPb").value)) + "倍";
+    byId("nikkeiHistoricalDrawdownOutput").textContent = formatPercent(finite(byId("nikkeiHistoricalDrawdown").value), false);
+  }
+
+  function readNikkeiControls() {
+    var read = function (id) {
+      var raw = byId(id).value.trim();
+      return raw === "" ? null : finite(raw);
+    };
+    state.nikkeiBottom.referencePrice = read("nikkeiReferencePrice");
+    state.nikkeiBottom.currentPe = read("nikkeiCurrentPe");
+    state.nikkeiBottom.currentPb = read("nikkeiCurrentPb");
+    state.nikkeiBottom.epsCut = read("nikkeiEpsCut");
+    state.nikkeiBottom.targetPe = read("nikkeiTargetPe");
+    state.nikkeiBottom.targetPb = read("nikkeiTargetPb");
+    state.nikkeiBottom.historyDrawdown = read("nikkeiHistoricalDrawdown");
+    saveNikkeiBottom();
+    updateNikkeiOutputs();
+  }
+
+  function applyNikkeiPreset(name) {
+    var preset = NIKKEI_PRESETS[name] || NIKKEI_PRESETS.standard;
+    state.nikkeiBottom.scenario = name in NIKKEI_PRESETS ? name : "standard";
+    state.nikkeiBottom.epsCut = preset.epsCut;
+    state.nikkeiBottom.targetPe = preset.targetPe;
+    state.nikkeiBottom.targetPb = preset.targetPb;
+    state.nikkeiBottom.historyDrawdown = preset.historyDrawdown;
+    saveNikkeiBottom();
+    syncNikkeiControls();
+    if (state.data) renderNikkeiBottom();
+  }
+
+  function calculateNikkeiBottom() {
+    var nikkei = state.data.market.series.NIKKEI || {};
+    var settings = state.nikkeiBottom;
+    var current = finite(nikkei.close);
+    var peak = finite(nikkei.peak3y);
+    var referencePrice = finite(settings.referencePrice);
+    var currentPe = finite(settings.currentPe);
+    var currentPb = finite(settings.currentPb);
+    var epsCut = finite(settings.epsCut);
+    var targetPe = finite(settings.targetPe);
+    var targetPb = finite(settings.targetPb);
+    var historyDrawdown = finite(settings.historyDrawdown);
+    if ([current, peak, referencePrice, currentPe, currentPb, targetPe, targetPb, historyDrawdown].some(function (value) { return value === null || value <= 0; }) || epsCut === null || epsCut < 0) return null;
+    var currentEps = referencePrice / currentPe;
+    var currentBps = referencePrice / currentPb;
+    var earningsAnchor = currentEps * (1 - epsCut / 100) * targetPe;
+    var bookAnchor = currentBps * targetPb;
+    var historyAnchor = peak * (1 - historyDrawdown / 100);
+    var anchors = [earningsAnchor, bookAnchor, historyAnchor];
+    var lower = Math.min.apply(Math, anchors);
+    var upper = Math.max.apply(Math, anchors);
+    var center = median(anchors);
+    var denominator = peak - upper;
+    var proximity = current <= upper ? 100 : denominator > 0 ? clamp((peak - current) / denominator * 100, 0, 100) : 0;
+    return {
+      scenario: settings.scenario,
+      scenarioLabel: (NIKKEI_PRESETS[settings.scenario] || NIKKEI_PRESETS.standard).label,
+      current: current,
+      peak: peak,
+      referencePrice: referencePrice,
+      currentPe: currentPe,
+      currentPb: currentPb,
+      currentEps: currentEps,
+      currentBps: currentBps,
+      epsCut: epsCut,
+      targetPe: targetPe,
+      targetPb: targetPb,
+      historyDrawdown: historyDrawdown,
+      earningsAnchor: earningsAnchor,
+      bookAnchor: bookAnchor,
+      historyAnchor: historyAnchor,
+      lower: lower,
+      upper: upper,
+      center: center,
+      proximity: proximity,
+      remainingToUpperPct: current > upper ? (1 - upper / current) * 100 : 0,
+      belowLowerPct: current < lower ? (1 - current / lower) * 100 : 0,
+    };
+  }
+
+  function confirmationItem(id, title, score, max, status, detail) {
+    return { id: id, title: title, score: score, max: max, status: status, detail: detail };
+  }
+
+  function assessNikkeiConfirmation(model) {
+    var nikkei = state.data.market.series.NIKKEI || {};
+    var hy = state.data.macro.highYieldOas || {};
+    var basket = state.data.market.aiBasket || {};
+    var current = model.current;
+    var nearZone = current <= model.upper * 1.10;
+    var reachedZone = current <= model.upper;
+    var zoneScore = reachedZone ? 40 : nearZone ? 20 : 0;
+    var zoneStatus = reachedZone ? "pass" : nearZone ? "watch" : "fail";
+    var zoneDetail = reachedZone
+      ? (current < model.lower ? "想定下端を下回っています。前提を再点検し、反転確認を優先します。" : "選択した底値ゾーンへ到達しています。")
+      : nearZone ? "ゾーン上端まで10%以内です。" : "まだ底値ゾーン上端より高い位置です。";
+
+    var daysSinceLow = finite(nikkei.tradingDaysSince120dLow);
+    var rebound = finite(nikkei.reboundFrom120dLowPct);
+    var basePass = daysSinceLow !== null && rebound !== null && daysSinceLow >= 15 && rebound >= 8;
+    var baseWatch = daysSinceLow !== null && rebound !== null && daysSinceLow >= 7 && rebound >= 4;
+    var baseScore = basePass ? 25 : baseWatch ? 12 : 0;
+    var baseDetail = daysSinceLow === null || rebound === null
+      ? "120取引日の安値情報を取得できません。"
+      : "120日安値から" + formatPercent(rebound, true) + "、安値から" + numberOne.format(daysSinceLow) + "取引日経過。";
+
+    var above50 = nikkei.aboveSma50 === true;
+    var slope50 = finite(nikkei.sma50Slope20dPct);
+    var trendPass = above50 && slope50 !== null && slope50 > 0;
+    var trendWatch = above50 || (slope50 !== null && slope50 > 0);
+    var trendScore = trendPass ? 20 : trendWatch ? 10 : 0;
+    var trendDetail = "終値は50日線の" + (above50 ? "上" : "下") + "、50日線の20日変化は" + formatPercent(slope50, true) + "。";
+
+    var creditTurn = finite(hy.declineFrom3mHighPctPoints);
+    var creditPass = creditTurn !== null && creditTurn >= 0.5;
+    var creditWatch = creditTurn !== null && creditTurn >= 0.25;
+    var creditScore = creditPass ? 10 : creditWatch ? 5 : 0;
+    var creditDetail = creditTurn === null
+      ? "信用スプレッドの3か月高値を確認できません。"
+      : "HY OASは3か月高値から" + numberOne.format(creditTurn * 100) + "bp縮小。";
+
+    var breadth = finite(basket.breadthBelowSma200Pct);
+    var breadthPass = breadth !== null && breadth <= 50;
+    var breadthWatch = breadth !== null && breadth <= 70;
+    var breadthScore = breadthPass ? 5 : breadthWatch ? 2 : 0;
+    var breadthDetail = breadth === null ? "市場の広がりを確認できません。" : "主要AI株の200日線割れは" + formatPercent(breadth, false) + "。";
+
+    var rawScore = zoneScore + baseScore + trendScore + creditScore + breadthScore;
+    var total = zoneScore === 0 ? 0 : rawScore;
+    var label;
+    if (zoneScore === 0) label = "価格帯に未到達：反転判定は保留";
+    else if (current < model.lower && total < 75) label = "ストレス想定を超過：底打ちは未確認";
+    else if (total >= 75) label = "底打ち確認が強い";
+    else if (total >= 55) label = "反転証拠が増えている";
+    else if (total >= 35) label = "初期反転の可能性";
+    else label = "底打ちは未確認";
+
+    return {
+      score: total,
+      rawScore: rawScore,
+      label: label,
+      nearZone: nearZone,
+      reachedZone: reachedZone,
+      items: [
+        confirmationItem("zone", "底値ゾーンへの到達", zoneScore, 40, zoneStatus, zoneDetail),
+        confirmationItem("base", "安値更新の停止と反発", baseScore, 25, basePass ? "pass" : baseWatch ? "watch" : "fail", baseDetail),
+        confirmationItem("trend", "50日線の反転", trendScore, 20, trendPass ? "pass" : trendWatch ? "watch" : "fail", trendDetail),
+        confirmationItem("credit", "信用不安の後退", creditScore, 10, creditPass ? "pass" : creditWatch ? "watch" : creditTurn === null ? "unknown" : "fail", creditDetail),
+        confirmationItem("breadth", "下落の広がりの改善", breadthScore, 5, breadthPass ? "pass" : breadthWatch ? "watch" : breadth === null ? "unknown" : "fail", breadthDetail),
+      ],
+    };
+  }
+
+  function renderNikkeiBottomChart(model) {
+    if (typeof Chart === "undefined") return;
+    if (state.nikkeiBottomChart) state.nikkeiBottomChart.destroy();
+    state.nikkeiBottomChart = new Chart(byId("nikkeiBottomChart"), {
+      type: "bar",
+      data: {
+        labels: ["現在値", "歴史下落率", "利益×PER", "純資産×PBR"],
+        datasets: [{
+          data: [model.current, model.historyAnchor, model.earningsAnchor, model.bookAnchor],
+          backgroundColor: ["#173854", "#6552a3", "#c94b18", "#087f75"],
+          borderWidth: 0,
+        }],
+      },
+      options: {
+        indexAxis: "y",
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false },
+          tooltip: { callbacks: { label: function (context) { return formatNikkei(context.parsed.x); } } },
+        },
+        scales: {
+          x: { beginAtZero: true, grid: { color: "rgba(100,115,134,.15)" }, ticks: { color: chartTextColor(), callback: function (value) { return nikkeiFormat.format(value); } } },
+          y: { grid: { display: false }, ticks: { color: chartTextColor(), font: { weight: "bold" } } },
+        },
+      },
+    });
+  }
+
+  function renderNikkeiHistory() {
+    var episodes = state.data.market.historicalEpisodes || [];
+    var useText = function (id) {
+      if (id === "covid-japan" || id === "growth-reset-2021") return "浅いシナリオの参照";
+      if (id === "gfc-japan" || id === "japan-bubble-first-leg") return "深いシナリオの参照";
+      if (id === "dotcom") return "AI期待崩壊の極端例";
+      return "長期的な下限例。標準値にはしない";
+    };
+    byId("nikkeiHistoryRows").innerHTML = episodes.map(function (episode) {
+      var duration = episode.durationDays < 365
+        ? numberOne.format(episode.durationDays / 30.44) + "か月"
+        : numberOne.format(episode.durationDays / 365.25) + "年";
+      return "<tr><th>" + escapeHtml(episode.name) + "<small>" + escapeHtml(episode.note) + "</small></th>"
+        + "<td>" + escapeHtml(episode.index) + "</td>"
+        + "<td>" + formatHistoricalIndex(episode.peak, episode.index) + "<small>" + escapeHtml(episode.peakDate) + "</small></td>"
+        + "<td>" + formatHistoricalIndex(episode.trough, episode.index) + "<small>" + escapeHtml(episode.troughDate) + "</small></td>"
+        + "<td class=\"negative\">−" + formatPercent(episode.drawdownPct, false) + "</td>"
+        + "<td>" + duration + "</td><td>" + escapeHtml(useText(episode.id)) + "</td></tr>";
+    }).join("");
+  }
+
+  function renderNikkeiChecklist(confirmation) {
+    byId("nikkeiChecklist").innerHTML = confirmation.items.map(function (item) {
+      var icon = item.status === "pass" ? "check" : item.status === "watch" ? "clock-3" : item.status === "unknown" ? "circle-help" : "minus";
+      var label = item.status === "pass" ? "充足" : item.status === "watch" ? "接近" : item.status === "unknown" ? "未確認" : "未充足";
+      return "<div class=\"check-item is-" + item.status + "\"><i data-lucide=\"" + icon + "\" aria-hidden=\"true\"></i><div><strong>" + escapeHtml(item.title) + "</strong><span>" + item.score + "/" + item.max + "点・" + label + "</span><p>" + escapeHtml(item.detail) + "</p></div></div>";
+    }).join("");
+  }
+
+  function renderObservationLadder(model, confirmation) {
+    var levels = [
+      { name: "観測1", value: model.upper, description: "底値ゾーン上端。利益・簿価・歴史のいずれかが最初に示す水準。", reached: model.current <= model.upper },
+      { name: "観測2", value: model.center, description: "3アンカーの中央値。複数の方法が重なる中心候補。", reached: model.current <= model.center },
+      { name: "観測3", value: model.lower, description: "底値ゾーン下端。選択シナリオの最も厳しいアンカー。", reached: model.current <= model.lower },
+      { name: "確認", value: null, description: "価格到達後に底打ち確認度75点以上。安値を一点で当てる代わりの反転条件。", reached: confirmation.score >= 75 },
+    ];
+    byId("nikkeiObservationLadder").innerHTML = levels.map(function (level, index) {
+      return "<div class=\"observation-level " + (level.reached ? "is-reached" : "") + "\"><span>0" + (index + 1) + "</span><div><strong>" + level.name + (level.value === null ? "" : "・" + formatNikkei(level.value)) + "</strong><p>" + escapeHtml(level.description) + "</p></div><em>" + (level.reached ? "条件到達" : "未到達") + "</em></div>";
+    }).join("");
+  }
+
+  function renderNikkeiBottom() {
+    initializeNikkeiSettings();
+    var nikkei = state.data.market.series.NIKKEI || {};
+    var reference = state.data.market.nikkeiValuationReference || {};
+    byId("nikkeiCurrent").textContent = formatNikkei(nikkei.close);
+    byId("nikkeiDate").textContent = nikkei.date ? "市場日 " + nikkei.date : "市場日未確認";
+    byId("nikkeiPeak").textContent = formatNikkei(nikkei.peak3y);
+    byId("nikkeiPeakDate").textContent = nikkei.peak3yDate || "日付未確認";
+    byId("nikkeiCurrentDrawdown").textContent = finite(nikkei.drawdown3yPct) === null ? "未確認" : "−" + formatPercent(nikkei.drawdown3yPct, false);
+    byId("nikkeiReferenceDate").textContent = reference.date || "要入力";
+    if (reference.sourceUrl) byId("nikkeiOfficialLink").href = reference.sourceUrl;
+
+    var model = calculateNikkeiBottom();
+    if (!model) {
+      byId("nikkeiZone").textContent = "PER・PBRを入力してください";
+      byId("nikkeiZoneContext").textContent = "日経公式日次サマリーの指数ベースPER・PBRを確認すると計算できます。";
+      byId("nikkeiRemaining").textContent = "―";
+      byId("nikkeiProximity").textContent = "―";
+      byId("nikkeiConfirmationScore").textContent = "―";
+      byId("nikkeiPositionMessage").textContent = "入力待ちです。";
+      byId("todayNikkeiZone").textContent = "PER・PBRの入力待ち";
+      byId("todayNikkeiDistance").textContent = "―";
+      byId("todayNikkeiProximity").textContent = "―";
+      byId("todayNikkeiConfirmation").textContent = "―";
+      byId("todayNikkeiBottomMessage").textContent = "日経公式の指数ベースPER・PBRを確認すると計算できます。";
+      return;
+    }
+
+    var confirmation = assessNikkeiConfirmation(model);
+    var zoneText = formatNikkei(model.lower) + " ～ " + formatNikkei(model.upper);
+    var remainingText = model.current > model.upper ? "あと−" + numberOne.format(model.remainingToUpperPct) + "%" : model.current < model.lower ? "下端超過" : "ゾーン内";
+    var proximityText = numberOne.format(model.proximity) + "%";
+    var confirmationText = confirmation.score + "/100";
+    var positionMessage = model.current > model.upper
+      ? "現在値からゾーン上端までは、あと" + formatPercent(model.remainingToUpperPct, false) + "の下落距離があり、選択シナリオの底値帯にはまだ到達していません。"
+      : model.current < model.lower ? "現在値は想定下端を" + formatPercent(model.belowLowerPct, false) + "下回っています。シナリオ前提の再評価が必要です。"
+        : "現在値は選択シナリオの底値ゾーン内です。価格だけで決めず、反転確認を併読します。";
+
+    byId("nikkeiZone").textContent = zoneText;
+    byId("nikkeiZoneContext").textContent = model.scenarioLabel + "：利益−" + numberOne.format(model.epsCut) + "%・PER " + numberOne.format(model.targetPe) + "倍・PBR " + numberOne.format(model.targetPb) + "倍・歴史下落−" + numberOne.format(model.historyDrawdown) + "%";
+    byId("nikkeiRemaining").textContent = remainingText;
+    byId("nikkeiProximity").textContent = proximityText;
+    byId("nikkeiConfirmationScore").textContent = confirmationText;
+    byId("nikkeiPositionMessage").textContent = positionMessage;
+
+    byId("todayNikkeiZone").textContent = zoneText;
+    byId("todayNikkeiDistance").textContent = remainingText;
+    byId("todayNikkeiProximity").textContent = proximityText;
+    byId("todayNikkeiConfirmation").textContent = confirmationText;
+    byId("todayNikkeiBottomMessage").textContent = positionMessage;
+
+    var anchors = [
+      { key: "history", label: "歴史下落率アンカー", value: model.historyAnchor, detail: "直近3年高値から" + formatPercent(model.historyDrawdown, false) + "下落" },
+      { key: "earnings", label: "利益×PERアンカー", value: model.earningsAnchor, detail: "EPSを" + formatPercent(model.epsCut, false) + "減らし、PER " + numberOne.format(model.targetPe) + "倍" },
+      { key: "book", label: "純資産×PBRアンカー", value: model.bookAnchor, detail: "現在BPSにPBR " + numberOne.format(model.targetPb) + "倍" },
+    ];
+    byId("nikkeiAnchorList").innerHTML = anchors.map(function (anchor) {
+      return "<div class=\"anchor-item " + anchor.key + "\"><span>" + escapeHtml(anchor.label) + "</span><strong>" + formatNikkei(anchor.value) + "</strong><small>" + escapeHtml(anchor.detail) + "</small></div>";
+    }).join("");
+
+    var widthPct = (model.upper / model.lower - 1) * 100;
+    byId("nikkeiExplanation").innerHTML = "<p><strong>なぜこの範囲か：</strong>3つの計算は「" + formatNikkei(model.earningsAnchor) + "」「" + formatNikkei(model.bookAnchor) + "」「" + formatNikkei(model.historyAnchor) + "」です。最小から最大までを残し、都合のよい平均値だけを底値にしていません。</p>"
+      + "<p><strong>不確実性：</strong>ゾーン幅は下端に対して" + formatPercent(widthPct, false) + "です。幅が広いほど、利益予想・簿価・過去類推が一致しておらず、推計精度が低いことを意味します。</p>"
+      + "<p><strong>現在の読み方：</strong>底値接近度" + numberOne.format(model.proximity) + "%は、高値からゾーン上端までの距離をどこまで進んだかです。崩壊確率でも、購入推奨度でもありません。</p>";
+
+    byId("nikkeiConfirmationLarge").textContent = confirmation.score + "/100";
+    byId("nikkeiConfirmationLabel").textContent = confirmation.label;
+    byId("nikkeiConfirmationBar").style.width = clamp(confirmation.score, 0, 100) + "%";
+    renderNikkeiChecklist(confirmation);
+    renderObservationLadder(model, confirmation);
+    renderNikkeiHistory();
+    renderNikkeiBottomChart(model);
+    if (window.lucide) window.lucide.createIcons();
+  }
+
   function renderSources() {
     var grouped = {};
     (state.data.sourceStatus || []).forEach(function (source) {
@@ -674,6 +1053,7 @@
     renderGates(gates);
     renderMarketReading();
     renderMarketChart();
+    renderNikkeiBottom();
     renderValuationChart();
     renderCompanyTable();
     setDefaultControls();
@@ -725,6 +1105,34 @@
     byId("resetAssumptions").addEventListener("click", function () {
       setDefaultControls();
       renderCompanyDetail();
+    });
+    document.querySelectorAll('input[name="nikkeiScenario"]').forEach(function (input) {
+      input.addEventListener("change", function () {
+        if (this.checked) applyNikkeiPreset(this.value);
+      });
+    });
+    ["nikkeiReferencePrice", "nikkeiCurrentPe", "nikkeiCurrentPb", "nikkeiEpsCut", "nikkeiTargetPe", "nikkeiTargetPb", "nikkeiHistoricalDrawdown"].forEach(function (id) {
+      byId(id).addEventListener("input", function () {
+        readNikkeiControls();
+        if (state.data) renderNikkeiBottom();
+      });
+    });
+    byId("resetNikkeiAssumptions").addEventListener("click", function () {
+      var reference = state.data ? state.data.market.nikkeiValuationReference || {} : {};
+      var preset = NIKKEI_PRESETS.standard;
+      state.nikkeiBottom = {
+        scenario: "standard",
+        referencePrice: finite(reference.price),
+        currentPe: finite(reference.indexPe),
+        currentPb: finite(reference.indexPb),
+        epsCut: preset.epsCut,
+        targetPe: preset.targetPe,
+        targetPb: preset.targetPb,
+        historyDrawdown: preset.historyDrawdown,
+      };
+      saveNikkeiBottom();
+      syncNikkeiControls();
+      if (state.data) renderNikkeiBottom();
     });
     byId("manualForm").addEventListener("submit", function (event) {
       event.preventDefault();

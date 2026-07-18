@@ -1,10 +1,10 @@
 {
-  "schemaVersion": 2,
-  "generatedAtUtc": "2026-07-18T08:39:35.168397+00:00",
-  "generatedAtJst": "2026-07-18T17:39:35.168397+09:00",
+  "schemaVersion": 3,
+  "generatedAtUtc": "2026-07-18T10:15:00.297556+00:00",
+  "generatedAtJst": "2026-07-18T19:15:00.297556+09:00",
   "marketDate": "2026-07-17",
   "dataQuality": {
-    "successfulRequests": 24,
+    "successfulRequests": 31,
     "failedRequests": 0,
     "companyCoverage": 10,
     "expectedCompanies": 10,
@@ -24,6 +24,13 @@
         "sma200": 8982.614353027344,
         "belowSma200": false,
         "weeksBelowSma200": 0.0,
+        "sma50": 12739.9155859375,
+        "aboveSma50": false,
+        "sma50Slope20dPct": 11.577316131107507,
+        "low120d": 7142.330078125,
+        "low120dDate": "2026-03-30",
+        "tradingDaysSince120dLow": 75,
+        "reboundFrom120dLowPct": 63.446515643283206,
         "sourceUrl": "https://finance.yahoo.com/quote/%5ESOX"
       },
       "NASDAQ": {
@@ -38,7 +45,35 @@
         "sma200": 23877.25724609375,
         "belowSma200": false,
         "weeksBelowSma200": 0.0,
+        "sma50": 26140.0444140625,
+        "aboveSma50": false,
+        "sma50Slope20dPct": 2.611963351375457,
+        "low120d": 20794.640625,
+        "low120dDate": "2026-03-30",
+        "tradingDaysSince120dLow": 75,
+        "reboundFrom120dLowPct": 22.725084287793496,
         "sourceUrl": "https://finance.yahoo.com/quote/%5EIXIC"
+      },
+      "NIKKEI": {
+        "symbol": "^N225",
+        "date": "2026-07-17",
+        "close": 64141.12109375,
+        "change1dPct": -4.031415032398211,
+        "change5dPct": -6.442170255928259,
+        "peak3y": 72366.34375,
+        "peak3yDate": "2026-06-25",
+        "drawdown3yPct": 11.366088474312342,
+        "sma200": 56119.97236328125,
+        "belowSma200": false,
+        "weeksBelowSma200": 0.0,
+        "sma50": 66662.766171875,
+        "aboveSma50": false,
+        "sma50Slope20dPct": 6.481053083926147,
+        "low120d": 51063.71875,
+        "low120dDate": "2026-03-31",
+        "tradingDaysSince120dLow": 74,
+        "reboundFrom120dLowPct": 25.609968611520294,
+        "sourceUrl": "https://finance.yahoo.com/quote/%5EN225"
       },
       "NVDA": {
         "symbol": "NVDA",
@@ -52,6 +87,13 @@
         "sma200": 192.3950003814697,
         "belowSma200": false,
         "weeksBelowSma200": 0.0,
+        "sma50": 209.91480041503905,
+        "aboveSma50": false,
+        "sma50Slope20dPct": 0.5631906542788556,
+        "low120d": 165.1699981689453,
+        "low120dDate": "2026-03-30",
+        "tradingDaysSince120dLow": 75,
+        "reboundFrom120dLowPct": 22.78864188830958,
         "sourceUrl": "https://finance.yahoo.com/quote/NVDA"
       },
       "AVGO": {
@@ -66,6 +108,13 @@
         "sma200": 363.62620010375974,
         "belowSma200": false,
         "weeksBelowSma200": 0.0,
+        "sma50": 402.9444006347656,
+        "aboveSma50": false,
+        "sma50Slope20dPct": -1.8309233793754487,
+        "low120d": 293.4100036621094,
+        "low120dDate": "2026-03-30",
+        "tradingDaysSince120dLow": 75,
+        "reboundFrom120dLowPct": 26.386279248785605,
         "sourceUrl": "https://finance.yahoo.com/quote/AVGO"
       },
       "AMD": {
@@ -80,6 +129,13 @@
         "sma200": 296.68619979858397,
         "belowSma200": false,
         "weeksBelowSma200": 0.0,
+        "sma50": 499.0840002441406,
+        "aboveSma50": false,
+        "sma50Slope20dPct": 23.25003257887912,
+        "low120d": 190.9499969482422,
+        "low120dDate": "2026-03-03",
+        "tradingDaysSince120dLow": 94,
+        "reboundFrom120dLowPct": 159.62818417850139,
         "sourceUrl": "https://finance.yahoo.com/quote/AMD"
       },
       "MU": {
@@ -94,6 +150,13 @@
         "sma200": 483.08570053100584,
         "belowSma200": false,
         "weeksBelowSma200": 0.0,
+        "sma50": 933.6888012695313,
+        "aboveSma50": false,
+        "sma50Slope20dPct": 29.994236154920493,
+        "low120d": 321.79998779296875,
+        "low120dDate": "2026-03-30",
+        "tradingDaysSince120dLow": 75,
+        "reboundFrom120dLowPct": 163.81294108476055,
         "sourceUrl": "https://finance.yahoo.com/quote/MU"
       },
       "ARM": {
@@ -108,6 +171,13 @@
         "sma200": 184.74217517852784,
         "belowSma200": false,
         "weeksBelowSma200": 0.0,
+        "sma50": 316.2173992919922,
+        "aboveSma50": false,
+        "sma50Slope20dPct": 22.22346320780264,
+        "low120d": 104.55000305175781,
+        "low120dDate": "2026-02-03",
+        "tradingDaysSince120dLow": 113,
+        "reboundFrom120dLowPct": 155.5619269653517,
         "sourceUrl": "https://finance.yahoo.com/quote/ARM"
       },
       "MRVL": {
@@ -122,6 +192,13 @@
         "sma200": 129.86080017089844,
         "belowSma200": false,
         "weeksBelowSma200": 0.0,
+        "sma50": 235.55220001220704,
+        "aboveSma50": false,
+        "sma50Slope20dPct": 21.40651884647198,
+        "low120d": 73.7300033569336,
+        "low120dDate": "2026-02-04",
+        "tradingDaysSince120dLow": 112,
+        "reboundFrom120dLowPct": 155.90666497377518,
         "sourceUrl": "https://finance.yahoo.com/quote/MRVL"
       },
       "MSFT": {
@@ -136,6 +213,13 @@
         "sma200": 439.34854919433593,
         "belowSma200": true,
         "weeksBelowSma200": 6.4,
+        "sma50": 401.51159729003905,
+        "aboveSma50": false,
+        "sma50Slope20dPct": -2.7521206319876534,
+        "low120d": 352.8299865722656,
+        "low120dDate": "2026-06-25",
+        "tradingDaysSince120dLow": 15,
+        "reboundFrom120dLowPct": 11.61749916728172,
         "sourceUrl": "https://finance.yahoo.com/quote/MSFT"
       },
       "GOOGL": {
@@ -150,6 +234,13 @@
         "sma200": 321.65599990844726,
         "belowSma200": false,
         "weeksBelowSma200": 0.0,
+        "sma50": 370.58700073242187,
+        "aboveSma50": false,
+        "sma50Slope20dPct": 1.1539490204771852,
+        "low120d": 273.5,
+        "low120dDate": "2026-03-30",
+        "tradingDaysSince120dLow": 75,
+        "reboundFrom120dLowPct": 26.78975832309758,
         "sourceUrl": "https://finance.yahoo.com/quote/GOOGL"
       },
       "AMZN": {
@@ -164,6 +255,13 @@
         "sma200": 234.06250007629396,
         "belowSma200": false,
         "weeksBelowSma200": 0.0,
+        "sma50": 252.13300018310548,
+        "aboveSma50": false,
+        "sma50Slope20dPct": -1.7551612978432551,
+        "low120d": 198.7899932861328,
+        "low120dDate": "2026-02-13",
+        "tradingDaysSince120dLow": 105,
+        "reboundFrom120dLowPct": 24.367424959707627,
         "sourceUrl": "https://finance.yahoo.com/quote/AMZN"
       },
       "META": {
@@ -178,6 +276,13 @@
         "sma200": 640.5055487060547,
         "belowSma200": false,
         "weeksBelowSma200": 0.0,
+        "sma50": 604.5349963378907,
+        "aboveSma50": true,
+        "sma50Slope20dPct": -2.901948009361288,
+        "low120d": 525.719970703125,
+        "low120dDate": "2026-03-27",
+        "tradingDaysSince120dLow": 76,
+        "reboundFrom120dLowPct": 22.88100999884366,
         "sourceUrl": "https://finance.yahoo.com/quote/META"
       }
     },
@@ -960,7 +1065,95 @@
         "sox": 307.0734868011949,
         "aiBasket": 404.94843223472714
       }
-    ]
+    ],
+    "historicalEpisodes": [
+      {
+        "id": "japan-bubble-first-leg",
+        "name": "日本の資産バブル・最初の下落局面",
+        "index": "日経平均",
+        "peak": 38915.87109375,
+        "peakDate": "1989-12-29",
+        "trough": 14309.41015625,
+        "troughDate": "1992-08-18",
+        "drawdownPct": 63.22988602316515,
+        "durationDays": 963,
+        "note": "1989年末の高値から、1992年の安値まで。長期停滞の全期間ではありません。",
+        "sourceUrl": "https://finance.yahoo.com/quote/%5EN225/history/"
+      },
+      {
+        "id": "japan-bubble-secular",
+        "name": "日本の資産バブル・長期的な最低値",
+        "index": "日経平均",
+        "peak": 38915.87109375,
+        "peakDate": "1989-12-29",
+        "trough": 7054.97998046875,
+        "troughDate": "2009-03-10",
+        "drawdownPct": 81.87120117786134,
+        "durationDays": 7011,
+        "note": "複数の景気循環と金融危機を含むため、単一の崩壊局面としては扱いません。",
+        "sourceUrl": "https://finance.yahoo.com/quote/%5EN225/history/"
+      },
+      {
+        "id": "dotcom",
+        "name": "米国ITバブル",
+        "index": "NASDAQ総合",
+        "peak": 5048.6201171875,
+        "peakDate": "2000-03-10",
+        "trough": 1114.1099853515625,
+        "troughDate": "2002-10-09",
+        "drawdownPct": 77.93238628593402,
+        "durationDays": 943,
+        "note": "技術普及が続いても、過大な期待と無収益企業の評価は大きく修正されました。",
+        "sourceUrl": "https://finance.yahoo.com/quote/%5EIXIC/history/"
+      },
+      {
+        "id": "gfc-japan",
+        "name": "世界金融危機",
+        "index": "日経平均",
+        "peak": 18261.98046875,
+        "peakDate": "2007-07-09",
+        "trough": 7054.97998046875,
+        "troughDate": "2009-03-10",
+        "drawdownPct": 61.36793601032884,
+        "durationDays": 610,
+        "note": "信用収縮と世界景気後退が同時に進んだ深い下落です。",
+        "sourceUrl": "https://finance.yahoo.com/quote/%5EN225/history/"
+      },
+      {
+        "id": "covid-japan",
+        "name": "コロナ急落",
+        "index": "日経平均",
+        "peak": 24083.509765625,
+        "peakDate": "2020-01-20",
+        "trough": 16552.830078125,
+        "troughDate": "2020-03-19",
+        "drawdownPct": 31.2690291439528,
+        "durationDays": 59,
+        "note": "政策対応が速く、底までの期間が短かった外生ショックです。",
+        "sourceUrl": "https://finance.yahoo.com/quote/%5EN225/history/"
+      },
+      {
+        "id": "growth-reset-2021",
+        "name": "2021年以降の成長株再評価",
+        "index": "NASDAQ総合",
+        "peak": 16057.4404296875,
+        "peakDate": "2021-11-19",
+        "trough": 10213.2900390625,
+        "troughDate": "2022-12-28",
+        "drawdownPct": 36.395279909120205,
+        "durationDays": 404,
+        "note": "金利上昇で高い評価倍率が縮小した局面です。信用危機とは異なります。",
+        "sourceUrl": "https://finance.yahoo.com/quote/%5EIXIC/history/"
+      }
+    ],
+    "nikkeiValuationReference": {
+      "date": "2026-07-17",
+      "indexPe": 22.99,
+      "indexPb": 2.71,
+      "price": 64141.12,
+      "sourceUrl": "https://indexes.nikkei.co.jp/en/nkave/archives/summary?idx=nk225",
+      "note": "日経公式日次サマリーの指数ベースPER・PBRの参照スナップショット。自動更新ではないため、利用時に公式ページで照合してください。"
+    }
   },
   "macro": {
     "highYieldOas": {
@@ -969,6 +1162,8 @@
       "valuePct": 2.71,
       "change3mPctPoints": -0.22999999999999998,
       "riseFrom3mLowPctPoints": 0.08000000000000007,
+      "declineFrom3mHighPctPoints": 0.2400000000000002,
+      "high3mPct": 2.95,
       "sourceUrl": "https://fred.stlouisfed.org/series/BAMLH0A0HYM2"
     },
     "real10yYield": {
@@ -977,6 +1172,8 @@
       "valuePct": 2.35,
       "change3mPctPoints": 0.40000000000000013,
       "riseFrom3mLowPctPoints": 0.4600000000000002,
+      "declineFrom3mHighPctPoints": 0.009999999999999787,
+      "high3mPct": 2.36,
       "sourceUrl": "https://fred.stlouisfed.org/series/DFII10"
     }
   },
@@ -1401,170 +1598,219 @@
       "name": "Yahoo Finance chart",
       "url": "https://finance.yahoo.com/quote/%5ESOX",
       "ok": true,
-      "retrieved_at": "2026-07-18T08:39:35.168397+00:00",
+      "retrieved_at": "2026-07-18T10:15:00.297556+00:00",
       "note": "SOX"
     },
     {
       "name": "Yahoo Finance chart",
       "url": "https://finance.yahoo.com/quote/%5EIXIC",
       "ok": true,
-      "retrieved_at": "2026-07-18T08:39:35.168397+00:00",
+      "retrieved_at": "2026-07-18T10:15:00.297556+00:00",
       "note": "NASDAQ"
+    },
+    {
+      "name": "Yahoo Finance chart",
+      "url": "https://finance.yahoo.com/quote/%5EN225",
+      "ok": true,
+      "retrieved_at": "2026-07-18T10:15:00.297556+00:00",
+      "note": "NIKKEI"
     },
     {
       "name": "Yahoo Finance chart",
       "url": "https://finance.yahoo.com/quote/NVDA",
       "ok": true,
-      "retrieved_at": "2026-07-18T08:39:35.168397+00:00",
+      "retrieved_at": "2026-07-18T10:15:00.297556+00:00",
       "note": "NVDA"
     },
     {
       "name": "Yahoo Finance chart",
       "url": "https://finance.yahoo.com/quote/AVGO",
       "ok": true,
-      "retrieved_at": "2026-07-18T08:39:35.168397+00:00",
+      "retrieved_at": "2026-07-18T10:15:00.297556+00:00",
       "note": "AVGO"
     },
     {
       "name": "Yahoo Finance chart",
       "url": "https://finance.yahoo.com/quote/AMD",
       "ok": true,
-      "retrieved_at": "2026-07-18T08:39:35.168397+00:00",
+      "retrieved_at": "2026-07-18T10:15:00.297556+00:00",
       "note": "AMD"
     },
     {
       "name": "Yahoo Finance chart",
       "url": "https://finance.yahoo.com/quote/MU",
       "ok": true,
-      "retrieved_at": "2026-07-18T08:39:35.168397+00:00",
+      "retrieved_at": "2026-07-18T10:15:00.297556+00:00",
       "note": "MU"
     },
     {
       "name": "Yahoo Finance chart",
       "url": "https://finance.yahoo.com/quote/ARM",
       "ok": true,
-      "retrieved_at": "2026-07-18T08:39:35.168397+00:00",
+      "retrieved_at": "2026-07-18T10:15:00.297556+00:00",
       "note": "ARM"
     },
     {
       "name": "Yahoo Finance chart",
       "url": "https://finance.yahoo.com/quote/MRVL",
       "ok": true,
-      "retrieved_at": "2026-07-18T08:39:35.168397+00:00",
+      "retrieved_at": "2026-07-18T10:15:00.297556+00:00",
       "note": "MRVL"
     },
     {
       "name": "Yahoo Finance chart",
       "url": "https://finance.yahoo.com/quote/MSFT",
       "ok": true,
-      "retrieved_at": "2026-07-18T08:39:35.168397+00:00",
+      "retrieved_at": "2026-07-18T10:15:00.297556+00:00",
       "note": "MSFT"
     },
     {
       "name": "Yahoo Finance chart",
       "url": "https://finance.yahoo.com/quote/GOOGL",
       "ok": true,
-      "retrieved_at": "2026-07-18T08:39:35.168397+00:00",
+      "retrieved_at": "2026-07-18T10:15:00.297556+00:00",
       "note": "GOOGL"
     },
     {
       "name": "Yahoo Finance chart",
       "url": "https://finance.yahoo.com/quote/AMZN",
       "ok": true,
-      "retrieved_at": "2026-07-18T08:39:35.168397+00:00",
+      "retrieved_at": "2026-07-18T10:15:00.297556+00:00",
       "note": "AMZN"
     },
     {
       "name": "Yahoo Finance chart",
       "url": "https://finance.yahoo.com/quote/META",
       "ok": true,
-      "retrieved_at": "2026-07-18T08:39:35.168397+00:00",
+      "retrieved_at": "2026-07-18T10:15:00.297556+00:00",
       "note": "META"
     },
     {
       "name": "Yahoo Finance fundamentals",
       "url": "https://finance.yahoo.com/quote/NVDA/financials/",
       "ok": true,
-      "retrieved_at": "2026-07-18T08:39:35.168397+00:00",
+      "retrieved_at": "2026-07-18T10:15:00.297556+00:00",
       "note": "NVDA"
     },
     {
       "name": "Yahoo Finance fundamentals",
       "url": "https://finance.yahoo.com/quote/AVGO/financials/",
       "ok": true,
-      "retrieved_at": "2026-07-18T08:39:35.168397+00:00",
+      "retrieved_at": "2026-07-18T10:15:00.297556+00:00",
       "note": "AVGO"
     },
     {
       "name": "Yahoo Finance fundamentals",
       "url": "https://finance.yahoo.com/quote/AMD/financials/",
       "ok": true,
-      "retrieved_at": "2026-07-18T08:39:35.168397+00:00",
+      "retrieved_at": "2026-07-18T10:15:00.297556+00:00",
       "note": "AMD"
     },
     {
       "name": "Yahoo Finance fundamentals",
       "url": "https://finance.yahoo.com/quote/MU/financials/",
       "ok": true,
-      "retrieved_at": "2026-07-18T08:39:35.168397+00:00",
+      "retrieved_at": "2026-07-18T10:15:00.297556+00:00",
       "note": "MU"
     },
     {
       "name": "Yahoo Finance fundamentals",
       "url": "https://finance.yahoo.com/quote/ARM/financials/",
       "ok": true,
-      "retrieved_at": "2026-07-18T08:39:35.168397+00:00",
+      "retrieved_at": "2026-07-18T10:15:00.297556+00:00",
       "note": "ARM"
     },
     {
       "name": "Yahoo Finance fundamentals",
       "url": "https://finance.yahoo.com/quote/MRVL/financials/",
       "ok": true,
-      "retrieved_at": "2026-07-18T08:39:35.168397+00:00",
+      "retrieved_at": "2026-07-18T10:15:00.297556+00:00",
       "note": "MRVL"
     },
     {
       "name": "Yahoo Finance fundamentals",
       "url": "https://finance.yahoo.com/quote/MSFT/financials/",
       "ok": true,
-      "retrieved_at": "2026-07-18T08:39:35.168397+00:00",
+      "retrieved_at": "2026-07-18T10:15:00.297556+00:00",
       "note": "MSFT"
     },
     {
       "name": "Yahoo Finance fundamentals",
       "url": "https://finance.yahoo.com/quote/GOOGL/financials/",
       "ok": true,
-      "retrieved_at": "2026-07-18T08:39:35.168397+00:00",
+      "retrieved_at": "2026-07-18T10:15:00.297556+00:00",
       "note": "GOOGL"
     },
     {
       "name": "Yahoo Finance fundamentals",
       "url": "https://finance.yahoo.com/quote/AMZN/financials/",
       "ok": true,
-      "retrieved_at": "2026-07-18T08:39:35.168397+00:00",
+      "retrieved_at": "2026-07-18T10:15:00.297556+00:00",
       "note": "AMZN"
     },
     {
       "name": "Yahoo Finance fundamentals",
       "url": "https://finance.yahoo.com/quote/META/financials/",
       "ok": true,
-      "retrieved_at": "2026-07-18T08:39:35.168397+00:00",
+      "retrieved_at": "2026-07-18T10:15:00.297556+00:00",
       "note": "META"
+    },
+    {
+      "name": "Yahoo Finance historical chart",
+      "url": "https://finance.yahoo.com/quote/%5EN225/history/",
+      "ok": true,
+      "retrieved_at": "2026-07-18T10:15:00.297556+00:00",
+      "note": "日本の資産バブル・最初の下落局面"
+    },
+    {
+      "name": "Yahoo Finance historical chart",
+      "url": "https://finance.yahoo.com/quote/%5EN225/history/",
+      "ok": true,
+      "retrieved_at": "2026-07-18T10:15:00.297556+00:00",
+      "note": "日本の資産バブル・長期的な最低値"
+    },
+    {
+      "name": "Yahoo Finance historical chart",
+      "url": "https://finance.yahoo.com/quote/%5EIXIC/history/",
+      "ok": true,
+      "retrieved_at": "2026-07-18T10:15:00.297556+00:00",
+      "note": "米国ITバブル"
+    },
+    {
+      "name": "Yahoo Finance historical chart",
+      "url": "https://finance.yahoo.com/quote/%5EN225/history/",
+      "ok": true,
+      "retrieved_at": "2026-07-18T10:15:00.297556+00:00",
+      "note": "世界金融危機"
+    },
+    {
+      "name": "Yahoo Finance historical chart",
+      "url": "https://finance.yahoo.com/quote/%5EN225/history/",
+      "ok": true,
+      "retrieved_at": "2026-07-18T10:15:00.297556+00:00",
+      "note": "コロナ急落"
+    },
+    {
+      "name": "Yahoo Finance historical chart",
+      "url": "https://finance.yahoo.com/quote/%5EIXIC/history/",
+      "ok": true,
+      "retrieved_at": "2026-07-18T10:15:00.297556+00:00",
+      "note": "2021年以降の成長株再評価"
     },
     {
       "name": "FRED",
       "url": "https://fred.stlouisfed.org/series/BAMLH0A0HYM2",
       "ok": true,
-      "retrieved_at": "2026-07-18T08:39:35.168397+00:00",
+      "retrieved_at": "2026-07-18T10:15:00.297556+00:00",
       "note": "BAMLH0A0HYM2"
     },
     {
       "name": "FRED",
       "url": "https://fred.stlouisfed.org/series/DFII10",
       "ok": true,
-      "retrieved_at": "2026-07-18T08:39:35.168397+00:00",
+      "retrieved_at": "2026-07-18T10:15:00.297556+00:00",
       "note": "DFII10"
     }
   ],
-  "methodVersion": "2.0.0"
+  "methodVersion": "3.0.0"
 }

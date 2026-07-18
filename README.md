@@ -1,41 +1,52 @@
-# AI Bubble Collapse Monitor
+# AIバブル崩壊・日経平均底値モニター
 
-An evidence-oriented Japanese dashboard that separates four questions:
+AI相場の崩壊を検知するだけでなく、**日経平均の底値候補にどこまで近づき、反転を確認できたか**を追う日本語ダッシュボードです。底値を一点で断定せず、価格帯と確認条件に分けます。
 
-1. Are AI-linked equities priced above a transparent fundamental-value scenario?
-2. Has the price regime changed from momentum to a persistent drawdown?
-3. Are earnings, free cash flow, and hyperscaler capital spending deteriorating?
-4. Has that deterioration reached suppliers or credit markets?
+## このページが答えること
 
-The site does **not** treat a high valuation or a one-day selloff as proof that a
-bubble has collapsed. It reports observed evidence, unknown inputs, model
-assumptions, and scenario ranges separately.
+1. 日経平均の底値候補はどこか
+2. その価格帯に近づき、底打ちの証拠が出たか
+3. AI相場は単なる調整か、利益・投資・信用まで悪化した崩壊か
+4. 下落後も企業価値が残る会社はどこか
 
-## Data flow
+## 日経平均の底値モデル
 
-GitHub Actions runs `scripts/update_data.py` every six hours and before each Pages
-deployment. It retrieves:
+3つの独立した価格アンカーを計算し、最小値から最大値を底値ゾーンとして残します。
 
-- price histories from Yahoo Finance's public chart endpoint;
-- standardized financial time series from Yahoo Finance, with links back to each
-  company's investor-relations page for verification;
-- high-yield credit spreads and the 10-year real yield from FRED.
+- 利益アンカー: `現在EPS × (1 - 利益悪化率) × ストレス後PER`
+- 純資産アンカー: `現在BPS × ストレス後PBR`
+- 歴史アンカー: `直近3年高値 × (1 - 想定下落率)`
 
-Inputs that cannot be obtained consistently without a paid consensus feed or manual
-verification remain `null`. The dashboard never silently converts missing data to zero.
+EPSとBPSは、日経公式の同じ日の終値と指数ベースPER・PBRから逆算します。標準シナリオは、利益25%減、PER 16倍、PBR 1.5倍、高値から50%下落です。すべて画面で変更できます。
 
-## Local update
+底値ゾーンへの到達だけでは底打ちとしません。120日安値の更新停止、安値からの反発、50日線の向き、ハイイールド信用スプレッド、市場の広がりを別の確認スコアにしています。
+
+## 過去局面
+
+同じ日次終値の規則で、日本の資産バブル、ITバブル、世界金融危機、コロナ急落、2021年以降の成長株調整を再計算します。原因と市場構造が異なるため、単純平均を予測値にはしません。
+
+## データ更新
+
+GitHub Actionsが6時間ごと、およびPages公開前に`scripts/update_data.py`を実行します。
+
+- Yahoo Financeの公開チャート: 日経平均、SOX、NASDAQ、各社株価
+- Yahoo Financeの標準化財務時系列: 売上、FCF、設備投資など
+- FRED: ハイイールド信用スプレッド、10年実質金利
+- 日経公式日次サマリー: 指数ベースPER・PBRの参照値
+
+日経公式値は取得条件と利用制約を考慮し、参照日・出典URLを明示した確認可能な値として保持します。取得できない項目は`null`のまま残し、0へ変換しません。
+
+## ローカル実行
 
 ```powershell
-python scripts/update_data.py
+C:\Users\yuasa\.cache\codex-runtimes\codex-primary-runtime\dependencies\python\python.exe scripts\update_data.py
 python -m http.server 8000
 ```
 
-Then open `http://localhost:8000`.
+`http://localhost:8000`を開きます。
 
-## Important limitation
+## 重要な制約
 
-The DCF and reverse-DCF results are scenario calculations, not objective target prices
-or investment recommendations. Fundamental value is unobservable and highly sensitive
-to free cash flow, discount rate, terminal growth, competition, dilution, and cyclicality.
+底値は事後にしか確定できません。このモデルは底値候補を比較する研究用ストレステストであり、目標株価、売買指示、投資助言ではありません。利益予想、PER/PBR、資本コスト、政策、為替、信用危機によって結果は大きく変わります。
 
+主な根拠は、[日経公式の日次サマリー](https://indexes.nikkei.co.jp/en/nkave/archives/summary?idx=nk225)、[日経平均プロフィル利用ガイド](https://indexes.nikkei.co.jp/nkave/archives/file/users_guide_jp.pdf)、[IMFの資産価格バスト分析](https://www.elibrary.imf.org/display/book/9781589062122/ch02.xml)です。

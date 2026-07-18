@@ -3,8 +3,9 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="AI関連株の割高とバブル崩壊を、企業価値、価格、設備投資、供給、信用市場から分けて検証するモニター">
-  <title>AIバブル崩壊モニター</title>
+  <meta name="description" content="AI関連株の割高・バブル崩壊と、日経平均の底値ゾーン・底打ち確認を、企業価値、利益、価格、信用市場から分けて検証するモニター">
+  <title>AIバブル崩壊・日経平均底値モニター</title>
+  <link rel="icon" href="data:,">
   <link rel="stylesheet" href="styles.css">
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.9/dist/chart.umd.min.js" defer></script>
   <script src="https://unpkg.com/lucide@0.468.0/dist/umd/lucide.min.js" defer></script>
@@ -15,8 +16,8 @@
     <div class="header-inner">
       <div>
         <p class="eyebrow">VALUATION / CAPITAL CYCLE / COLLAPSE</p>
-        <h1>AIバブル崩壊モニター</h1>
-        <p class="header-summary">「AIは本物か」と「株価に織り込まれた期待は実現可能か」を分けて考えます。</p>
+        <h1>AIバブル崩壊・日経平均底値モニター</h1>
+        <p class="header-summary">主目的は、日経平均の底値候補にどこまで近づき、反転を確認できたかを追うことです。バブル崩壊の判定は、その前提となる市場環境として別に示します。</p>
       </div>
       <div class="header-actions">
         <button id="refreshButton" class="command primary" type="button">
@@ -34,6 +35,8 @@
   <nav class="section-nav" aria-label="ページ内ナビゲーション">
     <div class="nav-inner">
       <a href="#today">今日の判定</a>
+      <a href="#analysis-map">計算の地図</a>
+      <a href="#nikkei-bottom">日経底値</a>
       <a href="#signals">崩壊シグナル</a>
       <a href="#valuation">企業価値</a>
       <a href="#manual-inputs">未取得データ</a>
@@ -56,6 +59,20 @@
             <span>市場日 <strong id="marketDate">―</strong></span>
             <span>生成 <strong id="generatedAt">―</strong></span>
           </div>
+        </div>
+
+        <div class="bottom-glance" aria-live="polite">
+          <div class="bottom-glance-heading">
+            <p class="label">最重要：日経平均の底値監視</p>
+            <strong id="todayNikkeiZone">計算中</strong>
+            <p id="todayNikkeiBottomMessage" class="supporting">底値候補と反転条件を計算しています。</p>
+          </div>
+          <div class="bottom-glance-metrics">
+            <div><span>ゾーン上端まで</span><strong id="todayNikkeiDistance">―</strong></div>
+            <div><span>底値接近度</span><strong id="todayNikkeiProximity">―</strong></div>
+            <div><span>底打ち確認</span><strong id="todayNikkeiConfirmation">―</strong></div>
+          </div>
+          <a class="command" href="#nikkei-bottom"><i data-lucide="arrow-down" aria-hidden="true"></i>底値の計算根拠を見る</a>
         </div>
 
         <div class="verdict-grid">
@@ -96,6 +113,31 @@
       </div>
     </section>
 
+    <section id="analysis-map" class="band band-map">
+      <div class="content">
+        <div class="section-heading">
+          <p class="section-kicker">HOW THE SECTIONS CONNECT</p>
+          <h2>このページが答える4つの質問</h2>
+          <p>同じデータを並べているのではありません。各章は「入力データ → 計算 → 答え」の役割が異なります。最初に全体のつながりを示します。</p>
+        </div>
+        <div class="analysis-map-grid">
+          <a href="#nikkei-bottom" class="map-item">
+            <span>01</span><div><strong>日経平均の底値候補はどこか</strong><p>利益、純資産、過去下落率の3本を重ね、単一値ではなく底値ゾーンを作ります。</p><small>入力：日経平均、PER、PBR、過去6局面</small></div>
+          </a>
+          <a href="#bottom-confirmation" class="map-item">
+            <span>02</span><div><strong>底値に届き、反転したか</strong><p>価格帯への到達と、安値更新停止・50日線・信用・市場の広がりを分けて確認します。</p><small>出力：底値接近度と底打ち確認度</small></div>
+          </a>
+          <a href="#signals" class="map-item">
+            <span>03</span><div><strong>バブルは崩壊したか</strong><p>価格・利益・設備投資・供給・信用を100点に統合し、3ゲートで崩壊段階を判定します。</p><small>入力：SOX、企業業績、CapEx、HY OAS</small></div>
+          </a>
+          <a href="#valuation" class="map-item">
+            <span>04</span><div><strong>何が残る企業か</strong><p>各社のFCFから本体価値と期待の上乗せを分け、指数下落後に残る企業の条件を見ます。</p><small>入力：企業FCF、成長率、資本コスト</small></div>
+          </a>
+        </div>
+        <p class="map-footnote">「崩壊確認」は相場全体の状態、「底値ゾーン」は価格候補、「底打ち確認」は反転の証拠、「企業価値」は銘柄ごとの残存価値です。4つを混ぜないことが、このモニターの中心です。</p>
+      </div>
+    </section>
+
     <section id="signals" class="band">
       <div class="content">
         <div class="section-heading">
@@ -103,6 +145,7 @@
           <h2>どこが悪化すると「崩壊」なのか</h2>
           <p>価格だけでなく、株価を支えた将来キャッシュフロー仮説が壊れ、投資・供給・信用へ伝わったかを順番に確認します。点数は確率ではなく、観測された証拠の強さです。</p>
         </div>
+        <div class="section-route"><strong>この章の役割</strong><span>5群の入力</span><i data-lucide="arrow-right" aria-hidden="true"></i><span>100点の証拠スコア</span><i data-lucide="arrow-right" aria-hidden="true"></i><span>3ゲート</span><i data-lucide="arrow-right" aria-hidden="true"></i><span>崩壊段階</span><a href="#method-collapse">対応する計算根拠</a></div>
 
         <div id="signalGrid" class="signal-grid" aria-live="polite"></div>
 
@@ -147,6 +190,141 @@
       </div>
     </section>
 
+    <section id="nikkei-bottom" class="band band-bottom">
+      <div class="content">
+        <div class="section-heading">
+          <p class="section-kicker">NIKKEI 225 BOTTOM ZONE</p>
+          <h2>日経平均の底値を「一点」ではなく「ゾーン」で推計する</h2>
+          <p>底値は事前には確定できません。そこで、利益から見た価格、純資産から見た価格、過去の崩壊で実際に起きた下落率を別々に計算し、3本が近づく範囲を底値候補とします。</p>
+        </div>
+
+        <div class="section-route">
+          <strong>この章の流れ</strong>
+          <span>日経平均・PER・PBR・過去下落率</span><i data-lucide="arrow-right" aria-hidden="true"></i>
+          <span>3つの底値アンカー</span><i data-lucide="arrow-right" aria-hidden="true"></i>
+          <span>底値ゾーン</span><i data-lucide="arrow-right" aria-hidden="true"></i>
+          <span>反転確認</span>
+          <a href="#method-bottom">計算式を見る</a>
+        </div>
+
+        <div class="nikkei-snapshot">
+          <div><span>現在の日経平均</span><strong id="nikkeiCurrent">―</strong><small id="nikkeiDate">市場日を確認中</small></div>
+          <div><span>直近3年の高値</span><strong id="nikkeiPeak">―</strong><small id="nikkeiPeakDate">―</small></div>
+          <div><span>現在の高値からの下落</span><strong id="nikkeiCurrentDrawdown">―</strong><small>底値推計とは別の現在位置</small></div>
+          <div><span>PER・PBR参照日</span><strong id="nikkeiReferenceDate">―</strong><small>公式値を確認して更新可能</small></div>
+        </div>
+
+        <div class="bottom-result-grid">
+          <div class="bottom-zone-result">
+            <p class="label">選択シナリオの底値候補</p>
+            <strong id="nikkeiZone">計算中</strong>
+            <p id="nikkeiZoneContext">3つの価格アンカーを計算しています。</p>
+          </div>
+          <div class="bottom-position-result">
+            <div><span>ゾーン上端まで</span><strong id="nikkeiRemaining">―</strong></div>
+            <div><span>底値接近度</span><strong id="nikkeiProximity">―</strong></div>
+            <div><span>底打ち確認度</span><strong id="nikkeiConfirmationScore">―</strong></div>
+            <p id="nikkeiPositionMessage">現在位置を確認しています。</p>
+          </div>
+        </div>
+
+        <fieldset class="scenario-selector" id="nikkeiScenarioSelector">
+          <legend>想定する下落の深さ</legend>
+          <label><input type="radio" name="nikkeiScenario" value="mild"><span><strong>急落・利益減速</strong><small>信用危機を伴わない調整</small></span></label>
+          <label><input type="radio" name="nikkeiScenario" value="standard"><span><strong>標準的な株価崩壊</strong><small>IMFの典型的な株式バストに近い</small></span></label>
+          <label><input type="radio" name="nikkeiScenario" value="severe"><span><strong>深い信用収縮</strong><small>ITバブルや金融危機に近いストレス</small></span></label>
+        </fieldset>
+
+        <div class="bottom-model-layout">
+          <form id="nikkeiControls" class="bottom-controls">
+            <div class="control-heading">
+              <div><h3>底値前提を調整</h3><p>最初は過去局面に基づく参考値です。数字を変えると即時再計算します。</p></div>
+              <button id="resetNikkeiAssumptions" type="button" class="icon-button" title="日経平均の前提を初期値へ戻す"><i data-lucide="rotate-ccw" aria-hidden="true"></i></button>
+            </div>
+            <div class="valuation-reference-inputs">
+              <label class="reference-price-field">PER・PBR参照日の日経平均終値
+                <div class="input-unit"><input id="nikkeiReferencePrice" type="number" min="1000" max="200000" step="0.01"><span>円</span></div>
+              </label>
+              <label>参照日の指数ベースPER
+                <div class="input-unit"><input id="nikkeiCurrentPe" type="number" min="1" max="100" step="0.01"><span>倍</span></div>
+              </label>
+              <label>参照日の指数ベースPBR
+                <div class="input-unit"><input id="nikkeiCurrentPb" type="number" min="0.1" max="10" step="0.01"><span>倍</span></div>
+              </label>
+            </div>
+            <p class="reference-help">日経公式日次サマリーの同じ日の終値と「Index Weight Basis」のPER・PBRを1組で使用します。取得制限があるため参照値は自動更新せず、利用者が公式ページで照合します。</p>
+            <label>利益の悪化率
+              <div class="range-row"><input id="nikkeiEpsCut" type="range" min="0" max="60" step="1"><output id="nikkeiEpsCutOutput">―</output></div>
+            </label>
+            <label>ストレス後の指数ベースPER
+              <div class="range-row"><input id="nikkeiTargetPe" type="range" min="8" max="24" step="0.5"><output id="nikkeiTargetPeOutput">―</output></div>
+            </label>
+            <label>ストレス後の指数ベースPBR
+              <div class="range-row"><input id="nikkeiTargetPb" type="range" min="0.7" max="3" step="0.05"><output id="nikkeiTargetPbOutput">―</output></div>
+            </label>
+            <label>高値からの歴史的下落率
+              <div class="range-row"><input id="nikkeiHistoricalDrawdown" type="range" min="20" max="85" step="1"><output id="nikkeiHistoricalDrawdownOutput">―</output></div>
+            </label>
+            <a id="nikkeiOfficialLink" class="command" href="https://indexes.nikkei.co.jp/en/nkave/archives/summary?idx=nk225" target="_blank" rel="noopener"><i data-lucide="external-link" aria-hidden="true"></i>日経公式でPER・PBRを確認</a>
+          </form>
+
+          <div class="bottom-chart-column">
+            <div class="chart-panel">
+              <div class="panel-heading"><div><h3>3つの方法で出した価格</h3><p>互いに異なる弱点を持つため、平均だけで隠さず個別に表示します。</p></div></div>
+              <div class="chart-frame chart-bottom"><canvas id="nikkeiBottomChart"></canvas></div>
+            </div>
+            <div id="nikkeiAnchorList" class="anchor-list"></div>
+          </div>
+        </div>
+
+        <div id="nikkeiExplanation" class="bottom-explanation" aria-live="polite"></div>
+
+        <div id="bottom-confirmation" class="confirmation-section">
+          <div class="section-heading compact-heading">
+            <p class="section-kicker">ARRIVAL IS NOT CONFIRMATION</p>
+            <h3>底値ゾーンへの到達と、底打ち確認は別に見る</h3>
+            <p>価格が安く見えても、安値更新と信用悪化が続いていれば底とは限りません。逆に、反転を完全に待つと最安値は過ぎます。ここでは両者を分けて表示します。</p>
+          </div>
+          <div class="confirmation-layout">
+            <div class="confirmation-score-block">
+              <span>底打ち確認度</span>
+              <strong id="nikkeiConfirmationLarge">―</strong>
+              <p id="nikkeiConfirmationLabel">判定中</p>
+              <div class="confirmation-meter"><span id="nikkeiConfirmationBar"></span></div>
+              <small>価格帯40点、安値更新停止25点、50日線20点、信用10点、市場の広がり5点。価格帯まで10%以内でない間は、他の反転項目が良好でも総合点を0点として判定を保留します。</small>
+            </div>
+            <div id="nikkeiChecklist" class="confirmation-checklist"></div>
+          </div>
+        </div>
+
+        <div class="observation-section">
+          <h3>最安値を一点で待たないための4つの観測レベル</h3>
+          <p>これは売買推奨ではなく、底値推計を実際の観察へ落とすための研究用ルールです。価格だけでなく反転証拠も残します。</p>
+          <div id="nikkeiObservationLadder" class="observation-ladder"></div>
+        </div>
+
+        <div class="history-bottom-section">
+          <div class="section-heading compact-heading">
+            <p class="section-kicker">HISTORICAL DRAWDOWNS</p>
+            <h3>過去のピークから底まで、実際にどれだけ下がったか</h3>
+            <p>同じ日次終値の規則で、ピーク後の最安値と所要期間を再計算しています。原因と市場構造が違うため、単純平均は予測値にしません。</p>
+          </div>
+          <div class="table-wrap">
+            <table class="history-bottom-table">
+              <thead><tr><th>局面</th><th>指数</th><th>ピーク</th><th>底値</th><th>下落率</th><th>底まで</th><th>今回への使い方</th></tr></thead>
+              <tbody id="nikkeiHistoryRows"></tbody>
+            </table>
+          </div>
+          <p class="history-benchmark">IMFの国際比較では、株式バストの実質下落中央値は約45.5%、別研究のOECD中央値は約50.3%、底までの中央値は約10四半期です。この統計を標準シナリオの50%下落の根拠に使います。</p>
+        </div>
+
+        <div class="bottom-warning">
+          <i data-lucide="triangle-alert" aria-hidden="true"></i>
+          <p><strong>重要：</strong>底値は事後にしか確定しません。利益予想の急落時にはPERがむしろ上昇することがあり、2009年3月10日の日経平均は安値圏でも指数ベースPERが104.53倍でした。そのためPERだけでなくPBR、過去下落率、信用と反転確認を併用します。</p>
+        </div>
+      </div>
+    </section>
+
     <section id="valuation" class="band band-muted">
       <div class="content">
         <div class="section-heading">
@@ -154,6 +332,7 @@
           <h2>企業の実力と「期待の上乗せ」を分ける</h2>
           <p>直近12か月のフリーキャッシュフローを出発点に、10年間の成長とその後の永続成長を割り引きます。これは目標株価ではなく、現在価格がどの程度強い前提を要求しているかを見るストレステストです。</p>
         </div>
+        <div class="section-route"><strong>この章の役割</strong><span>企業FCF・成長・資本コスト</span><i data-lucide="arrow-right" aria-hidden="true"></i><span>DCFと逆DCF</span><i data-lucide="arrow-right" aria-hidden="true"></i><span>期待の上乗せ</span><a href="#method-company">対応する計算根拠</a></div>
 
         <div class="valuation-overview">
           <div class="chart-panel">
@@ -246,6 +425,7 @@
           <h2>自動取得できない重要データ</h2>
           <p>予想EPSの修正履歴、同一仕様のメモリー・GPU価格、正式な計画中止は、無料データだけでは定義をそろえにくい項目です。確認できた値だけを入力してください。空欄は「悪化なし」ではなく「未確認」です。</p>
         </div>
+        <div class="section-route"><strong>この章の役割</strong><span>無料取得できない事実</span><i data-lucide="arrow-right" aria-hidden="true"></i><span>基礎収益・供給の点数</span><i data-lucide="arrow-right" aria-hidden="true"></i><span>欠損幅を縮小</span><a href="#method-collapse">証拠スコアへ戻る</a></div>
 
         <form id="manualForm" class="manual-grid">
           <label>
@@ -295,6 +475,7 @@
           <h2>ITバブルから何を学び、何を同一視しないか</h2>
           <p>新技術が本物でも、投資家が支払った価格が正しいとは限りません。一方、現在のAI中核企業は利益とキャッシュフローを持つため、2000年の無収益企業をそのまま当てはめるのも誤りです。</p>
         </div>
+        <div class="section-route section-route-dark"><strong>この章の役割</strong><span>過去の原因と市場構造</span><i data-lucide="arrow-right" aria-hidden="true"></i><span>単純類推を制限</span><i data-lucide="arrow-right" aria-hidden="true"></i><span>底値シナリオの幅</span><a href="#nikkei-bottom">底値章へ戻る</a></div>
 
         <div class="comparison-table-wrap">
           <table class="comparison-table">
@@ -324,17 +505,31 @@
         <div class="section-heading">
           <p class="section-kicker">TRANSPARENT METHOD</p>
           <h2>なぜこのデータを入れ、どう計算するのか</h2>
-          <p>真の本源価値は観測できないため、単一の「正解価格」は出せません。その代わり、入力、式、閾値、欠損、感度を公開し、どの仮定で結論が変わるかを示します。</p>
+          <p>ここは独立した説明章ではなく、上の各画面で表示した答えの「計算台帳」です。どの入力が、どの計算を通り、どの表示へ戻るのかを最初に対応表で示します。</p>
+        </div>
+
+        <div class="method-output-map">
+          <table>
+            <thead><tr><th>知りたい答え</th><th>上の対応画面</th><th>主な入力</th><th>計算</th><th>表示される答え</th></tr></thead>
+            <tbody>
+              <tr><th>崩壊したか</th><td><a href="#signals">崩壊シグナル</a></td><td>価格、FCF、CapEx、供給、HY OAS</td><td>5群100点＋3ゲート</td><td>崩壊段階・証拠スコア・欠損幅</td></tr>
+              <tr><th>日経の底値候補</th><td><a href="#nikkei-bottom">日経底値</a></td><td>現在の日経、PER・PBR参照日の終値と倍率、利益悪化、過去下落率</td><td>EPS法・PBR法・歴史法</td><td>底値ゾーン・残り下落余地・接近度</td></tr>
+              <tr><th>底打ちしたか</th><td><a href="#bottom-confirmation">反転確認</a></td><td>120日安値、50日線、HY OAS、市場の広がり</td><td>5項目100点</td><td>底打ち確認度・未充足項目</td></tr>
+              <tr><th>残る企業はどれか</th><td><a href="#valuation">企業価値</a></td><td>企業FCF、成長率、資本コスト</td><td>DCF・逆DCF・感度分析</td><td>本体価値・期待上乗せ・弱気価値</td></tr>
+            </tbody>
+          </table>
         </div>
 
         <div class="method-steps">
           <article><span>STEP 1</span><h3>現在の実力を測る</h3><p>売上、営業利益、FCF、現金、負債、CapExを使います。PERだけでは、会計利益の質、再投資負担、資本構成を区別できません。</p></article>
           <article><span>STEP 2</span><h3>合理的な成長を加える</h3><p>FCFが一定期間成長し、その後は経済全体に近い永続成長へ落ち着くと仮定して現在価値へ割り引きます。</p></article>
           <article><span>STEP 3</span><h3>市場の要求を逆算する</h3><p>現在の時価総額に一致する10年間のFCF成長率を解きます。高いほど競争、価格低下、顧客内製化に弱くなります。</p></article>
-          <article><span>STEP 4</span><h3>崩壊の連鎖を確認する</h3><p>高評価であることと、崩壊が始まったことは別です。価格、利益、供給・信用の順に証拠を積み上げます。</p></article>
+          <article id="method-collapse"><span>STEP 4</span><h3>崩壊の連鎖を確認する</h3><p>高評価であることと、崩壊が始まったことは別です。価格、利益、供給・信用の順に証拠を積み上げます。</p></article>
+          <article><span>STEP 5</span><h3>日経の底値を3方向から挟む</h3><p>利益、純資産、過去下落率のどれか一つを正解にせず、3価格の最小値から最大値を候補帯にします。</p></article>
+          <article><span>STEP 6</span><h3>到達と反転を分ける</h3><p>安値圏に入っただけでは底打ちとしません。安値更新停止、50日線反転、信用改善、市場の広がりを追加確認します。</p></article>
         </div>
 
-        <div class="formula-section">
+        <div id="method-company" class="formula-section">
           <div>
             <h3>株主価値DCF</h3>
             <div class="formula">株主価値 = Σ FCF<sub>t</sub> ÷ (1+r)<sup>t</sup> + 継続価値 ÷ (1+r)<sup>n</sup></div>
@@ -349,6 +544,16 @@
             <h3>市場の暗黙成長率</h3>
             <div class="formula">現在の時価総額 = DCF(FCF成長率 x) となる x を二分法で逆算</div>
             <p>xは予測ではありません。現在価格を正当化するために必要な条件です。売上成長率ではなくFCF成長率である点に注意してください。</p>
+          </div>
+        </div>
+
+        <div id="method-bottom" class="bottom-formula-section">
+          <div class="section-heading compact-heading"><p class="section-kicker">NIKKEI BOTTOM FORMULAS</p><h3>日経平均の底値ゾーンに戻る計算式</h3></div>
+          <div class="bottom-formula-grid">
+            <div><span>A</span><h4>利益アンカー</h4><div class="formula">参照日EPS = 同日の終値 ÷ 同日のPER<br>価格A = 参照日EPS × (1−利益悪化率) × ストレス後PER</div><p><a href="#nikkei-bottom">画面の参照日3項目と「利益悪化率」「ストレス後PER」</a>に対応します。基準日を混ぜず、利益予想が崩れるほど下がる計算です。</p></div>
+            <div><span>B</span><h4>純資産アンカー</h4><div class="formula">参照日BPS = 同日の終値 ÷ 同日のPBR<br>価格B = 参照日BPS × ストレス後PBR</div><p>同じ基準日の終値とPBRを使い、利益が一時的に消えてPERが使いにくい局面を補います。2009年安値圏の指数ベースPBR 0.87倍を深いストレスの参照にします。</p></div>
+            <div><span>C</span><h4>歴史アンカー</h4><div class="formula">価格C = 直近3年高値 × (1−想定下落率)</div><p><a href="#nikkei-bottom">過去6局面の表</a>から、浅い35%、標準50%、深い65%を初期値にします。原因が違うため自由に変更できます。</p></div>
+            <div><span>D</span><h4>底値ゾーンと接近度</h4><div class="formula">ゾーン = min(A,B,C) ～ max(A,B,C)<br>接近度 = 高値から上端までの距離に対する現在の進捗</div><p>3本の不一致そのものを不確実性として残します。平均値だけを「予想底値」とは表示しません。</p></div>
           </div>
         </div>
 
@@ -370,7 +575,9 @@
           <ul>
             <li>将来の技術進歩、競争優位、規制、戦争、金利を正確に予言すること。</li>
             <li>非公開の契約価格、顧客別採算、データセンターの実利用率を完全に把握すること。</li>
-            <li>DCFの弱気値を「必ず止まる底値」と保証すること。</li>
+            <li>DCFの弱気値や日経平均の底値ゾーンを「必ず止まる価格」と保証すること。</li>
+            <li>PER・PBR参照値を日経公式サイトから自動更新すること。画面の日付を確認し、必要なら利用者が更新します。</li>
+            <li>底値をリアルタイムで確定すること。底打ち確認は必ず安値より遅れます。</li>
             <li>個人の資産状況、税金、損失許容度を踏まえた売買判断を行うこと。</li>
           </ul>
         </div>
@@ -393,6 +600,10 @@
           <a href="https://www.sec.gov/search-filings/edgar-application-programming-interfaces" target="_blank" rel="noopener">SEC：EDGAR API仕様</a>
           <a href="https://www.federalreserve.gov/newsevents/speech/files/jefferson20251121a.pdf" target="_blank" rel="noopener">FRB：AIとITバブルの比較</a>
           <a href="https://www.elibrary.imf.org/display/book/9781589062122/ch02.xml" target="_blank" rel="noopener">IMF：資産バブル崩壊の歴史分析</a>
+          <a href="https://www.elibrary.imf.org/view/journals/001/2008/274/article-A001-en.xml" target="_blank" rel="noopener">IMF：株式バストの下落率と期間</a>
+          <a href="https://fred.stlouisfed.org/series/NIKKEI225" target="_blank" rel="noopener">FRED：日経平均の公式系列</a>
+          <a href="https://indexes.nikkei.co.jp/en/nkave/archives/summary?idx=nk225" target="_blank" rel="noopener">日経公式：日次サマリー</a>
+          <a href="https://indexes.nikkei.co.jp/nkave/archives/file/users_guide_jp.pdf" target="_blank" rel="noopener">日経公式：PER・PBR計算式</a>
           <a href="https://indexes.nasdaq.com/docs/Nasdaq-100_A%20Tale%20of%20Three%20Crises%20over%20Two%20Decades.pdf" target="_blank" rel="noopener">Nasdaq：Tech Bubble比較</a>
         </div>
       </div>
@@ -402,7 +613,7 @@
   <footer>
     <div class="content footer-inner">
       <p><strong>重要：</strong>本サイトは教育・調査用です。投資助言、価格予測、売買推奨ではありません。取得値には遅延・欠損・定義差があり、重要な判断では企業IRと提出資料を確認してください。</p>
-      <p>Method v2.0 / <a href="https://github.com/mxe050/ai-bubble-collapse-monitor" target="_blank" rel="noopener">GitHub</a></p>
+      <p>Method v3.0 / <a href="https://github.com/mxe050/ai-bubble-collapse-monitor" target="_blank" rel="noopener">GitHub</a></p>
     </div>
   </footer>
 

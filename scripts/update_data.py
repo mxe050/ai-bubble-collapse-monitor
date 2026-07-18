@@ -113,8 +113,66 @@ COMPANIES: dict[str, dict[str, Any]] = {
     },
 }
 
-PRICE_SYMBOLS = {"SOX": "^SOX", "NASDAQ": "^IXIC", **{k: k for k in COMPANIES}}
+PRICE_SYMBOLS = {"SOX": "^SOX", "NASDAQ": "^IXIC", "NIKKEI": "^N225", **{k: k for k in COMPANIES}}
 HYPERSCALERS = {"MSFT", "GOOGL", "AMZN", "META"}
+
+HISTORICAL_EPISODES: list[dict[str, str]] = [
+    {
+        "id": "japan-bubble-first-leg",
+        "name": "日本の資産バブル・最初の下落局面",
+        "symbol": "^N225",
+        "index": "日経平均",
+        "start": "1989-01-01",
+        "end": "1993-01-01",
+        "note": "1989年末の高値から、1992年の安値まで。長期停滞の全期間ではありません。",
+    },
+    {
+        "id": "japan-bubble-secular",
+        "name": "日本の資産バブル・長期的な最低値",
+        "symbol": "^N225",
+        "index": "日経平均",
+        "start": "1989-01-01",
+        "end": "2009-04-01",
+        "note": "複数の景気循環と金融危機を含むため、単一の崩壊局面としては扱いません。",
+    },
+    {
+        "id": "dotcom",
+        "name": "米国ITバブル",
+        "symbol": "^IXIC",
+        "index": "NASDAQ総合",
+        "start": "1999-01-01",
+        "end": "2003-01-01",
+        "note": "技術普及が続いても、過大な期待と無収益企業の評価は大きく修正されました。",
+    },
+    {
+        "id": "gfc-japan",
+        "name": "世界金融危機",
+        "symbol": "^N225",
+        "index": "日経平均",
+        "start": "2007-01-01",
+        "end": "2009-04-01",
+        "note": "信用収縮と世界景気後退が同時に進んだ深い下落です。",
+    },
+    {
+        "id": "covid-japan",
+        "name": "コロナ急落",
+        "symbol": "^N225",
+        "index": "日経平均",
+        "start": "2020-01-01",
+        "peakEnd": "2020-02-21",
+        "end": "2020-12-31",
+        "note": "政策対応が速く、底までの期間が短かった外生ショックです。",
+    },
+    {
+        "id": "growth-reset-2021",
+        "name": "2021年以降の成長株再評価",
+        "symbol": "^IXIC",
+        "index": "NASDAQ総合",
+        "start": "2021-01-01",
+        "end": "2023-02-01",
+        "note": "金利上昇で高い評価倍率が縮小した局面です。信用危機とは異なります。",
+    },
+]
 
 FUNDAMENTAL_TYPES = [
     "trailingTotalRevenue",
@@ -211,6 +269,7 @@ def fetch_price_series(symbol: str) -> dict[str, Any]:
         raise RuntimeError(f"Insufficient price history for {symbol}")
 
     values = [row["close"] for row in points]
+    sma50 = moving_average(values, 50)
     sma200 = moving_average(values, 200)
     last = values[-1]
     three_year = points[-756:] if len(points) >= 756 else points
@@ -222,6 +281,11 @@ def fetch_price_series(symbol: str) -> dict[str, Any]:
         else:
             break
     latest_sma = sma200[-1]
+    latest_sma50 = sma50[-1]
+    prior_sma50 = sma50[-21] if len(sma50) >= 21 else None
+    recent_120 = points[-120:]
+    low_120_index, low_120_row = min(enumerate(recent_120), key=lambda item: item[1]["close"])
+    days_since_low_120 = len(recent_120) - 1 - low_120_index
     return {
         "symbol": symbol,
         "date": points[-1]["date"],
@@ -234,8 +298,63 @@ def fetch_price_series(symbol: str) -> dict[str, Any]:
         "sma200": latest_sma,
         "belowSma200": bool(latest_sma is not None and last < latest_sma),
         "weeksBelowSma200": below_days / 5.0,
+        "sma50": latest_sma50,
+        "aboveSma50": bool(latest_sma50 is not None and last > latest_sma50),
+        "sma50Slope20dPct": pct_change(latest_sma50, prior_sma50),
+        "low120d": low_120_row["close"],
+        "low120dDate": low_120_row["date"],
+        "tradingDaysSince120dLow": days_since_low_120,
+        "reboundFrom120dLowPct": pct_change(last, low_120_row["close"]),
         "history": points,
         "sourceUrl": f"https://finance.yahoo.com/quote/{urllib.parse.quote(symbol)}",
+    }
+
+
+def fetch_episode(episode: dict[str, str]) -> dict[str, Any]:
+    start = datetime.fromisoformat(episode["start"]).replace(tzinfo=timezone.utc)
+    end = datetime.fromisoformat(episode["end"]).replace(tzinfo=timezone.utc)
+    encoded = urllib.parse.quote(episode["symbol"], safe="")
+    query = urllib.parse.urlencode({
+        "period1": int(start.timestamp()),
+        "period2": int(end.timestamp()),
+        "interval": "1d",
+        "events": "history",
+    })
+    payload = get_json(f"https://query1.finance.yahoo.com/v8/finance/chart/{encoded}?{query}")
+    result = payload["chart"]["result"][0]
+    timestamps = result.get("timestamp", [])
+    closes = result["indicators"]["quote"][0].get("close", [])
+    points: list[dict[str, Any]] = []
+    for timestamp, close in zip(timestamps, closes):
+        value = finite(close)
+        if value is None:
+            continue
+        points.append({
+            "date": datetime.fromtimestamp(timestamp, timezone.utc).date().isoformat(),
+            "close": value,
+        })
+    if len(points) < 20:
+        raise RuntimeError(f"Insufficient historical data for {episode['id']}")
+    peak_end = episode.get("peakEnd", episode["end"])
+    peak_index, peak = max(
+        ((index, row) for index, row in enumerate(points) if row["date"] <= peak_end),
+        key=lambda item: item[1]["close"],
+    )
+    trough = min(points[peak_index:], key=lambda row: row["close"])
+    peak_date = datetime.fromisoformat(peak["date"]).date()
+    trough_date = datetime.fromisoformat(trough["date"]).date()
+    return {
+        "id": episode["id"],
+        "name": episode["name"],
+        "index": episode["index"],
+        "peak": peak["close"],
+        "peakDate": peak["date"],
+        "trough": trough["close"],
+        "troughDate": trough["date"],
+        "drawdownPct": (1.0 - trough["close"] / peak["close"]) * 100.0,
+        "durationDays": (trough_date - peak_date).days,
+        "note": episode["note"],
+        "sourceUrl": f"https://finance.yahoo.com/quote/{urllib.parse.quote(episode['symbol'])}/history/",
     }
 
 
@@ -378,12 +497,15 @@ def fetch_fred(series_id: str) -> dict[str, Any]:
     cutoff = datetime.fromisoformat(last_date).date() - timedelta(days=95)
     prior = next((value for date, value in reversed(rows) if datetime.fromisoformat(date).date() <= cutoff), rows[0][1])
     low_3m = min(value for date, value in rows if datetime.fromisoformat(date).date() >= cutoff)
+    high_3m = max(value for date, value in rows if datetime.fromisoformat(date).date() >= cutoff)
     return {
         "seriesId": series_id,
         "date": last_date,
         "valuePct": last_value,
         "change3mPctPoints": last_value - prior,
         "riseFrom3mLowPctPoints": last_value - low_3m,
+        "declineFrom3mHighPctPoints": high_3m - last_value,
+        "high3mPct": high_3m,
         "sourceUrl": f"https://fred.stlouisfed.org/series/{series_id}",
     }
 
@@ -427,6 +549,7 @@ def main() -> None:
     errors: list[str] = []
     prices: dict[str, dict[str, Any]] = {}
     companies: list[dict[str, Any]] = []
+    historical_episodes: list[dict[str, Any]] = []
 
     for label, symbol in PRICE_SYMBOLS.items():
         try:
@@ -446,6 +569,14 @@ def main() -> None:
             errors.append(f"Fundamentals {symbol}: {exc}")
             statuses.append(SourceStatus("Yahoo Finance fundamentals", f"https://finance.yahoo.com/quote/{symbol}/financials/", False, NOW.isoformat(), str(exc)))
 
+    for episode in HISTORICAL_EPISODES:
+        try:
+            historical_episodes.append(fetch_episode(episode))
+            statuses.append(SourceStatus("Yahoo Finance historical chart", historical_episodes[-1]["sourceUrl"], True, NOW.isoformat(), episode["name"]))
+        except Exception as exc:
+            errors.append(f"Historical episode {episode['id']}: {exc}")
+            statuses.append(SourceStatus("Yahoo Finance historical chart", f"https://finance.yahoo.com/quote/{episode['symbol']}/history/", False, NOW.isoformat(), str(exc)))
+
     macro: dict[str, Any] = {}
     for key, series in {"highYieldOas": "BAMLH0A0HYM2", "real10yYield": "DFII10"}.items():
         try:
@@ -461,7 +592,7 @@ def main() -> None:
         company.get("capexGrowthYoYPct") for company in companies if company["ticker"] in HYPERSCALERS
     ]
     payload = {
-        "schemaVersion": 2,
+        "schemaVersion": 3,
         "generatedAtUtc": NOW.isoformat(),
         "generatedAtJst": NOW.astimezone(JST).isoformat(),
         "marketDate": prices.get("SOX", {}).get("date"),
@@ -482,6 +613,15 @@ def main() -> None:
                 "medianChange5dPct": median(company.get("change5dPct") for company in companies),
             },
             "normalizedChart": sampled_chart(prices) if "SOX" in prices and len(prices) >= 8 else [],
+            "historicalEpisodes": historical_episodes,
+            "nikkeiValuationReference": {
+                "date": "2026-07-17",
+                "indexPe": 22.99,
+                "indexPb": 2.71,
+                "price": 64141.12,
+                "sourceUrl": "https://indexes.nikkei.co.jp/en/nkave/archives/summary?idx=nk225",
+                "note": "日経公式日次サマリーの指数ベースPER・PBRの参照スナップショット。自動更新ではないため、利用時に公式ページで照合してください。",
+            },
         },
         "macro": macro,
         "companies": companies,
@@ -500,7 +640,7 @@ def main() -> None:
             "note": "These fields require a consistent paid consensus series, product-level pricing, or verified project announcements. Missing is not zero.",
         },
         "sourceStatus": [status.__dict__ for status in statuses],
-        "methodVersion": "2.0.0",
+        "methodVersion": "3.0.0",
     }
     OUTPUT.parent.mkdir(parents=True, exist_ok=True)
     OUTPUT.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
