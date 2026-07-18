@@ -262,7 +262,14 @@ COMPANIES: dict[str, dict[str, Any]] = {
         "market": "東証プライム",
         "classificationNote": "利益の中心は二輪、自動車、金融サービスです。AIを利用していても、現在の利益はAI投資テーマだけで決まる構造ではありません。",
         "classificationSourceUrl": "https://global.honda/en/investors/financial_data/segment.html?links=false",
-        "valuationCaveat": "金融サービスとリース資産を含む連結FCFは製造事業のFCFと性質が異なります。非金融事業キャッシュフローでの再確認が必要です。",
+        "valuationCaveat": "DCFには、Honda公式の非金融事業FCF（FY2022～FY2026）の5年中央値を使用します。自動取得の連結TTM FCFには金融サービスの貸付・回収やリース投資が混ざるため、製造事業の稼ぐ力としてそのまま使いません。なお金融サービス事業の価値は別途加算していないため、基準DCFは全社価値を保守的に見る参考値です。",
+        "valuationFcf": 685_867_000_000,
+        "valuationFcfBasis": "Honda公式・非金融事業FCFのFY2022～FY2026における5年中央値",
+        "valuationFcfFormula": "公式開示FCFの5年中央値。年度値は6781億円、6859億円、1兆4610億円、6659億円、1兆580億円。",
+        "valuationFcfPeriod": "FY2022-FY2026",
+        "valuationFcfSourceUrl": "https://global.honda/en/investors/financial_data/cashflow.html",
+        "valuationFcfSourceLabel": "Honda Cash Flows (Non-financial Services Businesses)",
+        "financialServicesTreatment": "金融サービス事業の価値を別加算していないため、残差を直ちに割高・バブルとは判定しません。",
     },
     "7751.T": {
         "name": "キヤノン",
@@ -296,7 +303,14 @@ COMPANIES: dict[str, dict[str, Any]] = {
         "market": "東証プライム",
         "classificationNote": "自動車販売と金融サービスが現在の収益基盤です。AI・自動運転投資は重要でも、AI期待だけで全社価値が決まる企業ではありません。",
         "classificationSourceUrl": "https://global.toyota/en/ir/finance/",
-        "valuationCaveat": "金融事業、リース、在庫金融が連結キャッシュフローを大きく動かします。自動車事業の調整後FCFとの照合が必要です。",
+        "valuationCaveat": "DCFには、Toyota公式の非金融事業CFから算出した調整後FCF（FY2022～FY2026）の5年中央値を使用します。自動取得の連結TTM FCFは金融事業、車両リース、証券売買などで大きく振れるため、そのまま全社DCFへ入れません。なお金融サービス事業の価値は別途加算していないため、基準DCFは全社価値を保守的に見る参考値です。",
+        "valuationFcf": 2_492_282_000_000,
+        "valuationFcfBasis": "Toyota公式・非金融事業CFから算出した調整後FCFのFY2022～FY2026における5年中央値",
+        "valuationFcfFormula": "各年の非金融事業営業CF－固定資産取得－リース用設備取得－無形資産取得。5年値は1.45兆円、1.76兆円、4.68兆円、2.49兆円、2.96兆円。",
+        "valuationFcfPeriod": "FY2022-FY2026",
+        "valuationFcfSourceUrl": "https://global.toyota/pages/global_toyota/ir/financial-results/2026_4q_summary_en.pdf",
+        "valuationFcfSourceLabel": "Toyota FY2026 Financial Summary（過去5年は各年度版）",
+        "financialServicesTreatment": "金融サービス事業の価値を別加算していないため、残差を直ちに割高・バブルとは判定しません。",
     },
     "9983.T": {
         "name": "ファーストリテイリング",
@@ -724,6 +738,7 @@ def build_company(symbol: str, price: dict[str, Any]) -> dict[str, Any]:
     enterprise_value = None
     if market_cap is not None:
         enterprise_value = market_cap + (debt or 0.0) - (cash or 0.0)
+    valuation_fcf = profile.get("valuationFcf", fcf)
     return {
         "ticker": symbol,
         "displayTicker": profile.get("displayTicker", symbol),
@@ -761,6 +776,14 @@ def build_company(symbol: str, price: dict[str, Any]) -> dict[str, Any]:
         "freeCashFlowGrowthYoYPct": growth(data, "trailingFreeCashFlow"),
         "freeCashFlowMarginPct": (fcf / revenue * 100.0) if fcf is not None and revenue else None,
         "freeCashFlowYieldPct": (fcf / market_cap * 100.0) if fcf is not None and market_cap else None,
+        "valuationFcf": valuation_fcf,
+        "valuationFcfYieldPct": (valuation_fcf / market_cap * 100.0) if valuation_fcf is not None and market_cap else None,
+        "valuationFcfBasis": profile.get("valuationFcfBasis", "標準化された連結TTM FCF"),
+        "valuationFcfFormula": profile.get("valuationFcfFormula", "自動取得した連結TTM FCFを使用。"),
+        "valuationFcfPeriod": profile.get("valuationFcfPeriod", "TTM"),
+        "valuationFcfSourceUrl": profile.get("valuationFcfSourceUrl", f"https://finance.yahoo.com/quote/{symbol}/financials/"),
+        "valuationFcfSourceLabel": profile.get("valuationFcfSourceLabel", "Yahoo Finance fundamentals"),
+        "financialServicesTreatment": profile.get("financialServicesTreatment"),
         "ttmCapex": abs(capex) if capex is not None else None,
         "capexGrowthYoYPct": growth(data, "trailingCapitalExpenditure"),
         "trailingPe": latest(data, "trailingPeRatio"),
@@ -863,6 +886,15 @@ def main() -> None:
         try:
             companies.append(build_company(symbol, prices[symbol]))
             statuses.append(SourceStatus("Yahoo Finance fundamentals", f"https://finance.yahoo.com/quote/{symbol}/financials/", True, NOW.isoformat(), symbol))
+            profile = COMPANIES[symbol]
+            if profile.get("valuationFcfSourceUrl"):
+                statuses.append(SourceStatus(
+                    profile.get("valuationFcfSourceLabel", "Official valuation cash flow"),
+                    profile["valuationFcfSourceUrl"],
+                    True,
+                    NOW.isoformat(),
+                    f"{symbol}: {profile.get('valuationFcfBasis', 'valuation FCF override')}",
+                ))
         except Exception as exc:
             errors.append(f"Fundamentals {symbol}: {exc}")
             statuses.append(SourceStatus("Yahoo Finance fundamentals", f"https://finance.yahoo.com/quote/{symbol}/financials/", False, NOW.isoformat(), str(exc)))
@@ -891,7 +923,7 @@ def main() -> None:
         company.get("capexGrowthYoYPct") for company in overseas_ai_companies if company["ticker"] in HYPERSCALERS
     ]
     payload = {
-        "schemaVersion": 5,
+        "schemaVersion": 6,
         "generatedAtUtc": NOW.isoformat(),
         "generatedAtJst": NOW.astimezone(JST).isoformat(),
         "marketDate": prices.get("SOX", {}).get("date"),
@@ -939,7 +971,7 @@ def main() -> None:
             "note": "These fields require a consistent paid consensus series, product-level pricing, or verified project announcements. Missing is not zero.",
         },
         "sourceStatus": [status.__dict__ for status in statuses],
-        "methodVersion": "3.2.0",
+        "methodVersion": "3.3.0",
     }
     OUTPUT.parent.mkdir(parents=True, exist_ok=True)
     OUTPUT.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")

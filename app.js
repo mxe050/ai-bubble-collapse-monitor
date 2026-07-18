@@ -251,9 +251,14 @@
     return present;
   }
 
+  function companyValuationFcf(company) {
+    var adjusted = finite(company.valuationFcf);
+    return adjusted === null ? finite(company.ttmFreeCashFlow) : adjusted;
+  }
+
   function reverseDcfGrowth(company, discountPct, terminalPct, years) {
     var market = finite(company.marketCap);
-    var fcf = finite(company.ttmFreeCashFlow);
+    var fcf = companyValuationFcf(company);
     if (market === null || market <= 0 || fcf === null || fcf <= 0) return null;
     var low = -45;
     var high = 80;
@@ -279,7 +284,7 @@
     var years = assumptions.forecastYears || 10;
     var market = finite(company.marketCap);
     var price = finite(company.price);
-    var fcf = finite(company.ttmFreeCashFlow);
+    var fcf = companyValuationFcf(company);
     var bearGrowth = finite(assumptions.bearGrowthPct);
     var bullGrowth = finite(assumptions.bullGrowthPct);
     var existing = dcfValue(fcf, 0, discount, 0, years);
@@ -294,6 +299,7 @@
       ticker: company.ticker,
       company: company,
       market: market,
+      valuationFcf: fcf,
       existingValue: existing,
       bearValue: bear,
       baseValue: base,
@@ -379,7 +385,7 @@
 
     var valuation = combineSignal(
       "valuation", "企業価値の脆弱性", "市場価格が基準DCFをどれだけ上回り、どれほど高いFCF成長を要求するかを測ります。",
-      "モデル超過分の中央値 " + formatPercent(valuationPremium, false) + "、暗黙成長と基準成長の差 " + formatPercent(impliedGap, true),
+      "基準DCFで説明できない部分の中央値 " + formatPercent(valuationPremium, false) + "、暗黙成長と基準成長の差 " + formatPercent(impliedGap, true),
       [
         component(valuationPremium, 12, stepScore(valuationPremium, [[45, 12], [30, 10], [20, 7], [10, 4], [0, 1]])),
         component(impliedGap, 8, stepScore(impliedGap, [[12, 8], [8, 6], [5, 4], [2, 2]])),
@@ -491,7 +497,7 @@
       return { name: "企業価値を算定できず", reason: "正のFCFまたは時価総額データが不足しています。" };
     }
     if ((premium !== null && premium >= 25) && (gap !== null && gap >= 5)) {
-      return { name: "バブル・プレミアム大", reason: "基準DCFを大きく上回り、市場は基準より高いFCF成長を要求しています。" };
+      return { name: "基準DCFとの差が大きい", reason: "現在のFCFと基準前提だけでは市場価格を十分に説明できず、市場はより高い成長または別の価値要因を織り込んでいます。" };
     }
     if ((premium !== null && premium >= 10) || (gap !== null && gap >= 2)) {
       return { name: "割高リスクあり", reason: "実体ある利益に加え、長い競争優位と高成長の継続が価格に含まれています。" };
@@ -612,7 +618,7 @@
     if (byId("valuationChartTitle")) byId("valuationChartTitle").textContent = groupTitle + "の時価総額を3つに分解";
     if (byId("valuationChartSubtitle")) {
       byId("valuationChartSubtitle").textContent = availableCount + "社をDCF分解"
-        + (omitted > 0 ? "。正のFCFがない" + omitted + "社はグレーで算定不可と表示" : "")
+        + (omitted > 0 ? "。正の評価用FCFがない" + omitted + "社はグレーで比較不可と表示" : "")
         + "。円とドルの金額そのものは比較しません。";
     }
     var frame = byId("valuationChartFrame");
@@ -640,8 +646,8 @@
         datasets: [
           { label: "既存利益の価値", data: decomposition.map(function (row) { return row.existing; }), backgroundColor: "#173854" },
           { label: "合理的な成長価値", data: decomposition.map(function (row) { return row.growth; }), backgroundColor: "#087f75" },
-          { label: "モデル超過分", data: decomposition.map(function (row) { return row.premium; }), backgroundColor: "#c94b18" },
-          { label: "DCF算定不可", data: decomposition.map(function (row) { return row.unavailable; }), backgroundColor: "#aab4bf" },
+          { label: "基準DCFで説明できない部分", data: decomposition.map(function (row) { return row.premium; }), backgroundColor: "#c94b18" },
+          { label: "DCF比較不可", data: decomposition.map(function (row) { return row.unavailable; }), backgroundColor: "#aab4bf" },
         ],
       },
       options: {
@@ -678,6 +684,11 @@
       var baseGap = model ? model.baseGapPct : null;
       var implied = model ? model.impliedGrowthPct : null;
       var category = companyCategory(company);
+      var valuationFcfValue = model ? model.valuationFcf : companyValuationFcf(company);
+      var usesAdjustedFcf = company.valuationFcfBasis && company.valuationFcfBasis !== "標準化された連結TTM FCF";
+      var fcfDetail = usesAdjustedFcf
+        ? "<br><span class=\"neutral\">公式調整値 / 利回り " + formatPercent(company.valuationFcfYieldPct, false) + "</span><br><span class=\"neutral\">自動取得 " + formatMoney(company.ttmFreeCashFlow, company.currency) + "</span>"
+        : "<br><span class=\"neutral\">連結TTM / 利回り " + formatPercent(company.valuationFcfYieldPct, false) + "</span>";
       var impliedText = model && model.baseValue !== null ? formatPercent(implied, false) : "算定不可";
       var baseText = model && model.baseValue !== null ? formatPercent(baseGap, true) : "算定不可";
       return "<tr>"
@@ -687,7 +698,7 @@
         + "<td class=\"" + cssValueClass(company.drawdown3yPct, true) + "\">" + formatDrawdown(company.drawdown3yPct) + "</td>"
         + "<td class=\"" + cssValueClass(company.drawdownFrom2026HighPct, true) + "\">" + format2026HighCell(company) + "</td>"
         + "<td class=\"" + cssValueClass(company.revenueGrowthYoYPct, false) + "\">" + formatPercent(company.revenueGrowthYoYPct, true) + "</td>"
-        + "<td>" + formatMoney(company.ttmFreeCashFlow, company.currency) + "<br><span class=\"neutral\">利回り " + formatPercent(company.freeCashFlowYieldPct, false) + "</span></td>"
+        + "<td><strong>" + formatMoney(valuationFcfValue, company.currency) + "</strong>" + fcfDetail + "</td>"
         + "<td class=\"" + (implied !== null && implied > company.assumptions.baseGrowthPct + 5 ? "negative" : implied === null ? "unknown" : "neutral") + "\">" + impliedText + "</td>"
         + "<td class=\"" + (baseGap === null ? "unknown" : cssValueClass(baseGap, false)) + "\">" + baseText + "</td>"
         + "<td><button type=\"button\" class=\"icon-button detail-button\" data-ticker=\"" + escapeHtml(company.ticker) + "\" title=\"" + escapeHtml(company.name) + "の前提と感度を表示\"><i data-lucide=\"panel-right-open\" aria-hidden=\"true\"></i></button></td>"
@@ -753,6 +764,7 @@
     var category = companyCategory(company);
     var categoryLabel = company.categoryLabel || (COMPANY_FILTERS[category] ? COMPANY_FILTERS[category].label : category);
     var classificationUrl = company.classificationSourceUrl || company.irUrl;
+    var valuationFcfValue = companyValuationFcf(company);
     byId("detailCompanyName").textContent = company.name + "（" + displayTicker(company) + "）";
     byId("detailCompanyContext").innerHTML = escapeHtml(
       (company.market || "市場未確認") + " / " + (company.currency || "USD") + "。"
@@ -764,9 +776,13 @@
         "<div><span class=\"company-category " + categoryClass(category) + "\">" + escapeHtml(categoryLabel) + "</span>"
         + "<p><strong>この分類にした理由</strong>" + escapeHtml(company.classificationNote || "事業構成とAI投資テーマへの収益感応度から分類しています。") + "</p>"
         + "<a href=\"" + escapeHtml(classificationUrl) + "\" target=\"_blank\" rel=\"noopener\">分類根拠となる企業資料</a></div>"
-        + "<div class=\"company-model-warning\"><p><strong>この会社をDCFで読むときの注意</strong>"
-        + escapeHtml(company.valuationCaveat || "標準化されたTTM FCFを使う一次スクリーニングです。企業IRで一時要因を照合してください。")
-        + "</p></div>";
+        + "<div class=\"company-model-warning\"><p><strong>DCFに入れたFCF</strong>"
+        + escapeHtml(formatMoney(valuationFcfValue, company.currency) + " / " + (company.valuationFcfBasis || "標準化された連結TTM FCF"))
+        + "<strong>計算方法</strong>" + escapeHtml(company.valuationFcfFormula || "自動取得した連結TTM FCFを使用。")
+        + "<strong>この会社をDCFで読むときの注意</strong>"
+        + escapeHtml(company.valuationCaveat || "企業IRで一時要因を照合してください。")
+        + (company.financialServicesTreatment ? "<strong>金融事業の扱い</strong>" + escapeHtml(company.financialServicesTreatment) : "")
+        + "</p><a href=\"" + escapeHtml(company.valuationFcfSourceUrl || company.fundamentalsSourceUrl) + "\" target=\"_blank\" rel=\"noopener\">評価用FCFの出典を開く</a></div>";
     }
 
     var stats = [
@@ -774,8 +790,8 @@
       ["企業価値", formatMoney(company.enterpriseValue, company.currency)],
       ["TTM売上", formatMoney(company.ttmRevenue, company.currency)],
       ["営業利益率", formatPercent(company.operatingMarginPct, false)],
-      ["TTM FCF", formatMoney(company.ttmFreeCashFlow, company.currency)],
-      ["FCF利回り", formatPercent(company.freeCashFlowYieldPct, false)],
+      ["評価用FCF", formatMoney(valuationFcfValue, company.currency)],
+      ["評価用FCF利回り", formatPercent(company.valuationFcfYieldPct, false)],
     ];
     byId("fundamentalStrip").innerHTML = stats.map(function (row) {
       return "<div class=\"fundamental-stat\"><span>" + escapeHtml(row[0]) + "</span><strong>" + escapeHtml(row[1]) + "</strong></div>";
@@ -803,6 +819,7 @@
         : "基準前提では現在価格を約" + formatPercent(model.baseGapPct, false) + "上回ります。";
       byId("scenarioExplanation").textContent = comparison + " " + downside
         + " 弱気値は底値保証ではなく、FCF、資本コスト、競争条件を置いた場合の計算結果です。 "
+        + "DCF入力は「" + (company.valuationFcfBasis || "標準化された連結TTM FCF") + "」です。 "
         + (company.valuationCaveat || "");
     }
     renderSensitivity(company, model);
@@ -815,7 +832,7 @@
     discounts.forEach(function (discount) {
       html += "<tr><th>" + formatPercent(discount, false) + "</th>";
       growths.forEach(function (growth) {
-        var value = dcfValue(company.ttmFreeCashFlow, growth, discount, model.terminalPct, model.years);
+        var value = dcfValue(companyValuationFcf(company), growth, discount, model.terminalPct, model.years);
         var price = value !== null && company.marketCap && company.price ? value / company.marketCap * company.price : null;
         var near = price !== null && Math.abs(price / company.price - 1) <= 0.1;
         html += "<td class=\"" + (near ? "near-market" : "") + "\">" + formatPrice(price, company.currency) + "</td>";

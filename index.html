@@ -362,6 +362,11 @@
           </div>
         </div>
 
+        <div class="company-table-note">
+          <i data-lucide="shield-check" aria-hidden="true"></i>
+          <p><strong>自動車メーカーのFCFを補正しました。</strong> トヨタとホンダは金融サービスを持つため、自動取得した連結FCFをそのままDCFへ入れると大きく歪みます。両社は公式の非金融事業キャッシュフローを5年中央値に平準化して使用します。金融事業の価値は別加算していないため、残った差をそのまま「バブル」とは判定しません。</p>
+        </div>
+
         <div class="valuation-overview">
           <div class="chart-panel">
             <div class="panel-heading">
@@ -372,8 +377,8 @@
           <div class="definition-list">
             <div><span class="definition-mark existing"></span><p><strong>既存利益の価値</strong>現在のFCFを成長ゼロで継続すると仮定した価値。事業の「すでにある実」を近似します。</p></div>
             <div><span class="definition-mark growth"></span><p><strong>合理的な成長価値</strong>基準シナリオで追加される価値。成長期待のすべてがバブルではありません。</p></div>
-            <div><span class="definition-mark premium"></span><p><strong>モデル超過分</strong>市場価値が基準DCFを上回る部分。競争優位の長期化や予想以上の成長が実現すれば正当化されます。</p></div>
-            <div><span class="definition-mark unavailable"></span><p><strong>DCF算定不可</strong>直近FCFが正でない企業です。企業価値ゼロを意味せず、投資持株会社ならNAV、先行投資中の企業なら正常化FCFなど、別の評価方法が必要です。</p></div>
+            <div><span class="definition-mark premium"></span><p><strong>基準DCFで説明できない部分</strong>市場価値から、この画面の基準DCFを引いた残差です。割高・バブルの確定値ではありません。ブランド、金融子会社、保有資産、循環調整、一時的に低いFCFなど、モデル外の価値でも生じます。</p></div>
+            <div><span class="definition-mark unavailable"></span><p><strong>DCF比較不可</strong>評価用FCFが正でない、またはこの企業に単純DCFを適用できない状態です。企業価値ゼロを意味せず、NAV、SOTP、正常化FCFなど別の方法が必要です。</p></div>
           </div>
         </div>
 
@@ -387,7 +392,7 @@
                 <th>3年高値から</th>
                 <th>2026年高値から<br><span class="column-note">最新終値まで</span></th>
                 <th>売上成長</th>
-                <th>FCF / 利回り</th>
+                <th>DCF入力FCF / 基準</th>
                 <th>市場が要求するFCF成長</th>
                 <th>基準DCFとの差</th>
                 <th><span class="sr-only">詳細</span></th>
@@ -398,7 +403,7 @@
         </div>
         <div class="company-table-note">
           <i data-lucide="info" aria-hidden="true"></i>
-          <p>日本株は円、海外株はドルで表示します。「2026年高値から」は、2026年1月以降の日足で最も高い日中価格と、最新取引日の終値を比較した下落率です。最新取引日は画面上部の市場基準日を確認してください。金額を直接比べず、FCF利回り、成長率、時価総額に占める価値の比率を比較します。「AI連動」「分散型」は感応度の分類であり、企業の優劣を断定するものではありません。</p>
+          <p>日本株は円、海外株はドルで表示します。「2026年高値から」は、2026年1月以降の日足で最も高い日中価格と、最新取引日の終値を比較した下落率です。最新取引日は画面上部の市場基準日を確認してください。金額を直接比べず、評価用FCF利回り、成長率、時価総額に占める価値の比率を比較します。トヨタとホンダは「自動取得FCF」と「公式調整値」を併記し、DCFには公式調整値を使います。「AI連動」「分散型」は感応度の分類であり、企業の優劣を断定するものではありません。</p>
         </div>
 
         <div id="companyDetail" class="company-detail">
@@ -591,7 +596,7 @@
           </div>
           <ul>
             <li><strong>ソフトバンクグループ</strong>投資持株会社なので、連結FCF型DCFより、Armなどの保有資産価値から純有利子負債を引くNAV/SOTPが基本です。</li>
-            <li><strong>ホンダ・トヨタ</strong>金融サービスとリースを含む連結キャッシュフローは、製造事業のFCFと性質が異なります。非金融事業で再確認します。</li>
+            <li><strong>ホンダ・トヨタ</strong>金融サービスとリースを含む連結キャッシュフローを直接使わず、公式の非金融事業CFをFY2022～FY2026の5年中央値に平準化します。金融事業価値は別加算していないため、残差を割高と断定しません。</li>
             <li><strong>アドバンテスト・東京エレクトロン</strong>AI需要が強い単年のFCFを10年延長せず、半導体設備投資サイクルを通した平準化FCFで見ます。</li>
             <li><strong>円とドル</strong>企業価値の金額は通貨が異なるため直接比較しません。時価総額に占める比率、FCF利回り、暗黙成長率を比較します。</li>
           </ul>
@@ -612,7 +617,7 @@
             <thead><tr><th>評価層</th><th>最大点</th><th>高得点になる条件</th><th>なぜ必要か</th></tr></thead>
             <tbody>
               <tr><th>価格レジーム</th><td>30</td><td>SOX下落、200日線割れの持続、下落銘柄の拡大</td><td>短期ノイズと長期トレンド転換を分ける。</td></tr>
-              <tr><th>企業価値の脆弱性</th><td>20</td><td>基準DCFを超える上乗せ、極端な暗黙FCF成長</td><td>下落した場合の距離を測る。</td></tr>
+              <tr><th>企業価値の脆弱性</th><td>20</td><td>基準DCFで説明できない残差、極端な暗黙FCF成長</td><td>モデル外の価値を含むため断定せず、下落余地を測る入口にする。</td></tr>
               <tr><th>基礎収益</th><td>25</td><td>売上・FCF悪化、EPS下方修正、CapEx削減</td><td>株価を支えた将来利益仮説の破綻を捉える。</td></tr>
               <tr><th>資本循環・供給</th><td>15</td><td>製品価格下落、在庫乖離、計画中止</td><td>過剰投資が供給過剰へ変わったかを見る。</td></tr>
               <tr><th>信用市場</th><td>10</td><td>HY OASの水準・上昇速度</td><td>株主損失が資金調達や実体経済へ広がったかを見る。</td></tr>
