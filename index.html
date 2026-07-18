@@ -330,7 +330,7 @@
         <div class="section-heading">
           <p class="section-kicker">VALUE BEFORE NARRATIVE</p>
           <h2>企業の実力と「期待の上乗せ」を分ける</h2>
-          <p>従来の海外AI関連10社を残したまま、日本の主要8社を同じ枠組みに追加しました。直近12か月のフリーキャッシュフローを出発点に、10年間の成長とその後の永続成長を割り引きます。これは目標株価ではなく、現在価格がどの程度強い前提を要求しているか、下落後にも実体価値が残り得るかを見るストレステストです。</p>
+          <p>従来の海外AI関連10社を残したまま、日本の主要16社を同じ枠組みで比較します。ホンダ、キヤノンに加え、世界市場で独自の事業基盤を持つキーエンス、日立、信越化学、HOYA、ソニー、任天堂、リクルート、ダイキンを追加しました。直近12か月のフリーキャッシュフローから、現在価格がどの程度強い成長前提を要求しているか、下落後にも実体価値が残り得るかを検討します。</p>
         </div>
         <div class="section-route"><strong>この章の役割</strong><span>企業FCF・成長・資本コスト</span><i data-lucide="arrow-right" aria-hidden="true"></i><span>DCFと逆DCF</span><i data-lucide="arrow-right" aria-hidden="true"></i><span>期待の上乗せ</span><a href="#method-company">対応する計算根拠</a></div>
 
@@ -341,31 +341,31 @@
           </div>
           <div>
             <span class="company-category category-japan-ai">日本・AI連動</span>
-            <p><strong>国内4社</strong>アドバンテスト、東京エレクトロン、ソフトバンクグループ、富士通。AI投資循環との収益・評価の連動が比較的大きい群です。</p>
+            <p><strong>国内8社</strong>アドバンテスト、東京エレクトロン、ソフトバンクグループ、富士通、キーエンス、日立、信越化学、HOYA。AI・半導体・DX・自動化投資との連動が比較的大きい群です。</p>
           </div>
           <div>
             <span class="company-category category-japan-diversified">日本・分散型</span>
-            <p><strong>国内4社</strong>ホンダ、キヤノン、トヨタ、ファーストリテイリング。AI以外の実需が現在の利益を広く支える群です。</p>
+            <p><strong>国内8社</strong>ホンダ、キヤノン、トヨタ、ファーストリテイリング、ソニー、任天堂、リクルート、ダイキン。AI以外の世界的な実需とブランドが利益を広く支える群です。</p>
           </div>
         </div>
 
         <div class="company-filter-bar">
           <div class="company-filter" role="tablist" aria-label="表示する企業群">
-            <button type="button" class="company-filter-button is-active" role="tab" aria-selected="true" data-company-filter="all">全18社</button>
+            <button type="button" class="company-filter-button is-active" role="tab" aria-selected="true" data-company-filter="all">全26社</button>
             <button type="button" class="company-filter-button" role="tab" aria-selected="false" data-company-filter="overseas-ai">海外・AI関連</button>
             <button type="button" class="company-filter-button" role="tab" aria-selected="false" data-company-filter="japan-ai">日本・AI連動</button>
             <button type="button" class="company-filter-button" role="tab" aria-selected="false" data-company-filter="japan-diversified">日本・分散型</button>
           </div>
           <div class="company-filter-copy">
-            <strong id="companyFilterCount">18社を表示</strong>
-            <p id="companyFilterDescription">海外AI10社と日本企業8社を、同じFCFストレステストで見比べます。</p>
+            <strong id="companyFilterCount">26社を表示</strong>
+            <p id="companyFilterDescription">海外AI10社と日本企業16社を、同じFCFストレステストで見比べます。</p>
           </div>
         </div>
 
         <div class="valuation-overview">
           <div class="chart-panel">
             <div class="panel-heading">
-              <div><h3 id="valuationChartTitle">全18社の時価総額を3つに分解</h3><p id="valuationChartSubtitle">金額ではなく、各社の時価総額に占める構成比を比較します。</p></div>
+              <div><h3 id="valuationChartTitle">全26社の時価総額を3つに分解</h3><p id="valuationChartSubtitle">金額ではなく、各社の時価総額に占める構成比を比較します。</p></div>
             </div>
             <div id="valuationChartFrame" class="chart-frame chart-tall"><canvas id="valuationChart"></canvas></div>
           </div>
@@ -373,6 +373,7 @@
             <div><span class="definition-mark existing"></span><p><strong>既存利益の価値</strong>現在のFCFを成長ゼロで継続すると仮定した価値。事業の「すでにある実」を近似します。</p></div>
             <div><span class="definition-mark growth"></span><p><strong>合理的な成長価値</strong>基準シナリオで追加される価値。成長期待のすべてがバブルではありません。</p></div>
             <div><span class="definition-mark premium"></span><p><strong>モデル超過分</strong>市場価値が基準DCFを上回る部分。競争優位の長期化や予想以上の成長が実現すれば正当化されます。</p></div>
+            <div><span class="definition-mark unavailable"></span><p><strong>DCF算定不可</strong>直近FCFが正でない企業です。企業価値ゼロを意味せず、投資持株会社ならNAV、先行投資中の企業なら正常化FCFなど、別の評価方法が必要です。</p></div>
           </div>
         </div>
 
@@ -384,6 +385,7 @@
                 <th>分類</th>
                 <th>株価 / 1日</th>
                 <th>3年高値から</th>
+                <th>2026年高値から<br><span class="column-note">最新終値まで</span></th>
                 <th>売上成長</th>
                 <th>FCF / 利回り</th>
                 <th>市場が要求するFCF成長</th>
@@ -396,7 +398,7 @@
         </div>
         <div class="company-table-note">
           <i data-lucide="info" aria-hidden="true"></i>
-          <p>日本株は円、海外株はドルで表示します。金額を直接比べる表ではありません。比較できるのはFCF利回り、成長率、時価総額に占める価値の比率です。「AI連動」「分散型」は感応度を整理する分類であり、企業の優劣や将来の株価を断定するものではありません。</p>
+          <p>日本株は円、海外株はドルで表示します。「2026年高値から」は、2026年1月以降の日足で最も高い日中価格と、最新取引日の終値を比較した下落率です。最新取引日は画面上部の市場基準日を確認してください。金額を直接比べず、FCF利回り、成長率、時価総額に占める価値の比率を比較します。「AI連動」「分散型」は感応度の分類であり、企業の優劣を断定するものではありません。</p>
         </div>
 
         <div id="companyDetail" class="company-detail">
@@ -549,7 +551,7 @@
               <tr><th>崩壊したか</th><td><a href="#signals">崩壊シグナル</a></td><td>価格、FCF、CapEx、供給、HY OAS</td><td>5群100点＋3ゲート</td><td>崩壊段階・証拠スコア・欠損幅</td></tr>
               <tr><th>日経の底値候補</th><td><a href="#nikkei-bottom">日経底値</a></td><td>現在の日経、PER・PBR参照日の終値と倍率、利益悪化、過去下落率</td><td>EPS法・PBR法・歴史法</td><td>底値ゾーン・残り下落余地・接近度</td></tr>
               <tr><th>底打ちしたか</th><td><a href="#bottom-confirmation">反転確認</a></td><td>120日安値、50日線、HY OAS、市場の広がり</td><td>5項目100点</td><td>底打ち確認度・未充足項目</td></tr>
-              <tr><th>残る企業はどれか</th><td><a href="#valuation">企業価値</a></td><td>海外AI10社・日本8社のFCF、成長率、資本コスト、事業構成</td><td>通貨別DCF・逆DCF・感度分析</td><td>本体価値・期待上乗せ・弱気価値・企業別の注意点</td></tr>
+              <tr><th>残る企業はどれか</th><td><a href="#valuation">企業価値</a></td><td>海外AI10社・日本16社のFCF、成長率、資本コスト、事業構成</td><td>通貨別DCF・逆DCF・感度分析</td><td>本体価値・期待上乗せ・弱気価値・企業別の注意点</td></tr>
             </tbody>
           </table>
         </div>
@@ -662,7 +664,7 @@
   <footer>
     <div class="content footer-inner">
       <p><strong>重要：</strong>本サイトは教育・調査用です。投資助言、価格予測、売買推奨ではありません。取得値には遅延・欠損・定義差があり、重要な判断では企業IRと提出資料を確認してください。</p>
-      <p>Method v3.1 / <a href="https://github.com/mxe050/ai-bubble-collapse-monitor" target="_blank" rel="noopener">GitHub</a></p>
+      <p>Method v3.2 / <a href="https://github.com/mxe050/ai-bubble-collapse-monitor" target="_blank" rel="noopener">GitHub</a></p>
     </div>
   </footer>
 

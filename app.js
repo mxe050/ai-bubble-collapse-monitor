@@ -20,10 +20,10 @@
   var priceFormatters = {};
 
   var COMPANY_FILTERS = {
-    all: { label: "全18社", description: "海外AI10社と日本企業8社を、同じFCFストレステストで見比べます。" },
+    all: { label: "全社", description: "海外AI10社と日本企業16社を、同じFCFストレステストで見比べます。" },
     "overseas-ai": { label: "海外・AI関連", description: "従来の崩壊判定を構成する海外AI関連10社です。崩壊スコアはこの母集団だけで計算します。" },
-    "japan-ai": { label: "日本・AI連動", description: "半導体設備投資やAIサービス期待と、収益・評価が比較的強く連動する日本企業4社です。" },
-    "japan-diversified": { label: "日本・分散型", description: "AIを利用していても、現在の利益が自動車、二輪、印刷、医療、消費など複数の実需に支えられる日本企業4社です。" },
+    "japan-ai": { label: "日本・AI連動", description: "AI、半導体、DX、自動化への投資と、収益・評価が比較的強く連動する日本企業8社です。" },
+    "japan-diversified": { label: "日本・分散型", description: "AIを活用しながら、自動車、医療、ゲーム、コンテンツ、空調、消費など複数の実需に支えられる日本企業8社です。" },
   };
   var COMPANY_CATEGORY_ORDER = ["overseas-ai", "japan-ai", "japan-diversified"];
 
@@ -116,6 +116,12 @@
     return company && (company.displayTicker || company.ticker) ? (company.displayTicker || company.ticker) : "";
   }
 
+  function chartCompanyLabel(company) {
+    if (!company) return "";
+    if (company.chartLabel) return company.chartLabel;
+    return company.country === "JP" ? company.name : displayTicker(company);
+  }
+
   function visibleCompanies() {
     if (!state.data || !Array.isArray(state.data.companies)) return [];
     if (state.companyFilter === "all") return state.data.companies.slice();
@@ -133,12 +139,31 @@
     return number === null ? "未確認" : "−" + formatPercent(Math.abs(number), false);
   }
 
+  function formatShortDate(value) {
+    if (!value) return "";
+    var parts = String(value).split("-");
+    return parts.length === 3 ? Number(parts[1]) + "/" + Number(parts[2]) : String(value);
+  }
+
+  function format2026HighCell(company) {
+    var drawdown = finite(company.drawdownFrom2026HighPct);
+    if (drawdown === null) return "<span class=\"unknown\">未確認</span>";
+    var details = [];
+    if (finite(company.peak2026) !== null) details.push(formatPrice(company.peak2026, company.currency));
+    if (company.peak2026Date) details.push(formatShortDate(company.peak2026Date));
+    return "<strong>" + formatDrawdown(drawdown) + "</strong>"
+      + (details.length ? "<span class=\"company-high-detail\">高値 " + escapeHtml(details.join(" / ")) + "</span>" : "");
+  }
+
   function updateCompanyFilterUi() {
     var config = COMPANY_FILTERS[state.companyFilter] || COMPANY_FILTERS.all;
     document.querySelectorAll(".company-filter-button").forEach(function (button) {
       var active = button.dataset.companyFilter === state.companyFilter;
       button.classList.toggle("is-active", active);
       button.setAttribute("aria-selected", active ? "true" : "false");
+      if (button.dataset.companyFilter === "all" && state.data) {
+        button.textContent = "全" + state.data.companies.length + "社";
+      }
     });
     if (byId("companyFilterDescription")) byId("companyFilterDescription").textContent = config.description;
     if (byId("companyFilterCount")) byId("companyFilterCount").textContent = visibleCompanies().length + "社を表示";
@@ -576,41 +601,47 @@
   function renderValuationChart() {
     if (typeof Chart === "undefined") return;
     var filter = state.companyFilter;
-    var usable = state.valuations.filter(function (item) {
+    var chartItems = state.valuations.filter(function (item) {
       var categoryMatches = filter === "all" || companyCategory(item.company) === filter;
-      return categoryMatches && item.market && item.baseValue !== null && item.existingValue !== null;
+      return categoryMatches && item.market;
     });
     var config = COMPANY_FILTERS[filter] || COMPANY_FILTERS.all;
-    var omitted = visibleCompanies().length - usable.length;
-    if (byId("valuationChartTitle")) byId("valuationChartTitle").textContent = config.label + "の時価総額を3つに分解";
+    var availableCount = chartItems.filter(function (item) { return item.baseValue !== null && item.existingValue !== null; }).length;
+    var omitted = chartItems.length - availableCount;
+    var groupTitle = filter === "all" ? "全" + visibleCompanies().length + "社" : config.label + " " + visibleCompanies().length + "社";
+    if (byId("valuationChartTitle")) byId("valuationChartTitle").textContent = groupTitle + "の時価総額を3つに分解";
     if (byId("valuationChartSubtitle")) {
-      byId("valuationChartSubtitle").textContent = usable.length + "社を比率で表示"
-        + (omitted > 0 ? "。正のFCFがない" + omitted + "社はDCF分解から除外" : "")
+      byId("valuationChartSubtitle").textContent = availableCount + "社をDCF分解"
+        + (omitted > 0 ? "。正のFCFがない" + omitted + "社はグレーで算定不可と表示" : "")
         + "。円とドルの金額そのものは比較しません。";
     }
     var frame = byId("valuationChartFrame");
-    if (frame) frame.style.height = Math.max(360, Math.min(820, 150 + usable.length * 38)) + "px";
+    if (frame) frame.style.height = Math.max(360, Math.min(1240, 160 + chartItems.length * 40)) + "px";
     if (state.valuationChart) {
       state.valuationChart.destroy();
       state.valuationChart = null;
     }
-    if (!usable.length) return;
+    if (!chartItems.length) return;
 
-    var decomposition = usable.map(function (item) {
+    var decomposition = chartItems.map(function (item) {
+      if (item.baseValue === null || item.existingValue === null) {
+        return { existing: 0, growth: 0, premium: 0, unavailable: 100 };
+      }
       var existing = clamp(item.existingValue / item.market * 100, 0, 100);
       var base = clamp(item.baseValue / item.market * 100, 0, 100);
       var growth = Math.max(0, base - existing);
       var premium = Math.max(0, 100 - Math.max(existing, base));
-      return { existing: existing, growth: growth, premium: premium };
+      return { existing: existing, growth: growth, premium: premium, unavailable: 0 };
     });
     state.valuationChart = new Chart(byId("valuationChart"), {
       type: "bar",
       data: {
-        labels: usable.map(function (item) { return displayTicker(item.company); }),
+        labels: chartItems.map(function (item) { return chartCompanyLabel(item.company); }),
         datasets: [
           { label: "既存利益の価値", data: decomposition.map(function (row) { return row.existing; }), backgroundColor: "#173854" },
           { label: "合理的な成長価値", data: decomposition.map(function (row) { return row.growth; }), backgroundColor: "#087f75" },
           { label: "モデル超過分", data: decomposition.map(function (row) { return row.premium; }), backgroundColor: "#c94b18" },
+          { label: "DCF算定不可", data: decomposition.map(function (row) { return row.unavailable; }), backgroundColor: "#aab4bf" },
         ],
       },
       options: {
@@ -623,7 +654,7 @@
           tooltip: {
             callbacks: {
               title: function (items) {
-                var item = usable[items[0].dataIndex];
+                var item = chartItems[items[0].dataIndex];
                 return item.company.name + "（" + displayTicker(item.company) + "）";
               },
               label: function (context) { return context.dataset.label + " " + numberOne.format(context.parsed.x) + "%"; },
@@ -632,7 +663,7 @@
         },
         scales: {
           x: { stacked: true, max: 100, grid: { color: "rgba(100,115,134,.15)" }, ticks: { color: chartTextColor(), callback: function (value) { return value + "%"; } } },
-          y: { stacked: true, grid: { display: false }, ticks: { color: chartTextColor(), font: { weight: "bold" } } },
+          y: { stacked: true, grid: { display: false }, ticks: { color: chartTextColor(), autoSkip: false, font: { weight: "bold", size: window.innerWidth < 620 ? 11 : 12 } } },
         },
       },
     });
@@ -654,6 +685,7 @@
         + "<td><span class=\"company-category " + categoryClass(category) + "\">" + escapeHtml(company.categoryLabel || COMPANY_FILTERS[category].label) + "</span></td>"
         + "<td>" + formatPrice(company.price, company.currency) + "<br><span class=\"" + cssValueClass(company.change1dPct, false) + "\">" + formatPercent(company.change1dPct, true) + "</span></td>"
         + "<td class=\"" + cssValueClass(company.drawdown3yPct, true) + "\">" + formatDrawdown(company.drawdown3yPct) + "</td>"
+        + "<td class=\"" + cssValueClass(company.drawdownFrom2026HighPct, true) + "\">" + format2026HighCell(company) + "</td>"
         + "<td class=\"" + cssValueClass(company.revenueGrowthYoYPct, false) + "\">" + formatPercent(company.revenueGrowthYoYPct, true) + "</td>"
         + "<td>" + formatMoney(company.ttmFreeCashFlow, company.currency) + "<br><span class=\"neutral\">利回り " + formatPercent(company.freeCashFlowYieldPct, false) + "</span></td>"
         + "<td class=\"" + (implied !== null && implied > company.assumptions.baseGrowthPct + 5 ? "negative" : implied === null ? "unknown" : "neutral") + "\">" + impliedText + "</td>"

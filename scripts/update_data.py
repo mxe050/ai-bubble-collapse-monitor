@@ -121,6 +121,7 @@ COMPANIES: dict[str, dict[str, Any]] = {
         "category": "japan-ai",
         "categoryLabel": "日本・AI連動",
         "displayTicker": "6857",
+        "chartLabel": "アドバンテスト",
         "currency": "JPY",
         "market": "東証プライム",
         "classificationNote": "半導体テスト装置が主力で、会社自身がAI・HPC向け高性能半導体のテスター需要を成長要因として説明しています。",
@@ -137,6 +138,7 @@ COMPANIES: dict[str, dict[str, Any]] = {
         "category": "japan-ai",
         "categoryLabel": "日本・AI連動",
         "displayTicker": "8035",
+        "chartLabel": "東京エレクトロン",
         "currency": "JPY",
         "market": "東証プライム",
         "classificationNote": "先端ロジック・メモリ向け半導体製造装置が主力で、生成AI向け計算基盤の設備投資に収益が連動しやすい企業です。",
@@ -153,6 +155,7 @@ COMPANIES: dict[str, dict[str, Any]] = {
         "category": "japan-ai",
         "categoryLabel": "日本・AI連動",
         "displayTicker": "9984",
+        "chartLabel": "ソフトバンクG",
         "currency": "JPY",
         "market": "東証プライム",
         "classificationNote": "ArmとAI関連投資を中核に置く戦略的投資持株会社で、AI資産の評価変動が株主価値へ直接反映されやすい企業です。",
@@ -169,11 +172,80 @@ COMPANIES: dict[str, dict[str, Any]] = {
         "category": "japan-ai",
         "categoryLabel": "日本・AI連動",
         "displayTicker": "6702",
+        "chartLabel": "富士通",
         "currency": "JPY",
         "market": "東証プライム",
         "classificationNote": "企業向けITサービスを基盤にAI・DXを提供します。半導体純粋株より間接的ですが、AI導入期待が成長評価へ乗りやすい分類です。",
         "classificationSourceUrl": "https://global.fujitsu/en-global/about",
         "valuationCaveat": "事業再編、資産売却、運転資本でFCFが振れます。継続事業の調整後FCFと受注残を併読する必要があります。",
+    },
+    "6861.T": {
+        "name": "キーエンス",
+        "group": "FAセンサー / 画像検査 / 自動化",
+        "ir": "https://www.keyence.co.jp/company/financial-info/",
+        "discount": 0.090,
+        "terminal": 0.020,
+        "growth": {"bear": 0.00, "base": 0.04, "bull": 0.07},
+        "category": "japan-ai",
+        "categoryLabel": "日本・AI連動",
+        "displayTicker": "6861",
+        "chartLabel": "キーエンス",
+        "currency": "JPY",
+        "market": "東証プライム",
+        "classificationNote": "世界各地の製造業へFAセンサー、画像検査、測定機器を直接販売する企業です。AI専業ではありませんが、先端工場、電子部品、データセンター関連の自動化投資と評価が連動しやすい企業として分類します。",
+        "classificationSourceUrl": "https://www.keyence.com/about-us/corporate/",
+        "valuationCaveat": "高利益率と豊富な現金を持つため、単純なFCF成長率だけでは価値を捉え切れません。製造業の設備投資循環、為替、余剰現金を企業IRで再確認します。",
+    },
+    "6501.T": {
+        "name": "日立製作所",
+        "group": "デジタル / 電力・鉄道 / 産業",
+        "ir": "https://www.hitachi.com/en/ir/",
+        "discount": 0.090,
+        "terminal": 0.015,
+        "growth": {"bear": 0.00, "base": 0.03, "bull": 0.06},
+        "category": "japan-ai",
+        "categoryLabel": "日本・AI連動",
+        "displayTicker": "6501",
+        "chartLabel": "日立製作所",
+        "currency": "JPY",
+        "market": "東証プライム",
+        "classificationNote": "Lumadaを軸とするデジタル事業に、電力、鉄道、産業機器の世界的な実装基盤を組み合わせています。純粋なAI企業ではありませんが、AI・DX投資の収益化を企業価値の柱に置くため、この群に分類します。",
+        "classificationSourceUrl": "https://www.hitachi.com/en/ir/library/integrated/",
+        "valuationCaveat": "事業売却・買収とポートフォリオ再編でFCFが動きます。継続事業の調整後利益、GlobalLogicを含むデジタル成長、受注型事業の運転資本を照合します。",
+    },
+    "4063.T": {
+        "name": "信越化学工業",
+        "group": "半導体シリコン / PVC / 機能材料",
+        "ir": "https://www.shinetsu.co.jp/en/ir/",
+        "discount": 0.095,
+        "terminal": 0.015,
+        "growth": {"bear": -0.01, "base": 0.03, "bull": 0.06},
+        "category": "japan-ai",
+        "categoryLabel": "日本・AI連動",
+        "displayTicker": "4063",
+        "chartLabel": "信越化学",
+        "currency": "JPY",
+        "market": "東証プライム",
+        "classificationNote": "半導体シリコンとPVCで世界的な事業基盤を持ち、AI向け半導体の数量拡大と高機能材料需要の恩恵を受けます。PVCという非AIの大型事業もあるため、純粋なAI銘柄ではありません。",
+        "classificationSourceUrl": "https://www.shinetsu.co.jp/en/company/",
+        "valuationCaveat": "半導体とPVCはいずれも需給循環の影響を受けます。好況期の価格・稼働率を10年延長せず、製品別マージンと設備増強の回収を確認します。",
+    },
+    "7741.T": {
+        "name": "HOYA",
+        "group": "医療・眼鏡 / 半導体用光学",
+        "ir": "https://www.hoya.com/en/investor/",
+        "discount": 0.090,
+        "terminal": 0.020,
+        "growth": {"bear": 0.01, "base": 0.04, "bull": 0.07},
+        "category": "japan-ai",
+        "categoryLabel": "日本・AI連動",
+        "displayTicker": "7741",
+        "chartLabel": "HOYA",
+        "currency": "JPY",
+        "market": "東証プライム",
+        "classificationNote": "眼鏡・医療のLife Careと、半導体製造に使うマスクブランクスなどのInformation Technologyを持つ世界的な光学企業です。AI半導体投資への感応部分が明確なため、この群に置きます。",
+        "classificationSourceUrl": "https://www.hoya.com/en/company/",
+        "valuationCaveat": "医療と半導体関連では成長率と景気感応度が異なります。全社FCFを一つの成長率で延長せず、Life CareとInformation Technologyを分けて確認します。",
     },
     "7267.T": {
         "name": "本田技研工業（ホンダ）",
@@ -185,6 +257,7 @@ COMPANIES: dict[str, dict[str, Any]] = {
         "category": "japan-diversified",
         "categoryLabel": "日本・分散型",
         "displayTicker": "7267",
+        "chartLabel": "ホンダ",
         "currency": "JPY",
         "market": "東証プライム",
         "classificationNote": "利益の中心は二輪、自動車、金融サービスです。AIを利用していても、現在の利益はAI投資テーマだけで決まる構造ではありません。",
@@ -201,6 +274,7 @@ COMPANIES: dict[str, dict[str, Any]] = {
         "category": "japan-diversified",
         "categoryLabel": "日本・分散型",
         "displayTicker": "7751",
+        "chartLabel": "キヤノン",
         "currency": "JPY",
         "market": "東証プライム",
         "classificationNote": "印刷、映像、医療、産業機器の複数事業を持ちます。半導体製造装置も含みますが、AI需要だけに依存しない分散型です。",
@@ -217,6 +291,7 @@ COMPANIES: dict[str, dict[str, Any]] = {
         "category": "japan-diversified",
         "categoryLabel": "日本・分散型",
         "displayTicker": "7203",
+        "chartLabel": "トヨタ",
         "currency": "JPY",
         "market": "東証プライム",
         "classificationNote": "自動車販売と金融サービスが現在の収益基盤です。AI・自動運転投資は重要でも、AI期待だけで全社価値が決まる企業ではありません。",
@@ -233,11 +308,80 @@ COMPANIES: dict[str, dict[str, Any]] = {
         "category": "japan-diversified",
         "categoryLabel": "日本・分散型",
         "displayTicker": "9983",
+        "chartLabel": "ファーストリテイリング",
         "currency": "JPY",
         "market": "東証プライム",
         "classificationNote": "UNIQLOを中心とする世界的な衣料小売で、主な価値要因は店舗生産性、商品、為替、消費需要です。AI相場との直接連動は比較的小さい分類です。",
         "classificationSourceUrl": "https://www.fastretailing.com/eng/ir/financial/summary.html",
         "valuationCaveat": "海外出店、為替、在庫、リース負債の影響が大きく、単純な成熟小売の成長率を当てはめないことが重要です。",
+    },
+    "6758.T": {
+        "name": "ソニーグループ",
+        "group": "ゲーム / 音楽・映画 / イメージセンサー",
+        "ir": "https://www.sony.com/en/SonyInfo/IR/",
+        "discount": 0.095,
+        "terminal": 0.015,
+        "growth": {"bear": 0.00, "base": 0.03, "bull": 0.06},
+        "category": "japan-diversified",
+        "categoryLabel": "日本・分散型",
+        "displayTicker": "6758",
+        "chartLabel": "ソニーG",
+        "currency": "JPY",
+        "market": "東証プライム",
+        "classificationNote": "PlayStation、音楽、映画、イメージセンサーという世界市場の複数事業を持ちます。AI半導体の恩恵はありますが、コンテンツとネットワーク収益が大きいため分散型に分類します。",
+        "classificationSourceUrl": "https://www.sony.com/en/SonyInfo/IR/library/presen/business_segment_meeting/",
+        "valuationCaveat": "ゲーム機サイクル、ヒット作品、音楽権利、イメージセンサー投資で利益の質が異なります。全社FCFだけでなくセグメント別資本配分を確認します。",
+    },
+    "7974.T": {
+        "name": "任天堂",
+        "group": "ゲーム機 / ソフトウェア / IP",
+        "ir": "https://www.nintendo.co.jp/ir/en/index.html",
+        "discount": 0.095,
+        "terminal": 0.015,
+        "growth": {"bear": -0.02, "base": 0.02, "bull": 0.06},
+        "category": "japan-diversified",
+        "categoryLabel": "日本・分散型",
+        "displayTicker": "7974",
+        "chartLabel": "任天堂",
+        "currency": "JPY",
+        "market": "東証プライム",
+        "classificationNote": "世界的なゲーム機・ソフトウェアと自社IPを持ち、価値の中心はハード普及台数、ソフト販売、デジタル比率、IP活用です。AI設備投資相場との直接連動は小さい群です。",
+        "classificationSourceUrl": "https://www.nintendo.co.jp/ir/en/index.html",
+        "valuationCaveat": "新型機の発売前後で売上・FCFが大きく振れます。単年FCFではなく、ハード1世代を通した平均FCF、為替、豊富な現金を確認します。",
+    },
+    "6098.T": {
+        "name": "リクルートホールディングス",
+        "group": "Indeed / 人材・販促 / SaaS",
+        "ir": "https://recruit-holdings.com/en/ir/",
+        "discount": 0.095,
+        "terminal": 0.020,
+        "growth": {"bear": 0.01, "base": 0.05, "bull": 0.08},
+        "category": "japan-diversified",
+        "categoryLabel": "日本・分散型",
+        "displayTicker": "6098",
+        "chartLabel": "リクルートHD",
+        "currency": "JPY",
+        "market": "東証プライム",
+        "classificationNote": "Indeed・Glassdoorを含む世界的なHR Technologyに、国内販促・SaaSと人材派遣を組み合わせています。AIを活用しますが、雇用市場とマッチング収益が主因なので分散型に分類します。",
+        "classificationSourceUrl": "https://recruit-holdings.com/en/about/business/",
+        "valuationCaveat": "求人市況、クリック単価、採用効率、株式報酬で評価が動きます。景気回復時のFCFだけを延長せず、米国求人需要とIndeedの収益性を確認します。",
+    },
+    "6367.T": {
+        "name": "ダイキン工業",
+        "group": "空調・冷凍 / 化学",
+        "ir": "https://www.daikin.com/investor",
+        "discount": 0.090,
+        "terminal": 0.015,
+        "growth": {"bear": 0.00, "base": 0.03, "bull": 0.05},
+        "category": "japan-diversified",
+        "categoryLabel": "日本・分散型",
+        "displayTicker": "6367",
+        "chartLabel": "ダイキン",
+        "currency": "JPY",
+        "market": "東証プライム",
+        "classificationNote": "世界各地域で空調・冷凍機器とサービスを展開し、海外売上比率が高い企業です。データセンター冷却の成長余地はありますが、住宅・商業空調という幅広い実需が収益を支えます。",
+        "classificationSourceUrl": "https://www.daikin.com/investor/financial",
+        "valuationCaveat": "地域別需要、為替、在庫、原材料、設備投資でFCFが振れます。データセンター需要だけでなく、北米・アジアの空調販売とアフターサービスを確認します。",
     },
 }
 
@@ -390,13 +534,15 @@ def fetch_price_series(symbol: str) -> dict[str, Any]:
     timestamps = result.get("timestamp", [])
     quote = result["indicators"]["quote"][0]
     closes = quote.get("close", [])
+    highs = quote.get("high", [])
     points: list[dict[str, Any]] = []
-    for timestamp, close in zip(timestamps, closes):
+    for index, (timestamp, close) in enumerate(zip(timestamps, closes)):
         value = finite(close)
         if value is None:
             continue
+        high = finite(highs[index]) if index < len(highs) else None
         date = datetime.fromtimestamp(timestamp, timezone.utc).date().isoformat()
-        points.append({"date": date, "close": value})
+        points.append({"date": date, "close": value, "high": high if high is not None else value})
     if len(points) < 210:
         raise RuntimeError(f"Insufficient price history for {symbol}")
 
@@ -406,6 +552,8 @@ def fetch_price_series(symbol: str) -> dict[str, Any]:
     last = values[-1]
     three_year = points[-756:] if len(points) >= 756 else points
     peak_row = max(three_year, key=lambda row: row["close"])
+    rows_2026 = [row for row in points if row["date"] >= "2026-01-01"]
+    peak_2026_row = max(rows_2026, key=lambda row: row["high"]) if rows_2026 else None
     below_days = 0
     for value, average in reversed(list(zip(values, sma200))):
         if average is not None and value < average:
@@ -427,6 +575,9 @@ def fetch_price_series(symbol: str) -> dict[str, Any]:
         "peak3y": peak_row["close"],
         "peak3yDate": peak_row["date"],
         "drawdown3yPct": (1.0 - last / peak_row["close"]) * 100.0,
+        "peak2026": peak_2026_row["high"] if peak_2026_row else None,
+        "peak2026Date": peak_2026_row["date"] if peak_2026_row else None,
+        "drawdownFrom2026HighPct": (1.0 - last / peak_2026_row["high"]) * 100.0 if peak_2026_row else None,
         "sma200": latest_sma,
         "belowSma200": bool(latest_sma is not None and last < latest_sma),
         "weeksBelowSma200": below_days / 5.0,
@@ -576,6 +727,7 @@ def build_company(symbol: str, price: dict[str, Any]) -> dict[str, Any]:
     return {
         "ticker": symbol,
         "displayTicker": profile.get("displayTicker", symbol),
+        "chartLabel": profile.get("chartLabel", profile["name"] if profile.get("currency") == "JPY" else symbol),
         "name": profile["name"],
         "group": profile["group"],
         "category": profile.get("category", "overseas-ai"),
@@ -591,6 +743,9 @@ def build_company(symbol: str, price: dict[str, Any]) -> dict[str, Any]:
         "change1dPct": price["change1dPct"],
         "change5dPct": price["change5dPct"],
         "drawdown3yPct": price["drawdown3yPct"],
+        "peak2026": price.get("peak2026"),
+        "peak2026Date": price.get("peak2026Date"),
+        "drawdownFrom2026HighPct": price.get("drawdownFrom2026HighPct"),
         "belowSma200": price["belowSma200"],
         "weeksBelowSma200": price["weeksBelowSma200"],
         "marketCap": market_cap,
@@ -736,7 +891,7 @@ def main() -> None:
         company.get("capexGrowthYoYPct") for company in overseas_ai_companies if company["ticker"] in HYPERSCALERS
     ]
     payload = {
-        "schemaVersion": 4,
+        "schemaVersion": 5,
         "generatedAtUtc": NOW.isoformat(),
         "generatedAtJst": NOW.astimezone(JST).isoformat(),
         "marketDate": prices.get("SOX", {}).get("date"),
@@ -784,7 +939,7 @@ def main() -> None:
             "note": "These fields require a consistent paid consensus series, product-level pricing, or verified project announcements. Missing is not zero.",
         },
         "sourceStatus": [status.__dict__ for status in statuses],
-        "methodVersion": "3.1.0",
+        "methodVersion": "3.2.0",
     }
     OUTPUT.parent.mkdir(parents=True, exist_ok=True)
     OUTPUT.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")

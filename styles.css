@@ -761,6 +761,7 @@ small {
 .definition-mark.existing { background: var(--navy); }
 .definition-mark.growth { background: var(--teal); }
 .definition-mark.premium { background: var(--orange); }
+.definition-mark.unavailable { background: #aab4bf; }
 
 .table-wrap,
 .comparison-table-wrap,
@@ -782,7 +783,7 @@ small {
 }
 
 .company-table {
-  min-width: 1220px;
+  min-width: 1420px;
   margin-top: 28px;
   border: 1px solid var(--line);
   background: var(--paper);
@@ -832,6 +833,21 @@ small {
 .company-group {
   color: var(--muted);
   font-size: 0.68rem;
+}
+
+.column-note {
+  color: var(--muted);
+  font-size: 0.62rem;
+  font-weight: 600;
+}
+
+.company-high-detail {
+  display: block;
+  margin-top: 3px;
+  color: var(--muted);
+  font-size: 0.62rem;
+  font-weight: 600;
+  white-space: nowrap;
 }
 
 .positive { color: var(--green); }
