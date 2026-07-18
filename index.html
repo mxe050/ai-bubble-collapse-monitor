@@ -36,6 +36,7 @@
     <div class="nav-inner">
       <a href="#today">今日の判定</a>
       <a href="#analysis-map">計算の地図</a>
+      <a href="#us-japan-link">米国→日本</a>
       <a href="#nikkei-bottom">日経底値</a>
       <a href="#signals">崩壊シグナル</a>
       <a href="#valuation">企業価値</a>
@@ -82,13 +83,13 @@
             <p id="bubbleReason" class="supporting">企業価値シナリオを計算しています。</p>
           </article>
           <article class="verdict-panel">
-            <p class="label">崩壊段階</p>
+            <p class="label">米国AI・半導体相場</p>
             <strong id="collapseRegime" class="verdict-value">計算中</strong>
             <p id="collapseReason" class="supporting">価格・利益・波及の3ゲートを確認しています。</p>
           </article>
           <article class="verdict-panel metric-verdict">
-            <p class="label">観測された崩壊証拠</p>
-            <strong><span id="evidenceScore">―</span><small>/100点</small></strong>
+            <p class="label">崩壊を確認する観測証拠</p>
+            <strong><span id="evidenceScore">―</span><small>/80点</small></strong>
             <p id="scoreRange" class="supporting">未確認項目を含む範囲を計算中</p>
           </article>
           <article class="verdict-panel metric-verdict">
@@ -127,14 +128,77 @@
           <a href="#bottom-confirmation" class="map-item">
             <span>02</span><div><strong>底値に届き、反転したか</strong><p>価格帯への到達と、安値更新停止・50日線・信用・市場の広がりを分けて確認します。</p><small>出力：底値接近度と底打ち確認度</small></div>
           </a>
-          <a href="#signals" class="map-item">
-            <span>03</span><div><strong>バブルは崩壊したか</strong><p>価格・利益・設備投資・供給・信用を100点に統合し、3ゲートで崩壊段階を判定します。</p><small>入力：SOX、企業業績、CapEx、HY OAS</small></div>
+          <a href="#us-japan-link" class="map-item">
+            <span>03</span><div><strong>米国AI相場は崩れ、日本へ波及したか</strong><p>SOXで米国側を監視し、日経平均と日本AI・半導体連動8社で日本への伝播を別判定します。</p><small>入力：SOX、米国企業業績、日経平均、日本監視群</small></div>
           </a>
           <a href="#valuation" class="map-item">
             <span>04</span><div><strong>何が残る企業か</strong><p>各社のFCFから本体価値と期待の上乗せを分け、指数下落後に残る企業の条件を見ます。</p><small>入力：企業FCF、成長率、資本コスト</small></div>
           </a>
         </div>
-        <p class="map-footnote">「崩壊確認」は相場全体の状態、「底値ゾーン」は価格候補、「底打ち確認」は反転の証拠、「企業価値」は銘柄ごとの残存価値です。4つを混ぜないことが、このモニターの中心です。</p>
+        <p class="map-footnote">「米国AI相場の崩壊」「日本への波及」「日経の底値ゾーン」「底打ち確認」「企業別FCFストレス」は別の問いです。SOX下落だけで日本崩壊や底打ちを決めないことが、このモニターの中心です。</p>
+      </div>
+    </section>
+
+
+    <section id="us-japan-link" class="band band-transmission">
+      <div class="content">
+        <div class="section-heading">
+          <p class="section-kicker">U.S. LEAD INDICATOR, JAPAN CONFIRMATION</p>
+          <h2>SOXは米国の先行警報。日本への波及は別に確認する</h2>
+          <p>このモニターは「米国AIバブルが崩れれば日本も必ず崩れる」とは仮定しません。まず米国上場半導体・AI相場のストレスを検出し、その後に日本株へ短期下落が伝わったか、さらに長期トレンド転換へ進んだかを分けて判定します。</p>
+        </div>
+
+        <div class="scope-banner">
+          <div>
+            <span>SOXが測る範囲</span>
+            <strong>米国市場に上場する半導体30社</strong>
+            <p>Nasdaqの定義では、半導体の設計・流通・製造・販売を主業とする米国上場30社です。所在地の制限はなくADRも対象なので、世界的な半導体企業を含みますが、日本株指数そのものではありません。</p>
+          </div>
+          <div>
+            <span>このサイトでの役割</span>
+            <strong>米国AI設備投資サイクルの先行価格指標</strong>
+            <p>AI向け投資の中心にGPU、メモリー、ネットワーク、製造装置があるため先行警報に使います。ただしSOXだけで利益悪化、日本への波及、日経平均の底値は判定しません。</p>
+          </div>
+        </div>
+
+        <div class="transmission-chain" aria-label="米国から日本への主な伝播経路">
+          <div><span>01</span><strong>世界的なリスク再評価</strong><p>IMFの市場分析では、米国の株式・債券ショックは他地域からのショックより国外への波及が強く、国際ポートフォリオの売却とリスク価格の再評価を通じて日本にも届き得ます。</p></div>
+          <i data-lucide="arrow-right" aria-hidden="true"></i>
+          <div><span>02</span><strong>受注・設備投資</strong><p>米国のクラウド、データセンター、半導体投資が減ると、日本の検査装置、製造装置、材料、電力・冷却設備の受注や利益予想に伝わります。これは株価だけでなく実需の経路です。</p></div>
+          <i data-lucide="arrow-right" aria-hidden="true"></i>
+          <div><span>03</span><strong>日経平均の集中</strong><p>2026年7月17日時点で、アドバンテスト10.35%と東京エレクトロン10.21%だけで日経平均の20.56%。技術セクター全体は55.64%で、半導体株の急落が指数へ大きく反映されやすい構造です。</p></div>
+          <i data-lucide="arrow-right" aria-hidden="true"></i>
+          <div><span>04</span><strong>為替・信用・世界需要</strong><p>ドル資金、為替、信用スプレッド、米国景気を通じても波及します。一方、日銀研究は波及の強さが時期や政策で変わり、短期の金融伝播が実体経済へ長く残らない場合も示しています。</p></div>
+        </div>
+
+        <div class="transmission-live">
+          <div class="transmission-live-heading">
+            <p class="label">現在の二段階判定</p>
+            <strong id="japanTransmissionStatus" data-state="unknown">計算中</strong>
+            <p id="japanTransmissionReason">SOXと日本株のデータを分けて確認しています。</p>
+          </div>
+          <div class="transmission-metrics">
+            <div><span>SOX・3年高値から</span><strong id="transmissionSoxDrawdown">―</strong><small>米国側の先行警報</small></div>
+            <div><span>日経平均・3年高値から</span><strong id="transmissionNikkeiDrawdown">―</strong><small>日本市場全体</small></div>
+            <div><span>日本AI連動8社・中央値</span><strong id="transmissionJapanAiDrawdown">―</strong><small>本サイト独自監視群</small></div>
+            <div><span>同8社・200日線割れ</span><strong id="transmissionJapanBreadth">―</strong><small>下落の広がり</small></div>
+          </div>
+        </div>
+
+        <div class="transmission-rules">
+          <div><strong>短期波及</strong><p>SOXが3年高値から20%以上、または5日で8%以上下落し、日経平均か日本AI連動8社が5日で5%以上下落した状態。</p></div>
+          <div><strong>持続的波及</strong><p>上の米国ストレスに加え、日経平均20%以上下落、200日線下4週、日本8社中央値25%以上下落、同8社の60%以上が200日線割れ、のうち2項目以上。</p></div>
+          <div><strong>重要な限界</strong><p>閾値は過去の経験をもとにした本サイトの監視規則で、統計的に保証された確率ではありません。日本8社は日経225全体の騰落幅を置き換える公式指数でもありません。</p></div>
+        </div>
+
+        <p class="transmission-sources">根拠：
+          <a href="https://indexes.nasdaqomx.com/docs/methodology_SOX.pdf" target="_blank" rel="noopener">Nasdaq SOX methodology</a> /
+          <a href="https://www.imf.org/en/publications/wp/issues/2016/12/31/global-bonding-do-u-s-40180" target="_blank" rel="noopener">IMF・米国金融ショックの国際波及</a> /
+          <a href="https://www.boj.or.jp/en/research/wps_rev/wps_2013/wp13e16.htm" target="_blank" rel="noopener">日本銀行・米国ショックの波及変化</a> /
+          <a href="https://indexes.nikkei.co.jp/en/nkave/archives/summary?dt=07172026&amp;idx=nk225" target="_blank" rel="noopener">日経公式・2026年7月17日構成</a> /
+          <a href="https://indexes.nikkei.co.jp/en/nkave/index/profile?cid=2&amp;idx=nkscd" target="_blank" rel="noopener">日経半導体株指数</a> /
+          <a href="https://www.meti.go.jp/english/press/2026/0218_002.html" target="_blank" rel="noopener">経産省・日米AI/データセンター供給網</a>
+        </p>
       </div>
     </section>
 
@@ -142,10 +206,10 @@
       <div class="content">
         <div class="section-heading">
           <p class="section-kicker">FIVE-LAYER MONITOR</p>
-          <h2>どこが悪化すると「崩壊」なのか</h2>
-          <p>価格だけでなく、株価を支えた将来キャッシュフロー仮説が壊れ、投資・供給・信用へ伝わったかを順番に確認します。点数は確率ではなく、観測された証拠の強さです。</p>
+          <h2>米国AI・半導体相場のどこが悪化すると「崩壊」なのか</h2>
+          <p>SOXと海外AI10社を使って米国側を監視します。崩壊確認は価格・利益・供給・信用の80点、評価への脆弱性は別枠20点です。点数は確率ではなく、本サイトの規則に該当した観測証拠の強さです。</p>
         </div>
-        <div class="section-route"><strong>この章の役割</strong><span>5群の入力</span><i data-lucide="arrow-right" aria-hidden="true"></i><span>100点の証拠スコア</span><i data-lucide="arrow-right" aria-hidden="true"></i><span>3ゲート</span><i data-lucide="arrow-right" aria-hidden="true"></i><span>崩壊段階</span><a href="#method-collapse">対応する計算根拠</a></div>
+        <div class="section-route"><strong>この章の役割</strong><span>崩壊確認4群・80点</span><i data-lucide="arrow-right" aria-hidden="true"></i><span>評価脆弱性・別枠20点</span><i data-lucide="arrow-right" aria-hidden="true"></i><span>3ゲート</span><i data-lucide="arrow-right" aria-hidden="true"></i><span>米国側の段階</span><a href="#method-collapse">対応する計算根拠</a></div>
 
         <div id="signalGrid" class="signal-grid" aria-live="polite"></div>
 
@@ -154,7 +218,7 @@
           <div class="gate-flow">
             <article id="gatePrice" class="gate-card">
               <span class="gate-number">A</span>
-              <div><strong>価格レジーム転換</strong><p>SOXが3年高値から35%以上下落し、200日線を6週以上下回る。</p><span class="gate-result">判定中</span></div>
+              <div><strong>米国上場半導体の価格転換</strong><p>SOXが3年高値から35%以上下落し、200日線を6週以上下回る。</p><span class="gate-result">判定中</span></div>
             </article>
             <i data-lucide="chevron-right" class="flow-arrow" aria-hidden="true"></i>
             <article id="gateFundamental" class="gate-card">
@@ -167,13 +231,13 @@
               <div><strong>実体・信用への波及</strong><p>製品価格、在庫、計画中止、信用スプレッドの悪化を確認する。</p><span class="gate-result">判定中</span></div>
             </article>
           </div>
-          <p class="method-note">A・B・Cがすべて充足し、観測点が65点以上の場合のみ「崩壊確認」とします。未確認項目が残る場合は確認済みとは表示しません。</p>
+          <p class="method-note">A・B・Cがすべて充足し、崩壊確認証拠が45/80点以上の場合のみ「米国AI相場の崩壊を確認」とします。評価への脆弱性20点は加算しません。日本への波及は前章の別ルールで判定します。</p>
         </div>
 
         <div class="chart-layout">
           <div class="chart-panel">
             <div class="panel-heading">
-              <div><h3>AI相場の価格経路</h3><p>3年前を100としたSOXと主要AI株の等ウェイト指数</p></div>
+              <div><h3>米国上場AI・半導体相場の価格経路</h3><p>3年前を100としたSOXと海外AI株の等ウェイト指数</p></div>
               <span class="source-chip">週次表示</span>
             </div>
             <div class="chart-frame"><canvas id="marketChart"></canvas></div>
@@ -330,18 +394,18 @@
         <div class="section-heading">
           <p class="section-kicker">VALUE BEFORE NARRATIVE</p>
           <h2>企業の実力と「期待の上乗せ」を分ける</h2>
-          <p>従来の海外AI関連10社を残したまま、日本の主要16社を同じ枠組みで比較します。ホンダ、キヤノンに加え、世界市場で独自の事業基盤を持つキーエンス、日立、信越化学、HOYA、ソニー、任天堂、リクルート、ダイキンを追加しました。直近12か月のフリーキャッシュフローから、現在価格がどの程度強い成長前提を要求しているか、下落後にも実体価値が残り得るかを検討します。</p>
+          <p>従来の海外AI関連10社を残したまま、日本の主要16社を同じ枠組みで比較します。ホンダ、キヤノンに加え、世界市場で独自の事業基盤を持つキーエンス、日立、信越化学、HOYA、ソニー、任天堂、リクルート、ダイキンを追加しました。原則は直近12か月のフリーキャッシュフローを使い、金融サービスを持つトヨタとホンダだけは公式の非金融事業FCFを5年中央値へ平準化します。現在価格がどの程度強い成長前提を要求しているか、下落後にも実体価値が残り得るかを検討します。</p>
         </div>
         <div class="section-route"><strong>この章の役割</strong><span>企業FCF・成長・資本コスト</span><i data-lucide="arrow-right" aria-hidden="true"></i><span>DCFと逆DCF</span><i data-lucide="arrow-right" aria-hidden="true"></i><span>期待の上乗せ</span><a href="#method-company">対応する計算根拠</a></div>
 
         <div class="company-universe-guide" aria-label="比較する企業群">
           <div>
             <span class="company-category category-overseas-ai">海外・AI関連</span>
-            <p><strong>海外10社</strong>半導体、クラウド、AI基盤の主要企業。従来のAI相場の崩壊スコアは、この10社だけで継続計算します。</p>
+            <p><strong>海外10社</strong>半導体、クラウド、AI基盤の主要企業。米国AI相場の価格・基礎収益・評価脆弱性はこの10社で計算します。日本への波及判定には混ぜません。</p>
           </div>
           <div>
             <span class="company-category category-japan-ai">日本・AI連動</span>
-            <p><strong>国内8社</strong>アドバンテスト、東京エレクトロン、ソフトバンクグループ、富士通、キーエンス、日立、信越化学、HOYA。AI・半導体・DX・自動化投資との連動が比較的大きい群です。</p>
+            <p><strong>国内8社</strong>アドバンテスト、東京エレクトロン、ソフトバンクグループ、富士通、キーエンス、日立、信越化学、HOYA。日本への波及と日経底打ちの広がりをみる本サイト独自の監視群です。</p>
           </div>
           <div>
             <span class="company-category category-japan-diversified">日本・分散型</span>
@@ -375,9 +439,9 @@
             <div id="valuationChartFrame" class="chart-frame chart-tall"><canvas id="valuationChart"></canvas></div>
           </div>
           <div class="definition-list">
-            <div><span class="definition-mark existing"></span><p><strong>既存利益の価値</strong>現在のFCFを成長ゼロで継続すると仮定した価値。事業の「すでにある実」を近似します。</p></div>
-            <div><span class="definition-mark growth"></span><p><strong>合理的な成長価値</strong>基準シナリオで追加される価値。成長期待のすべてがバブルではありません。</p></div>
-            <div><span class="definition-mark premium"></span><p><strong>基準DCFで説明できない部分</strong>市場価値から、この画面の基準DCFを引いた残差です。割高・バブルの確定値ではありません。ブランド、金融子会社、保有資産、循環調整、一時的に低いFCFなど、モデル外の価値でも生じます。</p></div>
+            <div><span class="definition-mark existing"></span><p><strong>現在FCF横ばいシナリオ</strong>現在の評価用FCFが10年間成長せず、その後も実質ゼロ成長と置いた計算値です。確定した「本体価値」ではありません。</p></div>
+            <div><span class="definition-mark growth"></span><p><strong>基準成長の追加価値</strong>本サイトが企業別に置いた成長率・資本コスト・永続成長率で横ばいシナリオから増える計算値です。前提は利用者が変更できます。</p></div>
+            <div><span class="definition-mark premium"></span><p><strong>基準シナリオ外の部分</strong>市場価値から本サイトの基準計算を引いた残差です。将来の高成長だけでなく、余剰現金、保有株、金融子会社、ブランド、会計分類、景気循環、一時的に低いFCF、モデル誤差を含むため、バブルの確定値ではありません。</p></div>
             <div><span class="definition-mark unavailable"></span><p><strong>DCF比較不可</strong>評価用FCFが正でない、またはこの企業に単純DCFを適用できない状態です。企業価値ゼロを意味せず、NAV、SOTP、正常化FCFなど別の方法が必要です。</p></div>
           </div>
         </div>
@@ -391,7 +455,7 @@
                 <th>株価 / 1日</th>
                 <th>3年高値から</th>
                 <th>2026年高値から<br><span class="column-note">最新終値まで</span></th>
-                <th>売上成長</th>
+                <th>最新四半期売上<br><span class="column-note">前年同期比</span></th>
                 <th>DCF入力FCF / 基準</th>
                 <th>市場が要求するFCF成長</th>
                 <th>基準DCFとの差</th>
@@ -403,7 +467,7 @@
         </div>
         <div class="company-table-note">
           <i data-lucide="info" aria-hidden="true"></i>
-          <p>日本株は円、海外株はドルで表示します。「2026年高値から」は、2026年1月以降の日足で最も高い日中価格と、最新取引日の終値を比較した下落率です。最新取引日は画面上部の市場基準日を確認してください。金額を直接比べず、評価用FCF利回り、成長率、時価総額に占める価値の比率を比較します。トヨタとホンダは「自動取得FCF」と「公式調整値」を併記し、DCFには公式調整値を使います。「AI連動」「分散型」は感応度の分類であり、企業の優劣を断定するものではありません。</p>
+          <p>日本株は円、海外株はドルで表示します。売上は最新四半期を前年同期の同じ四半期と比較し、対応する前年値が取れない場合は未確認とします。「2026年高値から」は、2026年1月以降の日足で最も高い日中価格と、最新取引日の終値を比較した下落率です。最新取引日は画面上部の市場基準日を確認してください。金額を直接比べず、評価用FCF利回り、成長率、時価総額に占める価値の比率を比較します。トヨタとホンダは「自動取得FCF」と「公式調整値」を併記し、DCFには公式調整値を使います。「AI連動」「分散型」は感応度の分類であり、企業の優劣を断定するものではありません。</p>
         </div>
 
         <div id="companyDetail" class="company-detail">
@@ -477,7 +541,7 @@
           <label>
             <span>10%以上下方修正された中核企業</span>
             <small>1社固有の問題と、相場全体への拡散を分ける。</small>
-            <div class="input-unit"><input id="manualEpsCompanies" type="number" min="0" max="20" step="1" placeholder="未確認"><span>社</span></div>
+            <div class="input-unit"><input id="manualEpsCompanies" type="number" min="0" max="10" step="1" placeholder="未確認"><span>社</span></div>
           </label>
           <label>
             <span>同一製品のメモリー・GPU価格低下</span>
@@ -553,7 +617,8 @@
           <table>
             <thead><tr><th>知りたい答え</th><th>上の対応画面</th><th>主な入力</th><th>計算</th><th>表示される答え</th></tr></thead>
             <tbody>
-              <tr><th>崩壊したか</th><td><a href="#signals">崩壊シグナル</a></td><td>価格、FCF、CapEx、供給、HY OAS</td><td>5群100点＋3ゲート</td><td>崩壊段階・証拠スコア・欠損幅</td></tr>
+              <tr><th>米国AI相場が崩壊したか</th><td><a href="#signals">米国側の崩壊シグナル</a></td><td>SOX、海外AI10社の四半期業績、CapEx、供給、米国HY OAS</td><td>崩壊確認4群80点＋別枠の評価脆弱性20点＋3ゲート</td><td>米国側の崩壊段階・確認証拠・欠損幅</td></tr>
+              <tr><th>米国から日本へ波及したか</th><td><a href="#us-japan-link">米国→日本</a></td><td>SOX、日経平均、日本AI・半導体連動8社</td><td>短期波及2項目＋持続的波及4項目</td><td>日本への短期波及・持続的波及</td></tr>
               <tr><th>日経の底値候補</th><td><a href="#nikkei-bottom">日経底値</a></td><td>現在の日経、PER・PBR参照日の終値と倍率、利益悪化、過去下落率</td><td>EPS法・PBR法・歴史法</td><td>底値ゾーン・残り下落余地・接近度</td></tr>
               <tr><th>底打ちしたか</th><td><a href="#bottom-confirmation">反転確認</a></td><td>120日安値、50日線、HY OAS、市場の広がり</td><td>5項目100点</td><td>底打ち確認度・未充足項目</td></tr>
               <tr><th>残る企業はどれか</th><td><a href="#valuation">企業価値</a></td><td>海外AI10社・日本16社のFCF、成長率、資本コスト、事業構成</td><td>通貨別DCF・逆DCF・感度分析</td><td>本体価値・期待上乗せ・弱気価値・企業別の注意点</td></tr>
@@ -565,16 +630,16 @@
           <article><span>STEP 1</span><h3>現在の実力を測る</h3><p>売上、営業利益、FCF、現金、負債、CapExを使います。PERだけでは、会計利益の質、再投資負担、資本構成を区別できません。</p></article>
           <article><span>STEP 2</span><h3>合理的な成長を加える</h3><p>FCFが一定期間成長し、その後は経済全体に近い永続成長へ落ち着くと仮定して現在価値へ割り引きます。</p></article>
           <article><span>STEP 3</span><h3>市場の要求を逆算する</h3><p>現在の時価総額に一致する10年間のFCF成長率を解きます。高いほど競争、価格低下、顧客内製化に弱くなります。</p></article>
-          <article id="method-collapse"><span>STEP 4</span><h3>崩壊の連鎖を確認する</h3><p>高評価であることと、崩壊が始まったことは別です。価格、利益、供給・信用の順に証拠を積み上げます。</p></article>
+          <article id="method-collapse"><span>STEP 4</span><h3>米国崩壊と日本波及を分ける</h3><p>評価への脆弱性は発生証拠に加えません。米国は価格・利益・供給・信用の80点と3ゲート、日本は日経平均と国内8社で別判定します。</p></article>
           <article><span>STEP 5</span><h3>日経の底値を3方向から挟む</h3><p>利益、純資産、過去下落率のどれか一つを正解にせず、3価格の最小値から最大値を候補帯にします。</p></article>
           <article><span>STEP 6</span><h3>到達と反転を分ける</h3><p>安値圏に入っただけでは底打ちとしません。安値更新停止、50日線反転、信用改善、市場の広がりを追加確認します。</p></article>
         </div>
 
         <div id="method-company" class="formula-section">
           <div>
-            <h3>株主価値DCF</h3>
-            <div class="formula">株主価値 = Σ FCF<sub>t</sub> ÷ (1+r)<sup>t</sup> + 継続価値 ÷ (1+r)<sup>n</sup></div>
-            <p>ここでのFCFはYahoo Financeが集計する営業キャッシュフロー－設備投資の近似値です。厳密なFCFEではないため、負債発行、買収、株式報酬、希薄化が大きい企業では誤差が増えます。</p>
+            <h3>FCF現在価値の簡易スクリーニング</h3>
+            <div class="formula">市場価値の比較用近似 = Σ FCF<sub>t</sub> ÷ (1+r)<sup>t</sup> + 継続価値 ÷ (1+r)<sup>n</sup></div>
+            <p>ここでの標準FCFはYahoo Financeが集計する営業キャッシュフロー－設備投資の近似値です。厳密なFCFE/FCFFではなく、米国基準とIFRSで利息やリースの分類も異なります。この現在価値を時価総額と比較しますが、余剰現金・純有利子負債・保有資産を全社一律には加減していません。そのため「株主価値の算定」や監査済み公正価値ではなく、同じ粗い物差しを当てる比較用ストレステストです。</p>
           </div>
           <div>
             <h3>継続価値</h3>
@@ -598,6 +663,8 @@
             <li><strong>ソフトバンクグループ</strong>投資持株会社なので、連結FCF型DCFより、Armなどの保有資産価値から純有利子負債を引くNAV/SOTPが基本です。</li>
             <li><strong>ホンダ・トヨタ</strong>金融サービスとリースを含む連結キャッシュフローを直接使わず、公式の非金融事業CFをFY2022～FY2026の5年中央値に平準化します。金融事業価値は別加算していないため、残差を割高と断定しません。</li>
             <li><strong>アドバンテスト・東京エレクトロン</strong>AI需要が強い単年のFCFを10年延長せず、半導体設備投資サイクルを通した平準化FCFで見ます。</li>
+            <li><strong>現金・保有資産が大きい企業</strong>キーエンス、任天堂などでは、FCFの現在価値だけでは余剰現金や投資資産を取り切れず、残差が大きく見えます。残差を割高と断定しません。</li>
+            <li><strong>複合・金融事業を持つ企業</strong>ソニーなどは事業別FCFと資産価値を分けるSOTPが本来必要です。共通計算は一次スクリーニングに限定します。</li>
             <li><strong>円とドル</strong>企業価値の金額は通貨が異なるため直接比較しません。時価総額に占める比率、FCF利回り、暗黙成長率を比較します。</li>
           </ul>
         </div>
@@ -614,13 +681,13 @@
 
         <div class="weight-table-wrap">
           <table class="weight-table">
-            <thead><tr><th>評価層</th><th>最大点</th><th>高得点になる条件</th><th>なぜ必要か</th></tr></thead>
+            <thead><tr><th>監視層</th><th>位置づけ</th><th>高得点になる条件</th><th>なぜ必要か</th></tr></thead>
             <tbody>
-              <tr><th>価格レジーム</th><td>30</td><td>SOX下落、200日線割れの持続、下落銘柄の拡大</td><td>短期ノイズと長期トレンド転換を分ける。</td></tr>
-              <tr><th>企業価値の脆弱性</th><td>20</td><td>基準DCFで説明できない残差、極端な暗黙FCF成長</td><td>モデル外の価値を含むため断定せず、下落余地を測る入口にする。</td></tr>
-              <tr><th>基礎収益</th><td>25</td><td>売上・FCF悪化、EPS下方修正、CapEx削減</td><td>株価を支えた将来利益仮説の破綻を捉える。</td></tr>
-              <tr><th>資本循環・供給</th><td>15</td><td>製品価格下落、在庫乖離、計画中止</td><td>過剰投資が供給過剰へ変わったかを見る。</td></tr>
-              <tr><th>信用市場</th><td>10</td><td>HY OASの水準・上昇速度</td><td>株主損失が資金調達や実体経済へ広がったかを見る。</td></tr>
+              <tr><th>米国の価格レジーム</th><td>崩壊確認 30/80</td><td>SOX下落、200日線割れの持続、下落銘柄の拡大</td><td>短期ノイズと長期トレンド転換を分ける。</td></tr>
+              <tr><th>評価への脆弱性</th><td>別枠 20/20<br>崩壊確認へ加算しない</td><td>基準DCFで説明できない残差、極端な暗黙FCF成長</td><td>モデル外の価値を含むため断定せず、下落余地を測る入口にする。</td></tr>
+              <tr><th>基礎収益・顧客投資</th><td>崩壊確認 25/80</td><td>売上・FCF悪化、EPS下方修正、CapEx削減</td><td>株価を支えた将来利益仮説の破綻を捉える。</td></tr>
+              <tr><th>資本循環・供給</th><td>崩壊確認 15/80</td><td>製品価格下落、在庫乖離、計画中止</td><td>過剰投資が供給過剰へ変わったかを見る。</td></tr>
+              <tr><th>米国信用市場</th><td>崩壊確認 10/80</td><td>HY OASの水準・上昇速度</td><td>株主損失が資金調達や実体経済へ広がったかを見る。</td></tr>
             </tbody>
           </table>
         </div>
@@ -633,6 +700,8 @@
             <li>DCFの弱気値や日経平均の底値ゾーンを「必ず止まる価格」と保証すること。</li>
             <li>PER・PBR参照値を日経公式サイトから自動更新すること。画面の日付を確認し、必要なら利用者が更新します。</li>
             <li>底値をリアルタイムで確定すること。底打ち確認は必ず安値より遅れます。</li>
+            <li>SOXの下落だけで日本株の崩壊を確定すること。SOXは米国上場半導体30社であり、日本への波及は日経平均と国内監視群で別確認します。</li>
+            <li>日本AI・半導体連動8社を日経225全体の公式な市場幅とみなすこと。この8社は本サイト独自の代理指標です。</li>
             <li>「AI連動」「分散型」という分類を永久不変とみなすこと。事業構成、投資計画、相場の評価軸が変われば分類も見直します。</li>
             <li>個人の資産状況、税金、損失許容度を踏まえた売買判断を行うこと。</li>
           </ul>
@@ -652,8 +721,9 @@
 
         <div class="official-links">
           <a href="https://fred.stlouisfed.org/series/BAMLH0A0HYM2" target="_blank" rel="noopener">FRED：米国ハイイールドOAS</a>
-          <a href="https://fred.stlouisfed.org/series/DFII10" target="_blank" rel="noopener">FRED：米10年実質金利</a>
-          <a href="https://www.sec.gov/search-filings/edgar-application-programming-interfaces" target="_blank" rel="noopener">SEC：EDGAR API仕様</a>
+          <a href="https://indexes.nasdaqomx.com/docs/methodology_SOX.pdf" target="_blank" rel="noopener">Nasdaq：SOXの定義・構成方法</a>
+          <a href="https://www.imf.org/en/publications/wp/issues/2016/12/31/global-bonding-do-u-s-40180" target="_blank" rel="noopener">IMF：米国金融ショックの国際波及</a>
+          <a href="https://www.boj.or.jp/en/research/wps_rev/wps_2013/wp13e16.htm" target="_blank" rel="noopener">日本銀行：米国ショックの貿易・金融経路</a>
           <a href="https://www.federalreserve.gov/newsevents/speech/files/jefferson20251121a.pdf" target="_blank" rel="noopener">FRB：AIとITバブルの比較</a>
           <a href="https://www.elibrary.imf.org/display/book/9781589062122/ch02.xml" target="_blank" rel="noopener">IMF：資産バブル崩壊の歴史分析</a>
           <a href="https://www.elibrary.imf.org/view/journals/001/2008/274/article-A001-en.xml" target="_blank" rel="noopener">IMF：株式バストの下落率と期間</a>
@@ -661,6 +731,10 @@
           <a href="https://indexes.nikkei.co.jp/en/nkave/archives/summary?idx=nk225" target="_blank" rel="noopener">日経公式：日次サマリー</a>
           <a href="https://indexes.nikkei.co.jp/nkave/archives/file/users_guide_jp.pdf" target="_blank" rel="noopener">日経公式：PER・PBR計算式</a>
           <a href="https://indexes.nasdaq.com/docs/Nasdaq-100_A%20Tale%20of%20Three%20Crises%20over%20Two%20Decades.pdf" target="_blank" rel="noopener">Nasdaq：Tech Bubble比較</a>
+          <a href="https://indexes.nikkei.co.jp/en/nkave/archives/summary?dt=07172026&amp;idx=nk225" target="_blank" rel="noopener">日経公式：2026年7月17日の構成・PER・PBR</a>
+          <a href="https://indexes.nikkei.co.jp/en/nkave/index/profile?cid=2&amp;idx=nkscd" target="_blank" rel="noopener">日経公式：半導体株指数</a>
+          <a href="https://www.meti.go.jp/english/press/2026/0218_002.html" target="_blank" rel="noopener">経産省：日米AI・データセンター供給網</a>
+          <a href="https://github.com/mxe050/ai-bubble-collapse-monitor/blob/main/FACT_CHECK.md" target="_blank" rel="noopener">監査記録：修正点と残る限界</a>
         </div>
       </div>
     </section>
@@ -669,7 +743,7 @@
   <footer>
     <div class="content footer-inner">
       <p><strong>重要：</strong>本サイトは教育・調査用です。投資助言、価格予測、売買推奨ではありません。取得値には遅延・欠損・定義差があり、重要な判断では企業IRと提出資料を確認してください。</p>
-      <p>Method v3.2 / <a href="https://github.com/mxe050/ai-bubble-collapse-monitor" target="_blank" rel="noopener">GitHub</a></p>
+      <p>Method v3.4 / <a href="https://github.com/mxe050/ai-bubble-collapse-monitor" target="_blank" rel="noopener">GitHub</a></p>
     </div>
   </footer>
 

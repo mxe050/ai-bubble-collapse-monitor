@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Build the public data package for the AI bubble monitor.
 
-The script intentionally runs outside the browser. Market-data providers and the SEC
-either restrict CORS or require identifying headers, so a scheduled GitHub Action is a
+The script intentionally runs outside the browser. Market-data providers
+restrict CORS or require identifying headers, so a scheduled GitHub Action is a
 more reliable and auditable place to collect the inputs than visitors' browsers.
 """
 
@@ -66,6 +66,7 @@ COMPANIES: dict[str, dict[str, Any]] = {
     "ARM": {
         "name": "Arm Holdings",
         "group": "CPU architecture",
+        "country": "GB",
         "ir": "https://investors.arm.com/financials/quarterly-results",
         "discount": 0.110,
         "terminal": 0.030,
@@ -402,6 +403,9 @@ COMPANIES: dict[str, dict[str, Any]] = {
 OVERSEAS_AI_TICKERS = (
     "NVDA", "AVGO", "AMD", "MU", "ARM", "MRVL", "MSFT", "GOOGL", "AMZN", "META",
 )
+JAPAN_AI_TICKERS = tuple(
+    symbol for symbol, profile in COMPANIES.items() if profile.get("category") == "japan-ai"
+)
 CHART_TICKERS = tuple(symbol for symbol in OVERSEAS_AI_TICKERS if symbol != "ARM")
 PRICE_SYMBOLS = {"SOX": "^SOX", "NASDAQ": "^IXIC", "NIKKEI": "^N225", **{k: k for k in COMPANIES}}
 HYPERSCALERS = {"MSFT", "GOOGL", "AMZN", "META"}
@@ -470,11 +474,12 @@ FUNDAMENTAL_TYPES = [
     "trailingFreeCashFlow",
     "trailingCapitalExpenditure",
     "trailingMarketCap",
-    "trailingPeRatio",
+    "quarterlyTotalRevenue",
+    "quarterlyFreeCashFlow",
+    "quarterlyCapitalExpenditure",
     "quarterlyCashCashEquivalentsAndShortTermInvestments",
     "quarterlyCashAndCashEquivalents",
     "quarterlyTotalDebt",
-    "quarterlyDilutedAverageShares",
 ]
 
 
@@ -706,9 +711,66 @@ def latest_date(series: dict[str, list[dict[str, Any]]], key: str) -> str | None
     return rows[-1].get("date") if rows else None
 
 
-def growth(series: dict[str, list[dict[str, Any]]], key: str) -> float | None:
+def year_ago_pair(
+    series: dict[str, list[dict[str, Any]]], key: str, tolerance_days: int = 45
+) -> tuple[dict[str, Any], dict[str, Any]] | None:
+    """Return the latest quarter and the matching quarter a year earlier.
+
+    Yahoo's trailing series is irregular: adjacent observations may be nine months
+    apart and are not necessarily year-over-year comparisons. Quarterly rows are
+    matched by date instead, and are rejected when the prior-year quarter is absent.
+    """
     rows = series.get(key) or []
-    return pct_change(rows[-1]["value"], rows[-2]["value"]) if len(rows) >= 2 else None
+    if len(rows) < 2 or not rows[-1].get("date"):
+        return None
+    latest_row = rows[-1]
+    latest_day = datetime.fromisoformat(latest_row["date"]).date()
+    target = latest_day - timedelta(days=365)
+    candidates = [row for row in rows[:-1] if row.get("date")]
+    if not candidates:
+        return None
+    prior_row = min(
+        candidates,
+        key=lambda row: abs((datetime.fromisoformat(row["date"]).date() - target).days),
+    )
+    gap = abs((datetime.fromisoformat(prior_row["date"]).date() - target).days)
+    if gap > tolerance_days:
+        return None
+    return latest_row, prior_row
+
+
+def quarterly_yoy_growth(
+    series: dict[str, list[dict[str, Any]]],
+    key: str,
+    *,
+    use_absolute_values: bool = False,
+    require_positive_prior: bool = False,
+) -> float | None:
+    pair = year_ago_pair(series, key)
+    if pair is None:
+        return None
+    current = finite(pair[0].get("value"))
+    prior = finite(pair[1].get("value"))
+    if current is None or prior is None or (require_positive_prior and prior <= 0):
+        return None
+    if use_absolute_values:
+        current, prior = abs(current), abs(prior)
+    return pct_change(current, prior)
+
+
+def quarterly_fcf_deteriorated(series: dict[str, list[dict[str, Any]]]) -> bool | None:
+    pair = year_ago_pair(series, "quarterlyFreeCashFlow")
+    if pair is None:
+        return None
+    current = finite(pair[0].get("value"))
+    prior = finite(pair[1].get("value"))
+    if current is None or prior is None:
+        return None
+    if prior > 0:
+        return current <= prior * 0.8
+    if prior < 0:
+        return current < prior
+    return current < 0
 
 
 def first_available(series: dict[str, list[dict[str, Any]]], keys: list[str]) -> float | None:
@@ -732,13 +794,13 @@ def build_company(symbol: str, price: dict[str, Any]) -> dict[str, Any]:
         "quarterlyCashAndCashEquivalents",
     ])
     debt = latest(data, "quarterlyTotalDebt")
-    shares = latest(data, "quarterlyDilutedAverageShares")
-    if shares is None and market_cap and price.get("close"):
-        shares = market_cap / price["close"]
     enterprise_value = None
     if market_cap is not None:
         enterprise_value = market_cap + (debt or 0.0) - (cash or 0.0)
     valuation_fcf = profile.get("valuationFcf", fcf)
+    revenue_pair = year_ago_pair(data, "quarterlyTotalRevenue")
+    fcf_pair = year_ago_pair(data, "quarterlyFreeCashFlow")
+    capex_pair = year_ago_pair(data, "quarterlyCapitalExpenditure")
     return {
         "ticker": symbol,
         "displayTicker": profile.get("displayTicker", symbol),
@@ -749,7 +811,7 @@ def build_company(symbol: str, price: dict[str, Any]) -> dict[str, Any]:
         "categoryLabel": profile.get("categoryLabel", "海外・AI関連"),
         "currency": profile.get("currency", "USD"),
         "market": profile.get("market", "米国市場"),
-        "country": "JP" if profile.get("currency") == "JPY" else "US",
+        "country": profile.get("country", "JP" if profile.get("currency") == "JPY" else "US"),
         "classificationNote": profile.get("classificationNote", "海外AIバスケットを構成する主要企業。従来の崩壊判定と企業価値評価の対象です。"),
         "classificationSourceUrl": profile.get("classificationSourceUrl", profile["ir"]),
         "valuationCaveat": profile.get("valuationCaveat", "標準化されたTTM FCFによるスクリーニングです。企業IRの事業別開示と一時要因を必ず照合してください。"),
@@ -767,13 +829,21 @@ def build_company(symbol: str, price: dict[str, Any]) -> dict[str, Any]:
         "enterpriseValue": enterprise_value,
         "cash": cash,
         "debt": debt,
-        "shares": shares,
         "ttmRevenue": revenue,
-        "revenueGrowthYoYPct": growth(data, "trailingTotalRevenue"),
+        "revenueGrowthYoYPct": quarterly_yoy_growth(data, "quarterlyTotalRevenue"),
+        "revenueGrowthBasis": "最新四半期の前年同期比",
+        "revenueGrowthCurrentDate": revenue_pair[0]["date"] if revenue_pair else None,
+        "revenueGrowthPriorDate": revenue_pair[1]["date"] if revenue_pair else None,
         "ttmOperatingIncome": operating_income,
         "operatingMarginPct": (operating_income / revenue * 100.0) if operating_income is not None and revenue else None,
         "ttmFreeCashFlow": fcf,
-        "freeCashFlowGrowthYoYPct": growth(data, "trailingFreeCashFlow"),
+        "freeCashFlowGrowthYoYPct": quarterly_yoy_growth(
+            data, "quarterlyFreeCashFlow", require_positive_prior=True
+        ),
+        "freeCashFlowGrowthBasis": "最新四半期の前年同期比（前年が正のFCFの場合のみ）",
+        "freeCashFlowDeteriorated": quarterly_fcf_deteriorated(data),
+        "freeCashFlowGrowthCurrentDate": fcf_pair[0]["date"] if fcf_pair else None,
+        "freeCashFlowGrowthPriorDate": fcf_pair[1]["date"] if fcf_pair else None,
         "freeCashFlowMarginPct": (fcf / revenue * 100.0) if fcf is not None and revenue else None,
         "freeCashFlowYieldPct": (fcf / market_cap * 100.0) if fcf is not None and market_cap else None,
         "valuationFcf": valuation_fcf,
@@ -785,8 +855,12 @@ def build_company(symbol: str, price: dict[str, Any]) -> dict[str, Any]:
         "valuationFcfSourceLabel": profile.get("valuationFcfSourceLabel", "Yahoo Finance fundamentals"),
         "financialServicesTreatment": profile.get("financialServicesTreatment"),
         "ttmCapex": abs(capex) if capex is not None else None,
-        "capexGrowthYoYPct": growth(data, "trailingCapitalExpenditure"),
-        "trailingPe": latest(data, "trailingPeRatio"),
+        "capexGrowthYoYPct": quarterly_yoy_growth(
+            data, "quarterlyCapitalExpenditure", use_absolute_values=True
+        ),
+        "capexGrowthBasis": "最新四半期の設備投資額（絶対値）の前年同期比",
+        "capexGrowthCurrentDate": capex_pair[0]["date"] if capex_pair else None,
+        "capexGrowthPriorDate": capex_pair[1]["date"] if capex_pair else None,
         "filingDate": latest_date(data, "trailingTotalRevenue"),
         "assumptions": {
             "discountRatePct": profile["discount"] * 100.0,
@@ -908,7 +982,7 @@ def main() -> None:
             statuses.append(SourceStatus("Yahoo Finance historical chart", f"https://finance.yahoo.com/quote/{episode['symbol']}/history/", False, NOW.isoformat(), str(exc)))
 
     macro: dict[str, Any] = {}
-    for key, series in {"highYieldOas": "BAMLH0A0HYM2", "real10yYield": "DFII10"}.items():
+    for key, series in {"highYieldOas": "BAMLH0A0HYM2"}.items():
         try:
             macro[key] = fetch_fred(series)
             statuses.append(SourceStatus("FRED", macro[key]["sourceUrl"], True, NOW.isoformat(), series))
@@ -917,13 +991,26 @@ def main() -> None:
             statuses.append(SourceStatus("FRED", f"https://fred.stlouisfed.org/series/{series}", False, NOW.isoformat(), str(exc)))
 
     overseas_ai_companies = [company for company in companies if company["ticker"] in OVERSEAS_AI_TICKERS]
+    japan_ai_companies = [company for company in companies if company["ticker"] in JAPAN_AI_TICKERS]
     company_drawdowns = [company.get("drawdown3yPct") for company in overseas_ai_companies]
     below_count = sum(1 for company in overseas_ai_companies if company.get("belowSma200"))
+    japan_company_drawdowns = [company.get("drawdown3yPct") for company in japan_ai_companies]
+    japan_below_count = sum(1 for company in japan_ai_companies if company.get("belowSma200"))
+    revenue_growth = [
+        company.get("revenueGrowthYoYPct")
+        for company in overseas_ai_companies
+        if company.get("revenueGrowthYoYPct") is not None
+    ]
+    fcf_deterioration = [
+        company.get("freeCashFlowDeteriorated")
+        for company in overseas_ai_companies
+        if company.get("freeCashFlowDeteriorated") is not None
+    ]
     hyperscaler_capex = [
         company.get("capexGrowthYoYPct") for company in overseas_ai_companies if company["ticker"] in HYPERSCALERS
     ]
     payload = {
-        "schemaVersion": 6,
+        "schemaVersion": 7,
         "generatedAtUtc": NOW.isoformat(),
         "generatedAtJst": NOW.astimezone(JST).isoformat(),
         "marketDate": prices.get("SOX", {}).get("date"),
@@ -943,6 +1030,14 @@ def main() -> None:
                 "medianChange1dPct": median(company.get("change1dPct") for company in overseas_ai_companies),
                 "medianChange5dPct": median(company.get("change5dPct") for company in overseas_ai_companies),
             },
+            "japanAiBasket": {
+                "label": "日本AI・半導体連動8社（本サイト独自・等ウェイト監視群）",
+                "constituents": [company["ticker"] for company in japan_ai_companies],
+                "medianDrawdown3yPct": median(japan_company_drawdowns),
+                "breadthBelowSma200Pct": (japan_below_count / len(japan_ai_companies) * 100.0) if japan_ai_companies else None,
+                "medianChange1dPct": median(company.get("change1dPct") for company in japan_ai_companies),
+                "medianChange5dPct": median(company.get("change5dPct") for company in japan_ai_companies),
+            },
             "normalizedChart": sampled_chart(prices) if "SOX" in prices else [],
             "historicalEpisodes": historical_episodes,
             "nikkeiValuationReference": {
@@ -950,16 +1045,23 @@ def main() -> None:
                 "indexPe": 22.99,
                 "indexPb": 2.71,
                 "price": 64141.12,
-                "sourceUrl": "https://indexes.nikkei.co.jp/en/nkave/archives/summary?idx=nk225",
-                "note": "日経公式日次サマリーの指数ベースPER・PBRの参照スナップショット。自動更新ではないため、利用時に公式ページで照合してください。",
+                "sourceUrl": "https://indexes.nikkei.co.jp/en/nkave/archives/summary?dt=07172026&idx=nk225",
+                "note": "日経公式2026年7月17日の日次サマリーにある指数ベースPER 22.99倍・PBR 2.71倍・終値64,141.12円。自動更新ではありません。",
             },
         },
         "macro": macro,
         "companies": companies,
         "derived": {
-            "medianRevenueGrowthYoYPct": median(company.get("revenueGrowthYoYPct") for company in overseas_ai_companies),
-            "medianFreeCashFlowGrowthYoYPct": median(company.get("freeCashFlowGrowthYoYPct") for company in overseas_ai_companies),
+            "medianLatestQuarterRevenueGrowthYoYPct": median(revenue_growth),
+            "latestQuarterRevenueGrowthCoverage": len(revenue_growth),
+            "fcfDeteriorationCount": sum(1 for value in fcf_deterioration if value),
+            "fcfDeteriorationCoverage": len(fcf_deterioration),
+            "fcfDeteriorationBreadthPct": (
+                sum(1 for value in fcf_deterioration if value) / len(fcf_deterioration) * 100.0
+                if fcf_deterioration else None
+            ),
             "medianHyperscalerCapexGrowthYoYPct": median(hyperscaler_capex),
+            "hyperscalerCapexCoverage": sum(1 for value in hyperscaler_capex if value is not None),
             "hyperscalersWithCapexCuts": sum(1 for value in hyperscaler_capex if value is not None and value <= -10.0),
         },
         "manualInputs": {
@@ -971,7 +1073,7 @@ def main() -> None:
             "note": "These fields require a consistent paid consensus series, product-level pricing, or verified project announcements. Missing is not zero.",
         },
         "sourceStatus": [status.__dict__ for status in statuses],
-        "methodVersion": "3.3.0",
+        "methodVersion": "3.4.0",
     }
     OUTPUT.parent.mkdir(parents=True, exist_ok=True)
     OUTPUT.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")

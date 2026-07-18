@@ -200,7 +200,7 @@
       historyDrawdown: null,
     };
     try {
-      var parsed = JSON.parse(localStorage.getItem("aiBubbleNikkeiBottomV3") || "null");
+      var parsed = JSON.parse(localStorage.getItem("aiBubbleNikkeiBottomV4") || "null");
       return parsed ? Object.assign(empty, parsed) : empty;
     } catch (error) {
       return empty;
@@ -208,12 +208,17 @@
   }
 
   function saveNikkeiBottom() {
-    localStorage.setItem("aiBubbleNikkeiBottomV3", JSON.stringify(state.nikkeiBottom));
+    localStorage.setItem("aiBubbleNikkeiBottomV4", JSON.stringify(state.nikkeiBottom));
   }
 
   function inputOrNull(id) {
     var raw = byId(id).value.trim();
     return raw === "" ? null : finite(raw);
+  }
+
+  function boundedInput(id, minimum, maximum) {
+    var value = inputOrNull(id);
+    return value === null ? null : clamp(value, minimum, maximum);
   }
 
   function setManualInputs() {
@@ -368,13 +373,22 @@
     var basket = data.market.aiBasket || {};
     var derived = data.derived || {};
     var hy = data.macro.highYieldOas || {};
-    var overseasAiValuations = state.valuations.filter(function (item) { return companyCategory(item.company) === "overseas-ai"; });
-    var valuationPremium = median(overseasAiValuations.map(function (item) { return item.premiumPct; }));
-    var impliedGap = median(overseasAiValuations.map(function (item) { return item.impliedGapPct; }));
+    var overseasAiValuations = state.valuations.filter(function (item) {
+      return companyCategory(item.company) === "overseas-ai";
+    });
+    var valuationRows = overseasAiValuations.filter(function (item) {
+      return finite(item.premiumPct) !== null && finite(item.impliedGapPct) !== null;
+    });
+    var valuationPremium = valuationRows.length >= 7
+      ? median(valuationRows.map(function (item) { return item.premiumPct; }))
+      : null;
+    var impliedGap = valuationRows.length >= 7
+      ? median(valuationRows.map(function (item) { return item.impliedGapPct; }))
+      : null;
 
     var price = combineSignal(
-      "price", "価格レジーム", "一日の急落ではなく、下落の深さ・持続・広がりを確認します。",
-      "SOX下落 " + formatPercent(sox.drawdown3yPct, false) + "、200日線下 " + (finite(sox.weeksBelowSma200) === null ? "未確認" : numberOne.format(sox.weeksBelowSma200) + "週") + "、200日線割れ銘柄 " + formatPercent(basket.breadthBelowSma200Pct, false),
+      "price", "米国の価格レジーム", "米国上場半導体相場について、一日の急落ではなく下落の深さ・持続・広がりを確認します。",
+      "SOX下落 " + formatPercent(sox.drawdown3yPct, false) + "、200日線下 " + (finite(sox.weeksBelowSma200) === null ? "未確認" : numberOne.format(sox.weeksBelowSma200) + "週") + "、海外AI10社の200日線割れ " + formatPercent(basket.breadthBelowSma200Pct, false),
       [
         component(sox.drawdown3yPct, 16, stepScore(sox.drawdown3yPct, [[40, 16], [35, 14], [30, 11], [20, 7], [10, 3]])),
         component(sox.weeksBelowSma200, 7, stepScore(sox.weeksBelowSma200, [[8, 7], [6, 6], [4, 4], [1, 2]])),
@@ -384,24 +398,32 @@
     );
 
     var valuation = combineSignal(
-      "valuation", "企業価値の脆弱性", "市場価格が基準DCFをどれだけ上回り、どれほど高いFCF成長を要求するかを測ります。",
-      "基準DCFで説明できない部分の中央値 " + formatPercent(valuationPremium, false) + "、暗黙成長と基準成長の差 " + formatPercent(impliedGap, true),
+      "valuation", "評価への脆弱性", "これは崩壊発生の証拠ではありません。市場価格が本サイトの基準FCFシナリオをどれだけ上回るかを示すストレス指標です。",
+      "比較可能 " + valuationRows.length + "/10社、基準シナリオ外の部分の中央値 " + formatPercent(valuationPremium, false) + "、暗黙成長と基準成長の差 " + formatPercent(impliedGap, true),
       [
         component(valuationPremium, 12, stepScore(valuationPremium, [[45, 12], [30, 10], [20, 7], [10, 4], [0, 1]])),
         component(impliedGap, 8, stepScore(impliedGap, [[12, 8], [8, 6], [5, 4], [2, 2]])),
       ], 20
     );
 
+    var revenueCoverage = finite(derived.latestQuarterRevenueGrowthCoverage);
+    var fcfCoverage = finite(derived.fcfDeteriorationCoverage);
+    var capexCoverage = finite(derived.hyperscalerCapexCoverage);
+    var revenueGrowth = revenueCoverage !== null && revenueCoverage >= 7
+      ? finite(derived.medianLatestQuarterRevenueGrowthYoYPct) : null;
+    var fcfBreadth = fcfCoverage !== null && fcfCoverage >= 7
+      ? finite(derived.fcfDeteriorationBreadthPct) : null;
+    var capexCuts = capexCoverage === 4 ? finite(derived.hyperscalersWithCapexCuts) : null;
     var epsEvidence = state.manual.epsCut;
     var epsScore = epsEvidence === null ? null : stepScore(epsEvidence, [[20, 7], [15, 6], [10, 4], [5, 2]]);
     if (epsScore !== null && state.manual.epsCompanies !== null && state.manual.epsCompanies >= 4) epsScore = Math.min(7, epsScore + 1);
     var fundamentals = combineSignal(
-      "fundamentals", "基礎収益・投資", "売上とFCFが悪化し、顧客企業が設備投資を減らしたかを確認します。",
-      "売上成長中央値 " + formatPercent(derived.medianRevenueGrowthYoYPct, true) + "、FCF成長中央値 " + formatPercent(derived.medianFreeCashFlowGrowthYoYPct, true) + "、CapEx大幅削減 " + (derived.hyperscalersWithCapexCuts === null || derived.hyperscalersWithCapexCuts === undefined ? "未確認" : derived.hyperscalersWithCapexCuts + "社") + "、EPS修正 " + formatPercent(state.manual.epsCut === null ? null : -state.manual.epsCut, true),
+      "fundamentals", "基礎収益・顧客投資", "最新四半期を前年同期と比較し、売上・FCF・ハイパースケーラー設備投資が広く悪化したかを確認します。",
+      "売上中央値 " + formatPercent(revenueGrowth, true) + "（" + (revenueCoverage === null ? "0" : revenueCoverage) + "/10社）、FCFが20%以上悪化 " + (finite(derived.fcfDeteriorationCount) === null ? "未確認" : derived.fcfDeteriorationCount + "/" + fcfCoverage + "社") + "、CapExを10%以上削減 " + (capexCuts === null ? "未確認" : capexCuts + "/4社") + "、予想EPS修正 " + formatPercent(state.manual.epsCut === null ? null : -state.manual.epsCut, true),
       [
-        component(derived.medianRevenueGrowthYoYPct, 7, reverseStepScore(derived.medianRevenueGrowthYoYPct, [[-10, 7], [0, 5], [5, 2]])),
-        component(derived.medianFreeCashFlowGrowthYoYPct, 6, reverseStepScore(derived.medianFreeCashFlowGrowthYoYPct, [[-20, 6], [0, 4], [10, 2]])),
-        component(derived.hyperscalersWithCapexCuts, 5, stepScore(derived.hyperscalersWithCapexCuts, [[2, 5], [1, 3]])),
+        component(revenueGrowth, 7, reverseStepScore(revenueGrowth, [[-10, 7], [0, 5], [5, 2]])),
+        component(fcfBreadth, 6, stepScore(fcfBreadth, [[70, 6], [50, 4], [30, 2]])),
+        component(capexCuts, 5, stepScore(capexCuts, [[2, 5], [1, 3]])),
         component(epsEvidence, 7, epsScore),
       ], 25
     );
@@ -419,8 +441,8 @@
     var oasValue = finite(hy.valuePct);
     var oasRise = finite(hy.riseFrom3mLowPctPoints);
     var credit = combineSignal(
-      "credit", "信用・資金調達", "AI投資の失敗が、社債や資金調達条件へ波及したかを確認します。",
-      "HY OAS " + (oasValue === null ? "未確認" : numberOne.format(oasValue * 100) + "bp") + "、3か月低値から " + (oasRise === null ? "未確認" : "+" + numberOne.format(oasRise * 100) + "bp"),
+      "credit", "米国信用・資金調達", "米国AI投資の失敗が、米国ハイイールド社債の資金調達条件へ波及したかを確認します。",
+      "米国HY OAS " + (oasValue === null ? "未確認" : numberOne.format(oasValue * 100) + "bp") + "、3か月低値から " + (oasRise === null ? "未確認" : "+" + numberOne.format(oasRise * 100) + "bp"),
       [
         component(oasValue, 7, stepScore(oasValue, [[6, 7], [5, 6], [4, 3], [3.5, 1]])),
         component(oasRise, 3, stepScore(oasRise, [[2, 3], [1, 2], [0.5, 1]])),
@@ -428,16 +450,20 @@
     );
 
     var signals = [price, valuation, fundamentals, capitalCycle, credit];
-    var observed = signals.reduce(function (sum, signal) { return sum + signal.observed; }, 0);
-    var known = signals.reduce(function (sum, signal) { return sum + signal.known; }, 0);
-    var unknown = signals.reduce(function (sum, signal) { return sum + signal.unknown; }, 0);
+    var confirmationSignals = [price, fundamentals, capitalCycle, credit];
+    var observed = confirmationSignals.reduce(function (sum, signal) { return sum + signal.observed; }, 0);
+    var known = confirmationSignals.reduce(function (sum, signal) { return sum + signal.known; }, 0);
+    var unknown = confirmationSignals.reduce(function (sum, signal) { return sum + signal.unknown; }, 0);
     return {
       signals: signals,
       observed: Math.round(observed),
       known: known,
       unknown: unknown,
-      coverage: Math.round(known),
+      coverage: Math.round(known / 80 * 100),
       maxPossible: Math.round(observed + unknown),
+      confirmationMax: 80,
+      valuationObserved: Math.round(valuation.observed),
+      valuationKnown: valuation.known,
       valuationPremium: valuationPremium,
       impliedGap: impliedGap,
     };
@@ -455,11 +481,24 @@
       ? (sox.drawdown3yPct >= 35 && sox.weeksBelowSma200 >= 6 ? "true" : "false")
       : "unknown";
 
-    var fcfGrowth = finite(data.derived.medianFreeCashFlowGrowthYoYPct);
-    var capexCuts = finite(data.derived.hyperscalersWithCapexCuts);
+    var derived = data.derived || {};
+    var revenueCoverage = finite(derived.latestQuarterRevenueGrowthCoverage);
+    var fcfCoverage = finite(derived.fcfDeteriorationCoverage);
+    var capexCoverage = finite(derived.hyperscalerCapexCoverage);
+    var revenueGrowth = revenueCoverage !== null && revenueCoverage >= 7
+      ? finite(derived.medianLatestQuarterRevenueGrowthYoYPct) : null;
+    var fcfBreadth = fcfCoverage !== null && fcfCoverage >= 7
+      ? finite(derived.fcfDeteriorationBreadthPct) : null;
+    var capexCuts = capexCoverage === 4 ? finite(derived.hyperscalersWithCapexCuts) : null;
     var epsKnown = state.manual.epsCut !== null;
-    var fundamentalTrue = (epsKnown && state.manual.epsCut >= 15) || (fcfGrowth !== null && fcfGrowth <= -15) || (capexCuts !== null && capexCuts >= 2);
-    var gateB = triState(fundamentalTrue, epsKnown && fcfGrowth !== null && capexCuts !== null);
+    var fundamentalTrue = (epsKnown && state.manual.epsCut >= 15)
+      || (revenueGrowth !== null && revenueGrowth <= -5)
+      || (fcfBreadth !== null && fcfBreadth >= 50)
+      || (capexCuts !== null && capexCuts >= 2);
+    var gateB = triState(
+      fundamentalTrue,
+      epsKnown && revenueGrowth !== null && fcfBreadth !== null && capexCuts !== null
+    );
 
     var hy = data.macro.highYieldOas || {};
     var oas = finite(hy.valuePct);
@@ -474,18 +513,18 @@
 
     var collapseName;
     var collapseReason;
-    if (gateA === "true" && gateB === "true" && gateC === "true" && evidence.observed >= 65) {
-      collapseName = "バブル崩壊を確認";
-      collapseReason = "価格・利益・実体波及の3ゲートがそろい、観測証拠も65点以上です。";
+    if (gateA === "true" && gateB === "true" && gateC === "true" && evidence.observed >= 45) {
+      collapseName = "米国AI相場の崩壊を確認";
+      collapseReason = "米国上場半導体の価格、利益仮説、供給・信用の3ゲートがそろい、崩壊確認証拠も45/80点以上です。日本への波及は別に判定します。";
     } else if (gateA === "true" && (gateB === "true" || gateC === "true")) {
-      collapseName = "崩壊進行の可能性";
-      collapseReason = "価格レジーム転換に、利益または実体波及の悪化が重なっています。";
-    } else if ((finite(sox.drawdown3yPct) !== null && sox.drawdown3yPct >= 20) || evidence.observed >= 25) {
-      collapseName = "調整・再評価局面";
-      collapseReason = "価格または複数指標に警戒信号がありますが、3ゲートはそろっていません。";
+      collapseName = "米国AI相場で崩壊進行の可能性";
+      collapseReason = "米国上場半導体の長期トレンド転換に、利益または供給・信用の悪化が重なっています。日本への波及は別に確認します。";
+    } else if ((finite(sox.drawdown3yPct) !== null && sox.drawdown3yPct >= 20) || evidence.observed >= 20) {
+      collapseName = "米国AI相場の調整・再評価";
+      collapseReason = "米国側の価格または複数指標に警戒信号がありますが、3ゲートはそろっていません。";
     } else {
-      collapseName = "崩壊は未確認";
-      collapseReason = "高評価の可能性はあっても、価格・利益・波及の連鎖はまだ確認できません。";
+      collapseName = "米国AI相場の崩壊は未確認";
+      collapseReason = "高評価の可能性はあっても、米国側の価格・利益・供給・信用の連鎖はまだ確認できません。";
     }
     return { A: gateA, B: gateB, C: gateC, collapseName: collapseName, collapseReason: collapseReason };
   }
@@ -505,6 +544,79 @@
     return { name: "基準シナリオ内", reason: "本モデルでは、現在のFCFと基準成長で価格の多くを説明できます。" };
   }
 
+  function assessJapanTransmission() {
+    var market = state.data.market || {};
+    var sox = market.series.SOX || {};
+    var nikkei = market.series.NIKKEI || {};
+    var japan = market.japanAiBasket || {};
+    var soxDrawdown = finite(sox.drawdown3yPct);
+    var soxFiveDay = finite(sox.change5dPct);
+    var usKnown = soxDrawdown !== null || soxFiveDay !== null;
+    var usStress = (soxDrawdown !== null && soxDrawdown >= 20)
+      || (soxFiveDay !== null && soxFiveDay <= -8);
+
+    var shortSignals = [
+      finite(nikkei.change5dPct) !== null && nikkei.change5dPct <= -5,
+      finite(japan.medianChange5dPct) !== null && japan.medianChange5dPct <= -5,
+    ];
+    var structuralChecks = [
+      finite(nikkei.drawdown3yPct) === null ? null : nikkei.drawdown3yPct >= 20,
+      finite(nikkei.weeksBelowSma200) === null ? null : nikkei.weeksBelowSma200 >= 4,
+      finite(japan.medianDrawdown3yPct) === null ? null : japan.medianDrawdown3yPct >= 25,
+      finite(japan.breadthBelowSma200Pct) === null ? null : japan.breadthBelowSma200Pct >= 60,
+    ];
+    var shortCount = shortSignals.filter(Boolean).length;
+    var structuralKnown = structuralChecks.filter(function (value) { return value !== null; }).length;
+    var structuralCount = structuralChecks.filter(Boolean).length;
+    var status;
+    var reason;
+    var level;
+    if (!usKnown) {
+      status = "判定不能";
+      reason = "SOXの下落率を取得できないため、米国起点の波及を判定できません。";
+      level = "unknown";
+    } else if (!usStress) {
+      status = "米国起点のストレスは未確認";
+      reason = "SOXが3年高値から20%以上下落、または5日で8%以上下落という本サイトの先行警報に達していません。";
+      level = "low";
+    } else if (structuralCount >= 2) {
+      status = "日本への持続的な市場波及を確認";
+      reason = "米国側の先行警報に加え、日経平均と日本AI・半導体連動8社で、深い下落・200日線割れ・下落の広がりのうち複数を確認しました。";
+      level = "high";
+    } else if (shortCount >= 1 || structuralCount >= 1) {
+      status = "短期波及あり、持続的な崩壊は未確認";
+      reason = "米国側の先行警報と日本株の短期下落は重なっていますが、日本側の長期トレンド転換条件は" + structuralCount + "/" + structuralKnown + "項目にとどまります。";
+      level = "medium";
+    } else {
+      status = "日本への波及は未確認";
+      reason = "米国側にストレスはありますが、日本株の短期下落や長期トレンド転換は確認できません。米国下落から日本下落への機械的な連動は仮定しません。";
+      level = "low";
+    }
+    return {
+      status: status,
+      reason: reason,
+      level: level,
+      soxDrawdown: soxDrawdown,
+      nikkeiDrawdown: finite(nikkei.drawdown3yPct),
+      japanDrawdown: finite(japan.medianDrawdown3yPct),
+      japanBreadth: finite(japan.breadthBelowSma200Pct),
+      structuralCount: structuralCount,
+      structuralKnown: structuralKnown,
+    };
+  }
+
+  function renderJapanTransmission(transmission) {
+    var status = byId("japanTransmissionStatus");
+    if (!status) return;
+    status.textContent = transmission.status;
+    status.dataset.state = transmission.level;
+    byId("japanTransmissionReason").textContent = transmission.reason;
+    byId("transmissionSoxDrawdown").textContent = formatPercent(transmission.soxDrawdown, false);
+    byId("transmissionNikkeiDrawdown").textContent = formatPercent(transmission.nikkeiDrawdown, false);
+    byId("transmissionJapanAiDrawdown").textContent = formatPercent(transmission.japanDrawdown, false);
+    byId("transmissionJapanBreadth").textContent = formatPercent(transmission.japanBreadth, false);
+  }
+
   function renderTop(evidence, gates, bubble) {
     byId("bubbleRegime").textContent = bubble.name;
     byId("bubbleReason").textContent = bubble.reason;
@@ -513,24 +625,24 @@
     byId("evidenceScore").textContent = evidence.observed;
     byId("coverageValue").textContent = evidence.coverage;
     byId("scoreRange").textContent = evidence.unknown
-      ? "未確認項目をすべて悪化と仮定した上限 " + evidence.maxPossible + "点"
-      : "主要項目を確認済み";
+      ? "未確認項目をすべて悪化と仮定した上限 " + evidence.maxPossible + "/80点"
+      : "崩壊確認80点分を確認済み";
     byId("coverageReason").textContent = evidence.unknown
       ? "残り" + evidence.unknown + "点分は未確認"
-      : "欠損なし";
+      : "崩壊確認項目の欠損なし";
 
     var plain;
-    if (gates.collapseName === "バブル崩壊を確認") {
-      plain = "割高の修正だけでなく、将来利益と実体・信用への波及を伴う崩壊条件がそろっています。";
-    } else if (bubble.name === "バブル・プレミアム大") {
-      plain = "価格には強い期待が含まれていますが、現在のところ『高い』ことと『崩壊した』ことは同じではありません。";
+    if (gates.collapseName === "米国AI相場の崩壊を確認") {
+      plain = "米国AI・半導体相場では、割高修正だけでなく将来利益と供給・信用への波及を伴う崩壊条件がそろっています。日本への波及は別判定です。";
+    } else if (bubble.name === "基準DCFとの差が大きい") {
+      plain = "価格には強い期待またはモデル外の企業価値が含まれます。ただし『基準DCFより高い』ことと『相場が崩壊した』ことは同じではありません。";
     } else {
-      plain = "一部の株価下落だけでは崩壊とは言えません。企業のFCFと設備投資、信用市場の変化を同時に追う段階です。";
+      plain = "一部の株価下落だけでは崩壊とは言えません。米国側の価格・企業業績・設備投資・信用と、日本への波及を分けて追います。";
     }
     byId("headlineConclusion").textContent = plain;
     byId("uncertaintySummary").textContent = evidence.unknown
-      ? "特に予想EPS、製品価格、在庫、正式な計画中止が未確認です。これらを入力すると判定範囲が狭まります。"
-      : "主要入力が確認されているため、判定の欠損による幅はありません。ただしモデル不確実性は残ります。";
+      ? "特に予想EPS、製品価格、在庫、正式な計画中止が未確認です。評価への脆弱性20点は、崩壊確認80点には加算していません。"
+      : "崩壊確認の主要入力はそろっています。ただし、評価への脆弱性20点とモデル不確実性は別に残ります。";
   }
 
   function renderSignals(evidence) {
@@ -565,10 +677,11 @@
     var sox = state.data.market.series.SOX || {};
     var basket = state.data.market.aiBasket || {};
     var items = [
-      "SOXは3年高値から" + formatPercent(sox.drawdown3yPct, false) + "。崩壊ゲートの35%には" + (sox.drawdown3yPct >= 35 ? "達しています。" : "達していません。"),
-      "SOXが200日線を下回った期間は約" + (finite(sox.weeksBelowSma200) === null ? "未確認" : numberOne.format(sox.weeksBelowSma200) + "週") + "。一時的な下落か、長期トレンド転換かを区別します。",
-      "主要AI株のうち200日線を下回る割合は" + formatPercent(basket.breadthBelowSma200Pct, false) + "。指数だけでなく下落の広がりを示します。",
-      "直近1日の主要AI株中央値は" + formatPercent(basket.medianChange1dPct, true) + "。短期変化は警報として使いますが、単独で崩壊判定には使いません。",
+      "SOXは米国市場に上場する半導体30社の指数です。企業の本拠地に地理的制限はありませんが、日本株指数ではありません。",
+      "SOXは3年高値から" + formatPercent(sox.drawdown3yPct, false) + "。米国価格ゲートの35%には" + (sox.drawdown3yPct >= 35 ? "達しています。" : "達していません。"),
+      "SOXが200日線を下回った期間は約" + (finite(sox.weeksBelowSma200) === null ? "未確認" : numberOne.format(sox.weeksBelowSma200) + "週") + "。一時的な下落か、米国上場半導体の長期トレンド転換かを区別します。",
+      "海外AI10社のうち200日線を下回る割合は" + formatPercent(basket.breadthBelowSma200Pct, false) + "。指数だけでなく米国上場銘柄群への広がりを示します。",
+      "日本への波及は、上の専用章で日経平均と日本AI・半導体連動8社を使って別判定します。",
     ];
     byId("marketReading").innerHTML = items.map(function (item) { return "<li>" + escapeHtml(item) + "</li>"; }).join("");
   }
@@ -587,8 +700,8 @@
       data: {
         labels: rows.map(function (row) { return row.date; }),
         datasets: [
-          { label: "SOX", data: rows.map(function (row) { return row.sox; }), borderColor: "#126b9a", backgroundColor: "transparent", borderWidth: 2.5, pointRadius: 0, tension: 0.08 },
-          { label: "主要AI株 等ウェイト", data: rows.map(function (row) { return row.aiBasket; }), borderColor: "#c94b18", backgroundColor: "transparent", borderWidth: 2.5, pointRadius: 0, tension: 0.08 },
+          { label: "SOX（米国上場半導体）", data: rows.map(function (row) { return row.sox; }), borderColor: "#126b9a", backgroundColor: "transparent", borderWidth: 2.5, pointRadius: 0, tension: 0.08 },
+          { label: "海外AI株 等ウェイト", data: rows.map(function (row) { return row.aiBasket; }), borderColor: "#c94b18", backgroundColor: "transparent", borderWidth: 2.5, pointRadius: 0, tension: 0.08 },
         ],
       },
       options: {
@@ -644,9 +757,9 @@
       data: {
         labels: chartItems.map(function (item) { return chartCompanyLabel(item.company); }),
         datasets: [
-          { label: "既存利益の価値", data: decomposition.map(function (row) { return row.existing; }), backgroundColor: "#173854" },
-          { label: "合理的な成長価値", data: decomposition.map(function (row) { return row.growth; }), backgroundColor: "#087f75" },
-          { label: "基準DCFで説明できない部分", data: decomposition.map(function (row) { return row.premium; }), backgroundColor: "#c94b18" },
+          { label: "現在FCF横ばいシナリオ", data: decomposition.map(function (row) { return row.existing; }), backgroundColor: "#173854" },
+          { label: "基準成長の追加価値", data: decomposition.map(function (row) { return row.growth; }), backgroundColor: "#087f75" },
+          { label: "基準シナリオ外（資産・成長・モデル差）", data: decomposition.map(function (row) { return row.premium; }), backgroundColor: "#c94b18" },
           { label: "DCF比較不可", data: decomposition.map(function (row) { return row.unavailable; }), backgroundColor: "#aab4bf" },
         ],
       },
@@ -787,7 +900,7 @@
 
     var stats = [
       ["時価総額", formatMoney(company.marketCap, company.currency)],
-      ["企業価値", formatMoney(company.enterpriseValue, company.currency)],
+      ["企業価値（EV概算）", formatMoney(company.enterpriseValue, company.currency)],
       ["TTM売上", formatMoney(company.ttmRevenue, company.currency)],
       ["営業利益率", formatPercent(company.operatingMarginPct, false)],
       ["評価用FCF", formatMoney(valuationFcfValue, company.currency)],
@@ -922,7 +1035,7 @@
     var targetPe = finite(settings.targetPe);
     var targetPb = finite(settings.targetPb);
     var historyDrawdown = finite(settings.historyDrawdown);
-    if ([current, peak, referencePrice, currentPe, currentPb, targetPe, targetPb, historyDrawdown].some(function (value) { return value === null || value <= 0; }) || epsCut === null || epsCut < 0) return null;
+    if ([current, peak, referencePrice, currentPe, currentPb, targetPe, targetPb, historyDrawdown].some(function (value) { return value === null || value <= 0; }) || epsCut === null || epsCut < 0 || epsCut > 100 || historyDrawdown > 100) return null;
     var currentEps = referencePrice / currentPe;
     var currentBps = referencePrice / currentPb;
     var earningsAnchor = currentEps * (1 - epsCut / 100) * targetPe;
@@ -967,7 +1080,7 @@
   function assessNikkeiConfirmation(model) {
     var nikkei = state.data.market.series.NIKKEI || {};
     var hy = state.data.macro.highYieldOas || {};
-    var basket = state.data.market.aiBasket || {};
+    var basket = state.data.market.japanAiBasket || {};
     var current = model.current;
     var nearZone = current <= model.upper * 1.10;
     var reachedZone = current <= model.upper;
@@ -1005,7 +1118,9 @@
     var breadthPass = breadth !== null && breadth <= 50;
     var breadthWatch = breadth !== null && breadth <= 70;
     var breadthScore = breadthPass ? 5 : breadthWatch ? 2 : 0;
-    var breadthDetail = breadth === null ? "市場の広がりを確認できません。" : "主要AI株の200日線割れは" + formatPercent(breadth, false) + "。";
+    var breadthDetail = breadth === null
+      ? "日本AI・半導体連動8社の広がりを確認できません。"
+      : "日本AI・半導体連動8社の200日線割れは" + formatPercent(breadth, false) + "。本サイト独自の代理指標で、日経225全銘柄の騰落数ではありません。";
 
     var rawScore = zoneScore + baseScore + trendScore + creditScore + breadthScore;
     var total = zoneScore === 0 ? 0 : rawScore;
@@ -1216,10 +1331,12 @@
     var evidence = scoreEvidence();
     var gates = assessGates(evidence);
     var bubble = assessBubble(evidence);
+    var transmission = assessJapanTransmission();
     renderMetadata();
     renderTop(evidence, gates, bubble);
     renderSignals(evidence);
     renderGates(gates);
+    renderJapanTransmission(transmission);
     renderMarketReading();
     renderMarketChart();
     renderNikkeiBottom();
@@ -1244,7 +1361,7 @@
       var response = await fetch("data/latest.json?ts=" + Date.now(), { cache: "no-store" });
       if (!response.ok) throw new Error("HTTP " + response.status);
       var payload = await response.json();
-      if (!payload.companies || !payload.market) throw new Error("データ形式が不正です");
+      if (!payload.companies || !payload.market || Number(payload.schemaVersion) < 7) throw new Error("データ形式が古いか不正です");
       state.data = payload;
       renderAll();
     } catch (error) {
@@ -1329,11 +1446,11 @@
     byId("manualForm").addEventListener("submit", function (event) {
       event.preventDefault();
       state.manual = {
-        epsCut: inputOrNull("manualEpsCut"),
-        epsCompanies: inputOrNull("manualEpsCompanies"),
-        priceDrop: inputOrNull("manualPriceDrop"),
-        cancellations: inputOrNull("manualCancellations"),
-        inventoryGap: inputOrNull("manualInventoryGap"),
+        epsCut: boundedInput("manualEpsCut", 0, 100),
+        epsCompanies: boundedInput("manualEpsCompanies", 0, 10),
+        priceDrop: boundedInput("manualPriceDrop", 0, 100),
+        cancellations: boundedInput("manualCancellations", 0, 50),
+        inventoryGap: boundedInput("manualInventoryGap", -100, 200),
       };
       saveManual();
       if (state.data) renderAll();

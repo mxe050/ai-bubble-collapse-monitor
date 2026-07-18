@@ -31,6 +31,15 @@ jobs:
       - name: Retrieve market, financial, and credit data
         run: python scripts/update_data.py
 
+      - name: Check browser logic syntax
+        run: node --check app.js
+
+      - name: Validate calculations and audited inputs
+        run: python scripts/validate_data.py
+
+      - name: Run UI calculation smoke test
+        run: node scripts/smoke_ui.js
+
       - name: Configure GitHub Pages
         uses: actions/configure-pages@v5
 
