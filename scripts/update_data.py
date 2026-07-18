@@ -111,8 +111,140 @@ COMPANIES: dict[str, dict[str, Any]] = {
         "terminal": 0.030,
         "growth": {"bear": 0.03, "base": 0.08, "bull": 0.12},
     },
+    "6857.T": {
+        "name": "アドバンテスト",
+        "group": "半導体テスト装置 / AI・HPC",
+        "ir": "https://www.advantest.com/en/investors/",
+        "discount": 0.105,
+        "terminal": 0.020,
+        "growth": {"bear": -0.05, "base": 0.04, "bull": 0.10},
+        "category": "japan-ai",
+        "categoryLabel": "日本・AI連動",
+        "displayTicker": "6857",
+        "currency": "JPY",
+        "market": "東証プライム",
+        "classificationNote": "半導体テスト装置が主力で、会社自身がAI・HPC向け高性能半導体のテスター需要を成長要因として説明しています。",
+        "classificationSourceUrl": "https://www.advantest.com/en/investors/financial-highlights/review/",
+        "valuationCaveat": "AI向け需要が強い局面のFCFをそのまま10年延長すると過大評価になり得ます。半導体設備投資サイクルを通した平準化が必要です。",
+    },
+    "8035.T": {
+        "name": "東京エレクトロン",
+        "group": "半導体製造装置",
+        "ir": "https://www.tel.com/ir/",
+        "discount": 0.100,
+        "terminal": 0.020,
+        "growth": {"bear": -0.03, "base": 0.04, "bull": 0.09},
+        "category": "japan-ai",
+        "categoryLabel": "日本・AI連動",
+        "displayTicker": "8035",
+        "currency": "JPY",
+        "market": "東証プライム",
+        "classificationNote": "先端ロジック・メモリ向け半導体製造装置が主力で、生成AI向け計算基盤の設備投資に収益が連動しやすい企業です。",
+        "classificationSourceUrl": "https://www.tel.com/ir/",
+        "valuationCaveat": "装置売上は顧客の設備投資計画と輸出規制で大きく変動します。単年FCFより、景気循環を通した平均FCFが重要です。",
+    },
+    "9984.T": {
+        "name": "ソフトバンクグループ",
+        "group": "AI投資持株会社 / Arm",
+        "ir": "https://group.softbank/en/ir",
+        "discount": 0.110,
+        "terminal": 0.020,
+        "growth": {"bear": -0.10, "base": 0.03, "bull": 0.12},
+        "category": "japan-ai",
+        "categoryLabel": "日本・AI連動",
+        "displayTicker": "9984",
+        "currency": "JPY",
+        "market": "東証プライム",
+        "classificationNote": "ArmとAI関連投資を中核に置く戦略的投資持株会社で、AI資産の評価変動が株主価値へ直接反映されやすい企業です。",
+        "classificationSourceUrl": "https://group.softbank/en/ir/financials/annual_reports/2025/who_we_are",
+        "valuationCaveat": "投資持株会社は連結FCF型DCFより、保有資産価値から純有利子負債を引くNAV/SOTPが基本です。DCFが算定不可でも企業価値ゼロを意味しません。",
+    },
+    "6702.T": {
+        "name": "富士通",
+        "group": "ITサービス / AI・DX",
+        "ir": "https://global.fujitsu/en-global/ir/library",
+        "discount": 0.090,
+        "terminal": 0.015,
+        "growth": {"bear": 0.00, "base": 0.03, "bull": 0.07},
+        "category": "japan-ai",
+        "categoryLabel": "日本・AI連動",
+        "displayTicker": "6702",
+        "currency": "JPY",
+        "market": "東証プライム",
+        "classificationNote": "企業向けITサービスを基盤にAI・DXを提供します。半導体純粋株より間接的ですが、AI導入期待が成長評価へ乗りやすい分類です。",
+        "classificationSourceUrl": "https://global.fujitsu/en-global/about",
+        "valuationCaveat": "事業再編、資産売却、運転資本でFCFが振れます。継続事業の調整後FCFと受注残を併読する必要があります。",
+    },
+    "7267.T": {
+        "name": "本田技研工業（ホンダ）",
+        "group": "自動車 / 二輪 / 金融サービス",
+        "ir": "https://global.honda/en/investors/",
+        "discount": 0.095,
+        "terminal": 0.010,
+        "growth": {"bear": -0.02, "base": 0.015, "bull": 0.04},
+        "category": "japan-diversified",
+        "categoryLabel": "日本・分散型",
+        "displayTicker": "7267",
+        "currency": "JPY",
+        "market": "東証プライム",
+        "classificationNote": "利益の中心は二輪、自動車、金融サービスです。AIを利用していても、現在の利益はAI投資テーマだけで決まる構造ではありません。",
+        "classificationSourceUrl": "https://global.honda/en/investors/financial_data/segment.html?links=false",
+        "valuationCaveat": "金融サービスとリース資産を含む連結FCFは製造事業のFCFと性質が異なります。非金融事業キャッシュフローでの再確認が必要です。",
+    },
+    "7751.T": {
+        "name": "キヤノン",
+        "group": "印刷 / 映像 / 医療 / 産業機器",
+        "ir": "https://global.canon/en/ir/library/results.html",
+        "discount": 0.090,
+        "terminal": 0.010,
+        "growth": {"bear": -0.01, "base": 0.02, "bull": 0.04},
+        "category": "japan-diversified",
+        "categoryLabel": "日本・分散型",
+        "displayTicker": "7751",
+        "currency": "JPY",
+        "market": "東証プライム",
+        "classificationNote": "印刷、映像、医療、産業機器の複数事業を持ちます。半導体製造装置も含みますが、AI需要だけに依存しない分散型です。",
+        "classificationSourceUrl": "https://global.canon/en/ir/finance/business-unit-q.html",
+        "valuationCaveat": "産業機器には半導体サイクル感応部分があります。全社FCFだけでなく、4事業の構成変化を確認する必要があります。",
+    },
+    "7203.T": {
+        "name": "トヨタ自動車",
+        "group": "自動車 / モビリティ / 金融サービス",
+        "ir": "https://global.toyota/en/ir/library/",
+        "discount": 0.095,
+        "terminal": 0.010,
+        "growth": {"bear": -0.02, "base": 0.02, "bull": 0.045},
+        "category": "japan-diversified",
+        "categoryLabel": "日本・分散型",
+        "displayTicker": "7203",
+        "currency": "JPY",
+        "market": "東証プライム",
+        "classificationNote": "自動車販売と金融サービスが現在の収益基盤です。AI・自動運転投資は重要でも、AI期待だけで全社価値が決まる企業ではありません。",
+        "classificationSourceUrl": "https://global.toyota/en/ir/finance/",
+        "valuationCaveat": "金融事業、リース、在庫金融が連結キャッシュフローを大きく動かします。自動車事業の調整後FCFとの照合が必要です。",
+    },
+    "9983.T": {
+        "name": "ファーストリテイリング",
+        "group": "アパレル小売 / 消費",
+        "ir": "https://www.fastretailing.com/eng/ir/index.html",
+        "discount": 0.095,
+        "terminal": 0.020,
+        "growth": {"bear": 0.02, "base": 0.05, "bull": 0.08},
+        "category": "japan-diversified",
+        "categoryLabel": "日本・分散型",
+        "displayTicker": "9983",
+        "currency": "JPY",
+        "market": "東証プライム",
+        "classificationNote": "UNIQLOを中心とする世界的な衣料小売で、主な価値要因は店舗生産性、商品、為替、消費需要です。AI相場との直接連動は比較的小さい分類です。",
+        "classificationSourceUrl": "https://www.fastretailing.com/eng/ir/financial/summary.html",
+        "valuationCaveat": "海外出店、為替、在庫、リース負債の影響が大きく、単純な成熟小売の成長率を当てはめないことが重要です。",
+    },
 }
 
+OVERSEAS_AI_TICKERS = (
+    "NVDA", "AVGO", "AMD", "MU", "ARM", "MRVL", "MSFT", "GOOGL", "AMZN", "META",
+)
+CHART_TICKERS = tuple(symbol for symbol in OVERSEAS_AI_TICKERS if symbol != "ARM")
 PRICE_SYMBOLS = {"SOX": "^SOX", "NASDAQ": "^IXIC", "NIKKEI": "^N225", **{k: k for k in COMPANIES}}
 HYPERSCALERS = {"MSFT", "GOOGL", "AMZN", "META"}
 
@@ -443,8 +575,17 @@ def build_company(symbol: str, price: dict[str, Any]) -> dict[str, Any]:
         enterprise_value = market_cap + (debt or 0.0) - (cash or 0.0)
     return {
         "ticker": symbol,
+        "displayTicker": profile.get("displayTicker", symbol),
         "name": profile["name"],
         "group": profile["group"],
+        "category": profile.get("category", "overseas-ai"),
+        "categoryLabel": profile.get("categoryLabel", "海外・AI関連"),
+        "currency": profile.get("currency", "USD"),
+        "market": profile.get("market", "米国市場"),
+        "country": "JP" if profile.get("currency") == "JPY" else "US",
+        "classificationNote": profile.get("classificationNote", "海外AIバスケットを構成する主要企業。従来の崩壊判定と企業価値評価の対象です。"),
+        "classificationSourceUrl": profile.get("classificationSourceUrl", profile["ir"]),
+        "valuationCaveat": profile.get("valuationCaveat", "標準化されたTTM FCFによるスクリーニングです。企業IRの事業別開示と一時要因を必ず照合してください。"),
         "price": price["close"],
         "priceDate": price["date"],
         "change1dPct": price["change1dPct"],
@@ -512,7 +653,9 @@ def fetch_fred(series_id: str) -> dict[str, Any]:
 
 def sampled_chart(price_data: dict[str, dict[str, Any]]) -> list[dict[str, Any]]:
     start = (NOW.date() - timedelta(days=365 * 3)).isoformat()
-    symbols = [s for s in COMPANIES if s != "ARM"]
+    symbols = [symbol for symbol in CHART_TICKERS if symbol in price_data]
+    if len(symbols) != len(CHART_TICKERS):
+        return []
     maps = {
         symbol: {row["date"]: row["close"] for row in price_data[symbol]["history"] if row["date"] >= start}
         for symbol in symbols
@@ -586,13 +729,14 @@ def main() -> None:
             errors.append(f"FRED {series}: {exc}")
             statuses.append(SourceStatus("FRED", f"https://fred.stlouisfed.org/series/{series}", False, NOW.isoformat(), str(exc)))
 
-    company_drawdowns = [company.get("drawdown3yPct") for company in companies]
-    below_count = sum(1 for company in companies if company.get("belowSma200"))
+    overseas_ai_companies = [company for company in companies if company["ticker"] in OVERSEAS_AI_TICKERS]
+    company_drawdowns = [company.get("drawdown3yPct") for company in overseas_ai_companies]
+    below_count = sum(1 for company in overseas_ai_companies if company.get("belowSma200"))
     hyperscaler_capex = [
-        company.get("capexGrowthYoYPct") for company in companies if company["ticker"] in HYPERSCALERS
+        company.get("capexGrowthYoYPct") for company in overseas_ai_companies if company["ticker"] in HYPERSCALERS
     ]
     payload = {
-        "schemaVersion": 3,
+        "schemaVersion": 4,
         "generatedAtUtc": NOW.isoformat(),
         "generatedAtJst": NOW.astimezone(JST).isoformat(),
         "marketDate": prices.get("SOX", {}).get("date"),
@@ -606,13 +750,13 @@ def main() -> None:
         "market": {
             "series": strip_history(prices),
             "aiBasket": {
-                "constituents": [company["ticker"] for company in companies],
+                "constituents": [company["ticker"] for company in overseas_ai_companies],
                 "medianDrawdown3yPct": median(company_drawdowns),
-                "breadthBelowSma200Pct": (below_count / len(companies) * 100.0) if companies else None,
-                "medianChange1dPct": median(company.get("change1dPct") for company in companies),
-                "medianChange5dPct": median(company.get("change5dPct") for company in companies),
+                "breadthBelowSma200Pct": (below_count / len(overseas_ai_companies) * 100.0) if overseas_ai_companies else None,
+                "medianChange1dPct": median(company.get("change1dPct") for company in overseas_ai_companies),
+                "medianChange5dPct": median(company.get("change5dPct") for company in overseas_ai_companies),
             },
-            "normalizedChart": sampled_chart(prices) if "SOX" in prices and len(prices) >= 8 else [],
+            "normalizedChart": sampled_chart(prices) if "SOX" in prices else [],
             "historicalEpisodes": historical_episodes,
             "nikkeiValuationReference": {
                 "date": "2026-07-17",
@@ -626,8 +770,8 @@ def main() -> None:
         "macro": macro,
         "companies": companies,
         "derived": {
-            "medianRevenueGrowthYoYPct": median(company.get("revenueGrowthYoYPct") for company in companies),
-            "medianFreeCashFlowGrowthYoYPct": median(company.get("freeCashFlowGrowthYoYPct") for company in companies),
+            "medianRevenueGrowthYoYPct": median(company.get("revenueGrowthYoYPct") for company in overseas_ai_companies),
+            "medianFreeCashFlowGrowthYoYPct": median(company.get("freeCashFlowGrowthYoYPct") for company in overseas_ai_companies),
             "medianHyperscalerCapexGrowthYoYPct": median(hyperscaler_capex),
             "hyperscalersWithCapexCuts": sum(1 for value in hyperscaler_capex if value is not None and value <= -10.0),
         },
@@ -640,7 +784,7 @@ def main() -> None:
             "note": "These fields require a consistent paid consensus series, product-level pricing, or verified project announcements. Missing is not zero.",
         },
         "sourceStatus": [status.__dict__ for status in statuses],
-        "methodVersion": "3.0.0",
+        "methodVersion": "3.1.0",
     }
     OUTPUT.parent.mkdir(parents=True, exist_ok=True)
     OUTPUT.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")

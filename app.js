@@ -9,24 +9,23 @@
     valuationChart: null,
     nikkeiBottomChart: null,
     valuations: [],
+    companyFilter: "all",
     nikkeiBottom: loadNikkeiBottom(),
     nikkeiBottomInitialized: false,
   };
 
-  var moneyCompact = new Intl.NumberFormat("ja-JP", {
-    notation: "compact",
-    maximumFractionDigits: 2,
-    style: "currency",
-    currency: "USD",
-  });
   var numberOne = new Intl.NumberFormat("ja-JP", { maximumFractionDigits: 1 });
-  var priceFormat = new Intl.NumberFormat("en-US", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-    style: "currency",
-    currency: "USD",
-  });
   var nikkeiFormat = new Intl.NumberFormat("ja-JP", { maximumFractionDigits: 0 });
+  var moneyFormatters = {};
+  var priceFormatters = {};
+
+  var COMPANY_FILTERS = {
+    all: { label: "全18社", description: "海外AI10社と日本企業8社を、同じFCFストレステストで見比べます。" },
+    "overseas-ai": { label: "海外・AI関連", description: "従来の崩壊判定を構成する海外AI関連10社です。崩壊スコアはこの母集団だけで計算します。" },
+    "japan-ai": { label: "日本・AI連動", description: "半導体設備投資やAIサービス期待と、収益・評価が比較的強く連動する日本企業4社です。" },
+    "japan-diversified": { label: "日本・分散型", description: "AIを利用していても、現在の利益が自動車、二輪、印刷、医療、消費など複数の実需に支えられる日本企業4社です。" },
+  };
+  var COMPANY_CATEGORY_ORDER = ["overseas-ai", "japan-ai", "japan-diversified"];
 
   var NIKKEI_PRESETS = {
     mild: { label: "急落・利益減速", epsCut: 10, targetPe: 18, targetPb: 2.0, historyDrawdown: 35 },
@@ -55,14 +54,32 @@
     return prefix + numberOne.format(number) + "%";
   }
 
-  function formatMoney(value) {
+  function formatMoney(value, currency) {
     if (value === null || value === undefined || !Number.isFinite(Number(value))) return "未確認";
-    return moneyCompact.format(Number(value));
+    var code = currency || "USD";
+    if (!moneyFormatters[code]) {
+      moneyFormatters[code] = new Intl.NumberFormat("ja-JP", {
+        notation: "compact",
+        maximumFractionDigits: 2,
+        style: "currency",
+        currency: code,
+      });
+    }
+    return moneyFormatters[code].format(Number(value));
   }
 
-  function formatPrice(value) {
+  function formatPrice(value, currency) {
     if (value === null || value === undefined || !Number.isFinite(Number(value))) return "算定不可";
-    return priceFormat.format(Number(value));
+    var code = currency || "USD";
+    if (!priceFormatters[code]) {
+      priceFormatters[code] = new Intl.NumberFormat(code === "JPY" ? "ja-JP" : "en-US", {
+        minimumFractionDigits: code === "JPY" ? 0 : 2,
+        maximumFractionDigits: code === "JPY" ? 0 : 2,
+        style: "currency",
+        currency: code,
+      });
+    }
+    return priceFormatters[code].format(Number(value));
   }
 
   function formatNikkei(value) {
@@ -89,6 +106,42 @@
       .replace(/>/g, "&gt;")
       .replace(/"/g, "&quot;")
       .replace(/'/g, "&#039;");
+  }
+
+  function companyCategory(company) {
+    return company && company.category ? company.category : "overseas-ai";
+  }
+
+  function displayTicker(company) {
+    return company && (company.displayTicker || company.ticker) ? (company.displayTicker || company.ticker) : "";
+  }
+
+  function visibleCompanies() {
+    if (!state.data || !Array.isArray(state.data.companies)) return [];
+    if (state.companyFilter === "all") return state.data.companies.slice();
+    return state.data.companies.filter(function (company) {
+      return companyCategory(company) === state.companyFilter;
+    });
+  }
+
+  function categoryClass(category) {
+    return "category-" + String(category || "overseas-ai").replace(/[^a-z0-9-]/g, "");
+  }
+
+  function formatDrawdown(value) {
+    var number = finite(value);
+    return number === null ? "未確認" : "−" + formatPercent(Math.abs(number), false);
+  }
+
+  function updateCompanyFilterUi() {
+    var config = COMPANY_FILTERS[state.companyFilter] || COMPANY_FILTERS.all;
+    document.querySelectorAll(".company-filter-button").forEach(function (button) {
+      var active = button.dataset.companyFilter === state.companyFilter;
+      button.classList.toggle("is-active", active);
+      button.setAttribute("aria-selected", active ? "true" : "false");
+    });
+    if (byId("companyFilterDescription")) byId("companyFilterDescription").textContent = config.description;
+    if (byId("companyFilterCount")) byId("companyFilterCount").textContent = visibleCompanies().length + "社を表示";
   }
 
   function loadManual() {
@@ -284,8 +337,9 @@
     var basket = data.market.aiBasket || {};
     var derived = data.derived || {};
     var hy = data.macro.highYieldOas || {};
-    var valuationPremium = median(state.valuations.map(function (item) { return item.premiumPct; }));
-    var impliedGap = median(state.valuations.map(function (item) { return item.impliedGapPct; }));
+    var overseasAiValuations = state.valuations.filter(function (item) { return companyCategory(item.company) === "overseas-ai"; });
+    var valuationPremium = median(overseasAiValuations.map(function (item) { return item.premiumPct; }));
+    var impliedGap = median(overseasAiValuations.map(function (item) { return item.impliedGapPct; }));
 
     var price = combineSignal(
       "price", "価格レジーム", "一日の急落ではなく、下落の深さ・持続・広がりを確認します。",
@@ -521,8 +575,27 @@
 
   function renderValuationChart() {
     if (typeof Chart === "undefined") return;
-    var usable = state.valuations.filter(function (item) { return item.market && item.baseValue !== null && item.existingValue !== null; });
+    var filter = state.companyFilter;
+    var usable = state.valuations.filter(function (item) {
+      var categoryMatches = filter === "all" || companyCategory(item.company) === filter;
+      return categoryMatches && item.market && item.baseValue !== null && item.existingValue !== null;
+    });
+    var config = COMPANY_FILTERS[filter] || COMPANY_FILTERS.all;
+    var omitted = visibleCompanies().length - usable.length;
+    if (byId("valuationChartTitle")) byId("valuationChartTitle").textContent = config.label + "の時価総額を3つに分解";
+    if (byId("valuationChartSubtitle")) {
+      byId("valuationChartSubtitle").textContent = usable.length + "社を比率で表示"
+        + (omitted > 0 ? "。正のFCFがない" + omitted + "社はDCF分解から除外" : "")
+        + "。円とドルの金額そのものは比較しません。";
+    }
+    var frame = byId("valuationChartFrame");
+    if (frame) frame.style.height = Math.max(360, Math.min(820, 150 + usable.length * 38)) + "px";
+    if (state.valuationChart) {
+      state.valuationChart.destroy();
+      state.valuationChart = null;
+    }
     if (!usable.length) return;
+
     var decomposition = usable.map(function (item) {
       var existing = clamp(item.existingValue / item.market * 100, 0, 100);
       var base = clamp(item.baseValue / item.market * 100, 0, 100);
@@ -530,11 +603,10 @@
       var premium = Math.max(0, 100 - Math.max(existing, base));
       return { existing: existing, growth: growth, premium: premium };
     });
-    if (state.valuationChart) state.valuationChart.destroy();
     state.valuationChart = new Chart(byId("valuationChart"), {
       type: "bar",
       data: {
-        labels: usable.map(function (item) { return item.ticker; }),
+        labels: usable.map(function (item) { return displayTicker(item.company); }),
         datasets: [
           { label: "既存利益の価値", data: decomposition.map(function (row) { return row.existing; }), backgroundColor: "#173854" },
           { label: "合理的な成長価値", data: decomposition.map(function (row) { return row.growth; }), backgroundColor: "#087f75" },
@@ -545,7 +617,19 @@
         indexAxis: "y",
         responsive: true,
         maintainAspectRatio: false,
-        plugins: { legend: { position: "bottom", labels: { color: chartTextColor(), boxWidth: 15 } }, tooltip: { callbacks: { label: function (context) { return context.dataset.label + " " + numberOne.format(context.parsed.x) + "%"; } } } },
+        interaction: { mode: "nearest", intersect: false },
+        plugins: {
+          legend: { position: "bottom", labels: { color: chartTextColor(), boxWidth: 15 } },
+          tooltip: {
+            callbacks: {
+              title: function (items) {
+                var item = usable[items[0].dataIndex];
+                return item.company.name + "（" + displayTicker(item.company) + "）";
+              },
+              label: function (context) { return context.dataset.label + " " + numberOne.format(context.parsed.x) + "%"; },
+            },
+          },
+        },
         scales: {
           x: { stacked: true, max: 100, grid: { color: "rgba(100,115,134,.15)" }, ticks: { color: chartTextColor(), callback: function (value) { return value + "%"; } } },
           y: { stacked: true, grid: { display: false }, ticks: { color: chartTextColor(), font: { weight: "bold" } } },
@@ -556,26 +640,38 @@
 
   function renderCompanyTable() {
     var lookup = Object.fromEntries(state.valuations.map(function (item) { return [item.ticker, item]; }));
-    byId("companyRows").innerHTML = state.data.companies.map(function (company) {
+    var companies = visibleCompanies();
+    updateCompanyFilterUi();
+    byId("companyRows").innerHTML = companies.map(function (company) {
       var model = lookup[company.ticker];
       var baseGap = model ? model.baseGapPct : null;
       var implied = model ? model.impliedGrowthPct : null;
+      var category = companyCategory(company);
+      var impliedText = model && model.baseValue !== null ? formatPercent(implied, false) : "算定不可";
+      var baseText = model && model.baseValue !== null ? formatPercent(baseGap, true) : "算定不可";
       return "<tr>"
-        + "<td><strong class=\"company-name\">" + escapeHtml(company.name) + "</strong><span class=\"company-group\">" + escapeHtml(company.ticker + " / " + company.group) + "</span></td>"
-        + "<td>" + formatPrice(company.price) + "<br><span class=\"" + cssValueClass(company.change1dPct, false) + "\">" + formatPercent(company.change1dPct, true) + "</span></td>"
-        + "<td class=\"" + cssValueClass(company.drawdown3yPct, true) + "\">−" + formatPercent(company.drawdown3yPct, false) + "</td>"
+        + "<td><strong class=\"company-name\">" + escapeHtml(company.name) + "</strong><span class=\"company-group\">" + escapeHtml(displayTicker(company) + " / " + company.group) + "</span></td>"
+        + "<td><span class=\"company-category " + categoryClass(category) + "\">" + escapeHtml(company.categoryLabel || COMPANY_FILTERS[category].label) + "</span></td>"
+        + "<td>" + formatPrice(company.price, company.currency) + "<br><span class=\"" + cssValueClass(company.change1dPct, false) + "\">" + formatPercent(company.change1dPct, true) + "</span></td>"
+        + "<td class=\"" + cssValueClass(company.drawdown3yPct, true) + "\">" + formatDrawdown(company.drawdown3yPct) + "</td>"
         + "<td class=\"" + cssValueClass(company.revenueGrowthYoYPct, false) + "\">" + formatPercent(company.revenueGrowthYoYPct, true) + "</td>"
-        + "<td>" + formatMoney(company.ttmFreeCashFlow) + "<br><span class=\"neutral\">利回り " + formatPercent(company.freeCashFlowYieldPct, false) + "</span></td>"
-        + "<td class=\"" + (implied !== null && implied > company.assumptions.baseGrowthPct + 5 ? "negative" : "neutral") + "\">" + formatPercent(implied, false) + "</td>"
-        + "<td class=\"" + cssValueClass(baseGap, false) + "\">" + formatPercent(baseGap, true) + "</td>"
+        + "<td>" + formatMoney(company.ttmFreeCashFlow, company.currency) + "<br><span class=\"neutral\">利回り " + formatPercent(company.freeCashFlowYieldPct, false) + "</span></td>"
+        + "<td class=\"" + (implied !== null && implied > company.assumptions.baseGrowthPct + 5 ? "negative" : implied === null ? "unknown" : "neutral") + "\">" + impliedText + "</td>"
+        + "<td class=\"" + (baseGap === null ? "unknown" : cssValueClass(baseGap, false)) + "\">" + baseText + "</td>"
         + "<td><button type=\"button\" class=\"icon-button detail-button\" data-ticker=\"" + escapeHtml(company.ticker) + "\" title=\"" + escapeHtml(company.name) + "の前提と感度を表示\"><i data-lucide=\"panel-right-open\" aria-hidden=\"true\"></i></button></td>"
         + "</tr>";
     }).join("");
 
-    byId("companySelect").innerHTML = state.data.companies.map(function (company) {
-      return "<option value=\"" + escapeHtml(company.ticker) + "\">" + escapeHtml(company.ticker + " / " + company.name) + "</option>";
+    byId("companySelect").innerHTML = COMPANY_CATEGORY_ORDER.map(function (category) {
+      var groupCompanies = state.data.companies.filter(function (company) { return companyCategory(company) === category; });
+      if (!groupCompanies.length) return "";
+      var options = groupCompanies.map(function (company) {
+        return "<option value=\"" + escapeHtml(company.ticker) + "\">" + escapeHtml(displayTicker(company) + " / " + company.name) + "</option>";
+      }).join("");
+      return "<optgroup label=\"" + escapeHtml(COMPANY_FILTERS[category].label) + "\">" + options + "</optgroup>";
     }).join("");
-    if (!lookup[state.selectedTicker]) state.selectedTicker = state.data.companies[0] ? state.data.companies[0].ticker : "";
+
+    if (!lookup[state.selectedTicker]) state.selectedTicker = companies[0] ? companies[0].ticker : (state.data.companies[0] ? state.data.companies[0].ticker : "");
     byId("companySelect").value = state.selectedTicker;
     document.querySelectorAll(".detail-button").forEach(function (button) {
       button.addEventListener("click", function () {
@@ -586,6 +682,7 @@
         byId("companyDetail").scrollIntoView({ behavior: "smooth", block: "start" });
       });
     });
+    if (window.lucide) window.lucide.createIcons();
   }
 
   function currentCompany() {
@@ -621,37 +718,60 @@
       discount: finite(byId("discountInput").value),
       terminal: finite(byId("terminalInput").value),
     });
-    byId("detailCompanyName").textContent = company.name + "（" + company.ticker + "）";
-    byId("detailCompanyContext").innerHTML = escapeHtml(company.group + "。財務基準日 " + (company.filingDate || "未確認") + "。")
-      + " <a href=\"" + escapeHtml(company.irUrl) + "\" target=\"_blank\" rel=\"noopener\">企業IRで照合</a>";
+    var category = companyCategory(company);
+    var categoryLabel = company.categoryLabel || (COMPANY_FILTERS[category] ? COMPANY_FILTERS[category].label : category);
+    var classificationUrl = company.classificationSourceUrl || company.irUrl;
+    byId("detailCompanyName").textContent = company.name + "（" + displayTicker(company) + "）";
+    byId("detailCompanyContext").innerHTML = escapeHtml(
+      (company.market || "市場未確認") + " / " + (company.currency || "USD") + "。"
+      + company.group + "。財務基準日 " + (company.filingDate || "未確認") + "。"
+    ) + " <a href=\"" + escapeHtml(company.irUrl) + "\" target=\"_blank\" rel=\"noopener\">公式IRを開く</a>";
+
+    if (byId("companyClassification")) {
+      byId("companyClassification").innerHTML =
+        "<div><span class=\"company-category " + categoryClass(category) + "\">" + escapeHtml(categoryLabel) + "</span>"
+        + "<p><strong>この分類にした理由</strong>" + escapeHtml(company.classificationNote || "事業構成とAI投資テーマへの収益感応度から分類しています。") + "</p>"
+        + "<a href=\"" + escapeHtml(classificationUrl) + "\" target=\"_blank\" rel=\"noopener\">分類根拠となる企業資料</a></div>"
+        + "<div class=\"company-model-warning\"><p><strong>この会社をDCFで読むときの注意</strong>"
+        + escapeHtml(company.valuationCaveat || "標準化されたTTM FCFを使う一次スクリーニングです。企業IRで一時要因を照合してください。")
+        + "</p></div>";
+    }
+
     var stats = [
-      ["時価総額", formatMoney(company.marketCap)],
-      ["企業価値", formatMoney(company.enterpriseValue)],
-      ["TTM売上", formatMoney(company.ttmRevenue)],
+      ["時価総額", formatMoney(company.marketCap, company.currency)],
+      ["企業価値", formatMoney(company.enterpriseValue, company.currency)],
+      ["TTM売上", formatMoney(company.ttmRevenue, company.currency)],
       ["営業利益率", formatPercent(company.operatingMarginPct, false)],
-      ["TTM FCF", formatMoney(company.ttmFreeCashFlow)],
+      ["TTM FCF", formatMoney(company.ttmFreeCashFlow, company.currency)],
       ["FCF利回り", formatPercent(company.freeCashFlowYieldPct, false)],
     ];
     byId("fundamentalStrip").innerHTML = stats.map(function (row) {
       return "<div class=\"fundamental-stat\"><span>" + escapeHtml(row[0]) + "</span><strong>" + escapeHtml(row[1]) + "</strong></div>";
     }).join("");
 
-    byId("bearValue").textContent = formatPrice(model.bearPrice);
+    byId("bearValue").textContent = formatPrice(model.bearPrice, company.currency);
     byId("bearDownside").textContent = gapText(model.bearGapPct);
-    byId("baseValue").textContent = formatPrice(model.basePrice);
+    byId("baseValue").textContent = formatPrice(model.basePrice, company.currency);
     byId("baseDownside").textContent = gapText(model.baseGapPct);
-    byId("bullValue").textContent = formatPrice(model.bullPrice);
+    byId("bullValue").textContent = formatPrice(model.bullPrice, company.currency);
     byId("bullDownside").textContent = gapText(model.bullGapPct);
-    byId("impliedGrowth").textContent = formatPercent(model.impliedGrowthPct, false);
+    byId("impliedGrowth").textContent = model.baseValue === null ? "算定不可" : formatPercent(model.impliedGrowthPct, false);
 
     if (model.baseValue === null) {
-      byId("scenarioExplanation").textContent = "FCFが正でない、または必要データが不足しているため、この方法では価値を算定できません。赤字企業を売上倍率だけで機械的に評価しないための制限です。";
+      var unavailable = company.ticker === "9984.T"
+        ? "ソフトバンクグループは投資持株会社であり、連結FCFが負でも保有資産が消えるわけではありません。この画面の連結FCF型DCFでは算定せず、Armなどの保有資産価値から純有利子負債を引くNAV/SOTPで再評価する必要があります。"
+        : "FCFが正でない、または必要データが不足しているため、この方法では価値を算定できません。売上倍率だけで機械的に埋めず、算定不可として残します。";
+      byId("scenarioExplanation").textContent = unavailable + " " + (company.valuationCaveat || "");
     } else {
-      var comparison = model.impliedGrowthPct === null ? "暗黙成長率は上限範囲内で解けませんでした。" : "現在価格は、FCFが今後10年間に年平均" + formatPercent(model.impliedGrowthPct, false) + "成長する前提に相当します。";
+      var comparison = model.impliedGrowthPct === null
+        ? "現在価格を説明するFCF成長率は、このモデルの探索上限までに解けませんでした。"
+        : "現在価格は、FCFが今後10年間に年平均" + formatPercent(model.impliedGrowthPct, false) + "成長する前提に相当します。";
       var downside = model.baseGapPct < 0
         ? "基準前提では現在価格から約" + formatPercent(Math.abs(model.baseGapPct), false) + "下の水準です。"
         : "基準前提では現在価格を約" + formatPercent(model.baseGapPct, false) + "上回ります。";
-      byId("scenarioExplanation").textContent = comparison + " " + downside + " 弱気値は底値保証ではなく、FCF・割引率・競争条件を置いた場合の計算結果です。";
+      byId("scenarioExplanation").textContent = comparison + " " + downside
+        + " 弱気値は底値保証ではなく、FCF、資本コスト、競争条件を置いた場合の計算結果です。 "
+        + (company.valuationCaveat || "");
     }
     renderSensitivity(company, model);
   }
@@ -666,7 +786,7 @@
         var value = dcfValue(company.ttmFreeCashFlow, growth, discount, model.terminalPct, model.years);
         var price = value !== null && company.marketCap && company.price ? value / company.marketCap * company.price : null;
         var near = price !== null && Math.abs(price / company.price - 1) <= 0.1;
-        html += "<td class=\"" + (near ? "near-market" : "") + "\">" + formatPrice(price) + "</td>";
+        html += "<td class=\"" + (near ? "near-market" : "") + "\">" + formatPrice(price, company.currency) + "</td>";
       });
       html += "</tr>";
     });
@@ -1054,6 +1174,7 @@
     renderMarketReading();
     renderMarketChart();
     renderNikkeiBottom();
+    updateCompanyFilterUi();
     renderValuationChart();
     renderCompanyTable();
     setDefaultControls();
@@ -1091,8 +1212,30 @@
 
   function bindEvents() {
     byId("refreshButton").addEventListener("click", function () { loadData(true); });
+    document.querySelectorAll(".company-filter-button").forEach(function (button) {
+      button.addEventListener("click", function () {
+        if (!state.data) return;
+        state.companyFilter = button.dataset.companyFilter || "all";
+        var companies = visibleCompanies();
+        if (!companies.some(function (company) { return company.ticker === state.selectedTicker; })) {
+          state.selectedTicker = companies[0] ? companies[0].ticker : state.selectedTicker;
+        }
+        updateCompanyFilterUi();
+        renderValuationChart();
+        renderCompanyTable();
+        setDefaultControls();
+        renderCompanyDetail();
+      });
+    });
     byId("companySelect").addEventListener("change", function () {
       state.selectedTicker = this.value;
+      var selected = currentCompany();
+      if (selected && state.companyFilter !== "all" && companyCategory(selected) !== state.companyFilter) {
+        state.companyFilter = companyCategory(selected);
+        updateCompanyFilterUi();
+        renderValuationChart();
+        renderCompanyTable();
+      }
       setDefaultControls();
       renderCompanyDetail();
     });
