@@ -1,7 +1,7 @@
 # ファクトチェック・ロジック監査記録
 
 監査日: 2026-07-19
-対象: AIバブル崩壊・日経平均底値モニター Method v3.4
+対象: AIバブル崩壊・日経平均底値モニター Method v3.5
 
 ## 結論
 
@@ -24,6 +24,7 @@ SOXは日本株の崩壊指数ではありません。SOXは「米国市場に�
 | 未使用データ | 米10年実質金利とSEC APIリンクが、計算に使わないまま残存 | 取得・表示から削除 |
 | 古い画面分岐 | 変更前の判定名を参照し、説明文へ到達しない分岐があった | 現在の判定名へ修正 |
 | 手入力 | 保存値がHTMLの範囲制約を迂回できた | 再計算時に値を範囲内へ制限 |
+| IT崩壊の波及比較 | NASDAQ約78%下落だけでは、日経平均や非IT企業がどれだけ巻き込まれたか不明 | 同一窓の騰落率と銘柄別最大下落を12系列で再計算。日本だけ2003年4月まで延長 |
 | 公開前検証 | データ形や公式補正値の破損を自動検知しなかった | validate_data.pyを追加し、GitHub Pages公開前に実行 |
 
 公開前検証では、価格と高値からの下落率、時価総額・現金・負債からのEV概算、評価用FCF利回り、全26社のDCF前提範囲、トヨタとホンダの基準DCF比率、HTMLとJavaScriptの参照関係も再計算します。今回のトヨタ型の入力誤りが再発した場合は公開処理を停止します。
@@ -43,6 +44,32 @@ SOXは日本株の崩壊指数ではありません。SOXは「米国市場に�
    グローバルなリスク回避、ドル資金、為替、信用スプレッドを通じて日本市場にも届きます。
 
 ただし、日本銀行の研究は米国ショックの波及が時期、貿易構造、政策、為替制度で変わり、短期の金融伝播が実体経済へ強く持続しない場合も示しています。このため、サイトは米国ストレスと日本側の確認を分離します。
+
+## ITバブル崩壊時の波及比較
+
+### 比較方法
+
+主比較窓はNASDAQ総合の終値ベースで、2000年3月10日の高値から2002年10月9日の安値までです。全系列に同じ開始日と終了日を当てた「同一期間の騰落率」と、各系列が窓内で付けた高値からその後の安値までの「最大下落率」を分けました。日本市場はNASDAQの底後も下げたため、日本系列だけ2003年4月28日まで延長した最大下落も示します。
+
+価格はYahoo Financeの調整後終値です。株式分割と配当が反映されるため、未調整の株価下落率と完全には一致しません。データは2026年7月19日に取得し、開始・終了リターンと高値・安値の恒等式を公開前に再計算します。
+
+### 確認された差
+
+| 分類 | 期間内最大下落率の中央値 | 読み方 |
+|---|---:|---|
+| IT・半導体直撃群 | 約86.1% | SOX、NASDAQ、ソフトバンクグループ、富士通。期待剥落の直撃群 |
+| 市場全体 | 約54.1% | S&P 500と日経平均。IT以外も含む市場全体へ波及 |
+| 技術感応型の複合企業 | 約57.4% | ソニーとキヤノン。純粋な非ITではない |
+| 非ITの実業・ディフェンシブ例 | 約40.5% | トヨタ、ホンダ、花王、武田薬品。直撃群より小さくても無傷ではない |
+
+- トヨタは同じ期間に最大約51.1%下落し、2003年4月まで延長すると約55.2%でした。
+- ソニーは最大約73.3%、延長窓では約81.6%でした。2000年のAnnual Reportで電子、ゲーム、半導体、情報技術を確認できるため、非ITには分類しません。
+- ホンダは固定窓の開始から終了まででは+25.5%でしたが、窓内では最大約37.8%下落しました。終点のリターンだけでは、途中で必要だった損失許容度を過小評価します。
+- 日経平均は固定窓で最大約59.0%、2003年4月まででは約63.5%下落しました。日経公式の市場史も、ITバブル崩壊の日本への波及と2003年までの下落継続を記載しています。
+
+### 解釈上の制約
+
+この差は、IT崩壊だけの純粋な因果効果ではありません。2000～2003年には米国景気後退、同時多発テロ、日本のデフレ・銀行不安、イラク情勢が重なっています。また、現在まで存続する代表企業12系列の小標本で、生存者バイアスがあります。過去の下落率を2026年の個別企業へそのまま当てず、現在の利益、FCF、評価、信用、為替と反転確認を併用します。
 
 ## 企業DCFの残る限界
 
@@ -70,6 +97,11 @@ SOXは日本株の崩壊指数ではありません。SOXは「米国市場に�
 - [日経公式: Nikkei Semiconductor Stock Index](https://indexes.nikkei.co.jp/en/nkave/index/profile?cid=2&idx=nkscd)
 - [経済産業省: 日米戦略投資・AIデータセンター関連供給網](https://www.meti.go.jp/english/press/2026/0218_002.html)
 - [IMF: When Bubbles Burst](https://www.elibrary.imf.org/display/book/9781589062122/ch02.xml)
+- [日経公式: ITバブル後を含む市場の歴史](https://indexes.nikkei.co.jp/70th/historyofthemarket-article.html)
+- [Nasdaq: A Tale of Three Crises over Two Decades](https://indexes.nasdaq.com/docs/Nasdaq-100_A%20Tale%20of%20Three%20Crises%20over%20Two%20Decades.pdf)
+- [Sony Annual Report 2000](https://www.sony.com/SonyInfo/IR/library/ar/ar_sony_2000.pdf)
+- [Fujitsu Annual Report 2000](https://www.fujitsu.com/downloads/IR/annual/2000/all.pdf)
+- [SoftBank Group: Annual Reports](https://group.softbank/en/ir/financials/annual_reports)
 - [日経公式: 2009年3月10日日次サマリー](https://indexes.nikkei.co.jp/en/nkave/archives/summary?dt=03102009&idx=nk225)
 - [Toyota FY2026 Financial Summary](https://global.toyota/pages/global_toyota/ir/financial-results/2026_4q_summary_en.pdf)
 - [Honda Cash Flows - Non-financial Services Businesses](https://global.honda/en/investors/financial_data/cashflow.html)

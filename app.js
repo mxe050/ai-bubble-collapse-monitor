@@ -1198,6 +1198,74 @@
     }).join("");
   }
 
+  function renderDotComComparison() {
+    var comparison = state.data && state.data.market ? state.data.market.dotComComparison || {} : {};
+    var rows = Array.isArray(comparison.rows) ? comparison.rows : [];
+    var summaries = Array.isArray(comparison.groupSummaries) ? comparison.groupSummaries : [];
+    var windowInfo = comparison.window || {};
+    var summaryByGroup = {};
+    summaries.forEach(function (summary) { summaryByGroup[summary.group] = summary; });
+
+    if (!rows.length) {
+      byId("dotcomWindowBasis").textContent = "歴史比較データを読み込めませんでした。";
+      byId("dotcomGroupSummary").innerHTML = "";
+      byId("dotcomComparisonRows").innerHTML = "";
+      byId("dotcomKeyFinding").innerHTML = "";
+      return;
+    }
+
+    byId("dotcomWindowBasis").innerHTML =
+      "<div><span>比較窓</span><strong>" + escapeHtml(windowInfo.startDate || "") + " → " + escapeHtml(windowInfo.endDate || "") + "</strong><small>" + escapeHtml(windowInfo.definition || "") + "</small></div>"
+      + "<div><span>同じ期間の騰落率</span><strong>窓の初日から最終日</strong><small>開始時に保有し続けた場合の変化。銘柄自身の天井とは限りません。</small></div>"
+      + "<div><span>期間内の最大下落</span><strong>銘柄ごとの高値から安値</strong><small>途中で経験した最大の含み損に近く、資金管理にはこちらが重要です。</small></div>"
+      + "<div><span>日本の延長期間</span><strong>～" + escapeHtml(comparison.japanExtendedEndDate || "") + "</strong><small>日本株はNASDAQの底後も下げたため、国内銘柄だけ延長して確認します。</small></div>";
+
+    byId("dotcomGroupSummary").innerHTML = summaries.map(function (summary) {
+      var groupClass = "group-" + String(summary.group || "").replace(/[^a-z-]/g, "");
+      return "<article class='dotcom-summary-item " + groupClass + "'>"
+        + "<span>" + escapeHtml(summary.label || summary.group) + "</span>"
+        + "<strong>" + formatDrawdown(summary.medianMaxDrawdownPct) + "</strong>"
+        + "<small>期間内最大下落の中央値（" + escapeHtml(summary.count) + "系列）</small>"
+        + "<p>同じ窓の騰落率中央値 " + formatPercent(summary.medianWindowReturnPct, true) + "</p>"
+        + "</article>";
+    }).join("");
+
+    byId("dotcomComparisonRows").innerHTML = rows.map(function (row) {
+      var summary = summaryByGroup[row.group] || {};
+      var groupClass = "group-" + String(row.group || "").replace(/[^a-z-]/g, "");
+      var extended = finite(row.extendedMaxDrawdownPct);
+      var extendedCell = extended === null
+        ? "<span class='not-applicable'>対象外</span><small>米国の比較窓で確認</small>"
+        : "<strong>" + formatDrawdown(extended) + "</strong><small>" + escapeHtml(row.extendedPeakDate || "") + " → " + escapeHtml(row.extendedTroughDate || "") + "</small>";
+      var classificationLink = row.classificationSourceUrl
+        ? " <a href='" + escapeHtml(row.classificationSourceUrl) + "' target='_blank' rel='noopener'>分類根拠</a>"
+        : "";
+      return "<tr class='" + groupClass + "'>"
+        + "<th><span class='dotcom-group-tag'>" + escapeHtml(summary.label || row.group) + "</span><strong>" + escapeHtml(row.name) + "</strong><small>" + escapeHtml(row.region) + " / " + escapeHtml(row.symbol) + "</small></th>"
+        + "<td class='" + cssValueClass(row.windowReturnPct, false) + "'><strong>" + formatPercent(row.windowReturnPct, true) + "</strong><small>" + escapeHtml(row.startDate) + " → " + escapeHtml(row.endDate) + "</small></td>"
+        + "<td class='negative'><strong>" + formatDrawdown(row.maxDrawdownPct) + "</strong><small>" + escapeHtml(row.peakDate) + " → " + escapeHtml(row.troughDate) + "</small></td>"
+        + "<td class='negative'>" + extendedCell + "</td>"
+        + "<td><p>" + escapeHtml(row.note) + "</p><a href='" + escapeHtml(row.sourceUrl) + "' target='_blank' rel='noopener'>価格履歴</a>" + classificationLink + "</td>"
+        + "</tr>";
+    }).join("");
+
+    var direct = summaryByGroup["direct-tech"] || {};
+    var broad = summaryByGroup["broad-market"] || {};
+    var nonTech = summaryByGroup["non-tech"] || {};
+    var rowById = {};
+    rows.forEach(function (row) { rowById[row.id] = row; });
+    var toyota = rowById.toyota || {};
+    var sony = rowById.sony || {};
+    var honda = rowById.honda || {};
+    byId("dotcomKeyFinding").innerHTML =
+      "<div><span>01</span><p><strong>直撃群だけでなく市場全体も大きく下落</strong>IT・半導体直撃群の最大下落中央値は" + formatDrawdown(direct.medianMaxDrawdownPct) + "、市場全体でも" + formatDrawdown(broad.medianMaxDrawdownPct) + "でした。同時期には景気・利益見通し・投資家のリスク許容度の悪化も重なり、下落はIT株だけにとどまりませんでした。</p></div>"
+      + "<div><span>02</span><p><strong>非ITは下落が小さい傾向でも無傷ではない</strong>非IT4社の最大下落中央値は" + formatDrawdown(nonTech.medianMaxDrawdownPct) + "。トヨタは最大" + formatDrawdown(toyota.maxDrawdownPct) + "、ソニーは技術感応型として" + formatDrawdown(sony.maxDrawdownPct) + "でした。</p></div>"
+      + "<div><span>03</span><p><strong>終点だけを見ると途中の痛みを見落とす</strong>ホンダは同じ期間の終点では" + formatPercent(honda.windowReturnPct, true) + "でも、途中の最大下落は" + formatDrawdown(honda.maxDrawdownPct) + "でした。底値で買う計画には、最終リターンより途中の最大下落と反転条件が重要です。</p></div>";
+
+    byId("dotcomOverlapWarning").textContent = comparison.overlapWarning || "";
+    byId("dotcomSelectionWarning").textContent = comparison.selectionWarning || "";
+  }
+
   function renderNikkeiChecklist(confirmation) {
     byId("nikkeiChecklist").innerHTML = confirmation.items.map(function (item) {
       var icon = item.status === "pass" ? "check" : item.status === "watch" ? "clock-3" : item.status === "unknown" ? "circle-help" : "minus";
@@ -1339,6 +1407,7 @@
     renderJapanTransmission(transmission);
     renderMarketReading();
     renderMarketChart();
+    renderDotComComparison();
     renderNikkeiBottom();
     updateCompanyFilterUi();
     renderValuationChart();
@@ -1361,7 +1430,7 @@
       var response = await fetch("data/latest.json?ts=" + Date.now(), { cache: "no-store" });
       if (!response.ok) throw new Error("HTTP " + response.status);
       var payload = await response.json();
-      if (!payload.companies || !payload.market || Number(payload.schemaVersion) < 7) throw new Error("データ形式が古いか不正です");
+      if (!payload.companies || !payload.market || Number(payload.schemaVersion) < 8) throw new Error("データ形式が古いか不正です");
       state.data = payload;
       renderAll();
     } catch (error) {

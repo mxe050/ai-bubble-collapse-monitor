@@ -42,6 +42,7 @@
       <a href="#valuation">企業価値</a>
       <a href="#manual-inputs">未取得データ</a>
       <a href="#history">過去との比較</a>
+      <a href="#dotcom-spillover">IT崩壊の波及</a>
       <a href="#methodology">計算根拠</a>
       <a href="#sources">出典</a>
     </div>
@@ -595,6 +596,43 @@
           </table>
         </div>
 
+        <div id="dotcom-spillover" class="dotcom-case-study">
+          <div class="dotcom-heading">
+            <p class="section-kicker">DOT-COM SPILLOVER: SAME WINDOW, DIFFERENT DAMAGE</p>
+            <h3>IT株だけでは終わらなかった：市場全体と日本企業への波及</h3>
+            <p>「IT株が何%下がったか」だけでは、AIバブル崩壊時の買い場を考える材料として不十分です。IT企業と同じ期間に、市場全体、技術感応型の複合企業、非ITの実業企業がどこまで巻き込まれたかを同じ物差しで比較します。</p>
+          </div>
+
+          <div id="dotcomWindowBasis" class="dotcom-window-basis" aria-live="polite">比較条件を読み込んでいます。</div>
+          <div id="dotcomGroupSummary" class="dotcom-group-summary" aria-live="polite"></div>
+
+          <div class="dotcom-table-wrap">
+            <table class="dotcom-table">
+              <thead>
+                <tr>
+                  <th>分類・銘柄</th>
+                  <th>同じ期間の騰落率</th>
+                  <th>期間内の最大下落</th>
+                  <th>日本の下落延長<br>2003年4月28日まで</th>
+                  <th>この数字が意味すること</th>
+                </tr>
+              </thead>
+              <tbody id="dotcomComparisonRows"></tbody>
+            </table>
+          </div>
+
+          <div id="dotcomKeyFinding" class="dotcom-key-finding" aria-live="polite"></div>
+
+          <div class="dotcom-cautions">
+            <h4>この表を将来の下落率へ機械的に当てはめない</h4>
+            <p id="dotcomOverlapWarning">同時期に重なった景気・信用・地政学要因を確認しています。</p>
+            <p id="dotcomSelectionWarning">銘柄選択の限界を確認しています。</p>
+            <p><strong>買い場への使い方：</strong>AI直撃銘柄の下落率を非IT株へそのまま移すのではなく、①AI期待の剥落、②市場全体のリスク回避、③景気と企業利益、④日本固有の信用・為替要因を分け、現在の底値モデルと反転確認へ接続します。</p>
+          </div>
+
+          <p class="dark-source">価格はYahoo Financeの調整後終値を2026年7月19日に取得して再計算。銘柄ごとの価格履歴と分類根拠は表内に表示します。日本市場の時系列説明は<a href="https://indexes.nikkei.co.jp/70th/historyofthemarket-article.html" target="_blank" rel="noopener">日経公式「市場の歴史」</a>で照合しました。</p>
+        </div>
+
         <div class="history-insights">
           <article><span>1</span><div><strong>正しい物語でも価格は間違う</strong><p>インターネットの長期的成功は、2000年時点のすべての株価を正当化しませんでした。AIでも同じ区別が必要です。</p></div></article>
           <article><span>2</span><div><strong>崩壊は利益予想の変更で深くなる</strong><p>倍率だけが下がる調整と、売上・利益・投資計画そのものが下がる崩壊を分けます。</p></div></article>
@@ -619,6 +657,7 @@
             <tbody>
               <tr><th>米国AI相場が崩壊したか</th><td><a href="#signals">米国側の崩壊シグナル</a></td><td>SOX、海外AI10社の四半期業績、CapEx、供給、米国HY OAS</td><td>崩壊確認4群80点＋別枠の評価脆弱性20点＋3ゲート</td><td>米国側の崩壊段階・確認証拠・欠損幅</td></tr>
               <tr><th>米国から日本へ波及したか</th><td><a href="#us-japan-link">米国→日本</a></td><td>SOX、日経平均、日本AI・半導体連動8社</td><td>短期波及2項目＋持続的波及4項目</td><td>日本への短期波及・持続的波及</td></tr>
+              <tr><th>IT崩壊で非ITもどこまで下がるか</th><td><a href="#dotcom-spillover">IT崩壊の波及</a></td><td>2000～2003年のIT指数、広範囲指数、日本の技術感応型・非IT企業</td><td>同一期間騰落率＋期間内最大下落＋日本延長期間</td><td>直撃群と非IT群の下落差、含み損の大きさ、単純類推の限界</td></tr>
               <tr><th>日経の底値候補</th><td><a href="#nikkei-bottom">日経底値</a></td><td>現在の日経、PER・PBR参照日の終値と倍率、利益悪化、過去下落率</td><td>EPS法・PBR法・歴史法</td><td>底値ゾーン・残り下落余地・接近度</td></tr>
               <tr><th>底打ちしたか</th><td><a href="#bottom-confirmation">反転確認</a></td><td>120日安値、50日線、HY OAS、市場の広がり</td><td>5項目100点</td><td>底打ち確認度・未充足項目</td></tr>
               <tr><th>残る企業はどれか</th><td><a href="#valuation">企業価値</a></td><td>海外AI10社・日本16社のFCF、成長率、資本コスト、事業構成</td><td>通貨別DCF・逆DCF・感度分析</td><td>本体価値・期待上乗せ・弱気価値・企業別の注意点</td></tr>
@@ -731,6 +770,10 @@
           <a href="https://indexes.nikkei.co.jp/en/nkave/archives/summary?idx=nk225" target="_blank" rel="noopener">日経公式：日次サマリー</a>
           <a href="https://indexes.nikkei.co.jp/nkave/archives/file/users_guide_jp.pdf" target="_blank" rel="noopener">日経公式：PER・PBR計算式</a>
           <a href="https://indexes.nasdaq.com/docs/Nasdaq-100_A%20Tale%20of%20Three%20Crises%20over%20Two%20Decades.pdf" target="_blank" rel="noopener">Nasdaq：Tech Bubble比較</a>
+          <a href="https://indexes.nikkei.co.jp/70th/historyofthemarket-article.html" target="_blank" rel="noopener">日経公式：ITバブル後を含む市場の歴史</a>
+          <a href="https://www.sony.com/SonyInfo/IR/library/ar/ar_sony_2000.pdf" target="_blank" rel="noopener">Sony：Annual Report 2000（当時の事業分類）</a>
+          <a href="https://www.fujitsu.com/downloads/IR/annual/2000/all.pdf" target="_blank" rel="noopener">Fujitsu：Annual Report 2000</a>
+          <a href="https://group.softbank/en/ir/financials/annual_reports" target="_blank" rel="noopener">SoftBank Group：過去のAnnual Reports</a>
           <a href="https://indexes.nikkei.co.jp/en/nkave/archives/summary?dt=07172026&amp;idx=nk225" target="_blank" rel="noopener">日経公式：2026年7月17日の構成・PER・PBR</a>
           <a href="https://indexes.nikkei.co.jp/en/nkave/index/profile?cid=2&amp;idx=nkscd" target="_blank" rel="noopener">日経公式：半導体株指数</a>
           <a href="https://www.meti.go.jp/english/press/2026/0218_002.html" target="_blank" rel="noopener">経産省：日米AI・データセンター供給網</a>
@@ -743,7 +786,7 @@
   <footer>
     <div class="content footer-inner">
       <p><strong>重要：</strong>本サイトは教育・調査用です。投資助言、価格予測、売買推奨ではありません。取得値には遅延・欠損・定義差があり、重要な判断では企業IRと提出資料を確認してください。</p>
-      <p>Method v3.4 / <a href="https://github.com/mxe050/ai-bubble-collapse-monitor" target="_blank" rel="noopener">GitHub</a></p>
+      <p>Method v3.5 / <a href="https://github.com/mxe050/ai-bubble-collapse-monitor" target="_blank" rel="noopener">GitHub</a></p>
     </div>
   </footer>
 

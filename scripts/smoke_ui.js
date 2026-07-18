@@ -79,10 +79,16 @@ setTimeout(() => {
   assert.notStrictEqual(elements.get("nikkeiZone").textContent, "―");
   assert.match(elements.get("companyRows").innerHTML, /トヨタ自動車/);
   assert.match(elements.get("companyRows").innerHTML, /本田技研工業/);
+  assert.match(elements.get("dotcomComparisonRows").innerHTML, /トヨタ自動車/);
+  assert.match(elements.get("dotcomComparisonRows").innerHTML, /ソニーグループ/);
+  assert.match(elements.get("dotcomComparisonRows").innerHTML, /本田技研工業/);
+  assert.match(elements.get("dotcomKeyFinding").innerHTML, /最大下落中央値/);
+  assert.match(elements.get("dotcomWindowBasis").innerHTML, /2000-03-10/);
   console.log(JSON.stringify({
     headline: elements.get("headlineConclusion").textContent,
     transmission: elements.get("japanTransmissionStatus").textContent,
     nikkeiZone: elements.get("nikkeiZone").textContent,
+    dotcomRows: (elements.get("dotcomComparisonRows").innerHTML.match(/<tr/g) || []).length,
     health: elements.get("dataHealth").textContent,
   }, null, 2));
 }, 50);

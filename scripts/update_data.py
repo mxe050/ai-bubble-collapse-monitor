@@ -468,6 +468,178 @@ HISTORICAL_EPISODES: list[dict[str, str]] = [
     },
 ]
 
+DOTCOM_GROUP_LABELS = {
+    "direct-tech": "IT・半導体直撃群",
+    "broad-market": "市場全体",
+    "tech-sensitive": "技術感応型の複合企業",
+    "non-tech": "非ITの実業・ディフェンシブ例",
+}
+
+# Fixed historical audit set. Values use Yahoo Finance adjusted closes, retrieved
+# and independently recalculated on 2026-07-19. Historical values do not need
+# to be downloaded every six hours with the live monitoring data.
+DOTCOM_COMPARISON_ROWS: list[dict[str, Any]] = [
+    {
+        "id": "sox", "symbol": "^SOX", "name": "SOX", "region": "米国", "group": "direct-tech",
+        "startDate": "2000-03-10", "endDate": "2002-10-09",
+        "startAdjustedClose": 1332.08544921875, "endAdjustedClose": 213.9564666748047,
+        "windowReturnPct": -83.93823258107899, "maxDrawdownPct": 83.93823258107899,
+        "peakDate": "2000-03-10", "peakAdjustedClose": 1332.08544921875,
+        "troughDate": "2002-10-09", "troughAdjustedClose": 213.9564666748047,
+        "note": "半導体株の直撃例。AI相場で現在使うSOXの前回サイクルです。",
+        "sourceUrl": "https://finance.yahoo.com/quote/%5ESOX/history/",
+        "classificationSourceUrl": "https://indexes.nasdaqomx.com/docs/methodology_SOX.pdf",
+    },
+    {
+        "id": "nasdaq", "symbol": "^IXIC", "name": "NASDAQ総合", "region": "米国", "group": "direct-tech",
+        "startDate": "2000-03-10", "endDate": "2002-10-09",
+        "startAdjustedClose": 5048.6201171875, "endAdjustedClose": 1114.1099853515625,
+        "windowReturnPct": -77.93238628593402, "maxDrawdownPct": 77.93238628593402,
+        "peakDate": "2000-03-10", "peakAdjustedClose": 5048.6201171875,
+        "troughDate": "2002-10-09", "troughAdjustedClose": 1114.1099853515625,
+        "note": "ITバブル全体の基準。無収益企業だけでなく大型技術株も大きく再評価されました。",
+        "sourceUrl": "https://finance.yahoo.com/quote/%5EIXIC/history/",
+        "classificationSourceUrl": "https://indexes.nasdaq.com/docs/Nasdaq-100_A%20Tale%20of%20Three%20Crises%20over%20Two%20Decades.pdf",
+    },
+    {
+        "id": "softbank", "symbol": "9984.T", "name": "ソフトバンクグループ", "region": "日本", "group": "direct-tech",
+        "startDate": "2000-03-10", "endDate": "2002-10-09",
+        "startAdjustedClose": 1210.5811767578125, "endAdjustedClose": 35.00177001953125,
+        "windowReturnPct": -97.10868046756903, "maxDrawdownPct": 97.70544407718896,
+        "peakDate": "2000-03-21", "peakAdjustedClose": 1525.4267578125,
+        "troughDate": "2002-10-09", "troughAdjustedClose": 35.00177001953125,
+        "extendedMaxDrawdownPct": 97.99739155185597, "extendedPeakDate": "2000-03-21",
+        "extendedPeakAdjustedClose": 1525.4266357421875, "extendedTroughDate": "2002-11-18",
+        "extendedTroughAdjustedClose": 30.548322677612305,
+        "note": "当時のインターネット投資・Yahoo! JAPAN関連の代表例です。",
+        "sourceUrl": "https://finance.yahoo.com/quote/9984.T/history/",
+        "classificationSourceUrl": "https://group.softbank/en/ir/financials/annual_reports",
+    },
+    {
+        "id": "fujitsu", "symbol": "6702.T", "name": "富士通", "region": "日本", "group": "direct-tech",
+        "startDate": "2000-03-10", "endDate": "2002-10-09",
+        "startAdjustedClose": 2474.442626953125, "endAdjustedClose": 320.2995910644531,
+        "windowReturnPct": -87.05568730608032, "maxDrawdownPct": 88.34897914472022,
+        "peakDate": "2000-07-04", "peakAdjustedClose": 2749.11181640625,
+        "troughDate": "2002-10-09", "troughAdjustedClose": 320.2995910644531,
+        "extendedMaxDrawdownPct": 91.89260966920956, "extendedPeakDate": "2000-07-04",
+        "extendedPeakAdjustedClose": 2749.11181640625, "extendedTroughDate": "2003-04-14",
+        "extendedTroughAdjustedClose": 222.8812255859375,
+        "note": "2000年当時『Everything on the Internet』を掲げた日本IT企業の例です。",
+        "sourceUrl": "https://finance.yahoo.com/quote/6702.T/history/",
+        "classificationSourceUrl": "https://www.fujitsu.com/downloads/IR/annual/2000/all.pdf",
+    },
+    {
+        "id": "sp500", "symbol": "^GSPC", "name": "S&P 500", "region": "米国", "group": "broad-market",
+        "startDate": "2000-03-10", "endDate": "2002-10-09",
+        "startAdjustedClose": 1395.0699462890625, "endAdjustedClose": 776.760009765625,
+        "windowReturnPct": -44.3210706508419, "maxDrawdownPct": 49.14694789846552,
+        "peakDate": "2000-03-24", "peakAdjustedClose": 1527.4599609375,
+        "troughDate": "2002-10-09", "troughAdjustedClose": 776.760009765625,
+        "note": "IT以外も含む米国大型株全体。同時期に景気・利益見通し・リスク許容度の悪化も重なりました。",
+        "sourceUrl": "https://finance.yahoo.com/quote/%5EGSPC/history/",
+        "classificationSourceUrl": "https://www.spglobal.com/spdji/en/indices/equity/sp-500/",
+    },
+    {
+        "id": "nikkei", "symbol": "^N225", "name": "日経平均", "region": "日本", "group": "broad-market",
+        "startDate": "2000-03-10", "endDate": "2002-10-09",
+        "startAdjustedClose": 19750.400390625, "endAdjustedClose": 8539.33984375,
+        "windowReturnPct": -56.76371276096559, "maxDrawdownPct": 59.01092793920164,
+        "peakDate": "2000-04-12", "peakAdjustedClose": 20833.2109375,
+        "troughDate": "2002-10-09", "troughAdjustedClose": 8539.33984375,
+        "extendedMaxDrawdownPct": 63.48196201902686, "extendedPeakDate": "2000-04-12",
+        "extendedPeakAdjustedClose": 20833.2109375, "extendedTroughDate": "2003-04-28",
+        "extendedTroughAdjustedClose": 7607.8798828125,
+        "note": "日本市場全体の代表。日本では米国の底後も下落が続きました。",
+        "sourceUrl": "https://finance.yahoo.com/quote/%5EN225/history/",
+        "classificationSourceUrl": "https://indexes.nikkei.co.jp/70th/historyofthemarket-article.html",
+    },
+    {
+        "id": "sony", "symbol": "6758.T", "name": "ソニーグループ", "region": "日本", "group": "tech-sensitive",
+        "startDate": "2000-03-10", "endDate": "2002-10-09",
+        "startAdjustedClose": 2168.676025390625, "endAdjustedClose": 840.874755859375,
+        "windowReturnPct": -61.22635442018522, "maxDrawdownPct": 73.32381565173569,
+        "peakDate": "2000-04-03", "peakAdjustedClose": 2478.468505859375,
+        "troughDate": "2001-10-03", "troughAdjustedClose": 661.1608276367188,
+        "extendedMaxDrawdownPct": 81.63850780457115, "extendedPeakDate": "2000-04-03",
+        "extendedPeakAdjustedClose": 2478.468505859375, "extendedTroughDate": "2003-04-28",
+        "extendedTroughAdjustedClose": 455.08380126953125,
+        "note": "純粋な非ITではありません。当時も電子、ゲーム、半導体、情報技術を持つ技術感応型企業でした。",
+        "sourceUrl": "https://finance.yahoo.com/quote/6758.T/history/",
+        "classificationSourceUrl": "https://www.sony.com/SonyInfo/IR/library/ar/ar_sony_2000.pdf",
+    },
+    {
+        "id": "canon", "symbol": "7751.T", "name": "キヤノン", "region": "日本", "group": "tech-sensitive",
+        "startDate": "2000-03-10", "endDate": "2002-10-09",
+        "startAdjustedClose": 1282.737060546875, "endAdjustedClose": 1147.6290283203125,
+        "windowReturnPct": -10.53279244687616, "maxDrawdownPct": 41.409101776608914,
+        "peakDate": "2000-07-10", "peakAdjustedClose": 1648.12646484375,
+        "troughDate": "2001-09-27", "troughAdjustedClose": 965.652099609375,
+        "extendedMaxDrawdownPct": 41.409101776608914, "extendedPeakDate": "2000-07-10",
+        "extendedPeakAdjustedClose": 1648.12646484375, "extendedTroughDate": "2001-09-27",
+        "extendedTroughAdjustedClose": 965.652099609375,
+        "note": "情報機器・映像を持つ技術感応型ですが、同じ技術群でもソニーほどは下落しませんでした。",
+        "sourceUrl": "https://finance.yahoo.com/quote/7751.T/history/",
+        "classificationSourceUrl": "https://global.canon/en/ir/finance/business-unit-q.html",
+    },
+    {
+        "id": "toyota", "symbol": "7203.T", "name": "トヨタ自動車", "region": "日本", "group": "non-tech",
+        "startDate": "2000-03-10", "endDate": "2002-10-09",
+        "startAdjustedClose": 533.2467041015625, "endAdjustedClose": 328.50933837890625,
+        "windowReturnPct": -38.39449248310063, "maxDrawdownPct": 51.13091658380207,
+        "peakDate": "2000-04-25", "peakAdjustedClose": 629.9470825195312,
+        "troughDate": "2001-09-21", "troughAdjustedClose": 307.849365234375,
+        "extendedMaxDrawdownPct": 55.163174726454756, "extendedPeakDate": "2000-04-25",
+        "extendedPeakAdjustedClose": 629.9470825195312, "extendedTroughDate": "2003-04-14",
+        "extendedTroughAdjustedClose": 282.4482727050781,
+        "note": "自動車の実需企業でも最大約51%下落。ITから離れていても、景気・為替・市場全体のリスク回避にさらされます。",
+        "sourceUrl": "https://finance.yahoo.com/quote/7203.T/history/",
+        "classificationSourceUrl": "https://global.toyota/en/ir/finance/",
+    },
+    {
+        "id": "honda", "symbol": "7267.T", "name": "本田技研工業", "region": "日本", "group": "non-tech",
+        "startDate": "2000-03-10", "endDate": "2002-10-09",
+        "startAdjustedClose": 337.1329040527344, "endAdjustedClose": 423.2189636230469,
+        "windowReturnPct": 25.53475455390344, "maxDrawdownPct": 37.804889508330106,
+        "peakDate": "2001-08-02", "peakAdjustedClose": 506.63275146484375,
+        "troughDate": "2001-09-20", "troughAdjustedClose": 315.1007995605469,
+        "extendedMaxDrawdownPct": 38.56274909704577, "extendedPeakDate": "2002-05-01",
+        "extendedPeakAdjustedClose": 528.4743041992188, "extendedTroughDate": "2003-04-25",
+        "extendedTroughAdjustedClose": 324.6800842285156,
+        "note": "期間末では上昇していても、途中では約38%下落しました。終点だけでは損失体験を捉えられません。",
+        "sourceUrl": "https://finance.yahoo.com/quote/7267.T/history/",
+        "classificationSourceUrl": "https://global.honda/en/investors/financial_data/segment.html?links=false",
+    },
+    {
+        "id": "kao", "symbol": "4452.T", "name": "花王", "region": "日本", "group": "non-tech",
+        "startDate": "2000-03-10", "endDate": "2002-10-09",
+        "startAdjustedClose": 855.8982543945312, "endAdjustedClose": 810.174560546875,
+        "windowReturnPct": -5.342188001072801, "maxDrawdownPct": 39.882577604212756,
+        "peakDate": "2000-04-21", "peakAdjustedClose": 1193.1292724609375,
+        "troughDate": "2002-02-06", "troughAdjustedClose": 717.278564453125,
+        "extendedMaxDrawdownPct": 43.034734401501765, "extendedPeakDate": "2000-04-21",
+        "extendedPeakAdjustedClose": 1193.129150390625, "extendedTroughDate": "2003-04-28",
+        "extendedTroughAdjustedClose": 679.669189453125,
+        "note": "生活必需品でも途中の最大下落は約40%。ディフェンシブは無傷という意味ではありません。",
+        "sourceUrl": "https://finance.yahoo.com/quote/4452.T/history/",
+        "classificationSourceUrl": "https://www.kao.com/global/en/investor-relations/",
+    },
+    {
+        "id": "takeda", "symbol": "4502.T", "name": "武田薬品工業", "region": "日本", "group": "non-tech",
+        "startDate": "2000-03-10", "endDate": "2002-10-09",
+        "startAdjustedClose": 2587.107421875, "endAdjustedClose": 2067.109619140625,
+        "windowReturnPct": -20.09958296812847, "maxDrawdownPct": 41.145476885384426,
+        "peakDate": "2000-04-04", "peakAdjustedClose": 3308.33740234375,
+        "troughDate": "2001-09-12", "troughAdjustedClose": 1947.106201171875,
+        "extendedMaxDrawdownPct": 49.85744541895587, "extendedPeakDate": "2000-04-04",
+        "extendedPeakAdjustedClose": 3308.33740234375, "extendedTroughDate": "2003-04-16",
+        "extendedTroughAdjustedClose": 1658.8848876953125,
+        "note": "医薬品でも最大約41%。企業固有要因と市場全体の売却が重なります。",
+        "sourceUrl": "https://finance.yahoo.com/quote/4502.T/history/",
+        "classificationSourceUrl": "https://www.takeda.com/investors/",
+    },
+]
+
 FUNDAMENTAL_TYPES = [
     "trailingTotalRevenue",
     "trailingOperatingIncome",
@@ -932,6 +1104,36 @@ def sampled_chart(price_data: dict[str, dict[str, Any]]) -> list[dict[str, Any]]
     return output
 
 
+def build_dotcom_comparison() -> dict[str, Any]:
+    summaries: list[dict[str, Any]] = []
+    for group, label in DOTCOM_GROUP_LABELS.items():
+        rows = [row for row in DOTCOM_COMPARISON_ROWS if row["group"] == group]
+        summaries.append({
+            "group": group,
+            "label": label,
+            "count": len(rows),
+            "medianWindowReturnPct": median(row["windowReturnPct"] for row in rows),
+            "medianMaxDrawdownPct": median(row["maxDrawdownPct"] for row in rows),
+            "medianExtendedMaxDrawdownPct": median(
+                row.get("extendedMaxDrawdownPct") for row in rows if row.get("extendedMaxDrawdownPct") is not None
+            ),
+        })
+    return {
+        "window": {
+            "startDate": "2000-03-10",
+            "endDate": "2002-10-09",
+            "definition": "NASDAQ終値の最高値から最安値まで",
+        },
+        "japanExtendedEndDate": "2003-04-28",
+        "priceBasis": "Yahoo Financeの調整後終値（株式分割・配当調整後）",
+        "auditDate": "2026-07-19",
+        "rows": DOTCOM_COMPARISON_ROWS,
+        "groupSummaries": summaries,
+        "overlapWarning": "2000～2003年にはITバブル崩壊だけでなく、米国景気後退、同時多発テロ、日本のデフレ・銀行不安、イラク情勢が重なります。下落率をIT崩壊だけの因果効果とは解釈できません。",
+        "selectionWarning": "現在まで存続する代表企業を選んだ小標本であり、生存者バイアスがあります。個別銘柄の将来下落率を予測する表ではありません。",
+    }
+
+
 def strip_history(price_data: dict[str, dict[str, Any]]) -> dict[str, dict[str, Any]]:
     compact: dict[str, dict[str, Any]] = {}
     for symbol, data in price_data.items():
@@ -1010,7 +1212,7 @@ def main() -> None:
         company.get("capexGrowthYoYPct") for company in overseas_ai_companies if company["ticker"] in HYPERSCALERS
     ]
     payload = {
-        "schemaVersion": 7,
+        "schemaVersion": 8,
         "generatedAtUtc": NOW.isoformat(),
         "generatedAtJst": NOW.astimezone(JST).isoformat(),
         "marketDate": prices.get("SOX", {}).get("date"),
@@ -1040,6 +1242,7 @@ def main() -> None:
             },
             "normalizedChart": sampled_chart(prices) if "SOX" in prices else [],
             "historicalEpisodes": historical_episodes,
+            "dotComComparison": build_dotcom_comparison(),
             "nikkeiValuationReference": {
                 "date": "2026-07-17",
                 "indexPe": 22.99,
@@ -1073,7 +1276,7 @@ def main() -> None:
             "note": "These fields require a consistent paid consensus series, product-level pricing, or verified project announcements. Missing is not zero.",
         },
         "sourceStatus": [status.__dict__ for status in statuses],
-        "methodVersion": "3.4.0",
+        "methodVersion": "3.5.0",
     }
     OUTPUT.parent.mkdir(parents=True, exist_ok=True)
     OUTPUT.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")

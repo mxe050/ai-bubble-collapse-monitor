@@ -6,6 +6,7 @@ from __future__ import annotations
 import json
 import math
 import re
+import statistics
 from datetime import date, datetime
 from pathlib import Path
 from typing import Any
@@ -61,8 +62,8 @@ def check_yoy_dates(company: dict[str, Any], prefix: str) -> None:
 
 def main() -> None:
     data = json.loads(DATA_FILE.read_text(encoding="utf-8"))
-    require(data.get("schemaVersion") == 7, "schemaVersion must be 7")
-    require(data.get("methodVersion") == "3.4.0", "methodVersion must be 3.4.0")
+    require(data.get("schemaVersion") == 8, "schemaVersion must be 8")
+    require(data.get("methodVersion") == "3.5.0", "methodVersion must be 3.5.0")
 
     generated = datetime.fromisoformat(data["generatedAtUtc"]).date()
     market_day = date.fromisoformat(data["marketDate"])
@@ -170,6 +171,81 @@ def main() -> None:
         calculated = (1 - episode["trough"] / episode["peak"]) * 100
         require(abs(calculated - episode["drawdownPct"]) < 1e-8, f"{episode['id']}: drawdown identity failed")
 
+    dotcom = data["market"].get("dotComComparison") or {}
+    require(dotcom.get("window", {}).get("startDate") == "2000-03-10", "dot-com comparison start date changed")
+    require(dotcom.get("window", {}).get("endDate") == "2002-10-09", "dot-com comparison end date changed")
+    require(dotcom.get("japanExtendedEndDate") == "2003-04-28", "Japan extended comparison date changed")
+    require("調整後終値" in dotcom.get("priceBasis", ""), "adjusted-close basis is missing")
+    dotcom_rows = dotcom.get("rows") or []
+    require(len(dotcom_rows) == 12, f"dot-com comparison must contain 12 series, got {len(dotcom_rows)}")
+    dotcom_counts = {
+        group: sum(1 for row in dotcom_rows if row.get("group") == group)
+        for group in ("direct-tech", "broad-market", "tech-sensitive", "non-tech")
+    }
+    require(
+        dotcom_counts == {"direct-tech": 4, "broad-market": 2, "tech-sensitive": 2, "non-tech": 4},
+        f"dot-com group counts changed: {dotcom_counts}",
+    )
+
+    dotcom_by_id: dict[str, dict[str, Any]] = {}
+    for row in dotcom_rows:
+        row_id = row["id"]
+        require(row_id not in dotcom_by_id, f"duplicate dot-com comparison id: {row_id}")
+        dotcom_by_id[row_id] = row
+        for field in ("startAdjustedClose", "endAdjustedClose", "peakAdjustedClose", "troughAdjustedClose"):
+            require(finite(row.get(field)) and row[field] > 0, f"{row_id}: invalid {field}")
+        expected_return = (row["endAdjustedClose"] / row["startAdjustedClose"] - 1) * 100
+        expected_drawdown = (1 - row["troughAdjustedClose"] / row["peakAdjustedClose"]) * 100
+        require(close_enough(expected_return, row["windowReturnPct"]), f"{row_id}: same-window return identity failed")
+        require(close_enough(expected_drawdown, row["maxDrawdownPct"]), f"{row_id}: max-drawdown identity failed")
+        require(date.fromisoformat(row["startDate"]) <= date.fromisoformat(row["peakDate"]), f"{row_id}: peak precedes window")
+        require(date.fromisoformat(row["peakDate"]) <= date.fromisoformat(row["troughDate"]), f"{row_id}: trough precedes peak")
+        require(date.fromisoformat(row["troughDate"]) <= date.fromisoformat(row["endDate"]), f"{row_id}: trough exceeds window")
+        require(row.get("sourceUrl", "").startswith("https://"), f"{row_id}: price source is missing")
+        require(row.get("classificationSourceUrl", "").startswith("https://"), f"{row_id}: classification source is missing")
+        if row.get("extendedMaxDrawdownPct") is not None:
+            for field in ("extendedPeakAdjustedClose", "extendedTroughAdjustedClose"):
+                require(finite(row.get(field)) and row[field] > 0, f"{row_id}: invalid {field}")
+            expected_extended = (1 - row["extendedTroughAdjustedClose"] / row["extendedPeakAdjustedClose"]) * 100
+            require(close_enough(expected_extended, row["extendedMaxDrawdownPct"]), f"{row_id}: extended drawdown identity failed")
+            require(
+                date.fromisoformat(row["extendedPeakDate"]) <= date.fromisoformat(row["extendedTroughDate"])
+                <= date.fromisoformat(dotcom["japanExtendedEndDate"]),
+                f"{row_id}: extended dates are invalid",
+            )
+
+    summaries = {row["group"]: row for row in dotcom.get("groupSummaries") or []}
+    require(set(summaries) == set(dotcom_counts), "dot-com group summaries are incomplete")
+    for group, count in dotcom_counts.items():
+        group_rows = [row for row in dotcom_rows if row["group"] == group]
+        summary = summaries[group]
+        require(summary.get("count") == count, f"{group}: summary count changed")
+        require(
+            close_enough(summary["medianWindowReturnPct"], statistics.median(row["windowReturnPct"] for row in group_rows)),
+            f"{group}: median same-window return failed",
+        )
+        require(
+            close_enough(summary["medianMaxDrawdownPct"], statistics.median(row["maxDrawdownPct"] for row in group_rows)),
+            f"{group}: median max drawdown failed",
+        )
+        extended = [row["extendedMaxDrawdownPct"] for row in group_rows if row.get("extendedMaxDrawdownPct") is not None]
+        if extended:
+            require(
+                close_enough(summary["medianExtendedMaxDrawdownPct"], statistics.median(extended)),
+                f"{group}: median extended drawdown failed",
+            )
+
+    require(close_enough(dotcom_by_id["nasdaq"]["maxDrawdownPct"], 77.93238628593402), "NASDAQ anchor changed")
+    require(close_enough(dotcom_by_id["sox"]["maxDrawdownPct"], 83.93823258107899), "SOX anchor changed")
+    require(close_enough(dotcom_by_id["nikkei"]["maxDrawdownPct"], 59.01092793920164), "Nikkei anchor changed")
+    require(close_enough(dotcom_by_id["toyota"]["maxDrawdownPct"], 51.13091658380207), "Toyota history anchor changed")
+    require(close_enough(dotcom_by_id["sony"]["maxDrawdownPct"], 73.32381565173569), "Sony history anchor changed")
+    require(dotcom_by_id["sony"]["group"] == "tech-sensitive", "Sony must not be labelled non-tech in the 2000 comparison")
+    require(dotcom_by_id["honda"]["windowReturnPct"] > 0, "Honda endpoint example must remain positive")
+    require(dotcom_by_id["honda"]["maxDrawdownPct"] >= 35, "Honda interim drawdown example is missing")
+    require("因果" in dotcom.get("overlapWarning", ""), "overlapping-shock warning is missing")
+    require("生存者バイアス" in dotcom.get("selectionWarning", ""), "survivorship warning is missing")
+
     require("highYieldOas" in data.get("macro", {}), "FRED high-yield OAS is missing")
 
     app_source = APP_FILE.read_text(encoding="utf-8")
@@ -180,12 +256,12 @@ def main() -> None:
     require(len(html_id_list) == len(html_ids), "index.html contains duplicate element ids")
     missing_ids = sorted(referenced_ids - html_ids)
     require(not missing_ids, f"app.js references missing HTML ids: {missing_ids}")
-    require("Method v3.4" in index_source, "public method label is missing")
+    require("Method v3.5" in index_source, "public method label is missing")
     require("評価への脆弱性は別枠20点" in index_source, "valuation/collapse score separation is missing")
 
     print(
         "Data and logic audit passed: schema, formulas, coverage, YoY dates, baskets, "
-        "automaker DCF overrides, Nikkei reference, history, and UI contracts."
+        "automaker DCF overrides, Nikkei reference, dot-com spillovers, history, and UI contracts."
     )
 
 
