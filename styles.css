@@ -4794,6 +4794,10 @@ footer {
 .ms-legend-line { width: 30px; height: 0; border-top: 4px solid #294b61; display: inline-block; }
 .ms-legend-line.crash { border-color: #c63838; }
 .ms-legend-line.scenario { border-color: #1474ba; border-top-style: dashed; }
+.ms-legend-line.cpi { border-color: #c17a00; border-top-width: 3px; }
+.ms-legend-event { width: 12px; height: 19px; display: inline-block; border-left: 3px solid #7b2f83; }
+.ms-legend-event.fomc { border-left: 2px dashed #08776b; }
+.ms-legend-window { width: 28px; height: 14px; display: inline-block; background: rgba(202,139,28,0.18); border: 1px solid rgba(154,98,0,0.45); }
 .ms-legend-marker { width: 11px; height: 11px; display: inline-block; transform: rotate(45deg); background: #d59b14; }
 
 .ms-chart-limit {
@@ -4810,6 +4814,58 @@ footer {
   color: #b32626;
   font-weight: 900;
 }
+
+.ms-inflation-strip {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  margin-top: 22px;
+  border-left: 5px solid #c17a00;
+  background: #fff8e9;
+}
+
+.ms-inflation-strip > div { min-height: 126px; padding: 20px 22px; border-right: 1px solid #ead7aa; display: flex; flex-direction: column; justify-content: center; }
+.ms-inflation-strip > div:last-child { border-right: 0; }
+.ms-inflation-strip span { color: #6f5a2a; font-size: 0.8rem; font-weight: 800; }
+.ms-inflation-strip strong { margin: 6px 0; color: #8a5b00; font-size: clamp(1.5rem, 2.4vw, 2.1rem); line-height: 1.15; }
+.ms-inflation-strip small { color: #745f35; font-size: 0.75rem; line-height: 1.45; }
+
+.ms-inflation-explainer { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); margin-bottom: 26px; border-bottom: 1px solid #d8c99f; background: #fff; }
+.ms-inflation-explainer > div { display: grid; grid-template-columns: 34px 1fr; gap: 12px; padding: 20px 22px; border-right: 1px solid #eadfbe; }
+.ms-inflation-explainer > div:last-child { border-right: 0; }
+.ms-inflation-explainer svg { color: #a26900; margin-top: 3px; }
+.ms-inflation-explainer p { margin: 0; color: #465d6c; line-height: 1.72; }
+.ms-inflation-explainer strong { color: #674700; }
+
+.ms-cycle-panel { margin: 34px 0 28px; padding: 34px 0 30px; border-top: 4px solid #7b2f83; border-bottom: 1px solid #c9d4dc; }
+.ms-cycle-panel[hidden], .ms-cycle-legend[hidden] { display: none !important; }
+.ms-cycle-layout { display: grid; grid-template-columns: minmax(280px, 0.72fr) minmax(0, 1.28fr); gap: 24px; margin-top: 22px; align-items: start; }
+.ms-ipo-assumption { padding: 24px; border-left: 5px solid #9b3d8f; background: #fbf5fb; }
+.ms-ipo-assumption-heading { display: flex; gap: 12px; color: #642269; }
+.ms-ipo-assumption-heading svg { flex: 0 0 auto; }
+.ms-ipo-assumption-heading strong { display: block; font-size: 1.02rem; }
+.ms-ipo-assumption-heading span { display: block; margin-top: 3px; color: #755b75; font-size: 0.75rem; font-weight: 700; }
+.ms-ipo-assumption label { display: block; margin-top: 22px; color: #4d4051; font-size: 0.78rem; font-weight: 900; }
+.ms-ipo-input-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; margin-top: 7px; }
+.ms-ipo-input-row input { min-height: 44px; padding: 0 11px; border: 1px solid #ad8cb0; background: #fff; color: #33283a; font: inherit; font-weight: 700; }
+.ms-ipo-input-row button { min-width: 72px; border: 1px solid #8a6a8c; background: #fff; color: #642269; font: inherit; font-weight: 900; cursor: pointer; }
+.ms-ipo-assumption > p { margin: 16px 0 0; color: #584c5d; line-height: 1.75; }
+.ms-calendar-summary { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); border-top: 3px solid #173854; background: #fff; }
+.ms-calendar-summary section { min-width: 0; padding: 18px 16px; border-right: 1px solid #d5dee5; }
+.ms-calendar-summary section:last-child { border-right: 0; }
+.ms-calendar-summary h4 { margin: 0 0 12px; color: #10263a; font-size: 1.15rem; }
+.ms-calendar-summary ul { list-style: none; margin: 0; padding: 0; }
+.ms-calendar-summary li { display: grid; grid-template-columns: auto 1fr; gap: 8px; padding: 9px 0; border-top: 1px solid #edf1f4; }
+.ms-calendar-summary li > span { align-self: start; padding: 3px 5px; color: #536575; border: 1px solid currentColor; font-size: 0.62rem; font-weight: 900; white-space: nowrap; }
+.ms-calendar-summary li > span.confirmed { color: #642269; }
+.ms-calendar-summary li > span.tentative { color: #08776b; }
+.ms-calendar-summary li > span.official-cycle { color: #0b5d92; }
+.ms-calendar-summary li strong { display: block; color: #203a4d; font-size: 0.75rem; line-height: 1.4; }
+.ms-calendar-summary li p { margin: 2px 0 0; color: #526878; font-size: 0.72rem; line-height: 1.5; }
+.ms-cycle-reading { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); margin-top: 22px; background: #eef4f7; }
+.ms-cycle-reading > div { padding: 19px 21px; border-right: 1px solid #cedbe3; }
+.ms-cycle-reading > div:last-child { border-right: 0; }
+.ms-cycle-reading strong { color: #173854; }
+.ms-cycle-reading p { margin: 7px 0 0; color: #476071; font-size: 0.82rem; line-height: 1.7; }
 
 .ms-level-strip {
   display: grid;
@@ -5142,7 +5198,11 @@ footer {
 }
 
 @media (max-width: 1050px) {
-  .ms-key-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .ms-key-metrics,
+  .ms-inflation-strip { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .ms-inflation-strip > div:nth-child(2) { border-right: 0; }
+  .ms-inflation-strip > div:nth-child(-n+2) { border-bottom: 1px solid #ead7aa; }
+  .ms-cycle-layout { grid-template-columns: 1fr; }
   .ms-key-metrics > div:nth-child(2) { border-right: 0; }
   .ms-key-metrics > div:nth-child(-n+2) { border-bottom: 1px solid #d8e0e6; }
   .ms-chart-heading { align-items: start; flex-direction: column; }
@@ -5153,8 +5213,17 @@ footer {
 
 @media (max-width: 760px) {
   .ms-provenance,
+  .ms-inflation-strip,
+  .ms-inflation-explainer,
   .ms-level-strip,
-  .ms-window-track { grid-template-columns: 1fr; }
+  .ms-window-track,
+  .ms-calendar-summary,
+  .ms-cycle-reading { grid-template-columns: 1fr; }
+  .ms-inflation-strip > div,
+  .ms-inflation-explainer > div,
+  .ms-calendar-summary section,
+  .ms-cycle-reading > div { border-right: 0; border-bottom: 1px solid #d5dee5; }
+  .ms-cycle-panel { padding-top: 28px; }
   .ms-provenance > div,
   .ms-level-strip > div,
   .ms-window-item { border-right: 0; border-bottom: 1px solid #d5dee5; }
@@ -5162,7 +5231,7 @@ footer {
   .ms-key-metrics > div { min-height: 112px; border-right: 0; border-bottom: 1px solid #d8e0e6; }
   .ms-range-control { width: 100%; overflow-x: auto; }
   .ms-range-button { flex: 1 0 auto; }
-  .ms-chart-frame { height: 510px; padding: 16px 5px 6px; }
+  .ms-chart-frame { height: 560px; padding: 16px 5px 6px; }
   .ms-chart-legend { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
   .ms-fact-row { grid-template-columns: 80px 1fr; gap: 10px 14px; }
   .ms-fact-row p { grid-column: 2; }

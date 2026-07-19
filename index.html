@@ -141,7 +141,7 @@
             <span>05</span><div><strong>AI一極集中からの揺り戻しが始まったか</strong><p>NT倍率、TOPIX、AI連動株と分散型株を同じ期間で比較し、優良Non-AIへの相対回復を確認します。</p><small>入力：日経平均、TOPIX、日本企業16社、国債金利</small></div>
           </a>
           <a href="#money-strategist" class="map-item">
-            <span>06</span><div><strong>過去の暴落と2026年は、どこまで似ているか</strong><p>Money Strategistの説明を1900年以降のS&amp;P系列へ重ね、事実・主張・将来シナリオを分けて検証します。</p><small>入力：S&amp;P長期価格、CAPE、集中度、金利、信用、動画の時期見立て</small></div>
+            <span>06</span><div><strong>過去の暴落と2026年は、どこまで似ているか</strong><p>Money Strategistの説明を株価、物価、2028年大統領選までの予定へ重ね、事実・主張・将来シナリオを分けて検証します。</p><small>入力：S&amp;P長期価格、CPI-U、CAPE、集中度、金利、信用、選挙・FOMC・決算・IPO条件</small></div>
           </a>
         </div>
         <p class="map-footnote">「米国AI相場の崩壊」「日本への波及」「日経の底値ゾーン」「底打ち確認」「企業別FCFストレス」は別の問いです。SOX下落だけで日本崩壊や底打ちを決めないことが、このモニターの中心です。</p>
@@ -577,30 +577,71 @@
         <div class="ms-chart-heading">
           <div>
             <p class="section-kicker">LONG-RUN PRICE MAP</p>
-            <h3>米国株の長期価格：過去の主要下落は赤、動画数値の換算線は青</h3>
-            <p>縦軸は実数（線形）です。指数が1,000ポイント上がれば、どの時代でも同じ縦幅で表示します。現在の高い指数水準をそのまま描くため、1900年代前半の値動きはチャート下部に小さく圧縮されます。名目価格・配当なしなので、長期の資産形成成績を示すトータルリターン図ではありません。</p>
+            <h3>米国株の長期価格：主要下落は赤、換算線は青、米国CPI-Uは橙</h3>
+            <p>左軸は米国株の名目価格指数を0から描く実数（線形）目盛、右軸は米国の総合的な物価水準を示すCPI-Uです。株価は配当なしで、CPIは平均商品のドル価格ではありません。二つの軸は単位が違うため、線の高さではなく、下に示す「1913年から何倍か」で比較します。</p>
           </div>
           <div class="ms-range-control" role="group" aria-label="チャート表示期間">
             <button class="ms-range-button is-active" type="button" data-ms-range="all">1900–2028</button>
             <button class="ms-range-button" type="button" data-ms-range="postwar">1950–2028</button>
             <button class="ms-range-button" type="button" data-ms-range="modern">1990–2028</button>
             <button class="ms-range-button" type="button" data-ms-range="current">2020–2028</button>
+            <button class="ms-range-button" type="button" data-ms-range="cycle">2026–2028</button>
           </div>
         </div>
 
         <div class="ms-chart-shell">
           <div class="ms-chart-frame">
-            <canvas id="moneyStrategistChart" role="img" aria-label="1900年から2028年までの米国株長期価格。過去の暴落を赤、2026年7月以降の説明用シナリオを青、日本の資産バブル時点を金色で表示"></canvas>
+            <canvas id="moneyStrategistChart" role="img" aria-label="1900年から2028年までの米国株長期価格と米国CPI-U。過去の暴落を赤、2026年7月以降の説明用シナリオを青、CPIを橙、日本の資産バブル時点を金色で表示"></canvas>
           </div>
           <div class="ms-chart-legend" aria-label="チャート凡例">
-            <span><i class="ms-legend-line historical"></i>過去の価格系列</span>
+            <span><i class="ms-legend-line historical"></i>米国株の価格系列（左軸）</span>
+            <span><i class="ms-legend-line cpi"></i>米国CPI-U（右軸）</span>
             <span><i class="ms-legend-line crash"></i>主要下落期間</span>
             <span><i class="ms-legend-line scenario"></i>動画数値を換算した青線</span>
             <span><i class="ms-legend-marker japan"></i>日本のバブルピーク</span>
+            <span class="ms-cycle-legend"><i class="ms-legend-event election"></i>選挙</span>
+            <span class="ms-cycle-legend"><i class="ms-legend-event fomc"></i>FOMC</span>
+            <span class="ms-cycle-legend"><i class="ms-legend-window earnings"></i>決算集中期</span>
           </div>
+          <p class="ms-chart-limit"><strong>左右の軸は別単位：</strong>左は米国株の名目価格指数、右はCPI-U（1982～84年＝100）です。見た目の傾きや線の高さを直接比べず、下の倍率を使います。</p>
           <p class="ms-chart-limit"><strong>系列の境界：</strong>1900～1927年はShiller/Cowlesの再構成月次系列、1928年～1957年3月3日は後から整備された歴史系列です。現在のS&amp;P 500が正式に始まった1957年3月4日以降とは、データの性格が異なります。</p>
+          <p id="msCpiLimit" class="ms-chart-limit">橙線はBLSのCPI-U実績で、最新の公表月で停止します。将来の物価は推測しません。</p>
           <p id="msChartLimit" class="ms-chart-limit">青線はMoney Strategistが公表した正式なS&amp;P 500予測線ではありません。</p>
         </div>
+
+        <div class="ms-inflation-strip" aria-label="1913年からの株価と物価の倍率比較" aria-live="polite">
+          <div><span>CPI-U最新値</span><strong id="msCpiLatest">読込中</strong><small id="msCpiLatestDate">1982～84年＝100</small></div>
+          <div><span>1913年からの物価</span><strong id="msCpiMultiple">読込中</strong><small>CPI-U最新値 ÷ 1913年1月</small></div>
+          <div><span>1913年からの株価指数</span><strong id="msStockMultiple">読込中</strong><small>名目価格・配当なし</small></div>
+          <div><span>物価調整後の株価指数</span><strong id="msRealStockMultiple">読込中</strong><small>株価倍率 ÷ 物価倍率</small></div>
+        </div>
+
+        <div class="ms-inflation-explainer">
+          <div><i data-lucide="shopping-basket" aria-hidden="true"></i><p><strong>CPI 333.952は、平均価格333.952ドルという意味ではありません。</strong>BLSが食品、住居、燃料、交通、医療などを家計支出の比重でまとめた物価指数です。1982～84年の買い物かごを100とした時、2026年6月の同等の物価水準が333.952という意味です。</p></div>
+          <div><i data-lucide="scale" aria-hidden="true"></i><p><strong>比較の答えは倍率で読みます。</strong>1913年1月を共通の起点にすると、物価上昇で説明できる部分と、それを超えた株価指数の上昇を分けられます。ただし株価系列は配当を含まないため、実質トータルリターンではありません。</p></div>
+        </div>
+
+        <section id="msCyclePanel" class="ms-cycle-panel" hidden aria-labelledby="msCycleHeading">
+          <div class="section-heading compact-heading">
+            <p class="section-kicker">2026–2028 EVENT-AWARE SCENARIO</p>
+            <h3 id="msCycleHeading">次回大統領選までの「値動きを確認する日」を、青線へ重ねる</h3>
+            <p>「2026–2028」タブでは、中間選挙、大統領選、FOMC、決算集中期をチャートへ表示します。日付は株価の上げ下げを決める予言ではなく、政策・利益・株式供給の新情報が一度に増えやすい確認点です。</p>
+          </div>
+          <div class="ms-cycle-layout">
+            <div class="ms-ipo-assumption">
+              <div class="ms-ipo-assumption-heading"><i data-lucide="calendar-range" aria-hidden="true"></i><div><strong>AI大型IPOの日付を仮置きする</strong><span>未公表日を確定予定にしないための試算欄</span></div></div>
+              <label for="msIpoAssumption">仮の上場日</label>
+              <div class="ms-ipo-input-row"><input id="msIpoAssumption" type="date" min="2026-07-19" max="2028-05-10"><button id="msIpoClear" type="button">解除</button></div>
+              <p id="msIpoAssumptionText">OpenAIとAnthropicは機密S-1を提出済みですが、公開S-1、上場日、初回決算日、ロックアップ条件は未公表です。日付を入れるまで曲線上に固定しません。</p>
+            </div>
+            <div id="msCalendarSummary" class="ms-calendar-summary" aria-live="polite"></div>
+          </div>
+          <div class="ms-cycle-reading">
+            <div><strong>決算集中期</strong><p>毎年1～2月、4～5月、7～8月、10～11月を広い観測帯として表示します。各社の正式発表日は発表後に確認します。</p></div>
+            <div><strong>IPO後の初期決算</strong><p>仮の上場日から45～90日を確認帯として描きます。SECの初回10-Q規則と会計期により実際の日付は変わるため、確定日ではありません。</p></div>
+            <div><strong>売却制限解除</strong><p>SECは典型例を180日と説明しますが、対象株数、段階解除、早期解除は目論見書ごとに異なります。仮置き線は公開S-1が出たら置き換えます。</p></div>
+          </div>
+        </section>
 
         <div class="ms-level-strip" aria-label="青線の計算水準">
           <div><span>中間選挙年の18%調整を換算</span><strong id="msEarlyLevel">―</strong><p>2026年7月17日の実績値から18%下。動画の「7～10月」説明を可視化した値です。</p></div>
@@ -781,6 +822,11 @@
           <a href="https://www.youtube.com/watch?v=OmyrLc44dik" target="_blank" rel="noopener">Money Strategist・中心動画（2026年6月14日）</a> /
           <a href="https://www.youtube.com/@MoneyyStrategist" target="_blank" rel="noopener">Money Strategistチャンネル</a> /
           <a href="https://www.econ.yale.edu/~shiller/data.htm" target="_blank" rel="noopener">Robert Shiller・Yale長期データ</a> /
+          <a href="https://fred.stlouisfed.org/series/CPIAUCNS" target="_blank" rel="noopener">FRED・米国CPI-U</a> /
+          <a href="https://www.bls.gov/news.release/cpi.htm" target="_blank" rel="noopener">BLS・CPI公表値と定義</a> /
+          <a href="https://www.federalreserve.gov/monetarypolicy/fomccalendars.htm" target="_blank" rel="noopener">FRB・FOMC日程</a> /
+          <a href="https://www.usa.gov/presidential-election-process" target="_blank" rel="noopener">USAGov・2028年大統領選</a> /
+          <a href="https://www.sec.gov/answers/lockup.htm" target="_blank" rel="noopener">SEC・IPOロックアップ</a> /
           <a href="https://www.spglobal.com/spdji/en/indices/equity/sp-500/" target="_blank" rel="noopener">S&amp;P DJI・S&amp;P 500公式</a> /
           <a href="https://www.newyorkfed.org/research/capital_markets/ycfaq" target="_blank" rel="noopener">NY連銀・イールドカーブモデル</a> /
           <a href="https://www.sec.gov/Archives/edgar/data/1181412/000162828026040610/spacexfwp.htm" target="_blank" rel="noopener">SEC・SpaceX売却制限</a> /

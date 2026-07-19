@@ -12,6 +12,7 @@
     moneyStrategistChart: null,
     moneyStrategist: null,
     moneyStrategistRange: "all",
+    moneyStrategistIpoDate: "",
     valuations: [],
     companyFilter: "all",
     nikkeiBottom: loadNikkeiBottom(),
@@ -22,6 +23,7 @@
 
   var numberOne = new Intl.NumberFormat("ja-JP", { maximumFractionDigits: 1 });
   var numberTwo = new Intl.NumberFormat("ja-JP", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  var numberThree = new Intl.NumberFormat("ja-JP", { minimumFractionDigits: 3, maximumFractionDigits: 3 });
   var nikkeiFormat = new Intl.NumberFormat("ja-JP", { maximumFractionDigits: 0 });
   var moneyFormatters = {};
   var priceFormatters = {};
@@ -1815,6 +1817,7 @@
       postwar: { min: 1950, max: 2028.99 },
       modern: { min: 1990, max: 2028.99 },
       current: { min: 2020, max: 2028.99 },
+      cycle: { min: 2026.50, max: 2028.88 },
     };
     return ranges[state.moneyStrategistRange] || ranges.all;
   }
@@ -1825,6 +1828,76 @@
       button.classList.toggle("is-active", active);
       button.setAttribute("aria-pressed", active ? "true" : "false");
     });
+    var cyclePanel = byId("msCyclePanel");
+    if (cyclePanel) cyclePanel.hidden = state.moneyStrategistRange !== "cycle";
+    document.querySelectorAll(".ms-cycle-legend").forEach(function (item) {
+      item.hidden = state.moneyStrategistRange !== "cycle";
+    });
+  }
+
+  function addDaysIso(iso, days) {
+    if (!iso) return null;
+    var date = new Date(iso + "T00:00:00Z");
+    if (Number.isNaN(date.valueOf())) return null;
+    date.setUTCDate(date.getUTCDate() + days);
+    return date.toISOString().slice(0, 10);
+  }
+
+  function formatCalendarDate(value) {
+    if (!value) return "日付未定";
+    var date = new Date(value + "T00:00:00Z");
+    if (Number.isNaN(date.valueOf())) return value;
+    return new Intl.DateTimeFormat("ja-JP", { year: "numeric", month: "short", day: "numeric", timeZone: "UTC" }).format(date);
+  }
+
+  function moneyStrategistIpoEvents() {
+    var ipoDate = state.moneyStrategistIpoDate;
+    if (!ipoDate) return [];
+    return [
+      { type: "ipo", date: ipoDate, label: "仮のAI大型IPO", status: "ユーザー仮定" },
+      { type: "ipo-report", start: addDaysIso(ipoDate, 45), end: addDaysIso(ipoDate, 90), label: "初回10-Q・初期決算の確認帯", status: "会計期で変動" },
+      { type: "unlock", date: addDaysIso(ipoDate, 180), label: "典型的な180日ロックアップ", status: "実際の目論見書を優先" },
+    ];
+  }
+
+  function renderMoneyStrategistCalendar() {
+    var data = state.moneyStrategist;
+    var calendar = data && data.marketCalendar;
+    var summary = byId("msCalendarSummary");
+    var input = byId("msIpoAssumption");
+    var explanation = byId("msIpoAssumptionText");
+    if (!calendar || !summary) return;
+    if (input && input.value !== state.moneyStrategistIpoDate) input.value = state.moneyStrategistIpoDate;
+
+    var eventRows = (calendar.events || []).concat(calendar.politicalWindows || []).concat(calendar.earningsWindows || []);
+    var grouped = { "2026": [], "2027": [], "2028": [] };
+    eventRows.forEach(function (event) {
+      var anchor = event.date || event.start || "";
+      var year = anchor.slice(0, 4);
+      if (!grouped[year]) return;
+      grouped[year].push(event);
+    });
+    Object.keys(grouped).forEach(function (year) {
+      grouped[year].sort(function (a, b) { return String(a.date || a.start).localeCompare(String(b.date || b.start)); });
+    });
+    function statusLabel(status) {
+      return status === "confirmed" ? "確定" : status === "tentative" ? "暫定" : status === "official-cycle" ? "公式の標準過程" : "定例観測";
+    }
+    summary.innerHTML = Object.keys(grouped).map(function (year) {
+      var rows = grouped[year].map(function (event) {
+        var dateText = event.date ? formatCalendarDate(event.date) : formatCalendarDate(event.start) + "～" + formatCalendarDate(event.end);
+        return "<li><span class=\"" + escapeHtml(event.status || "recurring") + "\">" + escapeHtml(statusLabel(event.status)) + "</span><div><strong>" + escapeHtml(dateText) + "</strong><p>" + escapeHtml(event.label) + "</p></div></li>";
+      }).join("");
+      return "<section><h4>" + year + "年</h4><ul>" + rows + "</ul></section>";
+    }).join("");
+
+    if (!explanation) return;
+    var assumptions = moneyStrategistIpoEvents();
+    if (!assumptions.length) {
+      explanation.textContent = calendar.ipoWatch.notScheduledReason;
+      return;
+    }
+    explanation.textContent = "仮に" + formatCalendarDate(assumptions[0].date) + "へ上場した場合、初期決算の確認帯は" + formatCalendarDate(assumptions[1].start) + "～" + formatCalendarDate(assumptions[1].end) + "、典型的な180日解除は" + formatCalendarDate(assumptions[2].date) + "です。いずれも公開S-1の条件が出るまで試算です。";
   }
 
   function renderMoneyStrategistChart() {
@@ -1843,6 +1916,10 @@
     var history = data.series.history.map(function (row) {
       return { x: row.x, y: row.value, date: row.date, sourceType: row.sourceType };
     });
+    var inflation = data.inflation || {};
+    var cpiHistory = (inflation.history || []).map(function (row) {
+      return { x: row.x, y: row.value, date: row.date, sourceType: "BLS CPI-U via FRED" };
+    });
     var forecast = data.forecast.illustrativePath.map(function (row) {
       return { x: row.x, y: row.value, date: row.date, note: row.label };
     });
@@ -1855,38 +1932,102 @@
         var area = chart.chartArea;
         var xScale = chart.scales.x;
         if (!area || !xScale) return;
-        var colors = ["rgba(20,116,186,0.10)", "rgba(20,92,150,0.12)", "rgba(84,135,170,0.09)"];
-        chart.ctx.save();
+        var ctx = chart.ctx;
+        ctx.save();
+        var riskColors = ["rgba(20,116,186,0.10)", "rgba(20,92,150,0.12)", "rgba(84,135,170,0.09)"];
         data.forecast.riskWindows.forEach(function (windowItem, index) {
           var start = decimalYearFromIso(windowItem.start);
           var end = decimalYearFromIso(windowItem.end);
           if (end < xScale.min || start > xScale.max) return;
           var left = xScale.getPixelForValue(Math.max(start, xScale.min));
           var right = xScale.getPixelForValue(Math.min(end, xScale.max));
-          chart.ctx.fillStyle = colors[index] || colors[0];
-          chart.ctx.fillRect(left, area.top, right - left, area.bottom - area.top);
+          ctx.fillStyle = riskColors[index] || riskColors[0];
+          ctx.fillRect(left, area.top, right - left, area.bottom - area.top);
         });
-        chart.ctx.restore();
+        if (state.moneyStrategistRange === "cycle" && data.marketCalendar) {
+          (data.marketCalendar.earningsWindows || []).forEach(function (windowItem) {
+            var start = decimalYearFromIso(windowItem.start);
+            var end = decimalYearFromIso(windowItem.end);
+            if (end < xScale.min || start > xScale.max) return;
+            var left = xScale.getPixelForValue(Math.max(start, xScale.min));
+            var right = xScale.getPixelForValue(Math.min(end, xScale.max));
+            ctx.fillStyle = "rgba(202,139,28,0.10)";
+            ctx.fillRect(left, area.top, right - left, area.bottom - area.top);
+          });
+          var ipoReport = moneyStrategistIpoEvents().find(function (event) { return event.type === "ipo-report"; });
+          if (ipoReport) {
+            var reportStart = decimalYearFromIso(ipoReport.start);
+            var reportEnd = decimalYearFromIso(ipoReport.end);
+            if (reportEnd >= xScale.min && reportStart <= xScale.max) {
+              var reportLeft = xScale.getPixelForValue(Math.max(reportStart, xScale.min));
+              var reportRight = xScale.getPixelForValue(Math.min(reportEnd, xScale.max));
+              ctx.fillStyle = "rgba(142,71,160,0.13)";
+              ctx.fillRect(reportLeft, area.top, reportRight - reportLeft, area.bottom - area.top);
+            }
+          }
+        }
+        ctx.restore();
       },
       afterDatasetsDraw: function (chart) {
         var area = chart.chartArea;
         var xScale = chart.scales.x;
-        if (!area || !xScale || japan.x < xScale.min || japan.x > xScale.max) return;
-        var x = xScale.getPixelForValue(japan.x);
+        if (!area || !xScale) return;
         var ctx = chart.ctx;
+        if (japan.x >= xScale.min && japan.x <= xScale.max) {
+          var japanX = xScale.getPixelForValue(japan.x);
+          ctx.save();
+          ctx.strokeStyle = "#d59b14";
+          ctx.lineWidth = 2;
+          ctx.setLineDash([6, 5]);
+          ctx.beginPath();
+          ctx.moveTo(japanX, area.top);
+          ctx.lineTo(japanX, area.bottom);
+          ctx.stroke();
+          ctx.setLineDash([]);
+          ctx.fillStyle = "#7a5400";
+          ctx.font = "700 13px Meiryo, sans-serif";
+          ctx.textAlign = japanX > area.right - 190 ? "right" : "left";
+          ctx.fillText("日本のバブルピーク 1989/12/29", japanX + (ctx.textAlign === "right" ? -8 : 8), area.top + 17);
+          ctx.restore();
+        }
+        if (state.moneyStrategistRange !== "cycle" || !data.marketCalendar) return;
         ctx.save();
-        ctx.strokeStyle = "#d59b14";
-        ctx.lineWidth = 2;
-        ctx.setLineDash([6, 5]);
-        ctx.beginPath();
-        ctx.moveTo(x, area.top);
-        ctx.lineTo(x, area.bottom);
-        ctx.stroke();
-        ctx.setLineDash([]);
-        ctx.fillStyle = "#7a5400";
-        ctx.font = "700 13px Meiryo, sans-serif";
-        ctx.textAlign = x > area.right - 190 ? "right" : "left";
-        ctx.fillText("日本のバブルピーク 1989/12/29", x + (ctx.textAlign === "right" ? -8 : 8), area.top + 17);
+        (data.marketCalendar.events || []).forEach(function (event, index) {
+          var value = decimalYearFromIso(event.date);
+          if (value < xScale.min || value > xScale.max) return;
+          var x = xScale.getPixelForValue(value);
+          var election = event.type === "election";
+          ctx.strokeStyle = election ? "#7b2f83" : "#08776b";
+          ctx.lineWidth = election ? 2.3 : 1.25;
+          ctx.setLineDash(election ? [] : [3, 4]);
+          ctx.beginPath();
+          ctx.moveTo(x, area.top);
+          ctx.lineTo(x, election ? area.bottom : area.top + 54);
+          ctx.stroke();
+          ctx.setLineDash([]);
+          ctx.fillStyle = election ? "#642269" : "#08776b";
+          ctx.font = election ? "800 12px Meiryo, sans-serif" : "700 10px Meiryo, sans-serif";
+          ctx.textAlign = x > area.right - 125 ? "right" : "left";
+          var label = election ? event.shortLabel : "FOMC";
+          if (election || chart.width >= 650) ctx.fillText(label, x + (ctx.textAlign === "right" ? -5 : 5), area.top + 12 + (index % 3) * 13);
+        });
+        moneyStrategistIpoEvents().filter(function (event) { return event.date; }).forEach(function (event, index) {
+          var value = decimalYearFromIso(event.date);
+          if (value < xScale.min || value > xScale.max) return;
+          var x = xScale.getPixelForValue(value);
+          ctx.strokeStyle = "#9b3d8f";
+          ctx.lineWidth = 2;
+          ctx.setLineDash([7, 5]);
+          ctx.beginPath();
+          ctx.moveTo(x, area.top);
+          ctx.lineTo(x, area.bottom);
+          ctx.stroke();
+          ctx.setLineDash([]);
+          ctx.fillStyle = "#7c2b72";
+          ctx.font = "800 11px Meiryo, sans-serif";
+          ctx.textAlign = x > area.right - 160 ? "right" : "left";
+          ctx.fillText(event.type === "ipo" ? "仮のIPO" : "仮の180日解除", x + (ctx.textAlign === "right" ? -6 : 6), area.bottom - 12 - index * 16);
+        });
         ctx.restore();
       },
     };
@@ -1915,6 +2056,19 @@
                 return isCrashSegment(midpoint) ? 3.4 : 2.1;
               },
             },
+          },
+          {
+            label: "米国CPI-U（右軸）",
+            data: cpiHistory,
+            yAxisID: "yCpi",
+            parsing: false,
+            borderColor: "#c17a00",
+            backgroundColor: "transparent",
+            borderWidth: 3,
+            pointRadius: 0,
+            pointHitRadius: 7,
+            tension: 0.08,
+            spanGaps: false,
           },
           {
             label: "動画数値の換算シナリオ",
@@ -1957,7 +2111,9 @@
               title: function (items) { return items[0] && items[0].raw ? items[0].raw.date : ""; },
               label: function (context) {
                 var raw = context.raw || {};
-                var text = context.dataset.label + ": " + formatIndexLevel(raw.y);
+                var text = context.dataset.yAxisID === "yCpi"
+                  ? context.dataset.label + ": " + numberThree.format(Number(raw.y)) + "（1982～84年＝100）"
+                  : context.dataset.label + ": " + formatIndexLevel(raw.y);
                 return raw.note ? [text, raw.note] : text;
               },
               afterLabel: function (context) {
@@ -1976,7 +2132,7 @@
             ticks: {
               color: "#526876",
               font: { size: 12, weight: "600" },
-              maxTicksLimit: state.moneyStrategistRange === "current" ? 10 : 14,
+              maxTicksLimit: state.moneyStrategistRange === "cycle" ? 12 : state.moneyStrategistRange === "current" ? 10 : 14,
               callback: function (value) { return Math.round(value); },
             },
             title: { display: true, text: "年", color: "#536675", font: { size: 13, weight: "700" } },
@@ -1992,7 +2148,21 @@
               maxTicksLimit: 9,
               callback: function (value) { return nikkeiFormat.format(Number(value)); },
             },
-            title: { display: true, text: "名目価格指数（実数、配当なし）", color: "#536675", font: { size: 13, weight: "700" } },
+            title: { display: true, text: "米国株の名目価格指数（実数、配当なし）", color: "#536675", font: { size: 13, weight: "700" } },
+          },
+          yCpi: {
+            type: "linear",
+            position: "right",
+            beginAtZero: true,
+            display: cpiHistory.length > 0,
+            grid: { drawOnChartArea: false },
+            ticks: {
+              color: "#8a5b00",
+              font: { size: 12, weight: "700" },
+              maxTicksLimit: 8,
+              callback: function (value) { return numberOne.format(Number(value)); },
+            },
+            title: { display: true, text: "米国CPI-U（1982～84年＝100）", color: "#8a5b00", font: { size: 13, weight: "700" } },
           },
         },
       },
@@ -2015,7 +2185,20 @@
     byId("msEarlyLevel").textContent = formatIndexLevel(data.forecast.levels.midtermCorrection18Pct);
     byId("msRecessionLevel").textContent = formatIndexLevel(data.forecast.levels.recessionAverage30Pct);
     byId("msMeanReversionRange").textContent = formatIndexLevel(data.forecast.levels.capeMeanReversion55To60Pct[0]) + "～" + formatIndexLevel(data.forecast.levels.capeMeanReversion55To60Pct[1]);
+    var inflation = data.inflation || {};
+    var cpiBase = (inflation.history || []).find(function (row) { return row.date === inflation.comparisonBaseDate; });
+    var stockBase = (data.series.history || []).find(function (row) { return row.date === inflation.comparisonBaseDate; });
+    var cpiMultiple = cpiBase && finite(cpiBase.value) ? finite(inflation.latestValue) / finite(cpiBase.value) : null;
+    var stockMultiple = stockBase && finite(stockBase.value) ? finite(data.series.latestValue) / finite(stockBase.value) : null;
+    var realMultiple = cpiMultiple && stockMultiple ? stockMultiple / cpiMultiple : null;
+    byId("msCpiLatest").textContent = finite(inflation.latestValue) === null ? "未確認" : numberThree.format(inflation.latestValue);
+    byId("msCpiLatestDate").textContent = (inflation.latestDate || "日付未確認") + "・1982～84年＝100";
+    byId("msCpiMultiple").textContent = cpiMultiple === null ? "未確認" : numberOne.format(cpiMultiple) + "倍";
+    byId("msStockMultiple").textContent = stockMultiple === null ? "未確認" : numberOne.format(stockMultiple) + "倍";
+    byId("msRealStockMultiple").textContent = realMultiple === null ? "未確認" : numberOne.format(realMultiple) + "倍";
+    byId("msCpiLimit").textContent = inflation.importantLimit || "CPI-Uは最新の公式公表月で停止し、将来値を推測しません。";
     status.textContent = data.forecast.importantLimit;
+    renderMoneyStrategistCalendar();
     renderMoneyStrategistRangeUi();
     renderMoneyStrategistChart();
   }
@@ -2117,8 +2300,22 @@
       button.addEventListener("click", function () {
         state.moneyStrategistRange = this.dataset.msRange || "all";
         renderMoneyStrategistRangeUi();
+        renderMoneyStrategistCalendar();
         renderMoneyStrategistChart();
       });
+    });
+    var ipoAssumption = byId("msIpoAssumption");
+    if (ipoAssumption) ipoAssumption.addEventListener("change", function () {
+      state.moneyStrategistIpoDate = this.value || "";
+      renderMoneyStrategistCalendar();
+      renderMoneyStrategistChart();
+    });
+    var ipoClear = byId("msIpoClear");
+    if (ipoClear) ipoClear.addEventListener("click", function () {
+      state.moneyStrategistIpoDate = "";
+      if (ipoAssumption) ipoAssumption.value = "";
+      renderMoneyStrategistCalendar();
+      renderMoneyStrategistChart();
     });
     document.querySelectorAll(".company-filter-button").forEach(function (button) {
       button.addEventListener("click", function () {

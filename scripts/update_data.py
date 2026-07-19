@@ -1878,6 +1878,45 @@ def build_company(symbol: str, price: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def decimal_year_from_iso_date(value: str) -> float:
+    observed = datetime.strptime(value, "%Y-%m-%d")
+    year_start = datetime(observed.year, 1, 1)
+    next_year = datetime(observed.year + 1, 1, 1)
+    return observed.year + (observed - year_start).days / (next_year - year_start).days
+
+
+def fetch_cpi_history(series_id: str = "CPIAUCNS") -> dict[str, Any]:
+    url = f"https://fred.stlouisfed.org/graph/fredgraph.csv?id={urllib.parse.quote(series_id)}"
+    text = request(url).decode("utf-8-sig")
+    history: list[dict[str, Any]] = []
+    for row in csv.DictReader(io.StringIO(text)):
+        value = finite(row.get(series_id))
+        date_value = row.get("observation_date")
+        if value is None or not date_value:
+            continue
+        history.append({
+            "date": date_value,
+            "x": round(decimal_year_from_iso_date(date_value), 6),
+            "value": round(value, 3),
+        })
+    if not history:
+        raise RuntimeError(f"No observations for FRED {series_id}")
+    return {
+        "seriesId": series_id,
+        "name": "米国CPI-U 全品目・U.S. city average",
+        "definition": "BLSの全都市消費者物価指数。食品、住居、燃料、交通、医療などの価格変化を家計支出ウエートで集約する。",
+        "units": "Index 1982-1984=100",
+        "frequency": "Monthly, not seasonally adjusted",
+        "comparisonBaseDate": "1913-01-01",
+        "latestDate": history[-1]["date"],
+        "latestValue": history[-1]["value"],
+        "history": history,
+        "sourceUrl": f"https://fred.stlouisfed.org/series/{series_id}",
+        "sourceAgencyUrl": "https://www.bls.gov/cpi/",
+        "importantLimit": "橙線はBLS/FREDのCPI-U実績で、最新公式月で停止します。将来の物価を外挿せず、株価とは別の右軸で表示します。",
+    }
+
+
 def fetch_fred(series_id: str) -> dict[str, Any]:
     url = f"https://fred.stlouisfed.org/graph/fredgraph.csv?id={urllib.parse.quote(series_id)}"
     text = request(url).decode("utf-8-sig")
@@ -1980,44 +2019,45 @@ def strip_history(price_data: dict[str, dict[str, Any]]) -> dict[str, dict[str, 
     return compact
 
 
-def sync_money_strategist_latest(sp500: dict[str, Any] | None) -> None:
-    """Append the newest S&P close without rebasing the July 2026 scenario."""
-    if not sp500 or not MONEY_STRATEGIST_OUTPUT.exists():
-        return
-    latest_date = sp500.get("date")
-    latest_value = sp500.get("close")
-    if not latest_date or not isinstance(latest_value, (int, float)) or not math.isfinite(latest_value):
+def sync_money_strategist_latest(
+    sp500: dict[str, Any] | None, cpi_history: dict[str, Any] | None = None
+) -> None:
+    """Synchronize independently available S&P and CPI observations."""
+    if not MONEY_STRATEGIST_OUTPUT.exists() or (not sp500 and not cpi_history):
         return
 
     package = json.loads(MONEY_STRATEGIST_OUTPUT.read_text(encoding="utf-8"))
-    history = package.get("series", {}).get("history")
-    if not isinstance(history, list):
-        raise ValueError("Money Strategist history is missing")
+    changed = False
+    if sp500:
+        latest_date = sp500.get("date")
+        latest_value = sp500.get("close")
+        if latest_date and isinstance(latest_value, (int, float)) and math.isfinite(latest_value):
+            history = package.get("series", {}).get("history")
+            if not isinstance(history, list):
+                raise ValueError("Money Strategist history is missing")
+            point = {
+                "date": latest_date,
+                "x": round(decimal_year_from_iso_date(latest_date), 6),
+                "value": round(float(latest_value), 4),
+                "sourceType": "S&P 500 live close appended by the local data update",
+            }
+            matches = [index for index, row in enumerate(history) if row.get("date") == latest_date]
+            if matches:
+                history[matches[-1]] = point
+            else:
+                history.append(point)
+                history.sort(key=lambda row: row.get("date", ""))
+            package["series"]["latestDate"] = latest_date
+            package["series"]["latestValue"] = round(float(latest_value), 2)
+            changed = True
 
-    observed = datetime.strptime(latest_date, "%Y-%m-%d")
-    year_start = datetime(observed.year, 1, 1)
-    next_year = datetime(observed.year + 1, 1, 1)
-    decimal_year = observed.year + (observed - year_start).days / (next_year - year_start).days
-    point = {
-        "date": latest_date,
-        "x": round(decimal_year, 6),
-        "value": round(float(latest_value), 4),
-        "sourceType": "S&P 500 live close appended by the local data update",
-    }
-    matches = [index for index, row in enumerate(history) if row.get("date") == latest_date]
-    if matches:
-        history[matches[-1]] = point
-    elif not history or latest_date > history[-1].get("date", ""):
-        history.append(point)
-    else:
-        history.append(point)
-        history.sort(key=lambda row: row.get("date", ""))
-
-    package["series"]["latestDate"] = latest_date
-    package["series"]["latestValue"] = round(float(latest_value), 2)
-    MONEY_STRATEGIST_OUTPUT.write_text(
-        json.dumps(package, ensure_ascii=False, indent=2), encoding="utf-8"
-    )
+    if cpi_history:
+        package["inflation"] = cpi_history
+        changed = True
+    if changed:
+        MONEY_STRATEGIST_OUTPUT.write_text(
+            json.dumps(package, ensure_ascii=False, indent=2), encoding="utf-8"
+        )
 
 
 def main() -> None:
@@ -2026,6 +2066,7 @@ def main() -> None:
     prices: dict[str, dict[str, Any]] = {}
     companies: list[dict[str, Any]] = []
     historical_episodes: list[dict[str, Any]] = []
+    cpi_history: dict[str, Any] | None = None
 
     for label, symbol in PRICE_SYMBOLS.items():
         try:
@@ -2110,6 +2151,13 @@ def main() -> None:
         except Exception as exc:
             errors.append(f"FRED {series}: {exc}")
             statuses.append(SourceStatus("FRED", f"https://fred.stlouisfed.org/series/{series}", False, NOW.isoformat(), str(exc)))
+
+    try:
+        cpi_history = fetch_cpi_history()
+        statuses.append(SourceStatus("FRED CPI-U", cpi_history["sourceUrl"], True, NOW.isoformat(), cpi_history["latestDate"]))
+    except Exception as exc:
+        errors.append(f"FRED CPIAUCNS: {exc}")
+        statuses.append(SourceStatus("FRED CPI-U", "https://fred.stlouisfed.org/series/CPIAUCNS", False, NOW.isoformat(), f"既存のMoney Strategist CPI系列を保持: {exc}"))
 
     overseas_ai_companies = [company for company in companies if company["ticker"] in OVERSEAS_AI_TICKERS]
     japan_ai_companies = [company for company in companies if company["ticker"] in JAPAN_AI_TICKERS]
@@ -2213,7 +2261,7 @@ def main() -> None:
     }
     OUTPUT.parent.mkdir(parents=True, exist_ok=True)
     OUTPUT.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
-    sync_money_strategist_latest(prices.get("SP500"))
+    sync_money_strategist_latest(prices.get("SP500"), cpi_history)
     print(f"Wrote {OUTPUT} with {len(companies)} companies and {len(errors)} warnings")
 
 

@@ -403,6 +403,32 @@ def main() -> None:
     boundary_text = " ".join(money_series.get("boundaryNotes") or [])
     require("1900～1927年" in boundary_text and "1957年3月4日" in boundary_text, "Money Strategist series-boundary disclosure is missing")
 
+    inflation = money.get("inflation") or {}
+    cpi_history = inflation.get("history") or []
+    require(inflation.get("seriesId") == "CPIAUCNS", "Money Strategist CPI-U series id is missing")
+    require(inflation.get("units") == "Index 1982-1984=100", "Money Strategist CPI-U units changed")
+    require(len(cpi_history) >= 1300, "Money Strategist CPI-U history is too short")
+    require(cpi_history[0].get("date") == "1913-01-01", "Money Strategist CPI-U must start in January 1913")
+    require(cpi_history[-1].get("date") == inflation.get("latestDate"), "Money Strategist CPI-U latest date is not synchronized")
+    require(close_enough(cpi_history[-1]["value"], inflation["latestValue"], relative=1e-6), "Money Strategist CPI-U latest identity failed")
+    require(all(finite(row.get("value")) and row["value"] > 0 for row in cpi_history), "Money Strategist CPI-U contains invalid observations")
+    require(all(cpi_history[index]["date"] <= cpi_history[index + 1]["date"] for index in range(len(cpi_history) - 1)), "Money Strategist CPI-U is not chronological")
+    require(any(row.get("date") == inflation.get("comparisonBaseDate") for row in money_history), "Stock series lacks the CPI comparison base date")
+    require(any(row.get("date") == inflation.get("comparisonBaseDate") for row in cpi_history), "CPI series lacks the comparison base date")
+    cpi_base = next(row["value"] for row in cpi_history if row.get("date") == inflation.get("comparisonBaseDate"))
+    stock_base = next(row["value"] for row in money_history if row.get("date") == inflation.get("comparisonBaseDate"))
+    require(inflation["latestValue"] / cpi_base > 30, "CPI long-run multiple is implausibly low")
+    require(money_series["latestValue"] / stock_base > 500, "Stock long-run multiple is implausibly low")
+    require((money_series["latestValue"] / stock_base) / (inflation["latestValue"] / cpi_base) > 10, "Real stock multiple is implausibly low")
+
+    calendar = money.get("marketCalendar") or {}
+    events = calendar.get("events") or []
+    require(any(row.get("date") == "2026-11-03" and row.get("type") == "election" for row in events), "2026 midterm election marker is missing")
+    require(any(row.get("date") == "2028-11-07" and row.get("type") == "election" for row in events), "2028 presidential election marker is missing")
+    require(sum(1 for row in events if row.get("type") == "fomc") >= 13, "2026-2028 FOMC schedule is incomplete")
+    require(len(calendar.get("earningsWindows") or []) >= 10, "2026-2028 earnings observation windows are incomplete")
+    require("未公表" in (calendar.get("ipoWatch") or {}).get("notScheduledReason", ""), "IPO uncertainty disclosure is missing")
+
     crashes = money.get("crashes") or []
     require(len(crashes) == 10, "Money Strategist chart must contain ten audited crash episodes")
     require(sum(1 for row in crashes if row.get("calculationBasis") == "月次平均系列") == 1, "Only the 1907 episode should use the monthly reconstruction")
@@ -451,7 +477,7 @@ def main() -> None:
 
     print(
         "Data and logic audit passed: schema, formulas, coverage, YoY dates, baskets, "
-        "automaker DCF overrides, Nikkei reference, Sakakibara rotation and market-path audit, Money Strategist history and scenarios, dot-com spillovers, history, and UI contracts."
+        "automaker DCF overrides, Nikkei reference, Sakakibara rotation and market-path audit, Money Strategist history, CPI, event calendar and scenarios, dot-com spillovers, history, and UI contracts."
     )
 
 

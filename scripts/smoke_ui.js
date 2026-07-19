@@ -45,9 +45,15 @@ assert.match(indexSource, /逆DCFとは/);
 assert.match(indexSource, /研究結果の当てはめには限界があります/);
 assert.match(indexSource, /1957年3月4日以降とは、データの性格が異なります/);
 assert.match(indexSource, /青線はMoney Strategistが公表した正式なS&amp;P 500予測線ではありません/);
-assert.match(indexSource, /縦軸は実数（線形）です/);
+assert.match(indexSource, /左軸は米国株の名目価格指数を0から描く実数（線形）目盛/);
 assert.match(appSource, /type: "linear",\s*beginAtZero: true/);
-assert.match(appSource, /名目価格指数（実数、配当なし）/);
+assert.match(appSource, /米国株の名目価格指数（実数、配当なし）/);
+assert.match(appSource, /yCpi/);
+assert.match(indexSource, /米国CPI-Uは橙/);
+assert.match(indexSource, /CPI 333.952は、平均価格333.952ドルという意味ではありません/);
+assert.match(indexSource, /data-ms-range="cycle"/);
+assert.match(indexSource, /次回大統領選までの「値動きを確認する日」/);
+assert.match(appSource, /典型的な180日ロックアップ/);
 assert.doesNotMatch(appSource, /type: "logarithmic"/);
 assert.match(indexSource, /66億ドル ÷ 5,000億ドル/);
 assert.match(indexSource, /＝ 1.32%/);
@@ -135,6 +141,12 @@ setTimeout(() => {
   assert.match(elements.get("msTop10Weight").textContent, /36\.4/);
   assert.match(elements.get("msNyFedProbability").textContent, /16\.1/);
   assert.match(elements.get("msChartLimit").textContent, /正式予測線ではない/);
+  assert.match(elements.get("msCpiLatest").textContent, /333.952/);
+  assert.match(elements.get("msCpiMultiple").textContent, /倍/);
+  assert.match(elements.get("msStockMultiple").textContent, /倍/);
+  assert.match(elements.get("msRealStockMultiple").textContent, /倍/);
+  assert.match(elements.get("msCalendarSummary").innerHTML, /2026年/);
+  assert.match(elements.get("msCalendarSummary").innerHTML, /2028年/);
   console.log(JSON.stringify({
     headline: elements.get("headlineConclusion").textContent,
     transmission: elements.get("japanTransmissionStatus").textContent,
