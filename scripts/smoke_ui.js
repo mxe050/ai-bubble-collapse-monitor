@@ -34,6 +34,7 @@ class FakeElement {
 }
 
 const indexSource = fs.readFileSync("index.html", "utf8");
+const appSource = fs.readFileSync("app.js", "utf8");
 assert.match(indexSource, /Option-Adjusted Spread/);
 assert.match(indexSource, /新規借入で実際に支払う金利そのものでも、倒産確率そのものでもありません/);
 assert.match(indexSource, /VIX上昇に加え、OASが拡大/);
@@ -44,6 +45,10 @@ assert.match(indexSource, /逆DCFとは/);
 assert.match(indexSource, /研究結果の当てはめには限界があります/);
 assert.match(indexSource, /1957年3月4日以降とは、データの性格が異なります/);
 assert.match(indexSource, /青線はMoney Strategistが公表した正式なS&amp;P 500予測線ではありません/);
+assert.match(indexSource, /縦軸は実数（線形）です/);
+assert.match(appSource, /type: "linear",\s*beginAtZero: true/);
+assert.match(appSource, /名目価格指数（実数、配当なし）/);
+assert.doesNotMatch(appSource, /type: "logarithmic"/);
 assert.match(indexSource, /66億ドル ÷ 5,000億ドル/);
 assert.match(indexSource, /＝ 1.32%/);
 assert.match(indexSource, /＝ 1.43～1.71%/);
@@ -94,7 +99,7 @@ global.fetch = async (url) => ({
   json: async () => String(url).includes("money-strategist-history") ? moneyPayload : payload,
 });
 
-vm.runInThisContext(fs.readFileSync("app.js", "utf8"), { filename: "app.js" });
+vm.runInThisContext(appSource, { filename: "app.js" });
 
 setTimeout(() => {
   if (elements.get("dataHealth").textContent === "読込失敗") console.error("UI load error:", elements.get("uncertaintySummary").textContent);

@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "generatedAtJst": "2026-07-19T12:00:00+09:00",
   "series": {
-    "definition": "Nominal U.S. equity price index, dividends excluded; logarithmic scale",
+    "definition": "Nominal U.S. equity price index, dividends excluded; displayed on a linear scale from zero",
     "history": [
       {
         "date": "1900-01-01",

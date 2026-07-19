@@ -1982,17 +1982,17 @@
             title: { display: true, text: "年", color: "#536675", font: { size: 13, weight: "700" } },
           },
           y: {
-            type: "logarithmic",
+            type: "linear",
+            beginAtZero: true,
+            grace: "5%",
             grid: { color: "rgba(53,82,101,0.11)" },
             ticks: {
               color: "#526876",
               font: { size: 12, weight: "600" },
-              callback: function (value) {
-                var accepted = [1, 2, 5, 10, 20, 50, 100, 200, 500, 1000, 2000, 5000, 10000];
-                return accepted.indexOf(Number(value)) >= 0 ? nikkeiFormat.format(value) : "";
-              },
+              maxTicksLimit: 9,
+              callback: function (value) { return nikkeiFormat.format(Number(value)); },
             },
-            title: { display: true, text: "名目価格指数（対数、配当なし）", color: "#536675", font: { size: 13, weight: "700" } },
+            title: { display: true, text: "名目価格指数（実数、配当なし）", color: "#536675", font: { size: 13, weight: "700" } },
           },
         },
       },

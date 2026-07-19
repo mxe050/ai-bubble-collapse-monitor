@@ -393,6 +393,7 @@ def main() -> None:
     money = json.loads(MONEY_DATA_FILE.read_text(encoding="utf-8"))
     money_series = money.get("series") or {}
     money_history = money_series.get("history") or []
+    require("linear scale from zero" in money_series.get("definition", ""), "Money Strategist chart definition must disclose the zero-based linear scale")
     require(len(money_history) >= 1500, "Money Strategist long-run history is too short")
     require(money_history[0].get("date") == "1900-01-01", "Money Strategist history must start in 1900")
     require(money_history[-1].get("date") == money_series.get("latestDate"), "Money Strategist latest date is not synchronized")
