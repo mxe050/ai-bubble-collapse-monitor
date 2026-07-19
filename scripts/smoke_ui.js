@@ -44,6 +44,16 @@ assert.match(indexSource, /逆DCFとは/);
 assert.match(indexSource, /研究結果の当てはめには限界があります/);
 assert.match(indexSource, /1957年3月4日以降とは、データの性格が異なります/);
 assert.match(indexSource, /青線はMoney Strategistが公表した正式なS&amp;P 500予測線ではありません/);
+assert.match(indexSource, /66億ドル ÷ 5,000億ドル/);
+assert.match(indexSource, /＝ 1.32%/);
+assert.match(indexSource, /＝ 1.43～1.71%/);
+assert.match(indexSource, /両社の職員・元職員は累計約140億ドルを現金化/);
+assert.match(indexSource, /Anthropicは6月1日、OpenAIは6月8日/);
+assert.match(indexSource, /一般IPO 1,948社/);
+assert.match(indexSource, /－12%/);
+assert.match(indexSource, /売却＝弱気ではない/);
+assert.match(indexSource, /未上場株の「提示価格」は、そのまま市場価格ではない/);
+assert.match(indexSource, /後期の流動化・将来供給を監視する段階/);
 const ids = [...indexSource.matchAll(/\bid="([^"]+)"/g)].map((match) => match[1]);
 const elements = new Map(ids.map((id) => [id, new FakeElement(id)]));
 const filters = ["all", "overseas-ai", "japan-ai", "japan-diversified"].map((value) => {
