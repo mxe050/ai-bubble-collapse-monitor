@@ -1175,6 +1175,25 @@
       : "代理スコアに必要な財務・価格データを取得できませんでした。";
   }
 
+  function renderThresholdCalibration(elementId, sample, suffix) {
+    var element = byId(elementId);
+    if (!element) return;
+    if (!sample || !Array.isArray(sample.thresholds) || !sample.thresholds.length) {
+      element.textContent = "標本データ不足";
+      return;
+    }
+    var sampleMaximum = finite(sample.maximum);
+    var bands = sample.thresholds.map(function (row) {
+      if (sampleMaximum !== null && finite(row.value) !== null && row.value > sampleMaximum) {
+        return numberOne.format(row.value) + suffix + " = 標本上限超過（最大" + numberTwo.format(sampleMaximum) + suffix + "）";
+      }
+      return numberOne.format(row.value) + suffix + " = 標本内P" + numberOne.format(row.percentileRank);
+    }).join("、");
+    element.textContent = (sample.sampleStartDate || "開始日不明") + "～" + (sample.sampleEndDate || "終了日不明")
+      + "の" + numberOne.format(sample.sampleCount) + "観測で、" + bands + "。"
+      + (sample.historyNote ? " " + sample.historyNote : "");
+  }
+
   function renderMarketPathComponents(targetId, components) {
     byId(targetId).innerHTML = (components || []).map(function (component) {
       var score = finite(component.score);
@@ -1253,6 +1272,14 @@
       reading = "<p><strong>現在の結論：</strong>" + escapeHtml(path.label || "方向不明") + "です。データ取得率と各内訳を確認し、単独の指数だけで判断しません。</p>";
     }
     byId("marketPathInterpretation").innerHTML = reading;
+    var calibration = path.calibration || {};
+    renderThresholdCalibration("thresholdVixBasis", calibration.vix, "");
+    renderThresholdCalibration("thresholdOasBasis", calibration.oas, "%");
+    var basketAudit = calibration.basket || {};
+    byId("thresholdBasketBasis").textContent = basketAudit.constituentCount
+      ? basketAudit.constituentCount + "社なので1社=" + numberOne.format(basketAudit.oneStockSharePct)
+        + "ポイント。中央値は4番目と5番目で決まり、統計的有意差を検定した指標ではありません。"
+      : "8社バスケットの監査情報を取得できませんでした。";
   }
 
   function renderSakakibaraMethod() {
@@ -1833,7 +1860,7 @@
       var response = await fetch("data/latest.json?ts=" + Date.now(), { cache: "no-store" });
       if (!response.ok) throw new Error("HTTP " + response.status);
       var payload = await response.json();
-      if (!payload.companies || !payload.market || Number(payload.schemaVersion) < 10) throw new Error("データ形式が古いか不正です");
+      if (!payload.companies || !payload.market || Number(payload.schemaVersion) < 11) throw new Error("データ形式が古いか不正です");
       state.data = payload;
       renderAll();
     } catch (error) {

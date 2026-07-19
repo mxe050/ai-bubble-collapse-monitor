@@ -729,7 +729,8 @@ def moving_average(values: list[float], window: int) -> list[float | None]:
 
 def fetch_price_series(symbol: str) -> dict[str, Any]:
     encoded = urllib.parse.quote(symbol, safe="")
-    url = f"https://query1.finance.yahoo.com/v8/finance/chart/{encoded}?range=5y&interval=1d&events=div%2Csplits"
+    history_range = "20y" if symbol == "^VIX" else "5y"
+    url = f"https://query1.finance.yahoo.com/v8/finance/chart/{encoded}?range={history_range}&interval=1d&events=div%2Csplits"
     payload = get_json(url)
     result = payload["chart"]["result"][0]
     timestamps = result.get("timestamp", [])
@@ -1146,6 +1147,38 @@ def format_path_value(value: Any, suffix: str = "%") -> str:
     return f"{sign}{numeric:.1f}{suffix}"
 
 
+def threshold_sample(
+    rows: list[dict[str, Any]],
+    value_key: str,
+    thresholds: list[float],
+) -> dict[str, Any]:
+    usable = [
+        {"date": row.get("date"), "value": finite(row.get(value_key))}
+        for row in rows
+        if finite(row.get(value_key)) is not None
+    ]
+    if not usable:
+        return {"sampleCount": 0, "thresholds": []}
+    values = [row["value"] for row in usable]
+    return {
+        "sampleStartDate": usable[0]["date"],
+        "sampleEndDate": usable[-1]["date"],
+        "sampleCount": len(values),
+        "minimum": min(values),
+        "maximum": max(values),
+        "thresholds": [
+            {
+                "value": threshold,
+                "percentileRank": round(
+                    sum(1 for value in values if value <= threshold) / len(values) * 100.0,
+                    1,
+                ),
+            }
+            for threshold in thresholds
+        ],
+    }
+
+
 def build_market_path_indicator(
     nikkei: dict[str, Any],
     topix: dict[str, Any],
@@ -1223,6 +1256,8 @@ def build_market_path_indicator(
     oas = high_yield_oas or {}
     oas_value = finite(oas.get("valuePct"))
     oas_rise = finite(oas.get("riseFrom3mLowPctPoints"))
+    vix_calibration = threshold_sample(vix.get("history", []), "close", [20.0, 25.0, 30.0, 40.0])
+    vix_calibration["historyNote"] = "Yahoo Financeで取得した20年の日次終値。標本内順位は将来確率ではない。"
 
     panic_components = [
         market_path_component(
@@ -1348,6 +1383,17 @@ def build_market_path_indicator(
             "positiveMeaning": "プラスほど、AI期待の剥落と優良Non-AIへの相対回復による評価正常化が優勢。",
             "negativeMeaning": "マイナスほど、TOPIX・分散型株・予想変動率・信用市場まで悪化するパニック型暴落が優勢。",
             "thresholdCaveat": "各配点と閾値は公式の売買基準ではなく、本サイト独自の早期警戒ルール。統計モデルによる確率予測ではない。",
+            "weightingRationale": "対象が日経平均の経路なので、日本株の下落速度30点と市場全体への波及30点に計60点を置き、米国の予想変動率20点と信用20点を確認指標として計40点置く。配点は役割分担であり、最適化された暴落確率ではない。",
+        },
+        "calibration": {
+            "vix": vix_calibration,
+            "oas": oas.get("calibration"),
+            "basket": {
+                "constituentCount": int(diversified_coverage) if diversified_coverage is not None else 0,
+                "oneStockSharePct": round(100.0 / diversified_coverage, 1) if diversified_coverage else None,
+                "medianPivot": "8社の中央値は4番目と5番目の平均で決まり、1～2社の順位変化でも動く小標本。",
+                "selectionWarning": "現存し、データ取得でき、現在の事業分類で選んだ代表企業であり、無作為標本ではない。生存者・選択バイアスが入り得る。",
+            },
         },
     }
 
@@ -1845,6 +1891,14 @@ def fetch_fred(series_id: str) -> dict[str, Any]:
     prior = next((value for date, value in reversed(rows) if datetime.fromisoformat(date).date() <= cutoff), rows[0][1])
     low_3m = min(value for date, value in rows if datetime.fromisoformat(date).date() >= cutoff)
     high_3m = max(value for date, value in rows if datetime.fromisoformat(date).date() >= cutoff)
+    calibration = threshold_sample(
+        [{"date": date, "value": value} for date, value in rows],
+        "value",
+        [3.5, 4.0, 5.0, 6.0],
+    )
+    calibration["historyNote"] = (
+        "FRED注記により2026年4月以降は直近3年のみ公開。5%・6%は現在の公開標本上限を超える。"
+    )
     return {
         "seriesId": series_id,
         "date": last_date,
@@ -1853,6 +1907,7 @@ def fetch_fred(series_id: str) -> dict[str, Any]:
         "riseFrom3mLowPctPoints": last_value - low_3m,
         "declineFrom3mHighPctPoints": high_3m - last_value,
         "high3mPct": high_3m,
+        "calibration": calibration,
         "sourceUrl": f"https://fred.stlouisfed.org/series/{series_id}",
     }
 
@@ -2042,7 +2097,7 @@ def main() -> None:
         errors.append(f"Sakakibara analysis: {exc}")
 
     payload = {
-        "schemaVersion": 10,
+        "schemaVersion": 11,
         "generatedAtUtc": NOW.isoformat(),
         "generatedAtJst": NOW.astimezone(JST).isoformat(),
         "marketDate": prices.get("SOX", {}).get("date"),
@@ -2112,7 +2167,7 @@ def main() -> None:
             "note": "These fields require a consistent paid consensus series, product-level pricing, or verified project announcements. Missing is not zero.",
         },
         "sourceStatus": [status.__dict__ for status in statuses],
-        "methodVersion": "3.7.0",
+        "methodVersion": "3.8.0",
     }
     OUTPUT.parent.mkdir(parents=True, exist_ok=True)
     OUTPUT.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")

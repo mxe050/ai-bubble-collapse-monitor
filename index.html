@@ -59,8 +59,8 @@
           </div>
           <div class="data-stamp" aria-live="polite">
             <span id="dataHealth" class="status-dot">読込中</span>
-            <span>市場日 <strong id="marketDate">―</strong></span>
-            <span>生成 <strong id="generatedAt">―</strong></span>
+            <span>市場基準日 <strong id="marketDate">―</strong></span>
+            <span>最終更新（JST） <strong id="generatedAt">―</strong></span>
           </div>
         </div>
 
@@ -196,6 +196,8 @@
           <div><strong>重要な限界</strong><p>閾値は過去の経験をもとにした本サイトの監視規則で、統計的に保証された確率ではありません。日本8社は日経225全体の騰落幅を置き換える公式指数でもありません。</p></div>
         </div>
 
+        <div class="research-transfer-caveat"><strong>研究結果の当てはめには限界があります。</strong> IMFと日本銀行の研究は、特定の推計期間・変数・モデルで国際波及の一般的な経路を示したものです。2026年の今回局面に同じ速さ・大きさで波及することを保証せず、現在の強度は上の市場データで別に確認します。</div>
+
         <p class="transmission-sources">根拠：
           <a href="https://indexes.nasdaqomx.com/docs/methodology_SOX.pdf" target="_blank" rel="noopener">Nasdaq SOX methodology</a> /
           <a href="https://www.imf.org/en/publications/wp/issues/2016/12/31/global-bonding-do-u-s-40180" target="_blank" rel="noopener">IMF・米国金融ショックの国際波及</a> /
@@ -291,6 +293,11 @@
           </article>
         </div>
 
+        <div class="logic-guardrail">
+          <div><strong>価格関係を確認する判定です。</strong><p>条件1～4がそろっても、売買主体や資金の移動経路を直接観測したことにはなりません。「AI集中の修正とNon-AI側の相対的な強さ」という価格関係に整合するかだけを判定します。</p></div>
+          <div><strong>8社は統計的に小さい標本です。</strong><p>1社で比率が12.5ポイント動き、中央値は4番目と5番目の値に左右されます。現存しデータ取得できる代表企業を選んだため、生存者・選択バイアスも入り得ます。</p></div>
+        </div>
+
         <div class="rotation-comparison">
           <div class="section-heading compact-heading">
             <p class="section-kicker">RELATIVE PERFORMANCE</p>
@@ -340,6 +347,7 @@
             <h3>榊原先生の「約6万円」を再現し、別の日の入力でも計算する</h3>
             <p>利益からの価格と純資産からの価格を別々に出します。初期値は原文の2026年7月17日値です。別の日に再計算するときは、同じ日の公式終値・時価総額ベースPER・PBRから得たEPSとBPSへ置き換えます。</p>
           </div>
+          <div class="model-caveat-inline"><strong>ここでの約6万円は、一人の論者が置いた入力を再現するシナリオです。</strong> 金融理論から一意に決まる公正価値、信頼区間、底値保証ではありません。利益全額内部留保、ROE一定などの仮定を変えると結果も変わります。</div>
           <div class="fair-value-layout">
             <form id="sakakibaraFairValueForm" class="sakakibara-controls">
               <div class="control-heading">
@@ -381,6 +389,7 @@
             <p class="section-kicker">NORMALIZATION OR PANIC?</p>
             <h3>「約6万円への評価正常化」と「パニック型暴落」は、同じ下落ではない</h3>
             <p>榊原先生の約6万円は、AI期待の上乗せが縮み、現在の利益・純資産へ評価が近づく場合の参考帯です。市場参加者が現金化を急ぐパニックでは、企業価値に関係なく幅広い株が同時に売られ、この帯を一時的に下回ることがあります。</p>
+            <p class="model-caveat-inline"><strong>一人の論者の入力を再現した参考シナリオであり、金融理論から一意に決まる値ではありません。</strong> 数字だけを独立した目標値として使わず、入力前提と現在の相場経路をセットで読みます。</p>
           </div>
 
           <div class="path-distinction-grid">
@@ -483,6 +492,20 @@
           </div>
         </div>
 
+        <div class="threshold-audit" aria-labelledby="thresholdAuditTitle">
+          <div class="threshold-audit-heading"><p class="section-kicker">THRESHOLD AUDIT</p><h3 id="thresholdAuditTitle">主要閾値は、何を根拠に置いたのか</h3><p>閾値には、過去局面の規模を参照した「歴史的アンカー」と、短期ノイズを減らす「運用上の設計値」が混在します。過去データで最適化した暴落予測モデルではなく、同じ条件を継続観測するための早期警戒ルールです。</p></div>
+          <div class="table-wrap"><table class="threshold-audit-table">
+            <thead><tr><th>閾値・配点</th><th>種別</th><th>この水準にした最小限の理由</th><th>読解上の限界</th></tr></thead><tbody>
+              <tr><th>SOX：3年高値から35%下落</th><td><span class="basis-tag historical">歴史的アンカー</span></td><td>2021～22年の成長株再評価でNASDAQ総合が約36.4%下落した規模を、深い評価修正の丸めた境界として参照しました。</td><td>SOX固有の過去データで35%が最適だったと検証した値ではありません。</td></tr>
+              <tr><th>200日線を6週連続で下回る</th><td><span class="basis-tag operational">運用上の設計値</span></td><td>約30営業日の持続を要求し、一時的な200日線割れを「構造的崩壊」と誤認しにくくするためです。</td><td>6週が5週や7週より優れると統計検証した境界ではありません。</td></tr>
+              <tr><th>崩壊確認45/80点＋A・B・C充足</th><td><span class="basis-tag governance">判定ガバナンス</span></td><td>価格だけでなく、基礎収益・供給・信用を含む複数群の一致を必須にし、80点の過半を超える証拠を要求します。</td><td>45点は崩壊確率45%を意味せず、過去局面から推定した確率境界でもありません。</td></tr>
+              <tr><th>パニック配点：30 / 30 / 20 / 20</th><td><span class="basis-tag governance">役割配分</span></td><td>判定対象が日経平均なので、日本株の下落速度30点と市場全体への波及30点に計60点、米国VIXとHY OASの確認に計40点を置きます。</td><td>過去の底値を最もよく当てるよう最適化した重みではなく、説明可能性を優先した配分です。</td></tr>
+              <tr><th>VIX：20 / 25 / 30 / 40</th><td><span class="basis-tag empirical">標本内の位置</span></td><td id="thresholdVixBasis">市場データ更新後に、各水準が取得標本の何パーセンタイルかを表示します。</td><td>パーセンタイルは標本期間内の珍しさであり、将来の暴落確率ではありません。</td></tr>
+              <tr><th>米国HY OAS：3.5 / 4 / 5 / 6%</th><td><span class="basis-tag empirical">標本内の位置</span></td><td id="thresholdOasBasis">FRED更新後に、各水準が取得標本の何パーセンタイルかを表示します。</td><td>高いほど信用不安は強いものの、単独で株価の底や倒産確率を決めません。</td></tr>
+              <tr><th>相対比較：NT 5%、指数1～2pt、8社2～4pt</th><td><span class="basis-tag operational">運用上の設計値</span></td><td>日々の小さな相対差を拾い過ぎないため、方向確認に丸めた最低差を置きます。</td><td>資金移動を直接測定した値でも、最適な境界を統計検証した値でもありません。</td></tr>
+              <tr><th>8社中50% / 75%</th><td><span class="basis-tag sample">小標本の比率</span></td><td id="thresholdBasketBasis">8社標本の感度を表示します。</td><td>有意差検定は行わず、現存企業から選ぶため生存者・選択バイアスが入り得ます。</td></tr>
+            </tbody></table></div></div>
+
         <div class="en-ai-section">
           <div class="section-heading compact-heading">
             <p class="section-kicker">EXCELLENT NON-AI PROXY</p>
@@ -556,6 +579,7 @@
             </article>
           </div>
           <p class="method-note">A・B・Cがすべて充足し、崩壊確認証拠が45/80点以上の場合のみ「米国AI相場の崩壊を確認」とします。評価への脆弱性20点は加算しません。日本への波及は前章の別ルールで判定します。</p>
+          <p class="method-note threshold-origin-note"><strong>35%の由来：</strong>2021～22年の成長株再評価でNASDAQ総合が約36.4%下落した規模を、深い評価修正の丸めた境界として参照しました。<strong>6週の由来：</strong>約30営業日を要求し、200日線を一時的に割る短期ノイズを除くための運用条件です。どちらもSOXで最適化した予測値ではありません。</p>
         </div>
 
         <div class="chart-layout">
@@ -721,6 +745,7 @@
           <p>従来の海外AI関連10社を残したまま、日本の主要16社を同じ枠組みで比較します。ホンダ、キヤノンに加え、世界市場で独自の事業基盤を持つキーエンス、日立、信越化学、HOYA、ソニー、任天堂、リクルート、ダイキンを追加しました。原則は直近12か月のフリーキャッシュフローを使い、金融サービスを持つトヨタとホンダだけは公式の非金融事業FCFを5年中央値へ平準化します。現在価格がどの程度強い成長前提を要求しているか、下落後にも実体価値が残り得るかを検討します。</p>
         </div>
         <div class="section-route"><strong>この章の役割</strong><span>企業FCF・成長・資本コスト</span><i data-lucide="arrow-right" aria-hidden="true"></i><span>DCFと逆DCF</span><i data-lucide="arrow-right" aria-hidden="true"></i><span>期待の上乗せ</span><a href="#method-company">対応する計算根拠</a></div>
+        <div class="reverse-dcf-primer"><strong>逆DCFとは：</strong>将来価値を予測して株価を出す通常のDCFとは逆に、現在の株価から「その価格を正当化するにはFCFが今後10年間、年平均何%成長する必要があるか」を逆算する方法です。逆算値は会社予想でも本サイトの予測でもなく、市場価格に埋め込まれた要求条件です。</div>
 
         <div class="company-universe-guide" aria-label="比較する企業群">
           <div>
@@ -1063,7 +1088,8 @@
             <li>PER・PBR参照値を日経公式サイトから自動更新すること。画面の日付を確認し、必要なら利用者が更新します。</li>
             <li>底値をリアルタイムで確定すること。底打ち確認は必ず安値より遅れます。</li>
             <li>SOXの下落だけで日本株の崩壊を確定すること。SOXは米国上場半導体30社であり、日本への波及は日経平均と国内監視群で別確認します。</li>
-            <li>日本AI・半導体連動8社を日経225全体の公式な市場幅とみなすこと。この8社は本サイト独自の代理指標です。</li>
+            <li>日本AI・半導体連動8社を日経225全体の公式な市場幅とみなすこと。この8社は本サイト独自の代理指標で、1社で比率が12.5ポイント動く小標本です。統計的有意性は検定していません。</li>
+            <li>固定8社を無作為標本とみなすこと。現存し、データ取得でき、現在の事業分類に合う代表企業を選んでいるため、生存者バイアスと選択バイアスが入り得ます。</li>
             <li>「AI連動」「分散型」という分類を永久不変とみなすこと。事業構成、投資計画、相場の評価軸が変われば分類も見直します。</li>
             <li>個人の資産状況、税金、損失許容度を踏まえた売買判断を行うこと。</li>
           </ul>
@@ -1109,7 +1135,7 @@
   <footer>
     <div class="content footer-inner">
       <p><strong>重要：</strong>本サイトは教育・調査用です。投資助言、価格予測、売買推奨ではありません。取得値には遅延・欠損・定義差があり、重要な判断では企業IRと提出資料を確認してください。</p>
-      <p>Method v3.7 / <a href="https://github.com/mxe050/ai-bubble-collapse-monitor" target="_blank" rel="noopener">GitHub</a></p>
+      <p>Method v3.8 / <a href="https://github.com/mxe050/ai-bubble-collapse-monitor" target="_blank" rel="noopener">GitHub</a></p>
     </div>
   </footer>
 

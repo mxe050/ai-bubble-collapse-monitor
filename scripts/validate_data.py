@@ -62,8 +62,8 @@ def check_yoy_dates(company: dict[str, Any], prefix: str) -> None:
 
 def main() -> None:
     data = json.loads(DATA_FILE.read_text(encoding="utf-8"))
-    require(data.get("schemaVersion") == 10, "schemaVersion must be 10")
-    require(data.get("methodVersion") == "3.7.0", "methodVersion must be 3.7.0")
+    require(data.get("schemaVersion") == 11, "schemaVersion must be 11")
+    require(data.get("methodVersion") == "3.8.0", "methodVersion must be 3.8.0")
 
     generated = datetime.fromisoformat(data["generatedAtUtc"]).date()
     market_day = date.fromisoformat(data["marketDate"])
@@ -271,6 +271,21 @@ def main() -> None:
     ), "market path lower peak-drawdown identity failed")
     require("正常化スコア - パニックスコア" in market_path.get("rules", {}).get("formula", ""), "market path formula explanation is missing")
     require("確率予測ではない" in market_path.get("rules", {}).get("thresholdCaveat", ""), "market path forecast caveat is missing")
+    require("60点" in market_path.get("rules", {}).get("weightingRationale", ""), "market path weighting rationale is missing")
+    calibration = market_path.get("calibration") or {}
+    for calibration_name in ("vix", "oas"):
+        sample = calibration.get(calibration_name) or {}
+        require(sample.get("sampleCount", 0) >= 200, f"{calibration_name}: threshold sample is too small")
+        require(len(sample.get("thresholds") or []) == 4, f"{calibration_name}: threshold audit is incomplete")
+        for threshold in sample["thresholds"]:
+            require(0 <= threshold["percentileRank"] <= 100, f"{calibration_name}: percentile rank is invalid")
+    require("直近3年" in str((calibration.get("oas") or {}).get("historyNote")), "OAS history-limit note missing")
+    require((calibration.get("oas") or {}).get("maximum", 99) < 5, "OAS public sample should not claim 5% observation")
+    require("20年" in str((calibration.get("vix") or {}).get("historyNote")), "VIX history note missing")
+    basket_audit = calibration.get("basket") or {}
+    require(basket_audit.get("constituentCount") == 8, "basket audit must describe eight companies")
+    require(close_enough(basket_audit.get("oneStockSharePct"), 12.5), "one-stock breadth share must be 12.5%")
+    require("生存者" in basket_audit.get("selectionWarning", ""), "basket survivorship warning is missing")
 
     en_ai = sakakibara.get("enAiProxy") or []
     diversified_tickers = {company["ticker"] for company in companies if company.get("category") == "japan-diversified"}
@@ -382,7 +397,7 @@ def main() -> None:
     require(len(html_id_list) == len(html_ids), "index.html contains duplicate element ids")
     missing_ids = sorted(referenced_ids - html_ids)
     require(not missing_ids, f"app.js references missing HTML ids: {missing_ids}")
-    require("Method v3.7" in index_source, "public method label is missing")
+    require("Method v3.8" in index_source, "public method label is missing")
     require("評価への脆弱性は別枠20点" in index_source, "valuation/collapse score separation is missing")
 
     print(

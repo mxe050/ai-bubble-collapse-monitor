@@ -37,6 +37,11 @@ const indexSource = fs.readFileSync("index.html", "utf8");
 assert.match(indexSource, /Option-Adjusted Spread/);
 assert.match(indexSource, /新規借入で実際に支払う金利そのものでも、倒産確率そのものでもありません/);
 assert.match(indexSource, /VIX上昇に加え、OASが拡大/);
+assert.match(indexSource, /SOXで最適化した予測値ではありません/);
+assert.match(indexSource, /1社で比率が12.5ポイント/);
+assert.match(indexSource, /一人の論者の入力を再現した参考シナリオ/);
+assert.match(indexSource, /逆DCFとは/);
+assert.match(indexSource, /研究結果の当てはめには限界があります/);
 const ids = [...indexSource.matchAll(/\bid="([^"]+)"/g)].map((match) => match[1]);
 const elements = new Map(ids.map((id) => [id, new FakeElement(id)]));
 const filters = ["all", "overseas-ai", "japan-ai", "japan-diversified"].map((value) => {
@@ -97,6 +102,12 @@ setTimeout(() => {
   assert.match(elements.get("marketPathNormalizationComponents").innerHTML, /NT倍率/);
   assert.match(elements.get("marketPathPanicComponents").innerHTML, /VIX|予想変動率/);
   assert.match(elements.get("marketPathInterpretation").innerHTML, /パニック|約6万円/);
+  assert.match(elements.get("thresholdVixBasis").textContent, /標本内P/);
+  assert.match(elements.get("thresholdOasBasis").textContent, /標本内P/);
+  assert.match(elements.get("thresholdVixBasis").textContent, /20年/);
+  assert.match(elements.get("thresholdOasBasis").textContent, /直近3年/);
+  assert.match(elements.get("thresholdOasBasis").textContent, /標本上限超過/);
+  assert.match(elements.get("thresholdBasketBasis").textContent, /1社=12\.5ポイント/);
   console.log(JSON.stringify({
     headline: elements.get("headlineConclusion").textContent,
     transmission: elements.get("japanTransmissionStatus").textContent,
