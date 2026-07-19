@@ -409,7 +409,7 @@ small {
 
 .bottom-glance-metrics span {
   color: var(--muted);
-  font-size: 0.74rem;
+  font-size: 0.78rem;
   font-weight: 700;
 }
 
@@ -546,7 +546,7 @@ small {
 
 .signal-top span:first-child {
   color: var(--muted);
-  font-size: 0.7rem;
+  font-size: 0.76rem;
   font-weight: 700;
 }
 
@@ -696,7 +696,7 @@ small {
 
 .source-chip {
   color: var(--muted);
-  font-size: 0.72rem;
+  font-size: 0.78rem;
   font-weight: 700;
 }
 
@@ -832,12 +832,12 @@ small {
 
 .company-group {
   color: var(--muted);
-  font-size: 0.68rem;
+  font-size: 0.76rem;
 }
 
 .column-note {
   color: var(--muted);
-  font-size: 0.62rem;
+  font-size: 0.75rem;
   font-weight: 600;
 }
 
@@ -845,7 +845,7 @@ small {
   display: block;
   margin-top: 3px;
   color: var(--muted);
-  font-size: 0.62rem;
+  font-size: 0.75rem;
   font-weight: 600;
   white-space: nowrap;
 }
@@ -929,7 +929,7 @@ input[type="number"] {
 .fundamental-stat span {
   display: block;
   color: var(--muted);
-  font-size: 0.69rem;
+  font-size: 0.76rem;
 }
 
 .fundamental-stat strong {
@@ -991,7 +991,7 @@ output {
 .scenario-grid article span {
   display: block;
   color: var(--muted);
-  font-size: 0.7rem;
+  font-size: 0.76rem;
 }
 
 .scenario-grid article strong {
@@ -1004,7 +1004,7 @@ output {
 .scenario-grid article p {
   margin-bottom: 0;
   color: var(--muted);
-  font-size: 0.7rem;
+  font-size: 0.76rem;
 }
 
 .scenario-grid .scenario-main {
@@ -1180,7 +1180,7 @@ output {
 
 .method-steps span {
   color: var(--teal);
-  font-size: 0.7rem;
+  font-size: 0.76rem;
   font-weight: 700;
 }
 
@@ -1356,7 +1356,7 @@ output {
 .map-item small {
   margin-bottom: 0;
   color: var(--muted);
-  font-size: 0.72rem;
+  font-size: 0.78rem;
 }
 
 .map-item:hover {
@@ -1436,7 +1436,7 @@ output {
 .transmission-metrics small {
   display: block;
   color: var(--muted);
-  font-size: 0.74rem;
+  font-size: 0.78rem;
   font-weight: 700;
 }
 
@@ -1479,7 +1479,7 @@ output {
   display: block;
   margin-bottom: 7px;
   color: var(--muted);
-  font-size: 0.72rem;
+  font-size: 0.78rem;
   font-weight: 800;
 }
 
@@ -1586,7 +1586,7 @@ output {
 .transmission-sources {
   margin: 16px 0 0;
   color: var(--muted);
-  font-size: 0.74rem;
+  font-size: 0.78rem;
   line-height: 1.75;
 }
 
@@ -1686,7 +1686,7 @@ output {
 
 .bottom-position-result span {
   color: var(--muted);
-  font-size: 0.72rem;
+  font-size: 0.78rem;
 }
 
 .bottom-position-result strong {
@@ -1823,7 +1823,7 @@ output {
 .reference-help {
   margin: 8px 0 18px;
   color: var(--muted);
-  font-size: 0.72rem;
+  font-size: 0.78rem;
 }
 
 .bottom-controls > .command {
@@ -1867,7 +1867,7 @@ output {
 .anchor-item span,
 .anchor-item small {
   color: var(--muted);
-  font-size: 0.72rem;
+  font-size: 0.78rem;
 }
 
 .anchor-item strong {
@@ -1999,7 +1999,7 @@ output {
 
 .check-item span {
   color: var(--muted);
-  font-size: 0.72rem;
+  font-size: 0.78rem;
   font-weight: 700;
 }
 
@@ -2037,7 +2037,7 @@ output {
 
 .observation-level > span {
   color: var(--muted);
-  font-size: 0.72rem;
+  font-size: 0.78rem;
   font-weight: 700;
 }
 
@@ -2055,7 +2055,7 @@ output {
 .observation-level em {
   grid-column: 2;
   color: var(--muted);
-  font-size: 0.7rem;
+  font-size: 0.76rem;
   font-style: normal;
   font-weight: 700;
 }
@@ -2168,7 +2168,7 @@ output {
 
 .bottom-formula-grid > div > span {
   color: var(--muted);
-  font-size: 0.72rem;
+  font-size: 0.78rem;
   font-weight: 700;
 }
 
@@ -2304,7 +2304,7 @@ footer {
   padding: 4px 7px;
   border: 1px solid currentColor;
   border-radius: 4px;
-  font-size: 0.68rem;
+  font-size: 0.76rem;
   font-weight: 800;
   line-height: 1.25;
   white-space: nowrap;
@@ -3098,7 +3098,7 @@ footer {
 .dotcom-table td > small {
   margin-top: 4px;
   color: #afc1ce;
-  font-size: 0.72rem;
+  font-size: 0.78rem;
 }
 
 .dotcom-table td > strong {
@@ -3131,7 +3131,7 @@ footer {
 .dotcom-group-tag {
   display: inline-block;
   color: #bcd0dc;
-  font-size: 0.68rem;
+  font-size: 0.76rem;
   line-height: 1.35;
 }
 
@@ -3163,7 +3163,7 @@ footer {
 
 .dotcom-key-finding span {
   color: #9fe0d8;
-  font-size: 0.74rem;
+  font-size: 0.78rem;
   font-weight: 700;
 }
 
@@ -3377,7 +3377,7 @@ footer {
 .sakakibara-status-metrics small {
   margin-top: 5px;
   color: #cbd8e0;
-  font-size: 0.72rem;
+  font-size: 0.78rem;
 }
 
 .sakakibara-chain {
@@ -3400,7 +3400,7 @@ footer {
 
 .sakakibara-chain > div span {
   color: #b33b2e;
-  font-size: 0.7rem;
+  font-size: 0.76rem;
   font-weight: 800;
 }
 
@@ -3507,7 +3507,7 @@ footer {
 
 .sak-gate > span {
   color: var(--muted);
-  font-size: 0.72rem;
+  font-size: 0.78rem;
   font-weight: 800;
 }
 
@@ -3526,7 +3526,7 @@ footer {
   color: #ffffff;
   background: #7b8794;
   border-radius: 3px;
-  font-size: 0.7rem;
+  font-size: 0.76rem;
   font-style: normal;
   font-weight: 800;
 }
@@ -3597,7 +3597,7 @@ footer {
 
 .compare-period div small {
   color: var(--muted);
-  font-size: 0.7rem;
+  font-size: 0.76rem;
 }
 
 .compare-period div strong {
@@ -3710,7 +3710,7 @@ footer {
 
 .kioxia-path span {
   color: #bcd0dc;
-  font-size: 0.74rem;
+  font-size: 0.78rem;
 }
 
 .kioxia-path strong {
@@ -3723,7 +3723,7 @@ footer {
 .kioxia-path small {
   margin-top: 5px;
   color: #d5e0e7;
-  font-size: 0.7rem;
+  font-size: 0.76rem;
 }
 
 .kioxia-path > svg {
@@ -3899,7 +3899,7 @@ footer {
 .en-ai-formula p {
   margin: 4px 0 0;
   color: var(--muted);
-  font-size: 0.74rem;
+  font-size: 0.78rem;
 }
 
 .en-ai-table {
@@ -3948,7 +3948,7 @@ footer {
 .en-ai-table td small {
   margin-top: 4px;
   color: var(--muted);
-  font-size: 0.7rem;
+  font-size: 0.76rem;
 }
 
 .en-ai-table .proxy-total {
@@ -4855,12 +4855,12 @@ footer {
 .ms-calendar-summary h4 { margin: 0 0 12px; color: #10263a; font-size: 1.15rem; }
 .ms-calendar-summary ul { list-style: none; margin: 0; padding: 0; }
 .ms-calendar-summary li { display: grid; grid-template-columns: auto 1fr; gap: 8px; padding: 9px 0; border-top: 1px solid #edf1f4; }
-.ms-calendar-summary li > span { align-self: start; padding: 3px 5px; color: #536575; border: 1px solid currentColor; font-size: 0.62rem; font-weight: 900; white-space: nowrap; }
+.ms-calendar-summary li > span { align-self: start; padding: 3px 5px; color: #536575; border: 1px solid currentColor; font-size: 0.75rem; font-weight: 900; white-space: nowrap; }
 .ms-calendar-summary li > span.confirmed { color: #642269; }
 .ms-calendar-summary li > span.tentative { color: #08776b; }
 .ms-calendar-summary li > span.official-cycle { color: #0b5d92; }
 .ms-calendar-summary li strong { display: block; color: #203a4d; font-size: 0.75rem; line-height: 1.4; }
-.ms-calendar-summary li p { margin: 2px 0 0; color: #526878; font-size: 0.72rem; line-height: 1.5; }
+.ms-calendar-summary li p { margin: 2px 0 0; color: #526878; font-size: 0.78rem; line-height: 1.5; }
 .ms-cycle-reading { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); margin-top: 22px; background: #eef4f7; }
 .ms-cycle-reading > div { padding: 19px 21px; border-right: 1px solid #cedbe3; }
 .ms-cycle-reading > div:last-child { border-right: 0; }
@@ -4911,7 +4911,7 @@ footer {
 .ms-analogy-table td { padding: 18px 19px; border-bottom: 1px solid #d6dfe5; vertical-align: top; text-align: left; line-height: 1.65; }
 .ms-analogy-table thead th { background: #173854; color: #fff; font-size: 0.8rem; }
 .ms-analogy-table tbody th { width: 154px; color: #10263a; font-size: 0.93rem; }
-.ms-analogy-table tbody th span { color: #6b7c88; font-size: 0.73rem; }
+.ms-analogy-table tbody th span { color: #6b7c88; font-size: 0.78rem; }
 .ms-analogy-table tbody td { color: #405969; font-size: 0.85rem; }
 .ms-analogy-table tbody td:nth-child(2) { border-left: 4px solid #c63838; }
 .ms-analogy-table tbody td:nth-child(3) { border-left: 4px solid #d59b14; }
@@ -4926,7 +4926,7 @@ footer {
   padding: 20px 0;
   border-bottom: 1px solid #ccd7df;
 }
-.ms-fact-row > span { justify-self: start; padding: 5px 9px; border: 1px solid currentColor; font-size: 0.73rem; font-weight: 900; }
+.ms-fact-row > span { justify-self: start; padding: 5px 9px; border: 1px solid currentColor; font-size: 0.78rem; font-weight: 900; }
 .ms-fact-row strong { color: #10263a; font-size: 1rem; line-height: 1.5; }
 .ms-fact-row p { margin: 0; color: #465f70; line-height: 1.7; }
 .ms-fact-row.confirmed > span { color: #08776b; }
@@ -4946,7 +4946,7 @@ footer {
 .ms-monitor-bridge > :last-child { border-right: 0; }
 .ms-monitor-bridge > div { flex-direction: row; align-items: center; gap: 12px; color: #173854; }
 .ms-monitor-bridge > div svg { flex: 0 0 auto; }
-.ms-monitor-bridge a span { color: #617482; font-size: 0.72rem; font-weight: 800; }
+.ms-monitor-bridge a span { color: #617482; font-size: 0.78rem; font-weight: 800; }
 .ms-monitor-bridge a strong { margin-top: 5px; color: #0d628f; font-size: 0.86rem; line-height: 1.45; }
 .ms-monitor-bridge a:hover { background: #edf5f8; }
 
@@ -4979,12 +4979,13 @@ footer {
 }
 
 .ms-liquidity-status article:last-child { border-right: 0; }
-.ms-liquidity-status span { display: inline-block; margin-bottom: 9px; font-size: 0.74rem; font-weight: 900; }
+.ms-liquidity-status span { display: inline-block; margin-bottom: 9px; font-size: 0.78rem; font-weight: 900; }
 .ms-liquidity-status strong { display: block; color: #10263a; font-size: 1.18rem; line-height: 1.4; }
 .ms-liquidity-status p { margin: 8px 0 0; color: #465f70; line-height: 1.7; }
 .ms-liquidity-status .confirmed span { color: #08776b; }
 .ms-liquidity-status .conditional span { color: #9a6200; }
 .ms-liquidity-status .warning span { color: #b32626; }
+.ms-liquidity-status .neutral span { color: #225f7d; }
 
 .ms-liquidity-company-grid {
   display: grid;
@@ -5003,7 +5004,7 @@ footer {
 
 .ms-liquidity-company.anthropic { border-top-color: #9a650e; }
 .ms-liquidity-company header { display: flex; align-items: flex-start; justify-content: space-between; gap: 20px; }
-.ms-liquidity-company header span { color: #567080; font-size: 0.74rem; font-weight: 900; }
+.ms-liquidity-company header span { color: #567080; font-size: 0.78rem; font-weight: 900; }
 .ms-liquidity-company header h4 { margin: 5px 0 0; color: #10263a; font-size: 1.35rem; line-height: 1.4; }
 .ms-liquidity-company header svg { flex: 0 0 auto; width: 30px; height: 30px; color: #155e8d; }
 .ms-liquidity-company.anthropic header svg { color: #9a650e; }
@@ -5035,11 +5036,11 @@ footer {
   margin-top: 22px;
   padding: 24px 28px;
   border: 1px solid #c9d6de;
-  border-left: 6px solid #b32626;
+  border-left: 6px solid #637987;
   background: #fff;
 }
 
-.ms-reported-total span { display: block; color: #b32626; font-size: 0.73rem; font-weight: 900; }
+.ms-reported-total span { display: block; color: #526a79; font-size: 0.78rem; font-weight: 900; }
 .ms-reported-total strong { display: block; margin-top: 5px; color: #10263a; font-size: 1.16rem; line-height: 1.45; }
 .ms-reported-total p { margin: 0; color: #465f70; line-height: 1.75; }
 
@@ -5058,6 +5059,45 @@ footer {
 .ms-transfer-warning strong { color: #10263a; font-size: 1.04rem; line-height: 1.45; }
 .ms-transfer-warning p { margin: 7px 0 0; color: #496171; line-height: 1.75; }
 
+.ms-liquidity-details {
+  margin-top: 26px;
+  border: 1px solid #c9d6de;
+  border-radius: 6px;
+  background: #fff;
+}
+
+.ms-liquidity-details.secondary-details { margin-top: 18px; }
+.ms-liquidity-details summary {
+  position: relative;
+  display: grid;
+  grid-template-columns: 110px minmax(0, 1fr);
+  gap: 18px;
+  align-items: center;
+  min-height: 76px;
+  padding: 18px 54px 18px 22px;
+  color: #173854;
+  cursor: pointer;
+  list-style: none;
+}
+.ms-liquidity-details summary::-webkit-details-marker { display: none; }
+.ms-liquidity-details summary::after {
+  position: absolute;
+  right: 22px;
+  content: "+";
+  color: #1b6876;
+  font-size: 1.8rem;
+  font-weight: 700;
+  line-height: 1;
+}
+.ms-liquidity-details[open] summary::after { content: "−"; }
+.ms-liquidity-details[open] summary { border-bottom: 1px solid #d3dde4; }
+.ms-liquidity-details summary span { color: #557080; font-size: 0.76rem; font-weight: 900; }
+.ms-liquidity-details summary strong { font-size: 1.06rem; line-height: 1.45; }
+.ms-liquidity-details-body { padding: 26px; background: #f7fafb; }
+.ms-liquidity-details-body .ms-liquidity-company-grid,
+.ms-liquidity-details-body .ms-liquidity-history-metrics { margin-top: 0; }
+.ms-details-lead { margin: 0 0 18px; color: #465f70; line-height: 1.75; }
+.ms-liquidity-interpretation.primary-reading { margin-top: 24px; }
 .ms-liquidity-pipeline,
 .ms-liquidity-comparison,
 .ms-liquidity-warning-grid {
@@ -5165,11 +5205,11 @@ footer {
 .ms-liquidity-conclusion {
   margin-top: 28px;
   padding: 28px 30px;
-  border-left: 7px solid #b77a0d;
-  background: #fff8e8;
+  border-left: 7px solid #167a72;
+  background: #edf8f6;
 }
 
-.ms-liquidity-conclusion span { color: #8f5d00; font-size: 0.76rem; font-weight: 900; }
+.ms-liquidity-conclusion span { color: #116d66; font-size: 0.76rem; font-weight: 900; }
 .ms-liquidity-conclusion strong { display: block; margin: 7px 0 8px; color: #10263a; font-size: 1.28rem; line-height: 1.45; }
 .ms-liquidity-conclusion p { margin: 0; color: #465f70; line-height: 1.75; }
 
@@ -5188,6 +5228,8 @@ footer {
 @media (max-width: 760px) {
   .ms-liquidity-section { padding: 35px 0; }
   .ms-liquidity-company { padding: 22px 18px; }
+  .ms-liquidity-details summary { grid-template-columns: 1fr; gap: 5px; padding: 17px 48px 17px 18px; }
+  .ms-liquidity-details-body { padding: 18px; }
   .ms-liquidity-formula { grid-template-columns: 1fr; }
   .ms-liquidity-formula b { font-size: 1.55rem; }
   .ms-reported-total { grid-template-columns: 1fr; gap: 12px; padding: 22px 20px; }

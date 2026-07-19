@@ -1,4 +1,4 @@
-﻿const fs = require("fs");
+const fs = require("fs");
 const vm = require("vm");
 const assert = require("assert");
 
@@ -55,16 +55,18 @@ assert.match(indexSource, /data-ms-range="cycle"/);
 assert.match(indexSource, /次回大統領選までの「値動きを確認する日」/);
 assert.match(appSource, /典型的な180日ロックアップ/);
 assert.doesNotMatch(appSource, /type: "logarithmic"/);
-assert.match(indexSource, /66億ドル ÷ 5,000億ドル/);
-assert.match(indexSource, /＝ 1.32%/);
-assert.match(indexSource, /＝ 1.43～1.71%/);
-assert.match(indexSource, /両社の職員・元職員は累計約140億ドルを現金化/);
+assert.match(indexSource, /従業員向け流動性は、AIバブル崩壊の主判定には使わない/);
+assert.match(indexSource, /参考情報・スコア加点なし/);
+assert.match(indexSource, /両社合計の報道額は、判定指標にしない/);
+assert.match(indexSource, /評価額比1.32%は規模感の参考/);
+assert.match(indexSource, /買い手側の上限であり、実際の成立額ではありません/);
 assert.match(indexSource, /Anthropicは6月1日、OpenAIは6月8日/);
 assert.match(indexSource, /一般IPO 1,948社/);
 assert.match(indexSource, /－12%/);
-assert.match(indexSource, /売却＝弱気ではない/);
 assert.match(indexSource, /未上場株の「提示価格」は、そのまま市場価格ではない/);
-assert.match(indexSource, /後期の流動化・将来供給を監視する段階/);
+assert.match(indexSource, /中立の参考情報。従業員向け流動性は、現在の崩壊判定を変えない/);
+assert.doesNotMatch(indexSource, /職員はすでに株を売っている/);
+assert.doesNotMatch(indexSource, /両社の職員・元職員は累計約140億ドルを現金化/);
 const ids = [...indexSource.matchAll(/\bid="([^"]+)"/g)].map((match) => match[1]);
 const elements = new Map(ids.map((id) => [id, new FakeElement(id)]));
 const filters = ["all", "overseas-ai", "japan-ai", "japan-diversified"].map((value) => {
