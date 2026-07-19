@@ -112,6 +112,7 @@ def validate_global_comparison() -> None:
     for element_id in (
         "globalComparisonChart", "gcToggleSpNominal", "gcToggleTheoretical", "gcToggleCrises",
         "gcExportPng", "gcExportSvg", "gcExportCsv", "gcNormalization",
+        "gcRefreshData", "gcSourceList",
     ):
         require(f'id="{element_id}"' in section, f"comparison UI is missing #{element_id}")
     require(html.index('id="global-comparison"') < html.index('id="analysis-map"'), "comparison chart must precede the six-question map")

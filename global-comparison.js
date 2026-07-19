@@ -411,6 +411,20 @@
     }
   }
 
+  function renderSources() {
+    var container = byId("gcSourceList");
+    if (!container) return;
+    container.innerHTML = (state.payload.sources || []).map(function (source) {
+      var label = source.name || source.provider || source.seriesId || source.symbol || "データソース";
+      var detail = [source.seriesId || source.symbol, source.unit, source.latestMonth ? "最終月 " + source.latestMonth : null, source.cacheState].filter(Boolean).join(" / ");
+      var url = source.sourceUrl || source.sourceAgencyUrl || source.downloadUrl;
+      var body = "<strong>" + escapeHtml(label) + "</strong><span>" + escapeHtml(detail || "取得情報を確認済み") + "</span>";
+      return url
+        ? '<a href="' + escapeHtml(url) + '" target="_blank" rel="noopener">' + body + '</a>'
+        : "<div>" + body + "</div>";
+    }).join("");
+  }
+
   function coverageLabel(row) {
     if (!row || row.status === "unavailable") return "算出不可";
     if (row.status === "insufficient-coverage") return "カバー率不足";
@@ -603,6 +617,10 @@
       writeUrlState();
       renderChart();
     });
+    byId("gcRefreshData").addEventListener("click", function () {
+      var mainRefresh = byId("refreshButton");
+      if (mainRefresh && !mainRefresh.disabled) mainRefresh.click();
+    });
     byId("gcToggleSpNominal").addEventListener("click", function () {
       state.showSp500Nominal = !state.showSp500Nominal;
       updateControls();
@@ -653,6 +671,7 @@
       if (!byId("gcCustomEnd").value) byId("gcCustomEnd").value = last;
       renderMetadata();
       renderCoverage();
+      renderSources();
       updateControls();
       renderChart();
       var availableSeries = payload.seriesDefinitions.filter(function (definition) {

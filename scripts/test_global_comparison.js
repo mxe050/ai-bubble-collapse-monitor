@@ -21,6 +21,8 @@ assert.doesNotMatch(section, /TOPIX/i);
 assert.match(section, /比較を拡大：S&amp;P 500名目を除外/);
 assert.match(section, /理論価値2系列を非表示/);
 assert.match(section, /危機期間を非表示/);
+assert.match(section, /gcRefreshData/);
+assert.match(section, /gcSourceList/);
 assert.match(section, /gcExportPng/);
 assert.match(section, /gcExportSvg/);
 assert.match(section, /gcExportCsv/);

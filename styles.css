@@ -5765,3 +5765,35 @@ footer {
   .gc-export-row .command { flex: 1 1 75px; justify-content: center; }
   .gc-coverage-grid article { padding: 16px; }
 }
+.gc-source-details {
+  margin-top: 18px;
+  border: 1px solid var(--line);
+  background: #fff;
+}
+.gc-source-details summary {
+  padding: 12px 15px;
+  color: var(--ink-soft);
+  cursor: pointer;
+  font-size: .86rem;
+  font-weight: 700;
+}
+.gc-source-details[open] summary { border-bottom: 1px solid var(--line); }
+.gc-source-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.gc-source-list > * {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  padding: 12px 15px;
+  border-bottom: 1px solid var(--line);
+  color: var(--ink);
+  text-decoration: none;
+}
+.gc-source-list > *:nth-child(odd) { border-right: 1px solid var(--line); }
+.gc-source-list > *:hover { background: #f3f7fa; }
+.gc-source-list strong { font-size: .82rem; }
+.gc-source-list span { color: var(--muted); font-size: .74rem; overflow-wrap: anywhere; }
+@media (max-width: 700px) {
+  .gc-source-list { grid-template-columns: 1fr; }
+  .gc-source-list > *:nth-child(odd) { border-right: 0; }
+}

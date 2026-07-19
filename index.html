@@ -163,6 +163,7 @@
             </select>
           </label>
           <div class="gc-toggle-row">
+            <button id="gcRefreshData" class="command primary" type="button" aria-label="市場・為替・物価データを更新する"><i data-lucide="refresh-cw" aria-hidden="true"></i>このチャートのデータを更新</button>
             <button id="gcToggleSpNominal" class="command" type="button" aria-pressed="false" aria-label="S&P 500名目指数の表示を切り替える">比較を拡大：S&amp;P 500名目を除外</button>
             <button id="gcToggleTheoretical" class="command" type="button" aria-pressed="false" aria-label="理論価値2系列の表示を切り替える">理論価値2系列を非表示</button>
             <button id="gcToggleCrises" class="command" type="button" aria-pressed="false" aria-label="危機期間の背景表示を切り替える">危機期間を非表示</button>
@@ -250,6 +251,10 @@
           </div>
         </div>
 
+        <details class="gc-source-details">
+          <summary>データソースと更新状態を確認</summary>
+          <div id="gcSourceList" class="gc-source-list"></div>
+        </details>
         <div id="gcDataWarnings" class="gc-data-warning" hidden></div>
         <div class="gc-chart-notes">
           <p>すべてのY軸は通常の線形軸であり、対数軸ではありません。</p>
