@@ -63,8 +63,8 @@ def check_yoy_dates(company: dict[str, Any], prefix: str) -> None:
 
 def main() -> None:
     data = json.loads(DATA_FILE.read_text(encoding="utf-8"))
-    require(data.get("schemaVersion") == 12, "schemaVersion must be 12")
-    require(data.get("methodVersion") == "3.9.0", "methodVersion must be 3.9.0")
+    require(data.get("schemaVersion") == 13, "schemaVersion must be 13")
+    require(data.get("methodVersion") == "4.0.0", "methodVersion must be 4.0.0")
 
     generated = datetime.fromisoformat(data["generatedAtUtc"]).date()
     market_day = date.fromisoformat(data["marketDate"])
@@ -152,6 +152,44 @@ def main() -> None:
     require(derived.get("fcfDeteriorationCoverage", 0) >= 7, "FCF deterioration coverage below 7/10")
     require(derived.get("hyperscalerCapexCoverage") == 4, "hyperscaler CapEx coverage must be 4/4")
     require(0 <= derived.get("fcfDeteriorationBreadthPct", -1) <= 100, "invalid FCF deterioration breadth")
+
+
+    us_risk = data["market"].get("usBubbleRisk") or {}
+    components = us_risk.get("components") or []
+    require(us_risk.get("method") == "US breakdown progression index v1.0", "US risk method label is missing")
+    require(len(components) == 5, "US risk must contain five evidence groups")
+    require(close_enough(sum(row["maxScore"] for row in components), 100.0), "US risk maximum must be 100")
+    require(close_enough(sum(row["score"] for row in components), us_risk["rawScore"]), "US risk raw-score identity failed")
+    require(close_enough(sum(row["knownMax"] for row in components), us_risk["knownMax"]), "US risk coverage identity failed")
+    require(us_risk["knownMax"] >= 70, "US risk coverage is too low")
+    require(close_enough(us_risk["score"], us_risk["rawScore"] / us_risk["knownMax"] * 100, relative=1e-3), "US risk normalized score failed")
+    require(0 <= us_risk["score"] <= 100, "US risk score out of range")
+    require(len(us_risk.get("scenarios") or []) == 4, "US risk S&P levels are incomplete")
+    sp_peak = series["SP500"]["peak3y"]
+    for scenario in us_risk["scenarios"]:
+        expected_level = sp_peak * (1 - scenario["drawdownFromPeakPct"] / 100)
+        require(close_enough(scenario["level"], expected_level, relative=1e-5), f"US scenario level failed: {scenario['id']}")
+
+    financial_conditions = data.get("macro", {}).get("financialConditions") or {}
+    require(financial_conditions.get("seriesId") == "NFCI", "NFCI is missing")
+    require(finite(financial_conditions.get("value")), "NFCI value is invalid")
+
+    berkshire = data["market"].get("berkshireMonitor") or {}
+    balance = berkshire.get("balanceLatest") or {}
+    previous_balance = berkshire.get("balancePrevious") or {}
+    require(balance.get("periodEnd") >= previous_balance.get("periodEnd", ""), "Berkshire periods are reversed")
+    expected_reserve = balance["cashAndEquivalentsBillion"] + balance["treasuryBillsBillion"] - balance["unsettledTreasuryPayableBillion"]
+    require(close_enough(balance["netLiquidReserveBillion"], expected_reserve), "Berkshire net liquidity identity failed")
+    expected_pool_ratio = expected_reserve / (expected_reserve + balance["equitySecuritiesBillion"] + balance["fixedMaturityBillion"]) * 100
+    require(close_enough(balance["investmentPoolLiquidRatioPct"], expected_pool_ratio), "Berkshire liquidity ratio identity failed")
+    thirteen_f = berkshire.get("thirteenF") or {}
+    require(thirteen_f.get("latest", {}).get("reportDate") > thirteen_f.get("previous", {}).get("reportDate", ""), "13F periods are reversed")
+    require(len(thirteen_f.get("buys") or []) >= 3 and len(thirteen_f.get("sells") or []) >= 3, "13F comparison is incomplete")
+
+    overseas = data.get("overseasIntelligence") or {}
+    require(isinstance(overseas.get("newsItems"), list), "overseas news list is missing")
+    require((overseas.get("x") or {}).get("status") in {"connected", "not-configured", "failed"}, "X update status is invalid")
+    require(bool(overseas.get("readingRule")), "overseas information reading rule is missing")
 
     by_ticker = {company["ticker"]: company for company in companies}
     require(by_ticker["7203.T"].get("valuationFcf") == 2_492_282_000_000, "Toyota audited valuation FCF changed")
@@ -472,7 +510,7 @@ def main() -> None:
     require(len(html_id_list) == len(html_ids), "index.html contains duplicate element ids")
     missing_ids = sorted(referenced_ids - html_ids)
     require(not missing_ids, f"app.js references missing HTML ids: {missing_ids}")
-    require("Method v3.9" in index_source, "method label is missing")
+    require("Method v4.0" in index_source, "method label is missing")
     require("評価への脆弱性は別枠20点" in index_source, "valuation/collapse score separation is missing")
 
     print(

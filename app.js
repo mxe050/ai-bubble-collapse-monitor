@@ -2204,6 +2204,113 @@
   }
 
 
+  function formatUsdBillions(value) {
+    var numeric = finite(value);
+    return numeric === null ? "未確認" : (numeric < 0 ? "−" : "") + "$" + numberOne.format(Math.abs(numeric)) + "B";
+  }
+
+  function formatShares(value) {
+    var numeric = finite(value);
+    if (numeric === null) return "未確認";
+    if (Math.abs(numeric) >= 1000000) return numberOne.format(numeric / 1000000) + "百万株";
+    if (Math.abs(numeric) >= 10000) return numberOne.format(numeric / 10000) + "万株";
+    return nikkeiFormat.format(numeric) + "株";
+  }
+
+  function renderUsRisk() {
+    var risk = ((state.data.market || {}).usBubbleRisk || {});
+    var score = finite(risk.score);
+    byId("usRiskScore").textContent = score === null ? "算定不可" : numberOne.format(score) + " / 100";
+    byId("usRiskAsOf").textContent = (risk.asOfDate || "基準日未確認") + " 終値基準";
+    byId("usRiskStage").textContent = risk.stageLabel || "データ不足";
+    byId("usRiskStage").className = "us-risk-stage " + escapeHtml(risk.stageCode || "insufficient");
+    byId("usRiskNarrative").textContent = risk.narrative || "主要指標を確認しています。";
+    byId("usRiskMeterFill").style.width = (score === null ? 0 : clamp(score, 0, 100)) + "%";
+    var previous = risk.previousUpdate || {};
+    var change = finite(previous.scoreChange);
+    byId("usRiskChange").textContent = change === null
+      ? "この方法での前回値はまだありません。次回更新から変化幅を表示します。"
+      : "前回更新から " + (change > 0 ? "+" : "") + numberOne.format(change) + "ポイント（前回 " + numberOne.format(previous.score) + "）。";
+
+    byId("usRiskComponents").innerHTML = (risk.components || []).map(function (component) {
+      var componentScore = finite(component.score) || 0;
+      var knownMax = finite(component.knownMax) || 0;
+      var width = knownMax ? clamp(componentScore / knownMax * 100, 0, 100) : 0;
+      return "<article><div class=\"us-risk-component-heading\"><strong>" + escapeHtml(component.label) + "</strong><span>" + numberOne.format(componentScore) + " / " + numberOne.format(knownMax) + "</span></div>"
+        + "<div class=\"us-component-meter\" aria-hidden=\"true\"><span style=\"width:" + width + "%\"></span></div>"
+        + "<p>" + escapeHtml(component.detail || "") + "</p></article>";
+    }).join("");
+
+    byId("usScenarioRows").innerHTML = (risk.scenarios || []).map(function (scenario) {
+      return "<tr><th>" + escapeHtml(scenario.label) + "</th><td>−" + numberOne.format(scenario.drawdownFromPeakPct) + "%</td><td>" + formatIndexLevel(scenario.level) + "</td><td>" + formatPercent(scenario.moveFromCurrentPct, true) + "</td><td>" + escapeHtml(scenario.note) + "</td></tr>";
+    }).join("") || "<tr><td colspan=\"5\">S&amp;P 500の高値と終値を取得できませんでした。</td></tr>";
+    var rules = risk.rules || {};
+    byId("usRiskRuleMeaning").textContent = rules.meaning || "";
+    byId("usRiskThresholdBasis").textContent = rules.thresholdBasis || "";
+    byId("usRiskProbabilityNote").textContent = rules.notProbability || "";
+
+    var signals = (((state.moneyStrategist || {}).audit || {}).currentSignals || {});
+    byId("usCape").textContent = finite((signals.cape || {}).value) === null ? "未確認" : numberTwo.format(signals.cape.value);
+    byId("usConcentration").textContent = finite((signals.top10WeightPct || {}).value) === null ? "未確認" : numberOne.format(signals.top10WeightPct.value) + "%";
+  }
+
+  function renderBerkshireMonitor() {
+    var monitor = ((state.data.market || {}).berkshireMonitor || {});
+    var latest = monitor.balanceLatest || {};
+    var filing = monitor.thirteenF || {};
+    byId("berkshireNarrative").textContent = monitor.narrative || "バークシャーの最新公表値を確認できませんでした。";
+    byId("berkshireReserve").textContent = formatUsdBillions(latest.netLiquidReserveBillion);
+    byId("berkshireReserveChange").textContent = "前期比 " + formatUsdBillions(monitor.reserveChangeBillion) + "（" + formatPercent(monitor.reserveChangePct, true) + "）";
+    byId("berkshireCashRatio").textContent = formatPercent(latest.investmentPoolLiquidRatioPct, false);
+    byId("berkshireCashRatioChange").textContent = "前期比 " + formatPctPoints(monitor.investmentPoolLiquidRatioChangePctPoints, true);
+    byId("berkshireEquities").textContent = formatUsdBillions(latest.equitySecuritiesBillion);
+    byId("berkshireEquitiesChange").textContent = "前期比 " + formatUsdBillions(monitor.equitySecuritiesChangeBillion);
+    byId("berkshirePeriod").textContent = latest.periodEnd || "未確認";
+    byId("berkshireCalculation").textContent = monitor.calculationNote || "";
+    byId("berkshireLimit").textContent = monitor.thirteenFLimit || "";
+    byId("berkshireBalanceSource").href = latest.sourceUrl || "https://www.berkshirehathaway.com/reports.html";
+    byId("berkshire13fSource").href = (filing.latest || {}).sourceUrl || "https://www.sec.gov/edgar/browse/?CIK=1067983";
+
+    function changeRows(rows) {
+      return (rows || []).map(function (row) {
+        var pct = finite(row.changePct);
+        var comparison = row.status === "新規" ? "新規 " + formatShares(row.latestShares)
+          : row.status === "全売却" ? "全売却 " + formatShares(Math.abs(row.changeShares))
+          : (pct !== null ? formatPercent(pct, true) : formatShares(row.changeShares));
+        return "<div class=\"berkshire-change-row\"><div><strong>" + escapeHtml(row.name) + "</strong><small>" + escapeHtml(row.securityClass || "") + "</small></div><span>" + escapeHtml(row.status || "") + "</span><b>" + escapeHtml(comparison) + "</b></div>";
+      }).join("") || "<p>比較可能な変更を取得できませんでした。</p>";
+    }
+    byId("berkshireBuys").innerHTML = changeRows(filing.buys);
+    byId("berkshireSells").innerHTML = changeRows(filing.sells);
+  }
+
+  function renderOverseasIntelligence() {
+    var intelligence = state.data.overseasIntelligence || {};
+    var xWatch = intelligence.x || {};
+    byId("overseasSummary").textContent = intelligence.summary || "海外情報の更新結果がありません。";
+    var checked = intelligence.checkedAtUtc ? new Date(intelligence.checkedAtUtc) : null;
+    byId("overseasCheckedAt").textContent = checked && !Number.isNaN(checked.valueOf())
+      ? "確認 " + new Intl.DateTimeFormat("ja-JP", { dateStyle: "medium", timeStyle: "short", timeZone: "Asia/Tokyo" }).format(checked)
+      : "確認時刻なし";
+    byId("overseasXStatus").textContent = xWatch.message || "Xの状態を確認できません";
+    var topics = Object.entries(intelligence.topicCounts || {}).sort(function (a, b) { return b[1] - a[1]; });
+    byId("overseasTopicChips").innerHTML = topics.map(function (row) {
+      return "<span>" + escapeHtml(row[0]) + " <strong>" + nikkeiFormat.format(row[1]) + "</strong></span>";
+    }).join("");
+    var items = (intelligence.newsItems || []).slice(0, 8).concat((xWatch.items || []).slice(0, 4));
+    byId("overseasNewsList").innerHTML = items.map(function (row) {
+      return "<a href=\"" + escapeHtml(row.url) + "\" target=\"_blank\" rel=\"noopener\"><span>" + escapeHtml(row.evidenceLevel || "海外情報") + "</span><strong>" + escapeHtml(row.title) + "</strong><small>" + escapeHtml(row.source || "") + " / " + escapeHtml(row.topic || "") + "</small></a>";
+    }).join("") || "<p>今回の更新では新着候補を取得できませんでした。</p>";
+    byId("overseasReadingRule").textContent = intelligence.readingRule || "";
+  }
+
+  function renderUsMarketIntelligence() {
+    renderUsRisk();
+    renderBerkshireMonitor();
+    renderOverseasIntelligence();
+  }
+
+
   function renderSources() {
     var grouped = {};
     (state.data.sourceStatus || []).forEach(function (source) {
@@ -2250,6 +2357,7 @@
     renderJapanTransmission(transmission);
     renderSakakibaraMethod();
     renderMoneyStrategist();
+    renderUsMarketIntelligence();
     renderMarketReading();
     renderMarketChart();
     renderDotComComparison();
@@ -2263,6 +2371,23 @@
     if (window.lucide) window.lucide.createIcons();
   }
 
+  async function requestFreshUpdate() {
+    var response;
+    try {
+      response = await fetch("api/refresh", { method: "POST", cache: "no-store", headers: { "Accept": "application/json" } });
+    } catch (_error) {
+      return { executed: false, reason: "static-host" };
+    }
+    if (response.status === 404 || response.status === 405) return { executed: false, reason: "static-host" };
+    var contentType = response.headers.get("content-type") || "";
+    var payload = contentType.indexOf("application/json") >= 0 ? await response.json() : null;
+    if (!response.ok || !payload || !payload.ok) {
+      throw new Error((payload && (payload.error || payload.detail)) || "更新処理に失敗しました");
+    }
+    return { executed: true, payload: payload };
+  }
+
+
   async function loadData(showMessage) {
     var button = byId("refreshButton");
     button.classList.add("is-loading");
@@ -2271,7 +2396,20 @@
       byId("dataHealth").className = "status-dot";
       byId("dataHealth").textContent = "再読込中";
     }
+    var refreshMode = "initial";
+    var refreshWarning = "";
     try {
+      if (showMessage) {
+        byId("dataHealth").textContent = "市場・企業・海外情報を更新中";
+        byId("refreshHint").textContent = "取得、再計算、検証を実行しています";
+        try {
+          var refreshResult = await requestFreshUpdate();
+          refreshMode = refreshResult.executed ? "live" : "static";
+        } catch (refreshError) {
+          refreshMode = "failed";
+          refreshWarning = refreshError.message;
+        }
+      }
       var moneyRequest = fetch("data/money-strategist-history.json?ts=" + Date.now(), { cache: "no-store" })
         .then(function (response) { return response.ok ? response.json() : null; })
         .catch(function () { return null; });
@@ -2282,6 +2420,15 @@
       state.data = payload;
       state.moneyStrategist = await moneyRequest;
       renderAll();
+      if (showMessage && refreshMode === "live") {
+        byId("refreshHint").textContent = "最新データへ更新しました";
+      } else if (showMessage && refreshMode === "static") {
+        byId("refreshHint").textContent = "公開済みの最新データを再読込しました";
+      } else if (showMessage && refreshMode === "failed") {
+        byId("dataHealth").className = "status-dot warn";
+        byId("dataHealth").textContent = "更新失敗・前回値を表示";
+        byId("refreshHint").textContent = refreshWarning;
+      }
     } catch (error) {
       byId("dataHealth").className = "status-dot error";
       byId("dataHealth").textContent = "読込失敗";

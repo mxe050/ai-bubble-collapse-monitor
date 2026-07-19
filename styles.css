@@ -5280,3 +5280,234 @@ footer {
   .ms-monitor-bridge { grid-template-columns: 1fr; }
   .ms-monitor-bridge > a { min-height: 88px; border-right: 0; border-bottom: 1px solid #d3dde4; }
 }
+
+
+/* Method v4.0: U.S. breakdown, Berkshire, and overseas intelligence */
+.refresh-hint {
+  display: block;
+  max-width: 230px;
+  color: #dcebf3;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.35;
+}
+
+.us-breakdown-panel,
+.berkshire-panel,
+.overseas-intelligence-panel {
+  margin: 34px 0;
+  padding: 30px;
+  border: 1px solid #b8c9d4;
+  border-radius: 6px;
+  background: #f7fafc;
+}
+
+.us-breakdown-panel {
+  border-top: 6px solid #b33a32;
+}
+
+.us-risk-overview {
+  display: grid;
+  grid-template-columns: minmax(190px, .72fr) minmax(300px, 1.45fr) minmax(230px, .9fr);
+  gap: 18px;
+  align-items: stretch;
+}
+
+.us-risk-scorebox,
+.us-risk-reading,
+.us-vulnerability-box {
+  padding: 20px;
+  border: 1px solid #c8d5dd;
+  border-radius: 5px;
+  background: #fff;
+}
+
+.us-risk-scorebox > span,
+.us-vulnerability-box > span {
+  display: block;
+  color: #526876;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.us-risk-scorebox > strong {
+  display: block;
+  margin: 8px 0 3px;
+  color: #101d2d;
+  font-size: clamp(30px, 3vw, 46px);
+  line-height: 1;
+}
+
+.us-risk-scorebox small,
+.us-vulnerability-box small {
+  color: #607481;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.us-risk-meter,
+.us-component-meter {
+  overflow: hidden;
+  height: 9px;
+  margin-top: 16px;
+  border-radius: 4px;
+  background: #dce5ea;
+}
+
+.us-risk-meter span,
+.us-component-meter span {
+  display: block;
+  height: 100%;
+  background: #b33a32;
+  transition: width .35s ease;
+}
+
+.us-risk-stage {
+  display: inline-block;
+  padding: 5px 9px;
+  border-left: 5px solid #647987;
+  background: #e8eef2;
+  color: #263b48;
+  font-size: 14px;
+  font-weight: 900;
+}
+
+.us-risk-stage.watch { border-color: #397d6a; background: #e8f4f0; color: #155c4a; }
+.us-risk-stage.deterioration { border-color: #a66a00; background: #fff3d8; color: #724800; }
+.us-risk-stage.correction { border-color: #c6562b; background: #ffeadf; color: #853318; }
+.us-risk-stage.bear,
+.us-risk-stage.panic { border-color: #b3232e; background: #fde7e9; color: #8e1720; }
+
+.us-risk-reading p {
+  margin: 13px 0 0;
+  color: #213746;
+  font-size: 15px;
+  font-weight: 650;
+  line-height: 1.72;
+}
+
+.us-risk-change {
+  padding-top: 10px;
+  border-top: 1px solid #d9e2e7;
+  color: #4b6371 !important;
+  font-size: 13px !important;
+}
+
+.us-vulnerability-box > div {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 13px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid #e1e7eb;
+}
+
+.us-vulnerability-box > div strong { color: #8a4e00; font-size: 24px; }
+.us-vulnerability-box p { margin: 13px 0 0; color: #536a77; font-size: 13px; line-height: 1.6; }
+
+.us-risk-components {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 18px;
+}
+
+.us-risk-components article {
+  min-width: 0;
+  padding: 15px;
+  border-top: 4px solid #2a7183;
+  background: #fff;
+}
+
+.us-risk-component-heading {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 9px;
+}
+
+.us-risk-component-heading strong { color: #172b38; font-size: 14px; line-height: 1.35; }
+.us-risk-component-heading span { flex: 0 0 auto; color: #a62f28; font-size: 13px; font-weight: 900; }
+.us-risk-components article p { margin: 10px 0 0; color: #526876; font-size: 13px; line-height: 1.58; }
+.us-component-meter { height: 6px; margin-top: 11px; }
+
+.us-scenario-block {
+  display: grid;
+  grid-template-columns: minmax(240px, .72fr) minmax(520px, 1.6fr);
+  gap: 24px;
+  margin-top: 28px;
+  padding-top: 26px;
+  border-top: 2px solid #9fb4c1;
+}
+
+.us-scenario-block h4,
+.berkshire-holdings-grid h4 { margin: 5px 0 9px; color: #142634; font-size: 19px; }
+.us-scenario-block p { color: #536977; font-size: 14px; line-height: 1.7; }
+.us-scenario-table-wrap { overflow-x: auto; overscroll-behavior-inline: contain; }
+.us-scenario-table { width: 100%; min-width: 720px; border-collapse: collapse; background: #fff; font-size: 13px; }
+.us-scenario-table th,
+.us-scenario-table td { padding: 11px 10px; border-bottom: 1px solid #d6e0e6; text-align: left; vertical-align: top; }
+.us-scenario-table thead th { background: #172a38; color: #fff; font-size: 12px; }
+.us-scenario-table tbody th { color: #17384a; white-space: nowrap; }
+.us-risk-method { margin-top: 18px; }
+
+.berkshire-panel { border-top: 6px solid #397d6a; background: #f7fbf9; }
+.berkshire-metrics { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+.berkshire-metrics > div { padding: 16px; border-top: 4px solid #397d6a; background: #fff; }
+.berkshire-metrics span { display: block; color: #526876; font-size: 12px; font-weight: 800; }
+.berkshire-metrics strong { display: block; margin: 6px 0; color: #15382f; font-size: 25px; }
+.berkshire-metrics small { color: #617780; font-size: 12px; font-weight: 700; }
+.berkshire-holdings-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-top: 24px; }
+.berkshire-holdings-grid > div { padding-top: 18px; border-top: 2px solid #9dbbb1; }
+.berkshire-holdings-grid h4 { display: flex; align-items: center; gap: 8px; }
+.berkshire-holdings-grid h4 svg { width: 19px; height: 19px; }
+.berkshire-holdings-grid > div > p { color: #5d717b; font-size: 13px; }
+.berkshire-change-row { display: grid; grid-template-columns: minmax(120px, 1fr) auto auto; gap: 10px; align-items: center; padding: 10px 0; border-bottom: 1px solid #d9e4df; }
+.berkshire-change-row strong { display: block; color: #193341; font-size: 14px; }
+.berkshire-change-row small { color: #6a7c86; font-size: 12px; }
+.berkshire-change-row span { padding: 3px 7px; background: #e7f1ed; color: #1f6653; font-size: 12px; font-weight: 900; }
+.berkshire-change-row b { color: #193341; font-size: 13px; text-align: right; }
+.berkshire-reading { margin-top: 22px; padding: 16px 18px; border-left: 5px solid #738b96; background: #fff; }
+.berkshire-reading p { margin: 5px 0; color: #4c6470; font-size: 13px; line-height: 1.65; }
+.berkshire-reading a { color: #0f6577; font-weight: 800; }
+
+.overseas-intelligence-panel { border-top: 6px solid #8a5b00; background: #fffaf0; }
+.overseas-status-row { display: flex; flex-wrap: wrap; gap: 10px 22px; color: #5b6870; font-size: 13px; font-weight: 800; }
+.overseas-topic-chips { display: flex; flex-wrap: wrap; gap: 8px; margin: 15px 0; }
+.overseas-topic-chips span { padding: 5px 9px; border: 1px solid #d6b76d; background: #fff; color: #6b4a08; font-size: 12px; font-weight: 800; }
+.overseas-news-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.overseas-news-list a { display: grid; gap: 5px; padding: 14px; border-left: 4px solid #a87818; background: #fff; color: inherit; text-decoration: none; }
+.overseas-news-list a:hover { background: #fff6dc; }
+.overseas-news-list a > span { color: #8b5a00; font-size: 11px; font-weight: 900; }
+.overseas-news-list a > strong { color: #172b38; font-size: 14px; line-height: 1.48; }
+.overseas-news-list a > small { color: #657883; font-size: 12px; }
+.overseas-reading-rule { margin: 16px 0 0; padding: 13px 15px; border-left: 5px solid #2a7183; background: #fff; color: #36515f; font-size: 13px; font-weight: 700; line-height: 1.65; }
+
+@media (max-width: 1040px) {
+  .us-risk-overview { grid-template-columns: 1fr 1.45fr; }
+  .us-vulnerability-box { grid-column: 1 / -1; }
+  .us-risk-components { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .us-scenario-block { grid-template-columns: 1fr; }
+  .berkshire-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+@media (max-width: 700px) {
+  .refresh-hint { max-width: none; }
+  .us-breakdown-panel,
+  .berkshire-panel,
+  .overseas-intelligence-panel { padding: 20px 14px; }
+  .us-risk-overview,
+  .us-risk-components,
+  .berkshire-metrics,
+  .berkshire-holdings-grid,
+  .overseas-news-list { grid-template-columns: 1fr; }
+  .us-vulnerability-box { grid-column: auto; }
+  .berkshire-change-row { grid-template-columns: minmax(110px, 1fr) auto; }
+  .berkshire-change-row b { grid-column: 1 / -1; text-align: left; }
+}
+
+@media (max-width: 1040px) and (min-width: 701px) {
+  .header-actions { flex-wrap: wrap; }
+  .header-actions .refresh-hint { order: 3; flex: 1 0 100%; max-width: none; }
+}

@@ -1,10 +1,10 @@
 {
-  "schemaVersion": 12,
-  "generatedAtUtc": "2026-07-19T10:28:54.075642+00:00",
-  "generatedAtJst": "2026-07-19T19:28:54.075642+09:00",
+  "schemaVersion": 13,
+  "generatedAtUtc": "2026-07-19T11:24:11.113276+00:00",
+  "generatedAtJst": "2026-07-19T20:24:11.113276+09:00",
   "marketDate": "2026-07-17",
   "dataQuality": {
-    "successfulRequests": 70,
+    "successfulRequests": 74,
     "failedRequests": 0,
     "companyCoverage": 26,
     "expectedCompanies": 26,
@@ -1041,6 +1041,273 @@
       "breadthBelowSma200Pct": 10.0,
       "medianChange1dPct": -1.0492621709011996,
       "medianChange5dPct": -5.574422946129226
+    },
+    "usBubbleRisk": {
+      "method": "US breakdown progression index v1.0",
+      "asOfDate": "2026-07-17",
+      "score": 12.0,
+      "rawScore": 12.0,
+      "knownMax": 100,
+      "maxScore": 100,
+      "coveragePct": 100.0,
+      "stageCode": "watch",
+      "stageLabel": "期待は高いが、崩壊の確認は限定的",
+      "narrative": "崩壊進行度は12/100で『期待は高いが、崩壊の確認は限定的』です。最も強い警戒材料は「半導体とAI銘柄への波及」。現在はS&P 500本体、信用市場、企業業績が同じ方向へ悪化しているかを重視します。",
+      "components": [
+        {
+          "id": "price",
+          "label": "S&P 500の下落とトレンド",
+          "score": 2.0,
+          "knownMax": 30,
+          "maxScore": 30,
+          "detail": "S&P 500は3年高値から2.0%下。200日線は上、50日線は下。"
+        },
+        {
+          "id": "tech",
+          "label": "半導体とAI銘柄への波及",
+          "score": 6.0,
+          "knownMax": 20,
+          "maxScore": 20,
+          "detail": "SOXは高値から20.2%下落し、監視AI 10社のうち200日線割れは10%です。"
+        },
+        {
+          "id": "stress",
+          "label": "恐怖と信用市場",
+          "score": 0.0,
+          "knownMax": 25,
+          "maxScore": 25,
+          "detail": "VIXは18.8、米国HY OASは2.71%です。株安だけでなく資金調達不安へ広がったかを見ます。"
+        },
+        {
+          "id": "fundamentals",
+          "label": "AI企業の利益・現金創出",
+          "score": 4.0,
+          "knownMax": 15,
+          "maxScore": 15,
+          "detail": "監視AI企業のFCF悪化は30%、売上成長率中央値は30.3%です。価格下落が業績悪化を先取りしているかを確認します。"
+        },
+        {
+          "id": "conditions",
+          "label": "米国の金融環境",
+          "score": 0.0,
+          "knownMax": 10,
+          "maxScore": 10,
+          "detail": "Chicago Fed NFCIは-0.54。0より上は平均より引き締まった金融環境です。"
+        }
+      ],
+      "scenarios": [
+        {
+          "id": "correction",
+          "label": "一般的な調整",
+          "drawdownFromPeakPct": 10.0,
+          "level": 6848.8,
+          "moveFromCurrentPct": -8.164567574537852,
+          "note": "高値から10%。崩壊の断定ではなく、通常の調整域。"
+        },
+        {
+          "id": "bear",
+          "label": "弱気相場の目安",
+          "drawdownFromPeakPct": 20.0,
+          "level": 6087.82,
+          "moveFromCurrentPct": -18.3685045107003,
+          "note": "高値から20%。価格トレンドの明確な悪化を確認する水準。"
+        },
+        {
+          "id": "recession",
+          "label": "景気後退型",
+          "drawdownFromPeakPct": 30.0,
+          "level": 5326.85,
+          "moveFromCurrentPct": -28.572441446862772,
+          "note": "高値から30%。利益下方修正と信用悪化の有無が重要。"
+        },
+        {
+          "id": "dotcom",
+          "label": "S&P 500のITバブル実績",
+          "drawdownFromPeakPct": 49.1,
+          "level": 3873.38,
+          "moveFromCurrentPct": -48.061960994933074,
+          "note": "2000～02年のS&P 500実績を機械的に換算。今回の予測値ではない。"
+        }
+      ],
+      "rules": {
+        "meaning": "バブルの存在確率ではなく、価格下落が市場幅、信用、企業の現金創出、金融環境へ広がった程度を0～100で表す。",
+        "thresholdBasis": "10%は調整、20%は弱気相場を考える一般的な価格区分。VIX 20/30/40、HY OAS 3.5/4/5/6%、NFCI 0超を段階化し、単一指標で断定しない。",
+        "notProbability": "過去データで確率校正した暴落確率ではない。将来の時期や底値を一意に予測しない。"
+      },
+      "previousUpdate": {
+        "generatedAtUtc": "2026-07-19T11:19:29.324941+00:00",
+        "marketDate": "2026-07-17",
+        "score": 12.0,
+        "scoreChange": 0.0
+      }
+    },
+    "berkshireMonitor": {
+      "checkedAtUtc": "2026-07-19T11:24:11.113276+00:00",
+      "balanceLatest": {
+        "periodEnd": "2026-03-31",
+        "filingDate": "2026-05-04",
+        "cashAndEquivalentsBillion": 51.478,
+        "treasuryBillsBillion": 339.261,
+        "unsettledTreasuryPayableBillion": 17.229,
+        "equitySecuritiesBillion": 288.034,
+        "fixedMaturityBillion": 17.669,
+        "totalAssetsBillion": 1252.271,
+        "sourceUrl": "https://www.sec.gov/Archives/edgar/data/1067983/000119312526202243/brka-20260331.htm",
+        "netLiquidReserveBillion": 373.51000000000005,
+        "investmentPoolLiquidRatioPct": 54.99158585009415,
+        "liquidReserveToTotalAssetsPct": 29.826611013111382
+      },
+      "balancePrevious": {
+        "periodEnd": "2025-12-31",
+        "filingDate": "2026-02-23",
+        "cashAndEquivalentsBillion": 47.719,
+        "treasuryBillsBillion": 321.434,
+        "unsettledTreasuryPayableBillion": 0.167,
+        "equitySecuritiesBillion": 297.778,
+        "fixedMaturityBillion": 17.816,
+        "totalAssetsBillion": 1222.176,
+        "sourceUrl": "https://www.berkshirehathaway.com/2025ar/2025ar.pdf",
+        "netLiquidReserveBillion": 368.98600000000005,
+        "investmentPoolLiquidRatioPct": 53.899617283589926,
+        "liquidReserveToTotalAssetsPct": 30.190905401513373
+      },
+      "reserveChangeBillion": 4.524000000000001,
+      "reserveChangePct": 1.2260627774495512,
+      "investmentPoolLiquidRatioChangePctPoints": 1.091968566504221,
+      "equitySecuritiesChangeBillion": -9.744000000000028,
+      "thirteenF": {
+        "latest": {
+          "reportDate": "2026-03-31",
+          "filingDate": "2026-05-15",
+          "accession": "0001193125-26-226661",
+          "xmlUrl": "https://www.sec.gov/Archives/edgar/data/1067983/000119312526226661/53405.xml",
+          "sourceUrl": "https://www.sec.gov/Archives/edgar/data/1067983/000119312526226661/0001193125-26-226661-index.htm"
+        },
+        "previous": {
+          "reportDate": "2025-12-31",
+          "filingDate": "2026-02-17",
+          "accession": "0001193125-26-054580",
+          "xmlUrl": "https://www.sec.gov/Archives/edgar/data/1067983/000119312526054580/50240.xml",
+          "sourceUrl": "https://www.sec.gov/Archives/edgar/data/1067983/000119312526054580/0001193125-26-054580-index.html"
+        },
+        "buys": [
+          {
+            "name": "Alphabet",
+            "securityClass": "Class A",
+            "latestShares": 54249798,
+            "previousShares": 17846142,
+            "changeShares": 36403656,
+            "changePct": 204.0,
+            "status": "買い増し"
+          },
+          {
+            "name": "Delta Air Lines",
+            "securityClass": "Common",
+            "latestShares": 39809456,
+            "previousShares": 0,
+            "changeShares": 39809456,
+            "changePct": null,
+            "status": "新規"
+          },
+          {
+            "name": "New York Times",
+            "securityClass": "Class A",
+            "latestShares": 15146535,
+            "previousShares": 5065744,
+            "changeShares": 10080791,
+            "changePct": 199.0,
+            "status": "買い増し"
+          },
+          {
+            "name": "Alphabet",
+            "securityClass": "Class C",
+            "latestShares": 3585215,
+            "previousShares": 0,
+            "changeShares": 3585215,
+            "changePct": null,
+            "status": "新規"
+          },
+          {
+            "name": "Lennar",
+            "securityClass": "Class A",
+            "latestShares": 10099642,
+            "previousShares": 7050950,
+            "changeShares": 3048692,
+            "changePct": 43.2,
+            "status": "買い増し"
+          },
+          {
+            "name": "Macy's",
+            "securityClass": "Common",
+            "latestShares": 3038355,
+            "previousShares": 0,
+            "changeShares": 3038355,
+            "changePct": null,
+            "status": "新規"
+          }
+        ],
+        "sells": [
+          {
+            "name": "Chevron",
+            "securityClass": "Common",
+            "latestShares": 84375856,
+            "previousShares": 130156362,
+            "changeShares": -45780506,
+            "changePct": -35.2,
+            "status": "縮小"
+          },
+          {
+            "name": "Constellation Brands",
+            "securityClass": "Class A",
+            "latestShares": 632890,
+            "previousShares": 13000000,
+            "changeShares": -12367110,
+            "changePct": -95.1,
+            "status": "縮小"
+          },
+          {
+            "name": "Visa",
+            "securityClass": "Class A",
+            "latestShares": 0,
+            "previousShares": 8297460,
+            "changeShares": -8297460,
+            "changePct": -100.0,
+            "status": "全売却"
+          },
+          {
+            "name": "UnitedHealth Group",
+            "securityClass": "Common",
+            "latestShares": 0,
+            "previousShares": 5039564,
+            "changeShares": -5039564,
+            "changePct": -100.0,
+            "status": "全売却"
+          },
+          {
+            "name": "Mastercard",
+            "securityClass": "Class A",
+            "latestShares": 0,
+            "previousShares": 3986648,
+            "changeShares": -3986648,
+            "changePct": -100.0,
+            "status": "全売却"
+          },
+          {
+            "name": "Amazon",
+            "securityClass": "Common",
+            "latestShares": 0,
+            "previousShares": 2276000,
+            "changeShares": -2276000,
+            "changePct": -100.0,
+            "status": "全売却"
+          }
+        ],
+        "directSecRefresh": false,
+        "discoveryFallback": true
+      },
+      "narrative": "保険・その他の純流動性は369.0から373.5十億ドルへ増え、投資プール内の比率は53.9%から55.0%へ上昇しました。同時に13Fでは買い増しと売却の双方があるため、『現金が多い＝全面弱気』とは読まず、準備資金と個別銘柄選択を分けて確認します。",
+      "calculationNote": "純流動性＝現金・現金同等物＋米国短期国債－未決済の短期国債購入債務。投資プール内比率＝純流動性÷（純流動性＋株式＋債券）。Berkshire公式指標ではなく比較用の当サイト算式。",
+      "thirteenFLimit": "13Fは四半期末から最大45日遅れ、米国上場株中心で、現金・完全子会社・一部海外株を含みません。株数で比較し、時価の増減を売買と誤認しません。"
     },
     "japanAiBasket": {
       "label": "日本AI・半導体連動8社（本サイト独自・等ウェイト監視群）",
@@ -4347,6 +4614,40 @@
         "historyNote": "FRED注記により2026年4月以降は直近3年のみ公開。5%・6%は現在の公開標本上限を超える。"
       },
       "sourceUrl": "https://fred.stlouisfed.org/series/BAMLH0A0HYM2"
+    },
+    "financialConditions": {
+      "seriesId": "NFCI",
+      "name": "Chicago Fed National Financial Conditions Index",
+      "units": "Index; positive is tighter than average",
+      "date": "2026-07-10",
+      "value": -0.538,
+      "change3m": -0.07900000000000001,
+      "calibration": {
+        "sampleStartDate": "1971-01-08",
+        "sampleEndDate": "2026-07-10",
+        "sampleCount": 2897,
+        "minimum": -1.096,
+        "maximum": 5.212,
+        "thresholds": [
+          {
+            "value": 0.0,
+            "percentileRank": 70.7
+          },
+          {
+            "value": 0.25,
+            "percentileRank": 77.1
+          },
+          {
+            "value": 0.5,
+            "percentileRank": 81.7
+          },
+          {
+            "value": 0.75,
+            "percentileRank": 85.0
+          }
+        ]
+      },
+      "sourceUrl": "https://fred.stlouisfed.org/series/NFCI"
     }
   },
   "companies": [
@@ -6415,6 +6716,119 @@
     "hyperscalerCapexCoverage": 4,
     "hyperscalersWithCapexCuts": 0
   },
+  "overseasIntelligence": {
+    "checkedAtUtc": "2026-07-19T11:24:11.113276+00:00",
+    "newsItems": [
+      {
+        "title": "Taiwan Semiconductor Earnings: Lifting Fair Value Estimate After a Beat-and-Raise Quarter - Morningstar",
+        "url": "https://news.google.com/rss/articles/CBMiygFBVV95cUxNT1ZsTXQwNmsxRVA5b0ozVFlZNjdjTDZtZjI3Wk9USHJTQ3BCVWNveGhWNXRodkJxSGtOUHBWT0Y3UHZ0c0p1eUlrOEpGTG42ME1mU3VkdnhCX1plSjVvZm91V1VHNUExZjFUSmQ3WFBfM1J2a1Z5Y1RrMTZFSElaSGt5OVZjdXRfcEJINmRfVThwV04wUXE5UVZ2U3RTamxjbDIwbkp3dDRiQ0xhRHhnTWg2QTkxdjJUajFfZVRPcVRSXzRLU0xHZlZR?oc=5",
+        "published": "Thu, 16 Jul 2026 16:18:39 GMT",
+        "source": "Morningstar",
+        "evidenceLevel": "主要海外報道",
+        "topic": "業績・見通し"
+      },
+      {
+        "title": "Among AI crowd, some investors position for slower hyperscaler spending growth - Reuters",
+        "url": "https://news.google.com/rss/articles/CBMizwFBVV95cUxQeExHTUY3Vmh5NDY2OVZPQlAwMmtkc052S0NsSDdPcUl6dDBFamx1TjFFSDFqdnB6S1V4dXdYTWItbUJZWVlaTUVDTnA2ekZmWktvS2RuOWNRZWJ4LW9uOThYY1U5NnlST1MwQ1NydVNmM1lhTkcyTlZtNFRPWXZkTDRwNUp3WUJtZWJxTHh1TnpNcV9IU3RvN0hCaldKMTdpMmdJT1IzZGxNRS1JUEtFNDJsYXJIUllTc19MaHFmRG9ZUlpmRHN3ci1KUThKUXM?oc=5",
+        "published": "Fri, 17 Jul 2026 05:03:00 GMT",
+        "source": "Reuters",
+        "evidenceLevel": "主要海外報道",
+        "topic": "AI投資・需要"
+      },
+      {
+        "title": "TSMC raises capex and revenue forecast, highlighting growing AI chip demand - Yahoo Finance",
+        "url": "https://news.google.com/rss/articles/CBMiywFBVV95cUxPZEtLT0pUSHFicmNvSlZYRUtLLXJob2xXV2VEZndWcEY3TV8tU3ltX08waTg1RDVpeEQ4S3VsRHhGNzZYQWdCT0lkaENNXzN5d0RLX3R2NVRZWm5fc1htZjE2S24xamZiS0FwNXJpdDdhMURoUUFDUWtEeEp3RUZ6ZV9sbEo5dGpWN3ZMZm13Ym9KOFo2VmZ3cUlsUnlWd3F6YVJDNHc5TC00NWlLS2U3a3ZmNXVpVzJXdjAzYy1GR29JUi1Vd1kxLTBsbw?oc=5",
+        "published": "Thu, 16 Jul 2026 11:31:01 GMT",
+        "source": "Yahoo Finance",
+        "evidenceLevel": "海外報道",
+        "topic": "業績・見通し"
+      },
+      {
+        "title": "Alphabet earnings test AI capex, steer Korea chip stocks this week - CHOSUNBIZ - Chosunbiz",
+        "url": "https://news.google.com/rss/articles/CBMigAFBVV95cUxPT3l5dTl6S1h2WDZvcE5VV1FtRHZsbDNGRTBZX3hjOG51Z1F6cHpULVpnZWp0cjJkN1d1cm96b29jQllnb090UjRzRm91SktKUmdjZVZ0bUFYWWp1cXB4OWRmUXFZT0xXcnZjUXIzREk5RjZqaGFMYW5vT3lJT1RhUNIBlAFBVV95cUxPZHIyMERUeXhZaGpsdW05RVFHMUdkWFRleGU4c0p5NFdwVDlFTHpwVmIwYUJQX19KeW5aRXc0MlM5TU1Yd2ZKaVA2Rkx6UzcxZEx5OUY4c1pYeTNiVERLalNQeFh6R1NVR0V6X0RwV2pPRHV2SEMtYVJXcVR4SldYc25LLWpHSDRPbmxmSWg1VC1CMmht?oc=5",
+        "published": "Sat, 18 Jul 2026 21:00:00 GMT",
+        "source": "Chosunbiz",
+        "evidenceLevel": "海外報道",
+        "topic": "業績・見通し"
+      },
+      {
+        "title": "Nasdaq 100 Signals Deeper Pullback, Chipmakers Lead Selloff into Earnings - FOREX.com",
+        "url": "https://news.google.com/rss/articles/CBMiuwFBVV95cUxOZEhBM3RhVXQtM01KaDE3eVNUVnd2eXVZMVNmUHY4RUZYSkZFbG96UmZUQVRrNVJza3BUTVFsRVM0MzFMcTZfVXRMWlZIWDJhSjRIWEkxVHM1TVdYWXl4YnNIWFV3QWVxTi1wNjJrT1hPcHlLQWQxTVg5cDhGR3F5NEgzMlU5RmlfZFdnbEtVZUJGUlZEZDQxYi1XSFMzRlplVTZ1LTJXY0ZDNXlzZFRHd0F2Zk1lS0NIM0g40gHHAUFVX3lxTE1QVTNSR2xiUG8yN1FaZGNIUFh3NmlEMjlNNWYyM2ZSTGgwNi1oaXJteXRjTERLU3NUeWotZks5WEdHYU1kcjdLTXQyRmNrWnMzVU5vVE44bXZiZWNmbDNWME9jVEE5ODlKTzA2a2dNSmNSdk9KRXpmczhyM2JXQXh2UW9mcHQwWTNIckdBM0ktdV9ZMFRIRnRLLXZfZnVmdlNSMW9UcXVjV25aV1c5U1h0MzloVXYzaExLT19Wc3RXQ0JNMEVFNkk?oc=5",
+        "published": "Fri, 17 Jul 2026 05:25:48 GMT",
+        "source": "FOREX.com",
+        "evidenceLevel": "海外報道",
+        "topic": "業績・見通し"
+      },
+      {
+        "title": "Nebius (NASDAQ:NBIS) shares fall as AI plan shifts capex burden - TechStock²",
+        "url": "https://news.google.com/rss/articles/CBMiiAFBVV95cUxPeWh0U09xWTI0WDZsWDVXS2tVU0IxZ25LTnhMMW9FbVpBNzdTZVpGQXQycy1jS0hnelRjbVZSWFAzZmppdWN3Y2VCVEQ1cUJqeC1fYTlRdzRZeGxQT1llUDdlaUZmMzE1emxBclgwbUVRWTF1Y3BwaFNjOVN5OHVBVW8xRjVhZDEt?oc=5",
+        "published": "Thu, 16 Jul 2026 17:49:45 GMT",
+        "source": "TechStock²",
+        "evidenceLevel": "海外報道",
+        "topic": "AI投資・需要"
+      },
+      {
+        "title": "TSMC profit surges 77% on AI demand as capex rises - scanx.trade",
+        "url": "https://news.google.com/rss/articles/CBMiqAFBVV95cUxPV1VISld6Z0VIekdJUGFRV2NCd3BZZzlJU2NWZkt6b3RiOHE4NkJ1Ul9oeTJXQ2ZPZ0pUUzhDdjk2bHpKT3ZjNklJTXY1dDE4VXBDYmd4ZEcyVW5JaWhNTzhSNkNibWh0dTcxTGlKX0s2SmMzVlo3QW54UVpxQ0tSd01sZ1YwZFhNeUxlVnpWampjVWpsYm0taGlhLUtIdVZtMmVYbnMyTjI?oc=5",
+        "published": "Thu, 16 Jul 2026 12:35:33 GMT",
+        "source": "scanx.trade",
+        "evidenceLevel": "海外報道",
+        "topic": "業績・見通し"
+      },
+      {
+        "title": "TSMC Just Gave AI Chip Bulls Another Reason to Stay Confident - Yahoo Finance",
+        "url": "https://news.google.com/rss/articles/CBMijwFBVV95cUxPUUNkSjkyczliZFlpXzZaQnVHUU5zRGo1QUlDaGh4N2M0ckgzUVlVMUlVeDRUWU41aGZCMlRIampvelNpNFduNGJIYXdEM3JlMHdwdWxRNkV2OFlPMGJfblkzcVliUW9ZdHhkbEQ3NGxfVTB1XzFOZ0I1Ry0wTjhDVjItT2h5QWcxbkM1cEpaNA?oc=5",
+        "published": "Fri, 17 Jul 2026 15:30:00 GMT",
+        "source": "Yahoo Finance",
+        "evidenceLevel": "海外報道",
+        "topic": "AI投資・需要"
+      },
+      {
+        "title": "Taiwan Semiconductor Manufacturing Company Limited’s (TSM) Improved Long-Term Gross Margin Guidance Signals Confidence - Yahoo Finance",
+        "url": "https://news.google.com/rss/articles/CBMitgFBVV95cUxQdHhybVNqOUs0Ui1DZEx5enpqZmRKbnhQMjNwZWVTQ0Yxa1NCcjNkNWxYNkIzU2NpT2pxSU5BUXg2ZXlOT3RIb0wxQlowOWN0UnZ1clFMVTZMU25fcWN6UW1BTGs1U2s3bmppZTBqblJodFA2YjY4Mmg2MWJ5TDVrX19QNFJUZTJTNFg4SlF4OE84N1FVM3l3RUkyMEdqLUtaQkY4SGpaVTBfUEU1QjVKRDZqejNfdw?oc=5",
+        "published": "Thu, 16 Jul 2026 13:21:00 GMT",
+        "source": "Yahoo Finance",
+        "evidenceLevel": "海外報道",
+        "topic": "業績・見通し"
+      },
+      {
+        "title": "Amazing Chance To Double Down On The AI Market Panic - Seeking Alpha",
+        "url": "https://news.google.com/rss/articles/CBMikwFBVV95cUxQRHJGSHVSTEZCZzJoU0xZc3B0YXI0SV9rcEdvT0ppXzIyenpESkQwMXdQOVktS2lhODRqdkZ6LXpVS1hhblhVSWREMC0tYTFkcm1CeWt0U053VmRVNlE3QzhiekRRMHpiUXkxMmhKMUh6RC1XSlNMMy1tVHg0WlQ3S0U4UkM0MWIzVXFnN0hPZnZ6LUE?oc=5",
+        "published": "Sat, 18 Jul 2026 11:55:29 GMT",
+        "source": "Seeking Alpha",
+        "evidenceLevel": "海外報道",
+        "topic": "その他の海外材料"
+      },
+      {
+        "title": "Invest in transformational innovation - UBS",
+        "url": "https://news.google.com/rss/articles/CBMiiwFBVV95cUxPTXBrdnI2RkEwbTBfUVRWNTEwOWszNVlDclZYR0tURm5KVDRVMmZIMTlPa2dab2FpUnR1X2ctSk12RmljdXVCcGduZ2Y0MHl6MkNwXzBtNFAxV1Z5ZGtrcGpFNXRfVVN5NFBxRi1YbndZUGlwWVpBMkhncFJXdkwyeF9GMjFvSDN0V0h3?oc=5",
+        "published": "Fri, 17 Jul 2026 15:18:08 GMT",
+        "source": "UBS",
+        "evidenceLevel": "海外報道",
+        "topic": "その他の海外材料"
+      },
+      {
+        "title": "TSMC hikes 2026 guidance as AI demand outpaces capacity - thestreet.com",
+        "url": "https://news.google.com/rss/articles/CBMigwFBVV95cUxPbjZZQWlJM29pN0ZROVB4Z25JSWdUV0tBczMyLWJsa2MwaF93alBKMzhUaGRTZjZ3UXlCU3RsWkswc1U3ZThrTDNHMll3SWwzQ29VN1NETml3ODVqajItUkhvY2U0dV9DMjFwc0h4RUcyX1U4TUNCblNMUU9hNmhaZnRCVQ?oc=5",
+        "published": "Fri, 17 Jul 2026 08:03:00 GMT",
+        "source": "thestreet.com",
+        "evidenceLevel": "海外報道",
+        "topic": "業績・見通し"
+      }
+    ],
+    "x": {
+      "status": "not-configured",
+      "items": [],
+      "message": "X接続は未設定。海外報道と公式資料を更新しました。"
+    },
+    "topicCounts": {
+      "業績・見通し": 7,
+      "AI投資・需要": 3,
+      "その他の海外材料": 2
+    },
+    "summary": "直近の海外情報は12件。主な論点は業績・見通し7件、AI投資・需要3件、その他の海外材料2件です。見出しや投稿を起点に、決算、SEC提出、会社IRで確認します。",
+    "readingRule": "海外報道とXは変化を早く見つける入口。数値や会社行動は決算、SEC、会社IRで確認できた時点で企業価値・崩壊進行度へ反映する。"
+  },
   "manualInputs": {
     "forwardEpsRevision3mPct": null,
     "companiesWithEpsCuts": null,
@@ -6428,492 +6842,520 @@
       "name": "Yahoo Finance chart",
       "url": "https://finance.yahoo.com/quote/%5ESOX",
       "ok": true,
-      "retrieved_at": "2026-07-19T10:28:54.075642+00:00",
+      "retrieved_at": "2026-07-19T11:24:11.113276+00:00",
       "note": "SOX"
     },
     {
       "name": "Yahoo Finance chart",
       "url": "https://finance.yahoo.com/quote/%5EIXIC",
       "ok": true,
-      "retrieved_at": "2026-07-19T10:28:54.075642+00:00",
+      "retrieved_at": "2026-07-19T11:24:11.113276+00:00",
       "note": "NASDAQ"
     },
     {
       "name": "Yahoo Finance chart",
       "url": "https://finance.yahoo.com/quote/%5EGSPC",
       "ok": true,
-      "retrieved_at": "2026-07-19T10:28:54.075642+00:00",
+      "retrieved_at": "2026-07-19T11:24:11.113276+00:00",
       "note": "SP500"
     },
     {
       "name": "Yahoo Finance chart",
       "url": "https://finance.yahoo.com/quote/%5EN225",
       "ok": true,
-      "retrieved_at": "2026-07-19T10:28:54.075642+00:00",
+      "retrieved_at": "2026-07-19T11:24:11.113276+00:00",
       "note": "NIKKEI"
     },
     {
       "name": "Yahoo Finance chart",
       "url": "https://finance.yahoo.com/quote/%5EVIX",
       "ok": true,
-      "retrieved_at": "2026-07-19T10:28:54.075642+00:00",
+      "retrieved_at": "2026-07-19T11:24:11.113276+00:00",
       "note": "VIX"
     },
     {
       "name": "Yahoo Finance chart",
       "url": "https://finance.yahoo.com/quote/285A.T",
       "ok": true,
-      "retrieved_at": "2026-07-19T10:28:54.075642+00:00",
+      "retrieved_at": "2026-07-19T11:24:11.113276+00:00",
       "note": "KIOXIA"
     },
     {
       "name": "Yahoo Finance chart",
       "url": "https://finance.yahoo.com/quote/NVDA",
       "ok": true,
-      "retrieved_at": "2026-07-19T10:28:54.075642+00:00",
+      "retrieved_at": "2026-07-19T11:24:11.113276+00:00",
       "note": "NVDA"
     },
     {
       "name": "Yahoo Finance chart",
       "url": "https://finance.yahoo.com/quote/AVGO",
       "ok": true,
-      "retrieved_at": "2026-07-19T10:28:54.075642+00:00",
+      "retrieved_at": "2026-07-19T11:24:11.113276+00:00",
       "note": "AVGO"
     },
     {
       "name": "Yahoo Finance chart",
       "url": "https://finance.yahoo.com/quote/AMD",
       "ok": true,
-      "retrieved_at": "2026-07-19T10:28:54.075642+00:00",
+      "retrieved_at": "2026-07-19T11:24:11.113276+00:00",
       "note": "AMD"
     },
     {
       "name": "Yahoo Finance chart",
       "url": "https://finance.yahoo.com/quote/MU",
       "ok": true,
-      "retrieved_at": "2026-07-19T10:28:54.075642+00:00",
+      "retrieved_at": "2026-07-19T11:24:11.113276+00:00",
       "note": "MU"
     },
     {
       "name": "Yahoo Finance chart",
       "url": "https://finance.yahoo.com/quote/ARM",
       "ok": true,
-      "retrieved_at": "2026-07-19T10:28:54.075642+00:00",
+      "retrieved_at": "2026-07-19T11:24:11.113276+00:00",
       "note": "ARM"
     },
     {
       "name": "Yahoo Finance chart",
       "url": "https://finance.yahoo.com/quote/MRVL",
       "ok": true,
-      "retrieved_at": "2026-07-19T10:28:54.075642+00:00",
+      "retrieved_at": "2026-07-19T11:24:11.113276+00:00",
       "note": "MRVL"
     },
     {
       "name": "Yahoo Finance chart",
       "url": "https://finance.yahoo.com/quote/MSFT",
       "ok": true,
-      "retrieved_at": "2026-07-19T10:28:54.075642+00:00",
+      "retrieved_at": "2026-07-19T11:24:11.113276+00:00",
       "note": "MSFT"
     },
     {
       "name": "Yahoo Finance chart",
       "url": "https://finance.yahoo.com/quote/GOOGL",
       "ok": true,
-      "retrieved_at": "2026-07-19T10:28:54.075642+00:00",
+      "retrieved_at": "2026-07-19T11:24:11.113276+00:00",
       "note": "GOOGL"
     },
     {
       "name": "Yahoo Finance chart",
       "url": "https://finance.yahoo.com/quote/AMZN",
       "ok": true,
-      "retrieved_at": "2026-07-19T10:28:54.075642+00:00",
+      "retrieved_at": "2026-07-19T11:24:11.113276+00:00",
       "note": "AMZN"
     },
     {
       "name": "Yahoo Finance chart",
       "url": "https://finance.yahoo.com/quote/META",
       "ok": true,
-      "retrieved_at": "2026-07-19T10:28:54.075642+00:00",
+      "retrieved_at": "2026-07-19T11:24:11.113276+00:00",
       "note": "META"
     },
     {
       "name": "Yahoo Finance chart",
       "url": "https://finance.yahoo.com/quote/6857.T",
       "ok": true,
-      "retrieved_at": "2026-07-19T10:28:54.075642+00:00",
+      "retrieved_at": "2026-07-19T11:24:11.113276+00:00",
       "note": "6857.T"
     },
     {
       "name": "Yahoo Finance chart",
       "url": "https://finance.yahoo.com/quote/8035.T",
       "ok": true,
-      "retrieved_at": "2026-07-19T10:28:54.075642+00:00",
+      "retrieved_at": "2026-07-19T11:24:11.113276+00:00",
       "note": "8035.T"
     },
     {
       "name": "Yahoo Finance chart",
       "url": "https://finance.yahoo.com/quote/9984.T",
       "ok": true,
-      "retrieved_at": "2026-07-19T10:28:54.075642+00:00",
+      "retrieved_at": "2026-07-19T11:24:11.113276+00:00",
       "note": "9984.T"
     },
     {
       "name": "Yahoo Finance chart",
       "url": "https://finance.yahoo.com/quote/6702.T",
       "ok": true,
-      "retrieved_at": "2026-07-19T10:28:54.075642+00:00",
+      "retrieved_at": "2026-07-19T11:24:11.113276+00:00",
       "note": "6702.T"
     },
     {
       "name": "Yahoo Finance chart",
       "url": "https://finance.yahoo.com/quote/6861.T",
       "ok": true,
-      "retrieved_at": "2026-07-19T10:28:54.075642+00:00",
+      "retrieved_at": "2026-07-19T11:24:11.113276+00:00",
       "note": "6861.T"
     },
     {
       "name": "Yahoo Finance chart",
       "url": "https://finance.yahoo.com/quote/6501.T",
       "ok": true,
-      "retrieved_at": "2026-07-19T10:28:54.075642+00:00",
+      "retrieved_at": "2026-07-19T11:24:11.113276+00:00",
       "note": "6501.T"
     },
     {
       "name": "Yahoo Finance chart",
       "url": "https://finance.yahoo.com/quote/4063.T",
       "ok": true,
-      "retrieved_at": "2026-07-19T10:28:54.075642+00:00",
+      "retrieved_at": "2026-07-19T11:24:11.113276+00:00",
       "note": "4063.T"
     },
     {
       "name": "Yahoo Finance chart",
       "url": "https://finance.yahoo.com/quote/7741.T",
       "ok": true,
-      "retrieved_at": "2026-07-19T10:28:54.075642+00:00",
+      "retrieved_at": "2026-07-19T11:24:11.113276+00:00",
       "note": "7741.T"
     },
     {
       "name": "Yahoo Finance chart",
       "url": "https://finance.yahoo.com/quote/7267.T",
       "ok": true,
-      "retrieved_at": "2026-07-19T10:28:54.075642+00:00",
+      "retrieved_at": "2026-07-19T11:24:11.113276+00:00",
       "note": "7267.T"
     },
     {
       "name": "Yahoo Finance chart",
       "url": "https://finance.yahoo.com/quote/7751.T",
       "ok": true,
-      "retrieved_at": "2026-07-19T10:28:54.075642+00:00",
+      "retrieved_at": "2026-07-19T11:24:11.113276+00:00",
       "note": "7751.T"
     },
     {
       "name": "Yahoo Finance chart",
       "url": "https://finance.yahoo.com/quote/7203.T",
       "ok": true,
-      "retrieved_at": "2026-07-19T10:28:54.075642+00:00",
+      "retrieved_at": "2026-07-19T11:24:11.113276+00:00",
       "note": "7203.T"
     },
     {
       "name": "Yahoo Finance chart",
       "url": "https://finance.yahoo.com/quote/9983.T",
       "ok": true,
-      "retrieved_at": "2026-07-19T10:28:54.075642+00:00",
+      "retrieved_at": "2026-07-19T11:24:11.113276+00:00",
       "note": "9983.T"
     },
     {
       "name": "Yahoo Finance chart",
       "url": "https://finance.yahoo.com/quote/6758.T",
       "ok": true,
-      "retrieved_at": "2026-07-19T10:28:54.075642+00:00",
+      "retrieved_at": "2026-07-19T11:24:11.113276+00:00",
       "note": "6758.T"
     },
     {
       "name": "Yahoo Finance chart",
       "url": "https://finance.yahoo.com/quote/7974.T",
       "ok": true,
-      "retrieved_at": "2026-07-19T10:28:54.075642+00:00",
+      "retrieved_at": "2026-07-19T11:24:11.113276+00:00",
       "note": "7974.T"
     },
     {
       "name": "Yahoo Finance chart",
       "url": "https://finance.yahoo.com/quote/6098.T",
       "ok": true,
-      "retrieved_at": "2026-07-19T10:28:54.075642+00:00",
+      "retrieved_at": "2026-07-19T11:24:11.113276+00:00",
       "note": "6098.T"
     },
     {
       "name": "Yahoo Finance chart",
       "url": "https://finance.yahoo.com/quote/6367.T",
       "ok": true,
-      "retrieved_at": "2026-07-19T10:28:54.075642+00:00",
+      "retrieved_at": "2026-07-19T11:24:11.113276+00:00",
       "note": "6367.T"
     },
     {
       "name": "Yahoo!ファイナンス日本版 TOPIX",
       "url": "https://finance.yahoo.co.jp/quote/998405/history",
       "ok": true,
-      "retrieved_at": "2026-07-19T10:28:54.075642+00:00",
+      "retrieved_at": "2026-07-19T11:24:11.113276+00:00",
       "note": "Yahoo!ファイナンス日本版のTOPIX日次履歴。直近約430日を取得。"
     },
     {
       "name": "Yahoo Finance fundamentals",
       "url": "https://finance.yahoo.com/quote/NVDA/financials/",
       "ok": true,
-      "retrieved_at": "2026-07-19T10:28:54.075642+00:00",
+      "retrieved_at": "2026-07-19T11:24:11.113276+00:00",
       "note": "NVDA"
     },
     {
       "name": "Yahoo Finance fundamentals",
       "url": "https://finance.yahoo.com/quote/AVGO/financials/",
       "ok": true,
-      "retrieved_at": "2026-07-19T10:28:54.075642+00:00",
+      "retrieved_at": "2026-07-19T11:24:11.113276+00:00",
       "note": "AVGO"
     },
     {
       "name": "Yahoo Finance fundamentals",
       "url": "https://finance.yahoo.com/quote/AMD/financials/",
       "ok": true,
-      "retrieved_at": "2026-07-19T10:28:54.075642+00:00",
+      "retrieved_at": "2026-07-19T11:24:11.113276+00:00",
       "note": "AMD"
     },
     {
       "name": "Yahoo Finance fundamentals",
       "url": "https://finance.yahoo.com/quote/MU/financials/",
       "ok": true,
-      "retrieved_at": "2026-07-19T10:28:54.075642+00:00",
+      "retrieved_at": "2026-07-19T11:24:11.113276+00:00",
       "note": "MU"
     },
     {
       "name": "Yahoo Finance fundamentals",
       "url": "https://finance.yahoo.com/quote/ARM/financials/",
       "ok": true,
-      "retrieved_at": "2026-07-19T10:28:54.075642+00:00",
+      "retrieved_at": "2026-07-19T11:24:11.113276+00:00",
       "note": "ARM"
     },
     {
       "name": "Yahoo Finance fundamentals",
       "url": "https://finance.yahoo.com/quote/MRVL/financials/",
       "ok": true,
-      "retrieved_at": "2026-07-19T10:28:54.075642+00:00",
+      "retrieved_at": "2026-07-19T11:24:11.113276+00:00",
       "note": "MRVL"
     },
     {
       "name": "Yahoo Finance fundamentals",
       "url": "https://finance.yahoo.com/quote/MSFT/financials/",
       "ok": true,
-      "retrieved_at": "2026-07-19T10:28:54.075642+00:00",
+      "retrieved_at": "2026-07-19T11:24:11.113276+00:00",
       "note": "MSFT"
     },
     {
       "name": "Yahoo Finance fundamentals",
       "url": "https://finance.yahoo.com/quote/GOOGL/financials/",
       "ok": true,
-      "retrieved_at": "2026-07-19T10:28:54.075642+00:00",
+      "retrieved_at": "2026-07-19T11:24:11.113276+00:00",
       "note": "GOOGL"
     },
     {
       "name": "Yahoo Finance fundamentals",
       "url": "https://finance.yahoo.com/quote/AMZN/financials/",
       "ok": true,
-      "retrieved_at": "2026-07-19T10:28:54.075642+00:00",
+      "retrieved_at": "2026-07-19T11:24:11.113276+00:00",
       "note": "AMZN"
     },
     {
       "name": "Yahoo Finance fundamentals",
       "url": "https://finance.yahoo.com/quote/META/financials/",
       "ok": true,
-      "retrieved_at": "2026-07-19T10:28:54.075642+00:00",
+      "retrieved_at": "2026-07-19T11:24:11.113276+00:00",
       "note": "META"
     },
     {
       "name": "Yahoo Finance fundamentals",
       "url": "https://finance.yahoo.com/quote/6857.T/financials/",
       "ok": true,
-      "retrieved_at": "2026-07-19T10:28:54.075642+00:00",
+      "retrieved_at": "2026-07-19T11:24:11.113276+00:00",
       "note": "6857.T"
     },
     {
       "name": "Yahoo Finance fundamentals",
       "url": "https://finance.yahoo.com/quote/8035.T/financials/",
       "ok": true,
-      "retrieved_at": "2026-07-19T10:28:54.075642+00:00",
+      "retrieved_at": "2026-07-19T11:24:11.113276+00:00",
       "note": "8035.T"
     },
     {
       "name": "Yahoo Finance fundamentals",
       "url": "https://finance.yahoo.com/quote/9984.T/financials/",
       "ok": true,
-      "retrieved_at": "2026-07-19T10:28:54.075642+00:00",
+      "retrieved_at": "2026-07-19T11:24:11.113276+00:00",
       "note": "9984.T"
     },
     {
       "name": "Yahoo Finance fundamentals",
       "url": "https://finance.yahoo.com/quote/6702.T/financials/",
       "ok": true,
-      "retrieved_at": "2026-07-19T10:28:54.075642+00:00",
+      "retrieved_at": "2026-07-19T11:24:11.113276+00:00",
       "note": "6702.T"
     },
     {
       "name": "Yahoo Finance fundamentals",
       "url": "https://finance.yahoo.com/quote/6861.T/financials/",
       "ok": true,
-      "retrieved_at": "2026-07-19T10:28:54.075642+00:00",
+      "retrieved_at": "2026-07-19T11:24:11.113276+00:00",
       "note": "6861.T"
     },
     {
       "name": "Yahoo Finance fundamentals",
       "url": "https://finance.yahoo.com/quote/6501.T/financials/",
       "ok": true,
-      "retrieved_at": "2026-07-19T10:28:54.075642+00:00",
+      "retrieved_at": "2026-07-19T11:24:11.113276+00:00",
       "note": "6501.T"
     },
     {
       "name": "Yahoo Finance fundamentals",
       "url": "https://finance.yahoo.com/quote/4063.T/financials/",
       "ok": true,
-      "retrieved_at": "2026-07-19T10:28:54.075642+00:00",
+      "retrieved_at": "2026-07-19T11:24:11.113276+00:00",
       "note": "4063.T"
     },
     {
       "name": "Yahoo Finance fundamentals",
       "url": "https://finance.yahoo.com/quote/7741.T/financials/",
       "ok": true,
-      "retrieved_at": "2026-07-19T10:28:54.075642+00:00",
+      "retrieved_at": "2026-07-19T11:24:11.113276+00:00",
       "note": "7741.T"
     },
     {
       "name": "Yahoo Finance fundamentals",
       "url": "https://finance.yahoo.com/quote/7267.T/financials/",
       "ok": true,
-      "retrieved_at": "2026-07-19T10:28:54.075642+00:00",
+      "retrieved_at": "2026-07-19T11:24:11.113276+00:00",
       "note": "7267.T"
     },
     {
       "name": "Honda Cash Flows (Non-financial Services Businesses)",
       "url": "https://global.honda/en/investors/financial_data/cashflow.html",
       "ok": true,
-      "retrieved_at": "2026-07-19T10:28:54.075642+00:00",
+      "retrieved_at": "2026-07-19T11:24:11.113276+00:00",
       "note": "7267.T: Honda公式・非金融事業FCFのFY2022～FY2026における5年中央値"
     },
     {
       "name": "Yahoo Finance fundamentals",
       "url": "https://finance.yahoo.com/quote/7751.T/financials/",
       "ok": true,
-      "retrieved_at": "2026-07-19T10:28:54.075642+00:00",
+      "retrieved_at": "2026-07-19T11:24:11.113276+00:00",
       "note": "7751.T"
     },
     {
       "name": "Yahoo Finance fundamentals",
       "url": "https://finance.yahoo.com/quote/7203.T/financials/",
       "ok": true,
-      "retrieved_at": "2026-07-19T10:28:54.075642+00:00",
+      "retrieved_at": "2026-07-19T11:24:11.113276+00:00",
       "note": "7203.T"
     },
     {
       "name": "Toyota FY2026 Financial Summary（過去5年は各年度版）",
       "url": "https://global.toyota/pages/global_toyota/ir/financial-results/2026_4q_summary_en.pdf",
       "ok": true,
-      "retrieved_at": "2026-07-19T10:28:54.075642+00:00",
+      "retrieved_at": "2026-07-19T11:24:11.113276+00:00",
       "note": "7203.T: Toyota公式・非金融事業CFから算出した調整後FCFのFY2022～FY2026における5年中央値"
     },
     {
       "name": "Yahoo Finance fundamentals",
       "url": "https://finance.yahoo.com/quote/9983.T/financials/",
       "ok": true,
-      "retrieved_at": "2026-07-19T10:28:54.075642+00:00",
+      "retrieved_at": "2026-07-19T11:24:11.113276+00:00",
       "note": "9983.T"
     },
     {
       "name": "Yahoo Finance fundamentals",
       "url": "https://finance.yahoo.com/quote/6758.T/financials/",
       "ok": true,
-      "retrieved_at": "2026-07-19T10:28:54.075642+00:00",
+      "retrieved_at": "2026-07-19T11:24:11.113276+00:00",
       "note": "6758.T"
     },
     {
       "name": "Yahoo Finance fundamentals",
       "url": "https://finance.yahoo.com/quote/7974.T/financials/",
       "ok": true,
-      "retrieved_at": "2026-07-19T10:28:54.075642+00:00",
+      "retrieved_at": "2026-07-19T11:24:11.113276+00:00",
       "note": "7974.T"
     },
     {
       "name": "Yahoo Finance fundamentals",
       "url": "https://finance.yahoo.com/quote/6098.T/financials/",
       "ok": true,
-      "retrieved_at": "2026-07-19T10:28:54.075642+00:00",
+      "retrieved_at": "2026-07-19T11:24:11.113276+00:00",
       "note": "6098.T"
     },
     {
       "name": "Yahoo Finance fundamentals",
       "url": "https://finance.yahoo.com/quote/6367.T/financials/",
       "ok": true,
-      "retrieved_at": "2026-07-19T10:28:54.075642+00:00",
+      "retrieved_at": "2026-07-19T11:24:11.113276+00:00",
       "note": "6367.T"
     },
     {
       "name": "Yahoo Finance historical chart",
       "url": "https://finance.yahoo.com/quote/%5EN225/history/",
       "ok": true,
-      "retrieved_at": "2026-07-19T10:28:54.075642+00:00",
+      "retrieved_at": "2026-07-19T11:24:11.113276+00:00",
       "note": "日本の資産バブル・最初の下落局面"
     },
     {
       "name": "Yahoo Finance historical chart",
       "url": "https://finance.yahoo.com/quote/%5EN225/history/",
       "ok": true,
-      "retrieved_at": "2026-07-19T10:28:54.075642+00:00",
+      "retrieved_at": "2026-07-19T11:24:11.113276+00:00",
       "note": "日本の資産バブル・長期的な最低値"
     },
     {
       "name": "Yahoo Finance historical chart",
       "url": "https://finance.yahoo.com/quote/%5EIXIC/history/",
       "ok": true,
-      "retrieved_at": "2026-07-19T10:28:54.075642+00:00",
+      "retrieved_at": "2026-07-19T11:24:11.113276+00:00",
       "note": "米国ITバブル"
     },
     {
       "name": "Yahoo Finance historical chart",
       "url": "https://finance.yahoo.com/quote/%5EN225/history/",
       "ok": true,
-      "retrieved_at": "2026-07-19T10:28:54.075642+00:00",
+      "retrieved_at": "2026-07-19T11:24:11.113276+00:00",
       "note": "世界金融危機"
     },
     {
       "name": "Yahoo Finance historical chart",
       "url": "https://finance.yahoo.com/quote/%5EN225/history/",
       "ok": true,
-      "retrieved_at": "2026-07-19T10:28:54.075642+00:00",
+      "retrieved_at": "2026-07-19T11:24:11.113276+00:00",
       "note": "コロナ急落"
     },
     {
       "name": "Yahoo Finance historical chart",
       "url": "https://finance.yahoo.com/quote/%5EIXIC/history/",
       "ok": true,
-      "retrieved_at": "2026-07-19T10:28:54.075642+00:00",
+      "retrieved_at": "2026-07-19T11:24:11.113276+00:00",
       "note": "2021年以降の成長株再評価"
     },
     {
       "name": "財務省 国債金利情報",
       "url": "https://www.mof.go.jp/jgbs/reference/interest_rate/jgbcm.csv",
       "ok": true,
-      "retrieved_at": "2026-07-19T10:28:54.075642+00:00",
+      "retrieved_at": "2026-07-19T11:24:11.113276+00:00",
       "note": "財務省が公表する、15時時点の流通市場価格から算出したコンスタント・マチュリティー・ベースの10年国債金利。"
     },
     {
       "name": "FRED",
       "url": "https://fred.stlouisfed.org/series/BAMLH0A0HYM2",
       "ok": true,
-      "retrieved_at": "2026-07-19T10:28:54.075642+00:00",
+      "retrieved_at": "2026-07-19T11:24:11.113276+00:00",
       "note": "BAMLH0A0HYM2"
+    },
+    {
+      "name": "FRED / Chicago Fed NFCI",
+      "url": "https://fred.stlouisfed.org/series/NFCI",
+      "ok": true,
+      "retrieved_at": "2026-07-19T11:24:11.113276+00:00",
+      "note": "2026-07-10"
     },
     {
       "name": "FRED CPI-U",
       "url": "https://fred.stlouisfed.org/series/CPIAUCNS",
       "ok": true,
-      "retrieved_at": "2026-07-19T10:28:54.075642+00:00",
+      "retrieved_at": "2026-07-19T11:24:11.113276+00:00",
       "note": "2026-06-01"
+    },
+    {
+      "name": "SEC Berkshire 10-Q / 13F",
+      "url": "https://www.sec.gov/Archives/edgar/data/1067983/000119312526226661/0001193125-26-226661-index.htm",
+      "ok": true,
+      "retrieved_at": "2026-07-19T11:24:11.113276+00:00",
+      "note": "SEC公表済み原表の監査済み控えを使用"
+    },
+    {
+      "name": "Google News English RSS",
+      "url": "https://news.google.com/",
+      "ok": true,
+      "retrieved_at": "2026-07-19T11:24:11.113276+00:00",
+      "note": "12 headlines"
+    },
+    {
+      "name": "X recent search",
+      "url": "https://developer.x.com/en/docs/x-api",
+      "ok": true,
+      "retrieved_at": "2026-07-19T11:24:11.113276+00:00",
+      "note": "X接続は未設定。海外報道と公式資料を更新しました。"
     }
   ],
-  "methodVersion": "3.9.0"
+  "methodVersion": "4.0.0"
 }

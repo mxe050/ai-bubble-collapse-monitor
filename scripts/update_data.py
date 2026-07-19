@@ -12,6 +12,8 @@ import csv
 import io
 import json
 import math
+import os
+import xml.etree.ElementTree as ET
 import re
 import statistics
 import time
@@ -420,6 +422,88 @@ PRICE_SYMBOLS = {
 }
 HYPERSCALERS = {"MSFT", "GOOGL", "AMZN", "META"}
 
+
+BERKSHIRE_BALANCE_SNAPSHOTS = [
+    {
+        "periodEnd": "2026-03-31",
+        "filingDate": "2026-05-04",
+        "cashAndEquivalentsBillion": 51.478,
+        "treasuryBillsBillion": 339.261,
+        "unsettledTreasuryPayableBillion": 17.229,
+        "equitySecuritiesBillion": 288.034,
+        "fixedMaturityBillion": 17.669,
+        "totalAssetsBillion": 1252.271,
+        "sourceUrl": "https://www.sec.gov/Archives/edgar/data/1067983/000119312526202243/brka-20260331.htm",
+    },
+    {
+        "periodEnd": "2025-12-31",
+        "filingDate": "2026-02-23",
+        "cashAndEquivalentsBillion": 47.719,
+        "treasuryBillsBillion": 321.434,
+        "unsettledTreasuryPayableBillion": 0.167,
+        "equitySecuritiesBillion": 297.778,
+        "fixedMaturityBillion": 17.816,
+        "totalAssetsBillion": 1222.176,
+        "sourceUrl": "https://www.berkshirehathaway.com/2025ar/2025ar.pdf",
+    },
+]
+
+BERKSHIRE_13F_FALLBACK = [
+    {
+        "reportDate": "2026-03-31",
+        "filingDate": "2026-05-15",
+        "accession": "0001193125-26-226661",
+        "xmlUrl": "https://www.sec.gov/Archives/edgar/data/1067983/000119312526226661/53405.xml",
+        "sourceUrl": "https://www.sec.gov/Archives/edgar/data/1067983/000119312526226661/0001193125-26-226661-index.htm",
+    },
+    {
+        "reportDate": "2025-12-31",
+        "filingDate": "2026-02-17",
+        "accession": "0001193125-26-054580",
+        "xmlUrl": "https://www.sec.gov/Archives/edgar/data/1067983/000119312526054580/50240.xml",
+        "sourceUrl": "https://www.sec.gov/Archives/edgar/data/1067983/000119312526054580/0001193125-26-054580-index.html",
+    },
+]
+
+BERKSHIRE_13F_CHANGE_FALLBACK = {
+    "buys": [
+        {"name": "Alphabet", "securityClass": "Class A", "latestShares": 54249798, "previousShares": 17846142, "changeShares": 36403656, "changePct": 204.0, "status": "買い増し"},
+        {"name": "Delta Air Lines", "securityClass": "Common", "latestShares": 39809456, "previousShares": 0, "changeShares": 39809456, "changePct": None, "status": "新規"},
+        {"name": "New York Times", "securityClass": "Class A", "latestShares": 15146535, "previousShares": 5065744, "changeShares": 10080791, "changePct": 199.0, "status": "買い増し"},
+        {"name": "Alphabet", "securityClass": "Class C", "latestShares": 3585215, "previousShares": 0, "changeShares": 3585215, "changePct": None, "status": "新規"},
+        {"name": "Lennar", "securityClass": "Class A", "latestShares": 10099642, "previousShares": 7050950, "changeShares": 3048692, "changePct": 43.2, "status": "買い増し"},
+        {"name": "Macy's", "securityClass": "Common", "latestShares": 3038355, "previousShares": 0, "changeShares": 3038355, "changePct": None, "status": "新規"},
+    ],
+    "sells": [
+        {"name": "Chevron", "securityClass": "Common", "latestShares": 84375856, "previousShares": 130156362, "changeShares": -45780506, "changePct": -35.2, "status": "縮小"},
+        {"name": "Constellation Brands", "securityClass": "Class A", "latestShares": 632890, "previousShares": 13000000, "changeShares": -12367110, "changePct": -95.1, "status": "縮小"},
+        {"name": "Visa", "securityClass": "Class A", "latestShares": 0, "previousShares": 8297460, "changeShares": -8297460, "changePct": -100.0, "status": "全売却"},
+        {"name": "UnitedHealth Group", "securityClass": "Common", "latestShares": 0, "previousShares": 5039564, "changeShares": -5039564, "changePct": -100.0, "status": "全売却"},
+        {"name": "Mastercard", "securityClass": "Class A", "latestShares": 0, "previousShares": 3986648, "changeShares": -3986648, "changePct": -100.0, "status": "全売却"},
+        {"name": "Amazon", "securityClass": "Common", "latestShares": 0, "previousShares": 2276000, "changeShares": -2276000, "changePct": -100.0, "status": "全売却"},
+    ],
+}
+
+OVERSEAS_NEWS_QUERIES = (
+    "AI semiconductor earnings guidance capex financing when:3d",
+    "OpenAI Anthropic IPO tender secondary shares when:7d",
+)
+
+NEWS_TOPIC_TERMS = {
+    "業績・見通し": ("earnings", "guidance", "revenue", "margin", "forecast", "profit"),
+    "AI投資・需要": ("capex", "data center", "datacenter", "gpu", "chip", "semiconductor", "ai spending", "hyperscaler spending"),
+    "資金調達・信用": ("financing", "debt", "bond", "default", "credit", "funding"),
+    "IPO・株式供給": ("ipo", "lockup", "lock-up", "secondary", "tender", "share sale"),
+    "政策・輸出規制": ("export", "tariff", "restriction", "antitrust", "regulation", "sanction"),
+    "雇用・コスト": ("layoff", "hiring", "headcount", "jobs", "cost cutting"),
+}
+
+PREFERRED_NEWS_SOURCES = (
+    "Reuters", "Associated Press", "AP News", "Bloomberg", "Financial Times",
+    "The Wall Street Journal", "CNBC", "BBC", "Nikkei Asia", "Morningstar",
+)
+LOW_SIGNAL_NEWS_SOURCES = ("AOL.com", "24/7 Wall St.", "finance.biggo.com")
+
 HISTORICAL_EPISODES: list[dict[str, str]] = [
     {
         "id": "japan-bubble-first-leg",
@@ -676,11 +760,15 @@ class SourceStatus:
     note: str = ""
 
 
-def request(url: str, *, timeout: int = 35, attempts: int = 3) -> bytes:
+def request(
+    url: str, *, timeout: int = 35, attempts: int = 3, extra_headers: dict[str, str] | None = None
+) -> bytes:
     headers = {
         "User-Agent": USER_AGENT,
         "Accept": "application/json,text/csv,text/plain,*/*",
     }
+    if extra_headers:
+        headers.update(extra_headers)
     last_error: Exception | None = None
     for attempt in range(attempts):
         try:
@@ -1953,6 +2041,457 @@ def fetch_fred(series_id: str) -> dict[str, Any]:
     }
 
 
+
+def fetch_fred_level(
+    series_id: str,
+    *,
+    name: str,
+    units: str,
+    thresholds: list[float],
+) -> dict[str, Any]:
+    url = f"https://fred.stlouisfed.org/graph/fredgraph.csv?id={urllib.parse.quote(series_id)}"
+    text = request(url).decode("utf-8-sig")
+    rows: list[tuple[str, float]] = []
+    for row in csv.DictReader(io.StringIO(text)):
+        value = finite(row.get(series_id))
+        if value is not None:
+            rows.append((row["observation_date"], value))
+    if not rows:
+        raise RuntimeError(f"No observations for FRED {series_id}")
+    last_date, last_value = rows[-1]
+    cutoff = datetime.fromisoformat(last_date).date() - timedelta(days=95)
+    prior = next(
+        (value for date_value, value in reversed(rows) if datetime.fromisoformat(date_value).date() <= cutoff),
+        rows[0][1],
+    )
+    calibration = threshold_sample(
+        [{"date": date_value, "value": value} for date_value, value in rows],
+        "value",
+        thresholds,
+    )
+    return {
+        "seriesId": series_id,
+        "name": name,
+        "units": units,
+        "date": last_date,
+        "value": last_value,
+        "change3m": last_value - prior,
+        "calibration": calibration,
+        "sourceUrl": f"https://fred.stlouisfed.org/series/{series_id}",
+    }
+
+
+def us_risk_component(
+    component_id: str,
+    label: str,
+    parts: list[tuple[float | None, float]],
+    detail: str,
+) -> dict[str, Any]:
+    maximum = sum(maximum for _score, maximum in parts)
+    known_maximum = sum(maximum for score, maximum in parts if score is not None)
+    observed = sum(score for score, _maximum in parts if score is not None)
+    return {
+        "id": component_id,
+        "label": label,
+        "score": round(observed, 2),
+        "knownMax": round(known_maximum, 2),
+        "maxScore": round(maximum, 2),
+        "detail": detail,
+    }
+
+
+def build_us_bubble_risk(
+    prices: dict[str, dict[str, Any]],
+    ai_basket: dict[str, Any],
+    macro: dict[str, Any],
+    derived: dict[str, Any],
+) -> dict[str, Any]:
+    sp500 = prices.get("SP500") or {}
+    sox = prices.get("SOX") or {}
+    vix = prices.get("VIX") or {}
+    oas = macro.get("highYieldOas") or {}
+    nfci = macro.get("financialConditions") or {}
+
+    sp_drawdown = finite(sp500.get("drawdown3yPct"))
+    sp_below_200 = sp500.get("belowSma200") if "belowSma200" in sp500 else None
+    sp_above_50 = sp500.get("aboveSma50") if "aboveSma50" in sp500 else None
+    sp_slope = finite(sp500.get("sma50Slope20dPct"))
+    short_trend_score = None
+    if sp_above_50 is not None and sp_slope is not None:
+        short_trend_score = 4.0 if (not sp_above_50 and sp_slope < 0) else 2.0 if (not sp_above_50 or sp_slope < 0) else 0.0
+    price_component = us_risk_component(
+        "price",
+        "S&P 500の下落とトレンド",
+        [
+            (score_at_or_above(sp_drawdown, [(30, 18), (20, 14), (10, 8), (5, 3)]), 18),
+            (8.0 if sp_below_200 else 0.0 if sp_below_200 is not None else None, 8),
+            (short_trend_score, 4),
+        ],
+        f"S&P 500は3年高値から{sp_drawdown:.1f}%下。200日線は{'下' if sp_below_200 else '上'}、50日線は{'上' if sp_above_50 else '下'}。" if sp_drawdown is not None and sp_below_200 is not None and sp_above_50 is not None else "S&P 500の高値からの下落と移動平均を確認中。",
+    )
+
+    sox_drawdown = finite(sox.get("drawdown3yPct"))
+    breadth = finite(ai_basket.get("breadthBelowSma200Pct"))
+    tech_component = us_risk_component(
+        "tech",
+        "半導体とAI銘柄への波及",
+        [
+            (score_at_or_above(sox_drawdown, [(50, 12), (35, 10), (20, 6), (10, 3)]), 12),
+            (score_at_or_above(breadth, [(75, 8), (50, 5), (25, 2)]), 8),
+        ],
+        f"SOXは高値から{sox_drawdown:.1f}%下落し、監視AI 10社のうち200日線割れは{breadth:.0f}%です。" if sox_drawdown is not None and breadth is not None else "SOXとAI銘柄の市場幅を確認中。",
+    )
+
+    vix_value = finite(vix.get("close"))
+    oas_value = finite(oas.get("valuePct"))
+    stress_component = us_risk_component(
+        "stress",
+        "恐怖と信用市場",
+        [
+            (score_at_or_above(vix_value, [(40, 12), (30, 9), (25, 6), (20, 3)]), 12),
+            (score_at_or_above(oas_value, [(6, 13), (5, 10), (4, 6), (3.5, 3)]), 13),
+        ],
+        f"VIXは{vix_value:.1f}、米国HY OASは{oas_value:.2f}%です。株安だけでなく資金調達不安へ広がったかを見ます。" if vix_value is not None and oas_value is not None else "VIXと米国HY OASを確認中。",
+    )
+
+    fcf_breadth = finite(derived.get("fcfDeteriorationBreadthPct"))
+    revenue_growth = finite(derived.get("medianLatestQuarterRevenueGrowthYoYPct"))
+    fundamentals_component = us_risk_component(
+        "fundamentals",
+        "AI企業の利益・現金創出",
+        [
+            (score_at_or_above(fcf_breadth, [(70, 10), (50, 7), (30, 4), (10, 1)]), 10),
+            (score_at_or_below(revenue_growth, [(0, 5), (10, 4), (20, 2)]), 5),
+        ],
+        f"監視AI企業のFCF悪化は{fcf_breadth:.0f}%、売上成長率中央値は{revenue_growth:.1f}%です。価格下落が業績悪化を先取りしているかを確認します。" if fcf_breadth is not None and revenue_growth is not None else "AI企業の売上とFCFを確認中。",
+    )
+
+    nfci_value = finite(nfci.get("value"))
+    conditions_component = us_risk_component(
+        "conditions",
+        "米国の金融環境",
+        [(score_at_or_above(nfci_value, [(0.75, 10), (0.50, 8), (0.25, 5), (0.0, 2)]), 10)],
+        f"Chicago Fed NFCIは{nfci_value:+.2f}。0より上は平均より引き締まった金融環境です。" if nfci_value is not None else "Chicago Fed NFCIを確認中。",
+    )
+
+    components = [price_component, tech_component, stress_component, fundamentals_component, conditions_component]
+    raw_score = sum(component["score"] for component in components)
+    known_maximum = sum(component["knownMax"] for component in components)
+    maximum = sum(component["maxScore"] for component in components)
+    score = raw_score / known_maximum * 100 if known_maximum >= 70 else None
+    if score is None:
+        stage_code, stage_label = "insufficient", "データ不足"
+    elif score < 20:
+        stage_code, stage_label = "watch", "期待は高いが、崩壊の確認は限定的"
+    elif score < 40:
+        stage_code, stage_label = "deterioration", "初期劣化"
+    elif score < 60:
+        stage_code, stage_label = "correction", "調整局面"
+    elif score < 75:
+        stage_code, stage_label = "bear", "弱気相場への移行"
+    else:
+        stage_code, stage_label = "panic", "パニック・信用ストレス"
+
+    peak = finite(sp500.get("peak3y"))
+    current = finite(sp500.get("close"))
+    scenario_defs = [
+        ("correction", "一般的な調整", 10.0, "高値から10%。崩壊の断定ではなく、通常の調整域。"),
+        ("bear", "弱気相場の目安", 20.0, "高値から20%。価格トレンドの明確な悪化を確認する水準。"),
+        ("recession", "景気後退型", 30.0, "高値から30%。利益下方修正と信用悪化の有無が重要。"),
+        ("dotcom", "S&P 500のITバブル実績", 49.1, "2000～02年のS&P 500実績を機械的に換算。今回の予測値ではない。"),
+    ]
+    scenarios = []
+    if peak is not None and current is not None:
+        for scenario_id, label, drawdown, note in scenario_defs:
+            level = peak * (1 - drawdown / 100)
+            scenarios.append({
+                "id": scenario_id,
+                "label": label,
+                "drawdownFromPeakPct": drawdown,
+                "level": round(level, 2),
+                "moveFromCurrentPct": (level / current - 1) * 100,
+                "note": note,
+            })
+
+    strongest = max(components, key=lambda row: row["score"] / row["knownMax"] if row["knownMax"] else -1)
+    if score is None:
+        narrative = "主要データの取得が不足しているため、進行度を計算できません。欠測を0点として扱いません。"
+    else:
+        narrative = (
+            f"崩壊進行度は{score:.0f}/100で『{stage_label}』です。最も強い警戒材料は「{strongest['label']}」。"
+            f"現在はS&P 500本体、信用市場、企業業績が同じ方向へ悪化しているかを重視します。"
+        )
+    return {
+        "method": "US breakdown progression index v1.0",
+        "asOfDate": sp500.get("date"),
+        "score": round(score, 1) if score is not None else None,
+        "rawScore": round(raw_score, 2),
+        "knownMax": round(known_maximum, 2),
+        "maxScore": round(maximum, 2),
+        "coveragePct": round(known_maximum / maximum * 100, 1) if maximum else 0,
+        "stageCode": stage_code,
+        "stageLabel": stage_label,
+        "narrative": narrative,
+        "components": components,
+        "scenarios": scenarios,
+        "rules": {
+            "meaning": "バブルの存在確率ではなく、価格下落が市場幅、信用、企業の現金創出、金融環境へ広がった程度を0～100で表す。",
+            "thresholdBasis": "10%は調整、20%は弱気相場を考える一般的な価格区分。VIX 20/30/40、HY OAS 3.5/4/5/6%、NFCI 0超を段階化し、単一指標で断定しない。",
+            "notProbability": "過去データで確率校正した暴落確率ではない。将来の時期や底値を一意に予測しない。",
+        },
+    }
+
+
+def xml_local_name(tag: str) -> str:
+    return tag.rsplit("}", 1)[-1]
+
+
+def xml_descendant_text(node: ET.Element, name: str) -> str:
+    for child in node.iter():
+        if xml_local_name(child.tag) == name:
+            return (child.text or "").strip()
+    return ""
+
+
+def discover_berkshire_13f_filings() -> tuple[list[dict[str, Any]], bool]:
+    try:
+        submissions = get_json("https://data.sec.gov/submissions/CIK0001067983.json")
+        recent = submissions["filings"]["recent"]
+        found: list[dict[str, Any]] = []
+        for index, form in enumerate(recent.get("form", [])):
+            if form != "13F-HR":
+                continue
+            accession = recent["accessionNumber"][index]
+            accession_compact = accession.replace("-", "")
+            base = f"https://www.sec.gov/Archives/edgar/data/1067983/{accession_compact}/"
+            directory = get_json(base + "index.json")
+            names = [item.get("name", "") for item in directory.get("directory", {}).get("item", [])]
+            xml_name = next((name for name in names if name.lower().endswith(".xml") and name.lower() != "primary_doc.xml"), None)
+            if not xml_name:
+                continue
+            found.append({
+                "reportDate": recent["reportDate"][index],
+                "filingDate": recent["filingDate"][index],
+                "accession": accession,
+                "xmlUrl": base + xml_name,
+                "sourceUrl": base + accession + "-index.htm",
+            })
+            if len(found) == 2:
+                return found, False
+    except Exception:
+        pass
+    return [dict(row) for row in BERKSHIRE_13F_FALLBACK], True
+
+
+def parse_13f_holdings(filing: dict[str, Any]) -> dict[str, dict[str, Any]]:
+    root = ET.fromstring(request(filing["xmlUrl"]))
+    holdings: dict[str, dict[str, Any]] = {}
+    for node in root.iter():
+        if xml_local_name(node.tag) != "infoTable":
+            continue
+        cusip = xml_descendant_text(node, "cusip")
+        if not cusip:
+            continue
+        shares = finite(xml_descendant_text(node, "sshPrnamt")) or 0.0
+        value = finite(xml_descendant_text(node, "value")) or 0.0
+        row = holdings.setdefault(cusip, {
+            "cusip": cusip,
+            "name": xml_descendant_text(node, "nameOfIssuer").title(),
+            "securityClass": xml_descendant_text(node, "titleOfClass"),
+            "shares": 0.0,
+            "reportedValue": 0.0,
+        })
+        row["shares"] += shares
+        row["reportedValue"] += value
+    if not holdings:
+        raise RuntimeError("SEC 13F information table has no holdings")
+    return holdings
+
+
+def compare_13f_holdings(
+    latest: dict[str, dict[str, Any]], previous: dict[str, dict[str, Any]]
+) -> dict[str, list[dict[str, Any]]]:
+    buys: list[dict[str, Any]] = []
+    sells: list[dict[str, Any]] = []
+    for cusip in set(latest) | set(previous):
+        current = latest.get(cusip) or {}
+        prior = previous.get(cusip) or {}
+        current_shares = finite(current.get("shares")) or 0.0
+        prior_shares = finite(prior.get("shares")) or 0.0
+        delta = current_shares - prior_shares
+        if abs(delta) < 1:
+            continue
+        change_pct = delta / prior_shares * 100 if prior_shares else None
+        if prior_shares and abs(change_pct or 0) < 0.5:
+            continue
+        row = {
+            "cusip": cusip,
+            "name": current.get("name") or prior.get("name") or cusip,
+            "securityClass": current.get("securityClass") or prior.get("securityClass") or "",
+            "latestShares": round(current_shares),
+            "previousShares": round(prior_shares),
+            "changeShares": round(delta),
+            "changePct": round(change_pct, 1) if change_pct is not None else None,
+            "status": "新規" if not prior_shares else "全売却" if not current_shares else "買い増し" if delta > 0 else "縮小",
+            "sortValue": finite(current.get("reportedValue")) or finite(prior.get("reportedValue")) or abs(delta),
+        }
+        (buys if delta > 0 else sells).append(row)
+    buys.sort(key=lambda row: row["sortValue"], reverse=True)
+    sells.sort(key=lambda row: row["sortValue"], reverse=True)
+    for row in buys + sells:
+        row.pop("sortValue", None)
+    return {"buys": buys[:6], "sells": sells[:6]}
+
+
+def build_berkshire_monitor() -> dict[str, Any]:
+    snapshots = [dict(row) for row in BERKSHIRE_BALANCE_SNAPSHOTS]
+    for row in snapshots:
+        row["netLiquidReserveBillion"] = (
+            row["cashAndEquivalentsBillion"] + row["treasuryBillsBillion"] - row["unsettledTreasuryPayableBillion"]
+        )
+        pool = row["netLiquidReserveBillion"] + row["equitySecuritiesBillion"] + row["fixedMaturityBillion"]
+        row["investmentPoolLiquidRatioPct"] = row["netLiquidReserveBillion"] / pool * 100
+        row["liquidReserveToTotalAssetsPct"] = row["netLiquidReserveBillion"] / row["totalAssetsBillion"] * 100
+    latest_balance, previous_balance = snapshots
+    filings, discovery_fallback = discover_berkshire_13f_filings()
+    direct_13f = False
+    changes = {"buys": [], "sells": []}
+    try:
+        latest_holdings = parse_13f_holdings(filings[0])
+        previous_holdings = parse_13f_holdings(filings[1])
+        changes = compare_13f_holdings(latest_holdings, previous_holdings)
+        direct_13f = True
+    except Exception:
+        changes = {
+            "buys": [dict(row) for row in BERKSHIRE_13F_CHANGE_FALLBACK["buys"]],
+            "sells": [dict(row) for row in BERKSHIRE_13F_CHANGE_FALLBACK["sells"]],
+        }
+    reserve_change = latest_balance["netLiquidReserveBillion"] - previous_balance["netLiquidReserveBillion"]
+    ratio_change = latest_balance["investmentPoolLiquidRatioPct"] - previous_balance["investmentPoolLiquidRatioPct"]
+    return {
+        "checkedAtUtc": NOW.isoformat(),
+        "balanceLatest": latest_balance,
+        "balancePrevious": previous_balance,
+        "reserveChangeBillion": reserve_change,
+        "reserveChangePct": reserve_change / previous_balance["netLiquidReserveBillion"] * 100,
+        "investmentPoolLiquidRatioChangePctPoints": ratio_change,
+        "equitySecuritiesChangeBillion": latest_balance["equitySecuritiesBillion"] - previous_balance["equitySecuritiesBillion"],
+        "thirteenF": {
+            "latest": filings[0],
+            "previous": filings[1],
+            "buys": changes["buys"],
+            "sells": changes["sells"],
+            "directSecRefresh": direct_13f,
+            "discoveryFallback": discovery_fallback,
+        },
+        "narrative": (
+            f"保険・その他の純流動性は{previous_balance['netLiquidReserveBillion']:.1f}から"
+            f"{latest_balance['netLiquidReserveBillion']:.1f}十億ドルへ増え、投資プール内の比率は"
+            f"{previous_balance['investmentPoolLiquidRatioPct']:.1f}%から{latest_balance['investmentPoolLiquidRatioPct']:.1f}%へ上昇しました。"
+            "同時に13Fでは買い増しと売却の双方があるため、『現金が多い＝全面弱気』とは読まず、準備資金と個別銘柄選択を分けて確認します。"
+        ),
+        "calculationNote": "純流動性＝現金・現金同等物＋米国短期国債－未決済の短期国債購入債務。投資プール内比率＝純流動性÷（純流動性＋株式＋債券）。Berkshire公式指標ではなく比較用の当サイト算式。",
+        "thirteenFLimit": "13Fは四半期末から最大45日遅れ、米国上場株中心で、現金・完全子会社・一部海外株を含みません。株数で比較し、時価の増減を売買と誤認しません。",
+    }
+
+
+def classify_news_topic(text: str) -> str:
+    lowered = text.lower()
+    for label, terms in NEWS_TOPIC_TERMS.items():
+        if any(term in lowered for term in terms):
+            return label
+    return "その他の海外材料"
+
+
+def fetch_google_news() -> list[dict[str, Any]]:
+    items: list[dict[str, Any]] = []
+    seen: set[str] = set()
+    for query in OVERSEAS_NEWS_QUERIES:
+        encoded = urllib.parse.quote(query)
+        url = f"https://news.google.com/rss/search?q={encoded}&hl=en-US&gl=US&ceid=US:en"
+        root = ET.fromstring(request(url))
+        for node in root.findall("./channel/item"):
+            title = (node.findtext("title") or "").strip()
+            link = (node.findtext("link") or "").strip()
+            published = (node.findtext("pubDate") or "").strip()
+            source_node = node.find("source")
+            source = (source_node.text or "").strip() if source_node is not None else "海外報道"
+            if source in LOW_SIGNAL_NEWS_SOURCES:
+                continue
+            preferred = any(label.lower() in source.lower() for label in PREFERRED_NEWS_SOURCES)
+            dedupe = re.sub(r"\s+", " ", title.lower())
+            if not title or not link or dedupe in seen:
+                continue
+            seen.add(dedupe)
+            items.append({
+                "title": title,
+                "url": link,
+                "published": published,
+                "source": source,
+                "evidenceLevel": "主要海外報道" if preferred else "海外報道",
+                "topic": classify_news_topic(title),
+                "_priority": 0 if preferred else 1,
+            })
+    items.sort(key=lambda row: row["_priority"])
+    for row in items:
+        row.pop("_priority", None)
+    return items[:12]
+
+
+def fetch_x_watch() -> dict[str, Any]:
+    token = os.environ.get("X_BEARER_TOKEN", "").strip()
+    if not token:
+        return {"status": "not-configured", "items": [], "message": "X接続は未設定。海外報道と公式資料を更新しました。"}
+    query = '(AI OR semiconductor OR OpenAI OR Anthropic) (earnings OR guidance OR capex OR financing OR IPO OR lockup) lang:en -is:retweet'
+    params = urllib.parse.urlencode({
+        "query": query,
+        "max_results": 20,
+        "tweet.fields": "created_at,author_id,lang",
+        "expansions": "author_id",
+        "user.fields": "username,name,verified",
+    })
+    url = "https://api.x.com/2/tweets/search/recent?" + params
+    payload = json.loads(request(url, extra_headers={"Authorization": f"Bearer {token}"}).decode("utf-8"))
+    users = {row["id"]: row for row in payload.get("includes", {}).get("users", [])}
+    output = []
+    for row in payload.get("data", []):
+        user = users.get(row.get("author_id"), {})
+        username = user.get("username", "")
+        text = re.sub(r"\s+", " ", row.get("text", "")).strip()
+        output.append({
+            "title": text[:240],
+            "url": f"https://x.com/{username}/status/{row['id']}" if username else f"https://x.com/i/web/status/{row['id']}",
+            "published": row.get("created_at"),
+            "source": "@" + username if username else "X",
+            "verified": bool(user.get("verified")),
+            "evidenceLevel": "X上の早期情報",
+            "topic": classify_news_topic(text),
+        })
+    return {"status": "connected", "items": output, "message": f"Xから{len(output)}件の候補を取得しました。"}
+
+
+def build_overseas_intelligence() -> dict[str, Any]:
+    news_items = fetch_google_news()
+    try:
+        x_watch = fetch_x_watch()
+    except Exception as exc:
+        x_watch = {"status": "failed", "items": [], "message": f"X取得に失敗: {exc}"}
+    all_items = news_items + x_watch["items"]
+    topic_counts: dict[str, int] = {}
+    for row in all_items:
+        topic_counts[row["topic"]] = topic_counts.get(row["topic"], 0) + 1
+    ranked = sorted(topic_counts.items(), key=lambda item: (-item[1], item[0]))
+    focus = "、".join(f"{label}{count}件" for label, count in ranked[:3]) or "新着なし"
+    return {
+        "checkedAtUtc": NOW.isoformat(),
+        "newsItems": news_items,
+        "x": x_watch,
+        "topicCounts": topic_counts,
+        "summary": f"直近の海外情報は{len(all_items)}件。主な論点は{focus}です。見出しや投稿を起点に、決算、SEC提出、会社IRで確認します。",
+        "readingRule": "海外報道とXは変化を早く見つける入口。数値や会社行動は決算、SEC、会社IRで確認できた時点で企業価値・崩壊進行度へ反映する。",
+    }
+
+
 def sampled_chart(price_data: dict[str, dict[str, Any]]) -> list[dict[str, Any]]:
     start = (NOW.date() - timedelta(days=365 * 3)).isoformat()
     symbols = [symbol for symbol in CHART_TICKERS if symbol in price_data]
@@ -2061,6 +2600,12 @@ def sync_money_strategist_latest(
 
 
 def main() -> None:
+    previous_payload: dict[str, Any] = {}
+    if OUTPUT.exists():
+        try:
+            previous_payload = json.loads(OUTPUT.read_text(encoding="utf-8"))
+        except Exception:
+            previous_payload = {}
     statuses: list[SourceStatus] = []
     errors: list[str] = []
     prices: dict[str, dict[str, Any]] = {}
@@ -2153,6 +2698,18 @@ def main() -> None:
             statuses.append(SourceStatus("FRED", f"https://fred.stlouisfed.org/series/{series}", False, NOW.isoformat(), str(exc)))
 
     try:
+        macro["financialConditions"] = fetch_fred_level(
+            "NFCI",
+            name="Chicago Fed National Financial Conditions Index",
+            units="Index; positive is tighter than average",
+            thresholds=[0.0, 0.25, 0.5, 0.75],
+        )
+        statuses.append(SourceStatus("FRED / Chicago Fed NFCI", macro["financialConditions"]["sourceUrl"], True, NOW.isoformat(), macro["financialConditions"]["date"]))
+    except Exception as exc:
+        errors.append(f"FRED NFCI: {exc}")
+        statuses.append(SourceStatus("FRED / Chicago Fed NFCI", "https://fred.stlouisfed.org/series/NFCI", False, NOW.isoformat(), str(exc)))
+
+    try:
         cpi_history = fetch_cpi_history()
         statuses.append(SourceStatus("FRED CPI-U", cpi_history["sourceUrl"], True, NOW.isoformat(), cpi_history["latestDate"]))
     except Exception as exc:
@@ -2186,8 +2743,69 @@ def main() -> None:
     except Exception as exc:
         errors.append(f"Sakakibara analysis: {exc}")
 
+
+    ai_basket = {
+        "constituents": [company["ticker"] for company in overseas_ai_companies],
+        "medianDrawdown3yPct": median(company_drawdowns),
+        "breadthBelowSma200Pct": (below_count / len(overseas_ai_companies) * 100.0) if overseas_ai_companies else None,
+        "medianChange1dPct": median(company.get("change1dPct") for company in overseas_ai_companies),
+        "medianChange5dPct": median(company.get("change5dPct") for company in overseas_ai_companies),
+    }
+    derived_metrics = {
+        "medianLatestQuarterRevenueGrowthYoYPct": median(revenue_growth),
+        "latestQuarterRevenueGrowthCoverage": len(revenue_growth),
+        "fcfDeteriorationCount": sum(1 for value in fcf_deterioration if value),
+        "fcfDeteriorationCoverage": len(fcf_deterioration),
+        "fcfDeteriorationBreadthPct": (
+            sum(1 for value in fcf_deterioration if value) / len(fcf_deterioration) * 100.0
+            if fcf_deterioration else None
+        ),
+        "medianHyperscalerCapexGrowthYoYPct": median(hyperscaler_capex),
+        "hyperscalerCapexCoverage": sum(1 for value in hyperscaler_capex if value is not None),
+        "hyperscalersWithCapexCuts": sum(1 for value in hyperscaler_capex if value is not None and value <= -10.0),
+    }
+    us_bubble_risk = build_us_bubble_risk(prices, ai_basket, macro, derived_metrics)
+    previous_risk = (previous_payload.get("market") or {}).get("usBubbleRisk") or {}
+    if not previous_risk and previous_payload:
+        try:
+            previous_risk = build_us_bubble_risk(
+                (previous_payload.get("market") or {}).get("series") or {},
+                (previous_payload.get("market") or {}).get("aiBasket") or {},
+                previous_payload.get("macro") or {},
+                previous_payload.get("derived") or {},
+            )
+        except Exception:
+            previous_risk = {}
+    us_bubble_risk["previousUpdate"] = {
+        "generatedAtUtc": previous_payload.get("generatedAtUtc"),
+        "marketDate": previous_risk.get("asOfDate"),
+        "score": previous_risk.get("score"),
+        "scoreChange": (
+            us_bubble_risk["score"] - previous_risk["score"]
+            if us_bubble_risk.get("score") is not None and previous_risk.get("score") is not None else None
+        ),
+    }
+
+    try:
+        berkshire_monitor = build_berkshire_monitor()
+        source_note = "SEC原表を再取得" if berkshire_monitor["thirteenF"]["directSecRefresh"] else "SEC公表済み原表の監査済み控えを使用"
+        statuses.append(SourceStatus("SEC Berkshire 10-Q / 13F", berkshire_monitor["thirteenF"]["latest"]["sourceUrl"], True, NOW.isoformat(), source_note))
+    except Exception as exc:
+        berkshire_monitor = {}
+        errors.append(f"Berkshire monitor: {exc}")
+        statuses.append(SourceStatus("SEC Berkshire 10-Q / 13F", BERKSHIRE_13F_FALLBACK[0]["sourceUrl"], False, NOW.isoformat(), str(exc)))
+
+    try:
+        overseas_intelligence = build_overseas_intelligence()
+        statuses.append(SourceStatus("Google News English RSS", "https://news.google.com/", True, NOW.isoformat(), f"{len(overseas_intelligence['newsItems'])} headlines"))
+        statuses.append(SourceStatus("X recent search", "https://developer.x.com/en/docs/x-api", True, NOW.isoformat(), overseas_intelligence["x"]["message"]))
+    except Exception as exc:
+        overseas_intelligence = {"checkedAtUtc": NOW.isoformat(), "newsItems": [], "x": {"status": "failed", "items": [], "message": str(exc)}, "topicCounts": {}, "summary": "海外情報を更新できませんでした。", "readingRule": "数値は公式資料で確認する。"}
+        errors.append(f"Overseas intelligence: {exc}")
+        statuses.append(SourceStatus("Google News English RSS", "https://news.google.com/", False, NOW.isoformat(), str(exc)))
+
     payload = {
-        "schemaVersion": 12,
+        "schemaVersion": 13,
         "generatedAtUtc": NOW.isoformat(),
         "generatedAtJst": NOW.astimezone(JST).isoformat(),
         "marketDate": prices.get("SOX", {}).get("date"),
@@ -2200,13 +2818,9 @@ def main() -> None:
         },
         "market": {
             "series": strip_history(prices),
-            "aiBasket": {
-                "constituents": [company["ticker"] for company in overseas_ai_companies],
-                "medianDrawdown3yPct": median(company_drawdowns),
-                "breadthBelowSma200Pct": (below_count / len(overseas_ai_companies) * 100.0) if overseas_ai_companies else None,
-                "medianChange1dPct": median(company.get("change1dPct") for company in overseas_ai_companies),
-                "medianChange5dPct": median(company.get("change5dPct") for company in overseas_ai_companies),
-            },
+            "aiBasket": ai_basket,
+            "usBubbleRisk": us_bubble_risk,
+            "berkshireMonitor": berkshire_monitor,
             "japanAiBasket": {
                 "label": "日本AI・半導体連動8社（本サイト独自・等ウェイト監視群）",
                 "constituents": [company["ticker"] for company in japan_ai_companies],
@@ -2235,19 +2849,8 @@ def main() -> None:
         },
         "macro": macro,
         "companies": companies,
-        "derived": {
-            "medianLatestQuarterRevenueGrowthYoYPct": median(revenue_growth),
-            "latestQuarterRevenueGrowthCoverage": len(revenue_growth),
-            "fcfDeteriorationCount": sum(1 for value in fcf_deterioration if value),
-            "fcfDeteriorationCoverage": len(fcf_deterioration),
-            "fcfDeteriorationBreadthPct": (
-                sum(1 for value in fcf_deterioration if value) / len(fcf_deterioration) * 100.0
-                if fcf_deterioration else None
-            ),
-            "medianHyperscalerCapexGrowthYoYPct": median(hyperscaler_capex),
-            "hyperscalerCapexCoverage": sum(1 for value in hyperscaler_capex if value is not None),
-            "hyperscalersWithCapexCuts": sum(1 for value in hyperscaler_capex if value is not None and value <= -10.0),
-        },
+        "derived": derived_metrics,
+        "overseasIntelligence": overseas_intelligence,
         "manualInputs": {
             "forwardEpsRevision3mPct": None,
             "companiesWithEpsCuts": None,
@@ -2257,7 +2860,7 @@ def main() -> None:
             "note": "These fields require a consistent paid consensus series, product-level pricing, or verified project announcements. Missing is not zero.",
         },
         "sourceStatus": [status.__dict__ for status in statuses],
-        "methodVersion": "3.9.0",
+        "methodVersion": "4.0.0",
     }
     OUTPUT.parent.mkdir(parents=True, exist_ok=True)
     OUTPUT.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")

@@ -22,8 +22,9 @@
       <div class="header-actions">
         <button id="refreshButton" class="command primary" type="button">
           <i data-lucide="refresh-cw" aria-hidden="true"></i>
-          最新データを再読込
+          最新データを取得・再計算
         </button>
+        <small id="refreshHint" class="refresh-hint">S&amp;P・信用・企業・海外情報を更新</small>
         <a class="command" href="#methodology">
           <i data-lucide="calculator" aria-hidden="true"></i>
           計算根拠
@@ -39,6 +40,7 @@
       <a href="#us-japan-link">米国→日本</a>
       <a href="#sakakibara-method">榊原式</a>
       <a href="#money-strategist">マネーストラテジスト</a>
+      <a href="#us-breakdown">米国崩壊進行度</a>
       <a href="#nikkei-bottom">日経底値</a>
       <a href="#signals">崩壊シグナル</a>
       <a href="#valuation">企業価値</a>
@@ -609,6 +611,109 @@
           <p id="msChartLimit" class="ms-chart-limit">青線はMoney Strategistが公表した正式なS&amp;P 500予測線ではありません。</p>
         </div>
 
+
+        <section id="us-breakdown" class="us-breakdown-panel" aria-labelledby="usBreakdownHeading">
+          <div class="section-heading compact-heading">
+            <p class="section-kicker">US BREAKDOWN PROGRESSION</p>
+            <h3 id="usBreakdownHeading">米国株は「割高」から「崩壊過程」へ移ったか</h3>
+            <p>高い評価は何年も続くことがあります。そこで、S&amp;P 500本体の下落、半導体とAI銘柄への波及、VIXと社債市場、企業のFCF、金融環境が<strong>同時に悪化した程度</strong>を0～100で計算します。</p>
+          </div>
+
+          <div class="us-risk-overview">
+            <div class="us-risk-scorebox">
+              <span>崩壊進行度</span>
+              <strong id="usRiskScore">読込中</strong>
+              <small id="usRiskAsOf">基準日を確認中</small>
+              <div class="us-risk-meter" aria-hidden="true"><span id="usRiskMeterFill"></span></div>
+            </div>
+            <div class="us-risk-reading">
+              <span id="usRiskStage" class="us-risk-stage">判定中</span>
+              <p id="usRiskNarrative">価格、信用、企業業績を組み合わせて計算しています。</p>
+              <p id="usRiskChange" class="us-risk-change">前回更新との比較を準備しています。</p>
+            </div>
+            <div class="us-vulnerability-box">
+              <span>崩れやすさの背景</span>
+              <div><strong id="usCape">―</strong><small>Shiller CAPE</small></div>
+              <div><strong id="usConcentration">―</strong><small>S&amp;P上位10社比率</small></div>
+              <p>評価と集中は「壊れやすさ」を示しますが、日付を決めません。進行度とは分けて読みます。</p>
+            </div>
+          </div>
+
+          <div id="usRiskComponents" class="us-risk-components" aria-live="polite"></div>
+
+          <div class="us-scenario-block">
+            <div>
+              <p class="section-kicker">DYNAMIC S&amp;P LEVELS</p>
+              <h4>最新の3年高値から、下落局面の水準を毎回再計算</h4>
+              <p>10%、20%、30%は状態確認の目盛です。ITバブル実績は、2000～02年のS&amp;P 500下落率を現在の高値へ掛けた比較で、今回の底値予測ではありません。</p>
+            </div>
+            <div class="us-scenario-table-wrap">
+              <table class="us-scenario-table">
+                <thead><tr><th>局面</th><th>高値から</th><th>S&amp;P水準</th><th>現在から</th><th>読み方</th></tr></thead>
+                <tbody id="usScenarioRows"><tr><td colspan="5">計算中</td></tr></tbody>
+              </table>
+            </div>
+          </div>
+
+          <details class="method-details us-risk-method">
+            <summary><span>計算式を見る</span><strong>なぜこの5群を組み合わせるのか</strong></summary>
+            <div class="method-details-body">
+              <p id="usRiskRuleMeaning">価格だけでなく、波及、信用、企業の現金創出、金融環境を確認します。</p>
+              <p id="usRiskThresholdBasis"></p>
+              <p id="usRiskProbabilityNote"></p>
+            </div>
+          </details>
+        </section>
+
+        <section class="berkshire-panel" aria-labelledby="berkshireHeading">
+          <div class="section-heading compact-heading">
+            <p class="section-kicker">BERKSHIRE CAPITAL ALLOCATION</p>
+            <h3 id="berkshireHeading">バークシャーの「待機資金」と実際の買いを、前四半期と分けて見る</h3>
+            <p id="berkshireNarrative">SEC資料から、現金・米国短期国債と13Fの株数変化を比較しています。</p>
+          </div>
+
+          <div class="berkshire-metrics">
+            <div><span>純流動性</span><strong id="berkshireReserve">―</strong><small id="berkshireReserveChange">前期比を計算中</small></div>
+            <div><span>投資プール内の純流動性比率</span><strong id="berkshireCashRatio">―</strong><small id="berkshireCashRatioChange">前期比を計算中</small></div>
+            <div><span>保有株式</span><strong id="berkshireEquities">―</strong><small id="berkshireEquitiesChange">前期比を計算中</small></div>
+            <div><span>最新公表期</span><strong id="berkshirePeriod">―</strong><small>10-Q / 年次報告</small></div>
+          </div>
+
+          <div class="berkshire-holdings-grid">
+            <div>
+              <h4><i data-lucide="circle-plus" aria-hidden="true"></i>13Fで新規・買い増し</h4>
+              <p>前四半期末との<strong>株数</strong>比較です。</p>
+              <div id="berkshireBuys" class="berkshire-change-list"></div>
+            </div>
+            <div>
+              <h4><i data-lucide="circle-minus" aria-hidden="true"></i>13Fで縮小・全売却</h4>
+              <p>時価下落だけを売却とは数えません。</p>
+              <div id="berkshireSells" class="berkshire-change-list"></div>
+            </div>
+          </div>
+
+          <div class="berkshire-reading">
+            <p id="berkshireCalculation"></p>
+            <p id="berkshireLimit"></p>
+            <p>出典：<a id="berkshireBalanceSource" href="#" target="_blank" rel="noopener">Berkshire 10-Q</a> / <a id="berkshire13fSource" href="#" target="_blank" rel="noopener">SEC 13F</a></p>
+          </div>
+        </section>
+
+        <section class="overseas-intelligence-panel" aria-labelledby="overseasIntelligenceHeading">
+          <div class="section-heading compact-heading">
+            <p class="section-kicker">OVERSEAS INFORMATION RADAR</p>
+            <h3 id="overseasIntelligenceHeading">海外で新しく出た材料を集め、公式確認へつなぐ</h3>
+            <p id="overseasSummary">海外英語報道、X、公式資料から新着材料を確認しています。</p>
+          </div>
+          <div class="overseas-status-row">
+            <span id="overseasCheckedAt">最終確認を取得中</span>
+            <span id="overseasXStatus">X接続を確認中</span>
+          </div>
+          <div id="overseasTopicChips" class="overseas-topic-chips"></div>
+          <div id="overseasNewsList" class="overseas-news-list" aria-live="polite"></div>
+          <p id="overseasReadingRule" class="overseas-reading-rule"></p>
+        </section>
+
         <div class="ms-inflation-strip" aria-label="1913年からの株価と物価の倍率比較" aria-live="polite">
           <div><span>CPI-U最新値</span><strong id="msCpiLatest">読込中</strong><small id="msCpiLatestDate">1982～84年＝100</small></div>
           <div><span>1913年からの物価</span><strong id="msCpiMultiple">読込中</strong><small>CPI-U最新値 ÷ 1913年1月</small></div>
@@ -684,21 +789,21 @@
 
         <div id="private-ai-liquidity" class="ms-liquidity-section">
           <div class="section-heading compact-heading">
-            <p class="section-kicker">PRIVATE AI EQUITY: CONTROLLED LIQUIDITY IS CONTEXT, NOT A CRASH SIGNAL</p>
-            <h3>従業員向け流動性は、AIバブル崩壊の主判定には使わない</h3>
-            <p>OpenAIとAnthropicでは、会社が価格・参加者・買い手を管理する私募取引が報じられています。これは未上場株を一部現金化する仕組みであり、公開市場での売り圧力や、従業員全体の将来見通しを直接示すものではありません。本アプリでは参考情報として記録しますが、崩壊スコアには加点しません。</p>
+            <p class="section-kicker">PRIVATE AI EQUITY: WHAT HAPPENED AND WHAT TO WATCH</p>
+            <h3>未上場AI企業で株式の現金化が進んだ。次に見るのは価格・供給・業績</h3>
+            <p>OpenAIとAnthropicでは、会社が買い手と価格を調整した従業員・元従業員向け取引が報じられました。これは、未上場のままでも株式を現金化する需要と、その価格で買う機関投資家の需要が同時にあった事実です。今後は、次の取引価格が下がるか、IPOで既存株主の売出が増えるか、上場後の業績が評価額に追いつくかを確認します。</p>
           </div>
 
           <div class="ms-liquidity-status" aria-label="AI未上場株の現在地">
-            <article class="confirmed"><span>確認できること</span><strong>会社管理下の流動性取引</strong><p>売り手だけでなく、その価格で買う機関投資家をあらかじめ確保した私募取引です。会社の新規資金調達とも、公開市場での成行売りとも異なります。</p></article>
-            <article class="conditional"><span>まだ分からないこと</span><strong>IPO後の実際の株式供給</strong><p>上場日、公開価格、新規発行株、既存株主売出、ロックアップ対象株数・解除日は未公表です。将来の売り圧力は公開S-1が出るまで定量化できません。</p></article>
-            <article class="neutral"><span>判定上の扱い</span><strong>参考情報・スコア加点なし</strong><p>売却理由、参加人数、各人の保有残高は公開されていません。従業員の弱気判断を推定せず、価格・利益・FCF・信用市場を主判定にします。</p></article>
+            <article class="confirmed"><span>起きたこと</span><strong>会社承認の私募取引</strong><p>従業員側の現金化と、機関投資家側の買い需要が、会社が設定した条件の中で成立しました。</p></article>
+            <article class="conditional"><span>注意する変化</span><strong>次回価格と売却希望額</strong><p>前回より安い価格、売却希望が買付枠を上回る状態、大型の既存株主売出が出るかを追います。</p></article>
+            <article class="neutral"><span>市場へ広がる条件</span><strong>IPO後の供給と業績</strong><p>解除株数が多く、上場後価格が弱く、売上・利益・FCFも悪化した時は、未上場株の問題が公開市場へ波及します。</p></article>
           </div>
 
           <div class="ms-liquidity-interpretation primary-reading">
-            <article><i data-lucide="gauge" aria-hidden="true"></i><div><strong>主判定は公開市場データ</strong><p>SOX・S&amp;P 500・日経平均の価格、市場幅、VIX、HY OASを優先し、市場全体へストレスが広がったかを確認します。</p></div></article>
-            <article><i data-lucide="landmark" aria-hidden="true"></i><div><strong>次に利益と資金繰り</strong><p>AI売上、利益率、FCF、CapEx、資金調達条件を確認し、期待が企業の稼ぐ力を上回っているかを評価します。</p></div></article>
-            <article><i data-lucide="file-search" aria-hidden="true"></i><div><strong>株式供給は公開S-1後</strong><p>新規発行株、既存株主売出、公開浮動株、ロックアップ対象株数が分かってから、供給圧力を補助判定へ加えます。</p></div></article>
+            <article><i data-lucide="badge-dollar-sign" aria-hidden="true"></i><div><strong>取引価格の方向</strong><p>次の資金調達やテンダーが前回評価額を上回るか、割り込むかを見ます。価格低下は需要の弱まりを示す最初の手掛かりです。</p></div></article>
+            <article><i data-lucide="file-search" aria-hidden="true"></i><div><strong>S-1で株式供給を確認</strong><p>新規発行、既存株主売出、公開浮動株、ロックアップ解除株数を分け、実際に市場へ出る株の量を確認します。</p></div></article>
+            <article><i data-lucide="chart-no-axes-combined" aria-hidden="true"></i><div><strong>上場後は価格と業績を同時に見る</strong><p>公開価格割れだけでなく、売上成長、利益率、FCF、資金調達条件まで悪化するかを追います。</p></div></article>
           </div>
 
           <div class="ms-liquidity-pipeline">
@@ -708,7 +813,7 @@
               <p>価格への影響は、取引場所、買い手の有無、公開浮動株に対する供給量で変わります。現在確認できるのは会社管理下の私募取引までで、公開市場への供給条件はまだ公表されていません。</p>
             </div>
             <div class="ms-liquidity-pipeline-grid">
-              <article class="done"><span>1</span><strong>会社承認テンダー</strong><p>会社が参加者、価格、上限、買い手を管理する私募取引。従業員の資産分散や納税にも使われます。</p><small>参考情報・加点なし</small></article>
+              <article class="done"><span>1</span><strong>会社承認テンダー</strong><p>会社が参加者、価格、上限、買い手を管理する私募取引。従業員の資産分散や納税にも使われます。</p><small>買い手を伴う私募</small></article>
               <article class="done"><span>2</span><strong>機密S-1提出</strong><p>Anthropicは6月1日、OpenAIは6月8日に提出。上場準備の選択肢を確保した段階です。</p><small>提出のみ確認済み</small></article>
               <article class="unknown"><span>3</span><strong>IPO・公開価格形成</strong><p>公募増資と既存株主の売出を分けて確認します。株数・価格・時期はまだ決まっていません。</p><small>未公表</small></article>
               <article class="unknown"><span>4</span><strong>ロックアップ解除</strong><p>解除対象株数、日付、段階解除、早期解除条項を公開目論見書で確認します。</p><small>条件非公開</small></article>
@@ -735,8 +840,8 @@
               </div>
 
               <div class="ms-reported-total">
-                <div><span>合算しない</span><strong>両社合計の報道額は、判定指標にしない</strong></div>
-                <p>The Informationは両社の現金化を累計約140億ドルと推計していますが、会社別内訳、成立時点、全取引価格、参加人数を公開資料から独立再現できません。異なる時点・条件の数字を足しても売り圧力や弱気度は測れないため、スコアとシナリオ計算には使用しません。</p>
+                <div><span>数字を足さない</span><strong>異なる条件の取引額を、一つの売り圧力に見せない</strong></div>
+                <p>The Informationは両社の現金化を累計約140億ドルと推計していますが、会社別内訳、成立時点、全取引価格、参加人数を公開資料から独立再現できません。合計額だけを見るのではなく、各社の次回取引価格、売却希望額、買い手の引受余力、IPO時の既存株主売出を個別に追います。</p>
               </div>
 
               <div class="ms-transfer-warning">
@@ -779,8 +884,8 @@
 
           <div class="ms-liquidity-conclusion">
             <span>2026年7月19日の位置づけ</span>
-            <strong>中立の参考情報。従業員向け流動性は、現在の崩壊判定を変えない</strong>
-            <p>現在の主判定は価格、市場幅、利益・FCF、信用市場です。将来、公開S-1で大きな既存株主売出や解除株数が判明し、上場後の価格低迷と信用悪化まで重なった場合に限り、株式供給を警戒材料へ引き上げます。</p>
+            <strong>現時点では買い手を伴う私募。警戒点は、次回価格・IPO売出・解除後の業績</strong>
+            <p>会社承認取引があった事実だけで弱気とは断定できません。一方、ダウンラウンド、大きな既存株主売出、ロックアップ解除後の価格低迷、利益・FCF悪化が重なれば、評価額と実力の差が表面化したと判断します。</p>
           </div>
 
           <p class="transmission-sources">未上場株式とIPO準備の出典：
@@ -1429,7 +1534,7 @@
   <footer>
     <div class="content footer-inner">
       <p><strong>重要：</strong>本サイトは教育・調査用です。投資助言、価格予測、売買推奨ではありません。取得値には遅延・欠損・定義差があり、重要な判断では企業IRと提出資料を確認してください。</p>
-      <p>Method v3.9 / <a href="https://github.com/mxe050/ai-bubble-collapse-monitor" target="_blank" rel="noopener">GitHub</a></p>
+      <p>Method v4.0 / <a href="https://github.com/mxe050/ai-bubble-collapse-monitor" target="_blank" rel="noopener">GitHub</a></p>
     </div>
   </footer>
 
