@@ -9,6 +9,9 @@
     valuationChart: null,
     nikkeiBottomChart: null,
     ntRatioChart: null,
+    moneyStrategistChart: null,
+    moneyStrategist: null,
+    moneyStrategistRange: "all",
     valuations: [],
     companyFilter: "all",
     nikkeiBottom: loadNikkeiBottom(),
@@ -1790,6 +1793,234 @@
     if (window.lucide) window.lucide.createIcons();
   }
 
+
+  function decimalYearFromIso(value) {
+    if (!value) return null;
+    var parts = String(value).split("-").map(Number);
+    if (parts.length < 3 || parts.some(function (part) { return !Number.isFinite(part); })) return null;
+    var start = Date.UTC(parts[0], 0, 1);
+    var current = Date.UTC(parts[0], parts[1] - 1, parts[2]);
+    var end = Date.UTC(parts[0] + 1, 0, 1);
+    return parts[0] + (current - start) / (end - start);
+  }
+
+  function formatIndexLevel(value) {
+    var number = finite(value);
+    return number === null ? "未確認" : nikkeiFormat.format(number) + " pt";
+  }
+
+  function moneyStrategistRangeBounds() {
+    var ranges = {
+      all: { min: 1900, max: 2028.99 },
+      postwar: { min: 1950, max: 2028.99 },
+      modern: { min: 1990, max: 2028.99 },
+      current: { min: 2020, max: 2028.99 },
+    };
+    return ranges[state.moneyStrategistRange] || ranges.all;
+  }
+
+  function renderMoneyStrategistRangeUi() {
+    document.querySelectorAll(".ms-range-button").forEach(function (button) {
+      var active = button.dataset.msRange === state.moneyStrategistRange;
+      button.classList.toggle("is-active", active);
+      button.setAttribute("aria-pressed", active ? "true" : "false");
+    });
+  }
+
+  function renderMoneyStrategistChart() {
+    var data = state.moneyStrategist;
+    var canvas = byId("moneyStrategistChart");
+    if (!data || !canvas || !window.Chart) return;
+    if (state.moneyStrategistChart) state.moneyStrategistChart.destroy();
+
+    var ranges = data.crashes.map(function (crash) {
+      return { start: decimalYearFromIso(crash.peakDate), end: decimalYearFromIso(crash.troughDate) };
+    });
+    function isCrashSegment(x) {
+      return ranges.some(function (range) { return x >= range.start && x <= range.end; });
+    }
+
+    var history = data.series.history.map(function (row) {
+      return { x: row.x, y: row.value, date: row.date, sourceType: row.sourceType };
+    });
+    var forecast = data.forecast.illustrativePath.map(function (row) {
+      return { x: row.x, y: row.value, date: row.date, note: row.label };
+    });
+    var japan = data.japanBubbleMarker;
+    var bounds = moneyStrategistRangeBounds();
+
+    var annotationPlugin = {
+      id: "moneyStrategistAnnotations",
+      beforeDatasetsDraw: function (chart) {
+        var area = chart.chartArea;
+        var xScale = chart.scales.x;
+        if (!area || !xScale) return;
+        var colors = ["rgba(20,116,186,0.10)", "rgba(20,92,150,0.12)", "rgba(84,135,170,0.09)"];
+        chart.ctx.save();
+        data.forecast.riskWindows.forEach(function (windowItem, index) {
+          var start = decimalYearFromIso(windowItem.start);
+          var end = decimalYearFromIso(windowItem.end);
+          if (end < xScale.min || start > xScale.max) return;
+          var left = xScale.getPixelForValue(Math.max(start, xScale.min));
+          var right = xScale.getPixelForValue(Math.min(end, xScale.max));
+          chart.ctx.fillStyle = colors[index] || colors[0];
+          chart.ctx.fillRect(left, area.top, right - left, area.bottom - area.top);
+        });
+        chart.ctx.restore();
+      },
+      afterDatasetsDraw: function (chart) {
+        var area = chart.chartArea;
+        var xScale = chart.scales.x;
+        if (!area || !xScale || japan.x < xScale.min || japan.x > xScale.max) return;
+        var x = xScale.getPixelForValue(japan.x);
+        var ctx = chart.ctx;
+        ctx.save();
+        ctx.strokeStyle = "#d59b14";
+        ctx.lineWidth = 2;
+        ctx.setLineDash([6, 5]);
+        ctx.beginPath();
+        ctx.moveTo(x, area.top);
+        ctx.lineTo(x, area.bottom);
+        ctx.stroke();
+        ctx.setLineDash([]);
+        ctx.fillStyle = "#7a5400";
+        ctx.font = "700 13px Meiryo, sans-serif";
+        ctx.textAlign = x > area.right - 190 ? "right" : "left";
+        ctx.fillText("日本のバブルピーク 1989/12/29", x + (ctx.textAlign === "right" ? -8 : 8), area.top + 17);
+        ctx.restore();
+      },
+    };
+
+    state.moneyStrategistChart = new Chart(canvas, {
+      type: "line",
+      data: {
+        datasets: [
+          {
+            label: "米国株の歴史系列",
+            data: history,
+            parsing: false,
+            borderColor: "#294b61",
+            backgroundColor: "transparent",
+            borderWidth: 2.25,
+            pointRadius: 0,
+            pointHitRadius: 7,
+            tension: 0,
+            segment: {
+              borderColor: function (context) {
+                var midpoint = (context.p0.parsed.x + context.p1.parsed.x) / 2;
+                return isCrashSegment(midpoint) ? "#c63838" : "#294b61";
+              },
+              borderWidth: function (context) {
+                var midpoint = (context.p0.parsed.x + context.p1.parsed.x) / 2;
+                return isCrashSegment(midpoint) ? 3.4 : 2.1;
+              },
+            },
+          },
+          {
+            label: "動画数値の換算シナリオ",
+            data: forecast,
+            parsing: false,
+            borderColor: "#1474ba",
+            backgroundColor: "#1474ba",
+            borderWidth: 4,
+            borderDash: [10, 6],
+            pointRadius: 5,
+            pointHoverRadius: 7,
+            tension: 0.15,
+          },
+          {
+            label: "日本の資産バブル時点",
+            data: [{ x: japan.x, y: japan.sp500Value, date: japan.date, note: japan.label }],
+            parsing: false,
+            showLine: false,
+            pointStyle: "rectRot",
+            pointRadius: 7,
+            pointHoverRadius: 9,
+            pointBackgroundColor: "#d59b14",
+            pointBorderColor: "#7a5400",
+            pointBorderWidth: 1.5,
+          },
+        ],
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        animation: false,
+        normalized: true,
+        interaction: { mode: "nearest", intersect: false, axis: "x" },
+        layout: { padding: { top: 36, right: 12, bottom: 4, left: 2 } },
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            displayColors: true,
+            callbacks: {
+              title: function (items) { return items[0] && items[0].raw ? items[0].raw.date : ""; },
+              label: function (context) {
+                var raw = context.raw || {};
+                var text = context.dataset.label + ": " + formatIndexLevel(raw.y);
+                return raw.note ? [text, raw.note] : text;
+              },
+              afterLabel: function (context) {
+                var raw = context.raw || {};
+                return raw.sourceType ? raw.sourceType : "";
+              },
+            },
+          },
+        },
+        scales: {
+          x: {
+            type: "linear",
+            min: bounds.min,
+            max: bounds.max,
+            grid: { color: "rgba(53,82,101,0.09)" },
+            ticks: {
+              color: "#526876",
+              font: { size: 12, weight: "600" },
+              maxTicksLimit: state.moneyStrategistRange === "current" ? 10 : 14,
+              callback: function (value) { return Math.round(value); },
+            },
+            title: { display: true, text: "年", color: "#536675", font: { size: 13, weight: "700" } },
+          },
+          y: {
+            type: "logarithmic",
+            grid: { color: "rgba(53,82,101,0.11)" },
+            ticks: {
+              color: "#526876",
+              font: { size: 12, weight: "600" },
+              callback: function (value) {
+                var accepted = [1, 2, 5, 10, 20, 50, 100, 200, 500, 1000, 2000, 5000, 10000];
+                return accepted.indexOf(Number(value)) >= 0 ? nikkeiFormat.format(value) : "";
+              },
+            },
+            title: { display: true, text: "名目価格指数（対数、配当なし）", color: "#536675", font: { size: 13, weight: "700" } },
+          },
+        },
+      },
+      plugins: [annotationPlugin],
+    });
+  }
+
+  function renderMoneyStrategist() {
+    var data = state.moneyStrategist;
+    var status = byId("msChartLimit");
+    if (!data) {
+      if (status) status.textContent = "長期チャート用データを読み込めませんでした。最新データの他の章は引き続き利用できます。";
+      return;
+    }
+    byId("msCurrentLevel").textContent = formatIndexLevel(data.series.latestValue);
+    byId("msAsOf").textContent = data.series.latestDate + " 終値";
+    byId("msMidtermMean").textContent = numberOne.format(data.audit.midtermYears.meanMaxDrawdownPct) + "%";
+    byId("msTop10Weight").textContent = numberOne.format(data.audit.currentSignals.top10WeightPct.value) + "%";
+    byId("msNyFedProbability").textContent = numberOne.format(data.audit.currentSignals.nyFedRecessionProbabilityPct.value) + "%";
+    byId("msEarlyLevel").textContent = formatIndexLevel(data.forecast.levels.midtermCorrection18Pct);
+    byId("msRecessionLevel").textContent = formatIndexLevel(data.forecast.levels.recessionAverage30Pct);
+    byId("msMeanReversionRange").textContent = formatIndexLevel(data.forecast.levels.capeMeanReversion55To60Pct[0]) + "～" + formatIndexLevel(data.forecast.levels.capeMeanReversion55To60Pct[1]);
+    status.textContent = data.forecast.importantLimit;
+    renderMoneyStrategistRangeUi();
+    renderMoneyStrategistChart();
+  }
+
+
   function renderSources() {
     var grouped = {};
     (state.data.sourceStatus || []).forEach(function (source) {
@@ -1835,6 +2066,7 @@
     renderGates(gates);
     renderJapanTransmission(transmission);
     renderSakakibaraMethod();
+    renderMoneyStrategist();
     renderMarketReading();
     renderMarketChart();
     renderDotComComparison();
@@ -1857,11 +2089,15 @@
       byId("dataHealth").textContent = "再読込中";
     }
     try {
+      var moneyRequest = fetch("data/money-strategist-history.json?ts=" + Date.now(), { cache: "no-store" })
+        .then(function (response) { return response.ok ? response.json() : null; })
+        .catch(function () { return null; });
       var response = await fetch("data/latest.json?ts=" + Date.now(), { cache: "no-store" });
       if (!response.ok) throw new Error("HTTP " + response.status);
       var payload = await response.json();
       if (!payload.companies || !payload.market || Number(payload.schemaVersion) < 11) throw new Error("データ形式が古いか不正です");
       state.data = payload;
+      state.moneyStrategist = await moneyRequest;
       renderAll();
     } catch (error) {
       byId("dataHealth").className = "status-dot error";
@@ -1877,6 +2113,13 @@
 
   function bindEvents() {
     byId("refreshButton").addEventListener("click", function () { loadData(true); });
+    document.querySelectorAll(".ms-range-button").forEach(function (button) {
+      button.addEventListener("click", function () {
+        state.moneyStrategistRange = this.dataset.msRange || "all";
+        renderMoneyStrategistRangeUi();
+        renderMoneyStrategistChart();
+      });
+    });
     document.querySelectorAll(".company-filter-button").forEach(function (button) {
       button.addEventListener("click", function () {
         if (!state.data) return;

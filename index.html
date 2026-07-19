@@ -38,6 +38,7 @@
       <a href="#analysis-map">計算の地図</a>
       <a href="#us-japan-link">米国→日本</a>
       <a href="#sakakibara-method">榊原式</a>
+      <a href="#money-strategist">マネーストラテジスト</a>
       <a href="#nikkei-bottom">日経底値</a>
       <a href="#signals">崩壊シグナル</a>
       <a href="#valuation">企業価値</a>
@@ -120,7 +121,7 @@
       <div class="content">
         <div class="section-heading">
           <p class="section-kicker">HOW THE SECTIONS CONNECT</p>
-          <h2>このページが答える5つの質問</h2>
+          <h2>このページが答える6つの質問</h2>
           <p>同じデータを並べているのではありません。各章は「入力データ → 計算 → 答え」の役割が異なります。最初に全体のつながりを示します。</p>
         </div>
         <div class="analysis-map-grid">
@@ -138,6 +139,9 @@
           </a>
           <a href="#sakakibara-method" class="map-item">
             <span>05</span><div><strong>AI一極集中からの揺り戻しが始まったか</strong><p>NT倍率、TOPIX、AI連動株と分散型株を同じ期間で比較し、優良Non-AIへの相対回復を確認します。</p><small>入力：日経平均、TOPIX、日本企業16社、国債金利</small></div>
+          </a>
+          <a href="#money-strategist" class="map-item">
+            <span>06</span><div><strong>過去の暴落と2026年は、どこまで似ているか</strong><p>Money Strategistの説明を1900年以降のS&amp;P系列へ重ね、事実・主張・将来シナリオを分けて検証します。</p><small>入力：S&amp;P長期価格、CAPE、集中度、金利、信用、動画の時期見立て</small></div>
           </a>
         </div>
         <p class="map-footnote">「米国AI相場の崩壊」「日本への波及」「日経の底値ゾーン」「底打ち確認」「企業別FCFストレス」は別の問いです。SOX下落だけで日本崩壊や底打ちを決めないことが、このモニターの中心です。</p>
@@ -545,6 +549,130 @@
           <a href="https://www.cboe.com/tradable-products/vix/vix-options/specifications" target="_blank" rel="noopener">Cboe・VIX公式定義</a> /
           <a href="https://fred.stlouisfed.org/series/BAMLH0A0HYM2" target="_blank" rel="noopener">FRED・米国HY OAS</a>。
           榊原先生の見解は、ユーザー提供「市況展望」（2026年7月18日執筆）を要約・計算化しています。
+        </p>
+      </div>
+    </section>
+
+    <section id="money-strategist" class="band band-money-strategist">
+      <div class="content">
+        <div class="section-heading">
+          <p class="section-kicker">MONEY STRATEGIST: CLAIMS, HISTORY, AND SCENARIOS</p>
+          <h2>マネーストラテジスト：1900年から現在を見て、2028年までの「危険期間」を検証する</h2>
+          <p>Money Strategistの中心動画と関連動画が使う論点を、長期のS&amp;P系列へ重ねました。動画の説明をそのまま事実扱いせず、<strong>確認できる市場データ</strong>、<strong>動画の解釈</strong>、<strong>当サイトが数値へ換算した将来シナリオ</strong>を分離します。</p>
+        </div>
+
+        <div class="ms-provenance" aria-label="情報の種類">
+          <div class="ms-provenance-fact"><i data-lucide="database" aria-hidden="true"></i><span>確認できる事実</span><strong>過去の指数・下落率・公式指標</strong></div>
+          <div class="ms-provenance-claim"><i data-lucide="message-square-quote" aria-hidden="true"></i><span>動画の主張</span><strong>類似点・危険期間・因果の解釈</strong></div>
+          <div class="ms-provenance-scenario"><i data-lucide="route" aria-hidden="true"></i><span>説明用シナリオ</span><strong>青線。予測実績でも売買推奨でもない</strong></div>
+        </div>
+
+        <div class="ms-key-metrics" aria-live="polite">
+          <div><span>S&amp;P 500実績起点</span><strong id="msCurrentLevel">読込中</strong><small id="msAsOf">2026年7月17日</small></div>
+          <div><span>中間選挙年の最大下落</span><strong id="msMidtermMean">読込中</strong><small>1950～2022年の日次再計算</small></div>
+          <div><span>上位10社の構成比</span><strong id="msTop10Weight">読込中</strong><small>S&amp;P DJI公式値</small></div>
+          <div><span>NY連銀の景気後退確率</span><strong id="msNyFedProbability">読込中</strong><small>12か月先モデル。動画値と要照合</small></div>
+        </div>
+
+        <div class="ms-chart-heading">
+          <div>
+            <p class="section-kicker">LONG-RUN PRICE MAP</p>
+            <h3>米国株の長期価格：過去の主要下落は赤、動画数値の換算線は青</h3>
+            <p>縦軸は対数です。同じ縦幅がほぼ同じ騰落率を表すため、1907年と2026年を同じ画面で比較できます。名目価格・配当なしなので、長期の資産形成成績を示すトータルリターン図ではありません。</p>
+          </div>
+          <div class="ms-range-control" role="group" aria-label="チャート表示期間">
+            <button class="ms-range-button is-active" type="button" data-ms-range="all">1900–2028</button>
+            <button class="ms-range-button" type="button" data-ms-range="postwar">1950–2028</button>
+            <button class="ms-range-button" type="button" data-ms-range="modern">1990–2028</button>
+            <button class="ms-range-button" type="button" data-ms-range="current">2020–2028</button>
+          </div>
+        </div>
+
+        <div class="ms-chart-shell">
+          <div class="ms-chart-frame">
+            <canvas id="moneyStrategistChart" role="img" aria-label="1900年から2028年までの米国株長期価格。過去の暴落を赤、2026年7月以降の説明用シナリオを青、日本の資産バブル時点を金色で表示"></canvas>
+          </div>
+          <div class="ms-chart-legend" aria-label="チャート凡例">
+            <span><i class="ms-legend-line historical"></i>過去の価格系列</span>
+            <span><i class="ms-legend-line crash"></i>主要下落期間</span>
+            <span><i class="ms-legend-line scenario"></i>動画数値を換算した青線</span>
+            <span><i class="ms-legend-marker japan"></i>日本のバブルピーク</span>
+          </div>
+          <p class="ms-chart-limit"><strong>系列の境界：</strong>1900～1927年はShiller/Cowlesの再構成月次系列、1928年～1957年3月3日は後から整備された歴史系列です。現在のS&amp;P 500が正式に始まった1957年3月4日以降とは、データの性格が異なります。</p>
+          <p id="msChartLimit" class="ms-chart-limit">青線はMoney Strategistが公表した正式なS&amp;P 500予測線ではありません。</p>
+        </div>
+
+        <div class="ms-level-strip" aria-label="青線の計算水準">
+          <div><span>中間選挙年の18%調整を換算</span><strong id="msEarlyLevel">―</strong><p>2026年7月17日の実績値から18%下。動画の「7～10月」説明を可視化した値です。</p></div>
+          <div><span>景気後退時の30%下落を換算</span><strong id="msRecessionLevel">―</strong><p>同じ起点から30%下。動画が引用する平均値であり、今回の下落率の予測ではありません。</p></div>
+          <div><span>CAPEの完全平均回帰</span><strong id="msMeanReversionRange">―</strong><p>同じ起点から55～60%下。動画自身も「予測ではない」と述べる極端な算術参考帯です。</p></div>
+        </div>
+
+        <div class="ms-window-section">
+          <div class="section-heading compact-heading">
+            <p class="section-kicker">THE CHANNEL DOES NOT GIVE ONE TIMELINE</p>
+            <h3>動画群には三つの時間軸があり、一本の確定予測にはできない</h3>
+            <p>中心動画だけを見ると2026年末～2027年春が強調されますが、関連動画には「AI相場の上昇継続」「最初の利上げ後も12～18か月遅れて痛みが出る」という説明があります。したがって青線は早期シナリオだけを数値化し、2027年6月以降の価格線は描きません。</p>
+          </div>
+          <div class="ms-window-track">
+            <div class="ms-window-item early"><span>2026年7～10月</span><strong>早期調整</strong><p>中間選挙前の弱い季節性。中心動画の18%という歴史平均を換算。</p></div>
+            <div class="ms-window-item main"><span>2026年12月～2027年5月</span><strong>中心動画の危険期間</strong><p>選挙後、IPO後の売却解禁、初期決算が重なるという条件付きの物語。</p></div>
+            <div class="ms-window-item delayed"><span>2027年後半～2028年</span><strong>関連動画の遅行シナリオ</strong><p>利上げ後も相場が続き、景気・株価への影響が遅れる可能性。指数目標は示されていません。</p></div>
+          </div>
+        </div>
+
+        <div class="ms-analogy-section">
+          <div class="section-heading compact-heading">
+            <p class="section-kicker">SIMILARITIES ARE NOT IDENTITIES</p>
+            <h3>過去と現在の類似点は「引き金」ではなく、壊れやすさを考える材料</h3>
+            <p>高い評価、少数銘柄への集中、投資ブーム、金融引き締めは複数局面に共通します。しかし、同じ組合せでも下落時期と深さは異なりました。</p>
+          </div>
+          <div class="ms-analogy-table-wrap">
+            <table class="ms-analogy-table">
+              <thead><tr><th>過去局面</th><th>2026年との共通点</th><th>同一視できない理由</th><th>このアプリで見る指標</th></tr></thead>
+              <tbody>
+                <tr><th>1929～32年<br><span>世界恐慌</span></th><td>高い株価評価、相場の集中、強い楽観。</td><td>金融制度、預金保険、政策手段、企業構造が大きく違います。1929年の下落率を現在へ直接移せません。</td><td>CAPEは長期収益率の条件。信用悪化はOAS・VIXで別確認。</td></tr>
+                <tr><th>1973～74年<br><span>インフレ型ベア</span></th><td>インフレが政策緩和を妨げ、高評価株の倍率が縮む構図。</td><td>当時は石油危機と景気後退が中心。現在のAI大手は高い利益とFCFを持ちます。</td><td>インフレ、金利、利益下方修正、FCFとCapEx。</td></tr>
+                <tr><th>2000～02年<br><span>ITバブル</span></th><td>技術革新は本物でも、価格が将来利益を先取りし、指数上昇が少数の技術株へ集中。</td><td>現在の主要AI企業は無収益企業ではありません。問題は存続より、成長率と投資回収が価格に届くかです。</td><td>逆DCF、AI売上、データセンター売上、HyperscalerのFCF。</td></tr>
+                <tr><th>2007～09年<br><span>信用危機</span></th><td>イールドカーブと景気後退懸念という警報は似ています。</td><td>株価の割高さだけでは銀行・資金市場の機能不全を証明できません。信用危機ならOAS急拡大が必要です。</td><td>HY OAS、VIX、価格の広がり、企業利益の同時悪化。</td></tr>
+                <tr><th>2026年<br><span>AI資本投資局面</span></th><td>CAPE約41、上位10社36.4%、巨額AI投資、狭い市場リーダー。</td><td>高評価はタイミング指標ではありません。利益が投資を上回れば、調整なしに分母が追いつく経路もあります。</td><td>四半期ごとのFCF、CapEx、AI関連売上、指数の市場幅。</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="ms-factcheck-section">
+          <div class="section-heading compact-heading">
+            <p class="section-kicker">FACT CHECK: AS OF 19 JULY 2026</p>
+            <h3>中心動画の重要な数字を、同じ強さでは扱わない</h3>
+            <p>確認日と定義を揃えると、再現できる主張と、修正が必要な主張が分かれます。</p>
+          </div>
+          <div class="ms-fact-grid">
+            <div class="ms-fact-row confirmed"><span>再現</span><strong>中間選挙年の最大下落は平均約18%</strong><p>1950～2022年の19回をS&amp;P 500日次終値で再計算すると平均17.5%、中央値16.6%。動画の丸めた18%は概ね再現しました。</p></div>
+            <div class="ms-fact-row confirmed"><span>確認</span><strong>CAPE約41、上位10社36～40%</strong><p>CAPEは算出元・日付で差がありますが、2026年7月8日の公開値は41.64。S&amp;P DJIの2026年7月2日値では上位10社36.4%です。</p></div>
+            <div class="ms-fact-row corrected"><span>修正</span><strong>NY連銀モデルは30～49%ではなく16.1%</strong><p>2026年7月7日更新の公式モデルは、2027年6月の景気後退確率を16.0619%としています。これはNY連銀やFRBの公式予測ではありません。</p></div>
+            <div class="ms-fact-row corrected"><span>修正</span><strong>SpaceXの売却解禁は一律6か月ではない</strong><p>SEC提出資料は、Musk氏366日、一部保有者は決算後の段階解除、その他も複数段階と記載。中心動画の「2026年12月に一斉解除」は単純化です。</p></div>
+            <div class="ms-fact-row conditional"><span>条件付き</span><strong>OpenAI・Anthropicの2027年春ロックアップ</strong><p>中心動画が置いた上場月を前提とする仮定です。2026年7月19日時点で、両社の公開S-1を確認できないため、危険期間の確定根拠には使いません。</p></div>
+            <div class="ms-fact-row conditional"><span>不一致</span><strong>チャンネル内でも天井時期が一致しない</strong><p>中心動画は2026年末～2027年春を強調しますが、7月4日動画は「まだ第一段階の初期」で、利上げ後12～18か月の遅行も説明しています。</p></div>
+          </div>
+        </div>
+
+        <div class="ms-monitor-bridge">
+          <div><i data-lucide="activity" aria-hidden="true"></i><strong>青線を信じるのではなく、更新データで分岐を確認する</strong></div>
+          <a href="#signals"><span>価格・利益・供給・信用</span><strong>米国側の崩壊確認へ</strong></a>
+          <a href="#valuation"><span>FCFと期待の上乗せ</span><strong>企業価値の監査へ</strong></a>
+          <a href="#us-japan-link"><span>米国から日本への伝播</span><strong>波及判定へ</strong></a>
+          <a href="#nikkei-bottom"><span>下落後に買える水準</span><strong>日経底値ゾーンへ</strong></a>
+        </div>
+
+        <p class="transmission-sources">動画と検証資料：
+          <a href="https://www.youtube.com/watch?v=OmyrLc44dik" target="_blank" rel="noopener">Money Strategist・中心動画（2026年6月14日）</a> /
+          <a href="https://www.youtube.com/@MoneyyStrategist" target="_blank" rel="noopener">Money Strategistチャンネル</a> /
+          <a href="https://www.econ.yale.edu/~shiller/data.htm" target="_blank" rel="noopener">Robert Shiller・Yale長期データ</a> /
+          <a href="https://www.spglobal.com/spdji/en/indices/equity/sp-500/" target="_blank" rel="noopener">S&amp;P DJI・S&amp;P 500公式</a> /
+          <a href="https://www.newyorkfed.org/research/capital_markets/ycfaq" target="_blank" rel="noopener">NY連銀・イールドカーブモデル</a> /
+          <a href="https://www.sec.gov/Archives/edgar/data/1181412/000162828026040610/spacexfwp.htm" target="_blank" rel="noopener">SEC・SpaceX売却制限</a> /
+          <a href="https://indexes.nikkei.co.jp/atoz/2021/02/70thanniv4.html" target="_blank" rel="noopener">日経公式・1989年高値</a>。
         </p>
       </div>
     </section>
@@ -1004,6 +1132,7 @@
             <thead><tr><th>知りたい答え</th><th>上の対応画面</th><th>主な入力</th><th>計算</th><th>表示される答え</th></tr></thead>
             <tbody>
               <tr><th>米国AI相場が崩壊したか</th><td><a href="#signals">米国側の崩壊シグナル</a></td><td>SOX、海外AI10社の四半期業績、CapEx、供給、米国HY OAS</td><td>崩壊確認4群80点＋別枠の評価脆弱性20点＋3ゲート</td><td>米国側の崩壊段階・確認証拠・欠損幅</td></tr>
+              <tr><th>過去と2026年はどこまで似るか</th><td><a href="#money-strategist">マネーストラテジスト</a></td><td>1900年以降の米国株、主要10局面、CAPE、上位10社比率、NY連銀モデル、動画の時期説明</td><td>対数チャート＋同一規則の最大下落率＋中間選挙年19回の再計算＋主張と事実の照合</td><td>過去の実績は赤、動画の主張と説明用青線は別表示、2028年までは価格目標でなく危険期間</td></tr>
               <tr><th>米国から日本へ波及したか</th><td><a href="#us-japan-link">米国→日本</a></td><td>SOX、日経平均、日本AI・半導体連動8社</td><td>短期波及2項目＋持続的波及4項目</td><td>日本への短期波及・持続的波及</td></tr>
               <tr><th>IT崩壊で非ITもどこまで下がるか</th><td><a href="#dotcom-spillover">IT崩壊の波及</a></td><td>2000～2003年のIT指数、広範囲指数、日本の技術感応型・非IT企業</td><td>同一期間騰落率＋期間内最大下落＋日本延長期間</td><td>直撃群と非IT群の下落差、含み損の大きさ、単純類推の限界</td></tr>
               <tr><th>日経の底値候補</th><td><a href="#nikkei-bottom">日経底値</a></td><td>現在の日経、PER・PBR参照日の終値と倍率、利益悪化、過去下落率</td><td>EPS法・PBR法・歴史法</td><td>底値ゾーン・残り下落余地・接近度</td></tr>
@@ -1126,6 +1255,10 @@
           <a href="https://indexes.nikkei.co.jp/en/nkave/archives/summary?dt=07172026&amp;idx=nk225" target="_blank" rel="noopener">日経公式：2026年7月17日の構成・PER・PBR</a>
           <a href="https://indexes.nikkei.co.jp/en/nkave/index/profile?cid=2&amp;idx=nkscd" target="_blank" rel="noopener">日経公式：半導体株指数</a>
           <a href="https://www.meti.go.jp/english/press/2026/0218_002.html" target="_blank" rel="noopener">経産省：日米AI・データセンター供給網</a>
+          <a href="https://www.econ.yale.edu/~shiller/data.htm" target="_blank" rel="noopener">Yale：Shiller長期株価・CAPEデータ</a>
+          <a href="https://www.spglobal.com/spdji/en/indices/equity/sp-500/" target="_blank" rel="noopener">S&amp;P DJI：S&amp;P 500公式定義</a>
+          <a href="https://www.newyorkfed.org/research/capital_markets/ycfaq" target="_blank" rel="noopener">NY連銀：イールドカーブ景気後退モデル</a>
+          <a href="https://www.sec.gov/Archives/edgar/data/1181412/000162828026040610/spacexfwp.htm" target="_blank" rel="noopener">SEC：SpaceX IPO・売却制限</a>
           <a href="https://github.com/mxe050/ai-bubble-collapse-monitor/blob/main/FACT_CHECK.md" target="_blank" rel="noopener">監査記録：修正点と残る限界</a>
         </div>
       </div>
@@ -1135,7 +1268,7 @@
   <footer>
     <div class="content footer-inner">
       <p><strong>重要：</strong>本サイトは教育・調査用です。投資助言、価格予測、売買推奨ではありません。取得値には遅延・欠損・定義差があり、重要な判断では企業IRと提出資料を確認してください。</p>
-      <p>Method v3.8 / <a href="https://github.com/mxe050/ai-bubble-collapse-monitor" target="_blank" rel="noopener">GitHub</a></p>
+      <p>Method v3.9 / <a href="https://github.com/mxe050/ai-bubble-collapse-monitor" target="_blank" rel="noopener">GitHub</a></p>
     </div>
   </footer>
 

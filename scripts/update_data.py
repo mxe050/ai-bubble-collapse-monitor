@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""Build the public data package for the AI bubble monitor.
+"""Build the local data package for the AI bubble monitor.
 
 The script intentionally runs outside the browser. Market-data providers
-restrict CORS or require identifying headers, so a scheduled GitHub Action is a
+restrict CORS or require identifying headers, so a local or scheduled collection job is a
 more reliable and auditable place to collect the inputs than visitors' browsers.
 """
 
@@ -26,6 +26,7 @@ from typing import Any, Iterable
 
 ROOT = Path(__file__).resolve().parents[1]
 OUTPUT = ROOT / "data" / "latest.json"
+MONEY_STRATEGIST_OUTPUT = ROOT / "data" / "money-strategist-history.json"
 USER_AGENT = "mxe050-ai-bubble-monitor/1.0 (https://github.com/mxe050)"
 JST = timezone(timedelta(hours=9))
 NOW = datetime.now(timezone.utc)
@@ -411,6 +412,7 @@ CHART_TICKERS = tuple(symbol for symbol in OVERSEAS_AI_TICKERS if symbol != "ARM
 PRICE_SYMBOLS = {
     "SOX": "^SOX",
     "NASDAQ": "^IXIC",
+    "SP500": "^GSPC",
     "NIKKEI": "^N225",
     "VIX": "^VIX",
     "KIOXIA": "285A.T",
@@ -1978,6 +1980,46 @@ def strip_history(price_data: dict[str, dict[str, Any]]) -> dict[str, dict[str, 
     return compact
 
 
+def sync_money_strategist_latest(sp500: dict[str, Any] | None) -> None:
+    """Append the newest S&P close without rebasing the July 2026 scenario."""
+    if not sp500 or not MONEY_STRATEGIST_OUTPUT.exists():
+        return
+    latest_date = sp500.get("date")
+    latest_value = sp500.get("close")
+    if not latest_date or not isinstance(latest_value, (int, float)) or not math.isfinite(latest_value):
+        return
+
+    package = json.loads(MONEY_STRATEGIST_OUTPUT.read_text(encoding="utf-8"))
+    history = package.get("series", {}).get("history")
+    if not isinstance(history, list):
+        raise ValueError("Money Strategist history is missing")
+
+    observed = datetime.strptime(latest_date, "%Y-%m-%d")
+    year_start = datetime(observed.year, 1, 1)
+    next_year = datetime(observed.year + 1, 1, 1)
+    decimal_year = observed.year + (observed - year_start).days / (next_year - year_start).days
+    point = {
+        "date": latest_date,
+        "x": round(decimal_year, 6),
+        "value": round(float(latest_value), 4),
+        "sourceType": "S&P 500 live close appended by the local data update",
+    }
+    matches = [index for index, row in enumerate(history) if row.get("date") == latest_date]
+    if matches:
+        history[matches[-1]] = point
+    elif not history or latest_date > history[-1].get("date", ""):
+        history.append(point)
+    else:
+        history.append(point)
+        history.sort(key=lambda row: row.get("date", ""))
+
+    package["series"]["latestDate"] = latest_date
+    package["series"]["latestValue"] = round(float(latest_value), 2)
+    MONEY_STRATEGIST_OUTPUT.write_text(
+        json.dumps(package, ensure_ascii=False, indent=2), encoding="utf-8"
+    )
+
+
 def main() -> None:
     statuses: list[SourceStatus] = []
     errors: list[str] = []
@@ -2097,7 +2139,7 @@ def main() -> None:
         errors.append(f"Sakakibara analysis: {exc}")
 
     payload = {
-        "schemaVersion": 11,
+        "schemaVersion": 12,
         "generatedAtUtc": NOW.isoformat(),
         "generatedAtJst": NOW.astimezone(JST).isoformat(),
         "marketDate": prices.get("SOX", {}).get("date"),
@@ -2167,10 +2209,11 @@ def main() -> None:
             "note": "These fields require a consistent paid consensus series, product-level pricing, or verified project announcements. Missing is not zero.",
         },
         "sourceStatus": [status.__dict__ for status in statuses],
-        "methodVersion": "3.8.0",
+        "methodVersion": "3.9.0",
     }
     OUTPUT.parent.mkdir(parents=True, exist_ok=True)
     OUTPUT.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+    sync_money_strategist_latest(prices.get("SP500"))
     print(f"Wrote {OUTPUT} with {len(companies)} companies and {len(errors)} warnings")
 
 

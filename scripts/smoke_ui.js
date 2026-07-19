@@ -42,6 +42,8 @@ assert.match(indexSource, /1社で比率が12.5ポイント/);
 assert.match(indexSource, /一人の論者の入力を再現した参考シナリオ/);
 assert.match(indexSource, /逆DCFとは/);
 assert.match(indexSource, /研究結果の当てはめには限界があります/);
+assert.match(indexSource, /1957年3月4日以降とは、データの性格が異なります/);
+assert.match(indexSource, /青線はMoney Strategistが公表した正式なS&amp;P 500予測線ではありません/);
 const ids = [...indexSource.matchAll(/\bid="([^"]+)"/g)].map((match) => match[1]);
 const elements = new Map(ids.map((id) => [id, new FakeElement(id)]));
 const filters = ["all", "overseas-ai", "japan-ai", "japan-diversified"].map((value) => {
@@ -75,7 +77,12 @@ global.localStorage = {
   setItem(key, value) { storage.set(key, String(value)); },
 };
 const payload = JSON.parse(fs.readFileSync("data/latest.json", "utf8"));
-global.fetch = async () => ({ ok: true, status: 200, json: async () => payload });
+const moneyPayload = JSON.parse(fs.readFileSync("data/money-strategist-history.json", "utf8"));
+global.fetch = async (url) => ({
+  ok: true,
+  status: 200,
+  json: async () => String(url).includes("money-strategist-history") ? moneyPayload : payload,
+});
 
 vm.runInThisContext(fs.readFileSync("app.js", "utf8"), { filename: "app.js" });
 
@@ -108,6 +115,11 @@ setTimeout(() => {
   assert.match(elements.get("thresholdOasBasis").textContent, /直近3年/);
   assert.match(elements.get("thresholdOasBasis").textContent, /標本上限超過/);
   assert.match(elements.get("thresholdBasketBasis").textContent, /1社=12\.5ポイント/);
+  assert.match(elements.get("msCurrentLevel").textContent, /pt/);
+  assert.match(elements.get("msMidtermMean").textContent, /17\.5/);
+  assert.match(elements.get("msTop10Weight").textContent, /36\.4/);
+  assert.match(elements.get("msNyFedProbability").textContent, /16\.1/);
+  assert.match(elements.get("msChartLimit").textContent, /正式予測線ではない/);
   console.log(JSON.stringify({
     headline: elements.get("headlineConclusion").textContent,
     transmission: elements.get("japanTransmissionStatus").textContent,
@@ -119,6 +131,7 @@ setTimeout(() => {
     marketPathIndex: elements.get("marketPathIndex").textContent,
     panicScore: elements.get("marketPathPanicScore").textContent,
     enAiRows: (elements.get("enAiProxyRows").innerHTML.match(/<tr/g) || []).length,
+    moneyStrategist: elements.get("msCurrentLevel").textContent,
     health: elements.get("dataHealth").textContent,
   }, null, 2));
 }, 50);

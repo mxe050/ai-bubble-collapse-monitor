@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Fail the public build when core data or audited calculation contracts break."""
+"""Fail the data update when core data or audited calculation contracts break."""
 
 from __future__ import annotations
 
@@ -14,6 +14,7 @@ from typing import Any
 
 ROOT = Path(__file__).resolve().parents[1]
 DATA_FILE = ROOT / "data" / "latest.json"
+MONEY_DATA_FILE = ROOT / "data" / "money-strategist-history.json"
 APP_FILE = ROOT / "app.js"
 INDEX_FILE = ROOT / "index.html"
 
@@ -62,15 +63,15 @@ def check_yoy_dates(company: dict[str, Any], prefix: str) -> None:
 
 def main() -> None:
     data = json.loads(DATA_FILE.read_text(encoding="utf-8"))
-    require(data.get("schemaVersion") == 11, "schemaVersion must be 11")
-    require(data.get("methodVersion") == "3.8.0", "methodVersion must be 3.8.0")
+    require(data.get("schemaVersion") == 12, "schemaVersion must be 12")
+    require(data.get("methodVersion") == "3.9.0", "methodVersion must be 3.9.0")
 
     generated = datetime.fromisoformat(data["generatedAtUtc"]).date()
     market_day = date.fromisoformat(data["marketDate"])
     require(0 <= (generated - market_day).days <= 10, "market date is future-dated or stale")
 
     series = data["market"]["series"]
-    for key in ("SOX", "NASDAQ", "NIKKEI", "VIX"):
+    for key in ("SOX", "NASDAQ", "NIKKEI", "VIX", "SP500"):
         row = series.get(key)
         require(bool(row), f"missing core market series: {key}")
         require(finite(row.get("close")) and row["close"] > 0, f"invalid close: {key}")
@@ -389,6 +390,53 @@ def main() -> None:
 
     require("highYieldOas" in data.get("macro", {}), "FRED high-yield OAS is missing")
 
+    money = json.loads(MONEY_DATA_FILE.read_text(encoding="utf-8"))
+    money_series = money.get("series") or {}
+    money_history = money_series.get("history") or []
+    require(len(money_history) >= 1500, "Money Strategist long-run history is too short")
+    require(money_history[0].get("date") == "1900-01-01", "Money Strategist history must start in 1900")
+    require(money_history[-1].get("date") == money_series.get("latestDate"), "Money Strategist latest date is not synchronized")
+    require(close_enough(money_history[-1]["value"], money_series["latestValue"], relative=1e-5), "Money Strategist latest value identity failed")
+    require(all(finite(row.get("value")) and row["value"] > 0 for row in money_history), "Money Strategist history contains invalid prices")
+    require(all(money_history[index]["date"] <= money_history[index + 1]["date"] for index in range(len(money_history) - 1)), "Money Strategist history is not chronological")
+    boundary_text = " ".join(money_series.get("boundaryNotes") or [])
+    require("1900～1927年" in boundary_text and "1957年3月4日" in boundary_text, "Money Strategist series-boundary disclosure is missing")
+
+    crashes = money.get("crashes") or []
+    require(len(crashes) == 10, "Money Strategist chart must contain ten audited crash episodes")
+    require(sum(1 for row in crashes if row.get("calculationBasis") == "月次平均系列") == 1, "Only the 1907 episode should use the monthly reconstruction")
+    for crash in crashes:
+        require(date.fromisoformat(crash["peakDate"]) <= date.fromisoformat(crash["troughDate"]), f"{crash['id']}: trough precedes peak")
+        expected_drawdown = (1 - crash["troughValue"] / crash["peakValue"]) * 100
+        require(abs(expected_drawdown - crash["drawdownPct"]) <= 0.051, f"{crash['id']}: drawdown identity failed")
+
+    marker = money.get("japanBubbleMarker") or {}
+    require(marker.get("date") == "1989-12-29", "Japan bubble marker date changed")
+    require(close_enough(marker.get("sp500Value"), 353.4, relative=1e-4), "Japan bubble S&P marker changed")
+
+    forecast = money.get("forecast") or {}
+    require(forecast.get("asOfDate") == "2026-07-17", "Money Strategist scenario base date changed")
+    path = forecast.get("illustrativePath") or []
+    require(len(path) == 3, "Money Strategist blue path must contain exactly three points")
+    require(path[-1].get("date") == "2027-05-31", "Money Strategist blue path must stop in May 2027")
+    require(close_enough(path[0]["value"], forecast["baseValue"]), "Money Strategist scenario base identity failed")
+    require(close_enough(path[1]["value"], forecast["baseValue"] * 0.82, relative=1e-5), "Money Strategist 18% scenario identity failed")
+    require(close_enough(path[2]["value"], forecast["baseValue"] * 0.70, relative=1e-5), "Money Strategist 30% scenario identity failed")
+    require(max(date.fromisoformat(row["date"]) for row in path) < date(2027, 6, 1), "Blue scenario invents a post-May-2027 price target")
+    windows = forecast.get("riskWindows") or []
+    require(len(windows) == 3 and windows[-1].get("end") == "2028-12-31", "Money Strategist risk windows must extend through 2028 without a price target")
+    require("正式予測線ではない" in forecast.get("importantLimit", ""), "Money Strategist scenario caveat is missing")
+
+    midterm = (money.get("audit") or {}).get("midtermYears") or {}
+    observations = midterm.get("observations") or []
+    require(len(observations) == 19, "Midterm-year audit must contain 19 observations")
+    values = [row["maxDrawdownPct"] for row in observations]
+    require(close_enough(midterm["meanMaxDrawdownPct"], statistics.mean(values), relative=1e-3), "Midterm-year mean identity failed")
+    require(close_enough(midterm["medianMaxDrawdownPct"], statistics.median(values), relative=1e-3), "Midterm-year median identity failed")
+    signals = (money.get("audit") or {}).get("currentSignals") or {}
+    require(close_enough(signals["top10WeightPct"]["value"], 36.4), "S&P top-ten weight audit changed")
+    require(close_enough(signals["nyFedRecessionProbabilityPct"]["value"], 16.0619), "NY Fed probability correction changed")
+
     app_source = APP_FILE.read_text(encoding="utf-8")
     index_source = INDEX_FILE.read_text(encoding="utf-8")
     referenced_ids = set(re.findall(r'byId\("([^"]+)"\)', app_source))
@@ -397,12 +445,12 @@ def main() -> None:
     require(len(html_id_list) == len(html_ids), "index.html contains duplicate element ids")
     missing_ids = sorted(referenced_ids - html_ids)
     require(not missing_ids, f"app.js references missing HTML ids: {missing_ids}")
-    require("Method v3.8" in index_source, "public method label is missing")
+    require("Method v3.9" in index_source, "method label is missing")
     require("評価への脆弱性は別枠20点" in index_source, "valuation/collapse score separation is missing")
 
     print(
         "Data and logic audit passed: schema, formulas, coverage, YoY dates, baskets, "
-        "automaker DCF overrides, Nikkei reference, Sakakibara rotation and market-path audit, dot-com spillovers, history, and UI contracts."
+        "automaker DCF overrides, Nikkei reference, Sakakibara rotation and market-path audit, Money Strategist history and scenarios, dot-com spillovers, history, and UI contracts."
     )
 
 
