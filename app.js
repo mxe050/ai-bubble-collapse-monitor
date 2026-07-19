@@ -2420,6 +2420,7 @@
       state.data = payload;
       state.moneyStrategist = await moneyRequest;
       renderAll();
+      if (typeof window.CustomEvent === "function" && typeof window.dispatchEvent === "function") window.dispatchEvent(new CustomEvent("monitor:data-updated"));
       if (showMessage && refreshMode === "live") {
         byId("refreshHint").textContent = "最新データへ更新しました";
       } else if (showMessage && refreshMode === "static") {

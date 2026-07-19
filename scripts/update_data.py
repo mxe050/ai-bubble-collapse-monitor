@@ -2865,6 +2865,12 @@ def main() -> None:
     OUTPUT.parent.mkdir(parents=True, exist_ok=True)
     OUTPUT.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
     sync_money_strategist_latest(prices.get("SP500"), cpi_history)
+    try:
+        from global_comparison import write_global_comparison
+        comparison = write_global_comparison(request)
+        print(f"Updated six-series comparison through {comparison['latestCommonMonth']}")
+    except Exception as exc:
+        print(f"Warning: retained previous six-series comparison package: {exc}")
     print(f"Wrote {OUTPUT} with {len(companies)} companies and {len(errors)} warnings")
 
 

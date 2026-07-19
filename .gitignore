@@ -1,4 +1,4 @@
 qa/
 __pycache__/
 *.pyc
-
+data/cache/

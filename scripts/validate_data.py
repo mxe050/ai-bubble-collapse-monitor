@@ -513,6 +513,9 @@ def main() -> None:
     require("Method v4.0" in index_source, "method label is missing")
     require("評価への脆弱性は別枠20点" in index_source, "valuation/collapse score separation is missing")
 
+    from validate_global_comparison import validate_global_comparison
+    validate_global_comparison()
+
     print(
         "Data and logic audit passed: schema, formulas, coverage, YoY dates, baskets, "
         "automaker DCF overrides, Nikkei reference, Sakakibara rotation and market-path audit, Money Strategist history, CPI, event calendar and scenarios, dot-com spillovers, history, and UI contracts."

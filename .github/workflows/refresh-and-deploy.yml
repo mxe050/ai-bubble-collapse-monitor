@@ -28,17 +28,29 @@ jobs:
         with:
           python-version: "3.12"
 
+      - name: Cache global comparison source data
+        uses: actions/cache@v4
+        with:
+          path: data/cache/global-comparison
+          key: global-comparison-${{ runner.os }}-${{ github.run_id }}
+          restore-keys: |
+            global-comparison-${{ runner.os }}-
       - name: Retrieve market, financial, and credit data
         run: python scripts/update_data.py
 
       - name: Check browser logic syntax
-        run: node --check app.js
+        run: |
+          node --check app.js
+          node --check global-comparison.js
 
       - name: Validate calculations and audited inputs
         run: python scripts/validate_data.py
 
       - name: Run UI calculation smoke test
         run: node scripts/smoke_ui.js
+
+      - name: Test six-series comparison
+        run: node scripts/test_global_comparison.js
 
       - name: Configure GitHub Pages
         uses: actions/configure-pages@v5

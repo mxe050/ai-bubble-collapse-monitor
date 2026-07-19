@@ -10,6 +10,7 @@
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.9/dist/chart.umd.min.js" defer></script>
   <script src="https://unpkg.com/lucide@0.468.0/dist/umd/lucide.min.js" defer></script>
   <script src="app.js" defer></script>
+  <script src="global-comparison.js" defer></script>
 </head>
 <body>
   <header class="site-header">
@@ -36,6 +37,7 @@
   <nav class="section-nav" aria-label="ページ内ナビゲーション">
     <div class="nav-inner">
       <a href="#today">今日の判定</a>
+      <a href="#global-comparison">世界比較</a>
       <a href="#analysis-map">計算の地図</a>
       <a href="#us-japan-link">米国→日本</a>
       <a href="#sakakibara-method">榊原式</a>
@@ -115,6 +117,147 @@
 
         <div class="hypothesis-note">
           <strong>出発点：</strong>AI関連株には実体のある利益成長と、実現可能性を超える期待が混在している、という仮説から始めます。高値そのものをバブル崩壊とは判定しません。
+        </div>
+      </div>
+    </section>
+
+    <section id="global-comparison" class="band band-global-comparison">
+      <div class="content">
+        <div class="section-heading heading-row gc-heading">
+          <div>
+            <p class="section-kicker">GLOBAL MARKET / REAL VALUE / VALUATION</p>
+            <h2>S&amp;P 500と日経平均を、同じ物差しで比較する</h2>
+            <p>名目価格、物価調整後の実質価格、構成企業の理論価値を1つの線形チャートに統合します。日経平均の3系列はすべて「1米ドル当たりの円」でドル換算し、各系列を基準日=100にそろえます。</p>
+          </div>
+          <span id="gcLoadStatus" class="gc-load-status loading" aria-live="polite">月次データを読込中</span>
+        </div>
+
+        <div class="gc-data-stamp" aria-label="統合チャートのデータ情報">
+          <div><span>実際の基準日</span><strong id="gcBaseDate">-</strong></div>
+          <div><span>最終共通月</span><strong id="gcLatestDate">-</strong></div>
+          <div><span>データ更新</span><strong id="gcUpdatedAt">-</strong></div>
+          <div><span>月次数</span><strong id="gcObservationCount">-</strong></div>
+          <div><span>為替の向き</span><strong id="gcFxDirection">-</strong></div>
+        </div>
+
+        <div class="gc-control-panel" aria-label="統合チャートの操作">
+          <div class="gc-control-group gc-range-group">
+            <span class="gc-control-label">表示期間</span>
+            <div class="gc-segmented" role="group" aria-label="表示期間">
+              <button type="button" data-gc-range="all" aria-pressed="true">全期間</button>
+              <button type="button" data-gc-range="30" aria-pressed="false">30年</button>
+              <button type="button" data-gc-range="20" aria-pressed="false">20年</button>
+              <button type="button" data-gc-range="10" aria-pressed="false">10年</button>
+              <button type="button" data-gc-range="5" aria-pressed="false">5年</button>
+              <button type="button" data-gc-range="custom" aria-pressed="false">任意</button>
+            </div>
+          </div>
+          <div id="gcCustomRange" class="gc-custom-range" hidden>
+            <label>開始月<input id="gcCustomStart" type="month" min="1985-01"></label>
+            <label>終了月<input id="gcCustomEnd" type="month" min="1985-01"></label>
+          </div>
+          <label class="gc-select-label">正規化
+            <select id="gcNormalization" aria-label="正規化の基準">
+              <option value="fixed">固定基準日=100</option>
+              <option value="visible">表示開始日=100</option>
+            </select>
+          </label>
+          <div class="gc-toggle-row">
+            <button id="gcToggleSpNominal" class="command" type="button" aria-pressed="false" aria-label="S&P 500名目指数の表示を切り替える">比較を拡大：S&amp;P 500名目を除外</button>
+            <button id="gcToggleTheoretical" class="command" type="button" aria-pressed="false" aria-label="理論価値2系列の表示を切り替える">理論価値2系列を非表示</button>
+            <button id="gcToggleCrises" class="command" type="button" aria-pressed="false" aria-label="危機期間の背景表示を切り替える">危機期間を非表示</button>
+          </div>
+          <p class="gc-control-help">S&amp;P 500名目指数を除外すると、S&amp;P 500実質指数、理論価値指数および日経平均のドル換算系列を拡大して比較できます。凡例を押すと、各系列を個別に切り替えられます。</p>
+        </div>
+
+        <div class="gc-chart-frame">
+          <div class="gc-line-key" aria-label="線種の意味">
+            <span><i class="gc-line solid" aria-hidden="true"></i>実線：名目または単純ドル換算</span>
+            <span><i class="gc-line dashed" aria-hidden="true"></i>破線：CPI調整後</span>
+            <span><i class="gc-line dashdot" aria-hidden="true"></i>一点鎖線＋ひし形：理論価値</span>
+          </div>
+          <div class="gc-chart-scroll" tabindex="0" aria-label="統合チャート。狭い画面では横にスクロールできます">
+            <div class="gc-canvas-stage">
+              <canvas id="globalComparisonChart" aria-label="S&P 500と日経平均の6系列統合チャート" role="img"></canvas>
+            </div>
+          </div>
+          <div class="gc-chart-summary" aria-live="polite">
+            <span>表示期間 <strong id="gcDisplayedRange">-</strong></span>
+            <span id="gcVisibleSeries">-</span>
+            <span>Y軸は0始まりの線形軸</span>
+          </div>
+        </div>
+
+        <div class="gc-export-row">
+          <div>
+            <strong>現在の比較を保存</strong>
+            <p>画像は表示中の系列と危機帯を、CSVは選択した期間の月次値を出力します。</p>
+          </div>
+          <label class="gc-checkbox"><input id="gcCsvVisibleOnly" type="checkbox">CSVも表示中の系列だけ</label>
+          <button id="gcExportPng" class="command" type="button" title="PNG画像を保存"><i data-lucide="image" aria-hidden="true"></i>PNG</button>
+          <button id="gcExportSvg" class="command" type="button" title="SVG画像を保存"><i data-lucide="file-image" aria-hidden="true"></i>SVG</button>
+          <button id="gcExportCsv" class="command" type="button" title="CSVデータを保存"><i data-lucide="table" aria-hidden="true"></i>CSV</button>
+        </div>
+
+        <div class="gc-coverage-intro">
+          <div>
+            <p class="label">理論価値2系列の扱い</p>
+            <h3>実在するポイント・イン・タイム財務データだけを使う</h3>
+          </div>
+          <p>過去の構成銘柄、当時すでに公表されていた財務情報、株式分割や指数除数まで追えるデータが必要です。指数ウェイトの80%未満しか評価できない月は、欠損企業を0にせず、理論価値の線そのものを描きません。</p>
+        </div>
+        <div class="gc-coverage-grid">
+          <article>
+            <div class="gc-coverage-heading"><h3>S&amp;P 500・実質理論価値</h3><span id="gcSpCoverageStatus" class="gc-coverage-state missing">算出不可</span></div>
+            <dl>
+              <div><dt>評価企業</dt><dd id="gcSpCoverageCompanies">0/500社</dd></div>
+              <div><dt>指数ウェイト・カバー率</dt><dd id="gcSpCoverageRatio">0%</dd></div>
+              <div><dt>財務情報基準日</dt><dd id="gcSpFinancialDate">未取得</dd></div>
+            </dl>
+            <p id="gcSpCoverageReason">データを確認中です。</p>
+          </article>
+          <article>
+            <div class="gc-coverage-heading"><h3>日経平均・理論価値USD</h3><span id="gcNkCoverageStatus" class="gc-coverage-state missing">算出不可</span></div>
+            <dl>
+              <div><dt>評価企業</dt><dd id="gcNkCoverageCompanies">0/225社</dd></div>
+              <div><dt>指数ウェイト・カバー率</dt><dd id="gcNkCoverageRatio">0%</dd></div>
+              <div><dt>財務情報基準日</dt><dd id="gcNkFinancialDate">未取得</dd></div>
+            </dl>
+            <p id="gcNkCoverageReason">データを確認中です。</p>
+          </article>
+        </div>
+
+        <div class="gc-method-grid">
+          <div>
+            <p class="label">比較の順番</p>
+            <h3>調整を終えてから、最後に100へそろえる</h3>
+            <ol>
+              <li>S&amp;P 500は米国CPIで実質化します。</li>
+              <li>日経平均は日本CPIで実質化し、1米ドル当たりの円でドル換算します。</li>
+              <li>理論価値は企業別に計算し、指数方式で集計します。</li>
+              <li>すべての計算後に、各系列の基準月を100として正規化します。</li>
+            </ol>
+          </div>
+          <div>
+            <p class="label">更新される実データ</p>
+            <h3>市場、為替、物価を月単位でそろえる</h3>
+            <ul>
+              <li>S&amp;P 500・日経平均：Yahoo Financeの月次終値</li>
+              <li>為替：日本銀行「FXERM06」月末、円/米ドル</li>
+              <li>米国物価：BLS/FREDのCPI-U全品目</li>
+              <li>日本物価：総務省統計局・e-Statの全国CPI総合</li>
+            </ul>
+          </div>
+        </div>
+
+        <div id="gcDataWarnings" class="gc-data-warning" hidden></div>
+        <div class="gc-chart-notes">
+          <p>すべてのY軸は通常の線形軸であり、対数軸ではありません。</p>
+          <p>実質指数は、各国の消費者物価指数を使用して物価調整しています。</p>
+          <p>日経平均のドル換算指数は、円建て指数をUSD/JPYで為替調整した参考指数であり、実際のドル金額ではありません。</p>
+          <p>理論価値指数は、財務データ、将来キャッシュフロー、WACC、永続成長率などの仮定に基づく推計値であり、実際の株価や公式指数ではありません。</p>
+          <p>S&amp;P 500構成企業・実質理論価値指数は、公式のS&amp;P 500指数ではありません。日経平均構成企業・理論価値指数／ドル換算も、公式の日経平均株価ではありません。</p>
+          <p>危機期間はチャート表示用の代表期間であり、開始日と終了日に唯一の定義があるものではありません。本チャートは情報提供を目的とし、投資助言ではありません。</p>
         </div>
       </div>
     </section>
