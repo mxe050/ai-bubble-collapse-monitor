@@ -34,6 +34,9 @@ class FakeElement {
 }
 
 const indexSource = fs.readFileSync("index.html", "utf8");
+assert.match(indexSource, /Option-Adjusted Spread/);
+assert.match(indexSource, /新規借入で実際に支払う金利そのものでも、倒産確率そのものでもありません/);
+assert.match(indexSource, /VIX上昇に加え、OASが拡大/);
 const ids = [...indexSource.matchAll(/\bid="([^"]+)"/g)].map((match) => match[1]);
 const elements = new Map(ids.map((id) => [id, new FakeElement(id)]));
 const filters = ["all", "overseas-ai", "japan-ai", "japan-diversified"].map((value) => {
