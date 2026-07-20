@@ -149,9 +149,9 @@ def validate_global_comparison() -> None:
     section = html.split('<section id="global-comparison"', 1)[1].split('<section id="analysis-map"', 1)[0]
     require("TOPIX" not in section.upper(), "TOPIX appears in comparison section")
     for element_id in (
-        "globalComparisonChart", "gcToggleSpNominal", "gcToggleTheoretical", "gcToggleCrises",
+        "globalComparisonChart", "valuationExcessChart", "gcToggleSpNominal", "gcToggleTheoretical", "gcToggleCrises",
         "gcExportPng", "gcExportSvg", "gcExportCsv", "gcNormalization", "gcRefreshData", "gcSourceList",
-        "gcSpModelStatus", "gcNkModelStatus", "gcSpTheoreticalRange", "gcNkTheoreticalRange", "gcSpLatestEarningsValue", "gcNkLatestEarningsValue",
+        "gcSpModelStatus", "gcNkModelStatus", "gcSpTheoreticalRange", "gcNkTheoreticalRange", "gcSpLatestEarningsValue", "gcNkLatestEarningsValue", "gcSpPremiumNow", "gcNkPremiumNow", "gcSpAboveHigh", "gcNkAboveHigh", "gcSpRealPairNow", "gcNkRealPairNow",
     ):
         require(f'id="{element_id}"' in section, f"comparison UI is missing #{element_id}")
     require(html.index('id="global-comparison"') < html.index('id="analysis-map"'), "comparison chart must precede six-question map")
@@ -160,6 +160,7 @@ def validate_global_comparison() -> None:
     script = SCRIPT_FILE.read_text(encoding="utf-8")
     require('type: "linear"' in script and "beginAtZero: true" in script, "browser chart must use zero-based linear scale")
     require("logarithmic" not in script, "browser comparison must not offer logarithmic scale")
+    require("gcPremiumZones" in script and "renderValuationChart" in script and "renderValuationFocus" in script, "valuation-premium chart is missing")
     require("normalizationAnchorField" in script, "shared market normalization anchor is missing")
     require('hideSp500Nominal' in script and 'showTheoreticalValue' in script, "URL state restoration is missing")
     require("exportPng" in script and "exportSvg" in script and "exportCsv" in script, "comparison exports are incomplete")

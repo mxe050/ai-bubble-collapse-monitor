@@ -125,9 +125,9 @@
       <div class="content">
         <div class="section-heading heading-row gc-heading">
           <div>
-            <p class="section-kicker">GLOBAL MARKET / REAL VALUE / VALUATION</p>
-            <h2>S&amp;P 500と日経平均を、同じ物差しで比較する</h2>
-            <p>名目価格、物価調整後の実質価格、指数利益から計算した推計理論価値を1つの線形チャートに統合します。日経平均の3系列は「1米ドル当たりの円」でドル換算し、理論値は対応する市場系列と同じ基準額で100にそろえます。</p>
+            <p class="section-kicker">MARKET PRICE / FUNDAMENTAL VALUE / EXPECTATION PREMIUM</p>
+            <h2>市場価格には、企業の実力を超える期待がどこまで乗っているか</h2>
+            <p>物価で過去と現在の購買力をそろえ、5年平準化利益、金利、信用環境、持続可能な成長率から理論価値を推計します。最初のチャートでは、市場価格が成長込みの理論中心値を何％上回るかをS&amp;P 500とドル換算日経平均で比較します。</p>
           </div>
           <span id="gcLoadStatus" class="gc-load-status loading" aria-live="polite">月次データを読込中</span>
         </div>
@@ -156,7 +156,7 @@
             <label>開始月<input id="gcCustomStart" type="month" min="1985-01"></label>
             <label>終了月<input id="gcCustomEnd" type="month" min="1985-01"></label>
           </div>
-          <label class="gc-select-label">正規化
+          <label class="gc-select-label">下の6系列補助チャートの正規化
             <select id="gcNormalization" aria-label="正規化の基準">
               <option value="fixed">固定基準日=100</option>
               <option value="visible">表示開始日=100</option>
@@ -168,10 +168,59 @@
             <button id="gcToggleTheoretical" class="command" type="button" aria-pressed="false" aria-label="理論価値2系列の表示を切り替える">理論価値2系列を非表示</button>
             <button id="gcToggleCrises" class="command" type="button" aria-pressed="false" aria-label="危機期間の背景表示を切り替える">危機期間を非表示</button>
           </div>
-          <p class="gc-control-help">初期表示はS&amp;P 500名目指数を外し、実質価格・理論価値・日経平均を大きく表示します。S&amp;P 500名目指数も上のボタンで戻せます。</p>
+          <p class="gc-control-help">表示期間は2つのチャートに共通です。モデル超過率は比率なので、正規化や円・ドルの単位変更に左右されません。正規化と系列切替は下の6系列補助チャートだけに適用します。</p>
         </div>
 
+        <section class="gc-valuation-focus" aria-labelledby="gcValuationFocusTitle">
+          <div class="gc-valuation-focus-heading">
+            <div>
+              <p class="label">このページで最初に見る指標</p>
+              <h3 id="gcValuationFocusTitle">モデル超過率＝市場価格÷成長込み理論中心値－1</h3>
+              <p>理論中心値には物価、平準化利益、金利、信用上乗せ、持続可能な成長をすでに織り込んでいます。0%より上の部分が、基準モデルでは説明しきれない期待の上乗せ候補です。市場価格と理論価値の両方を同じCPIと為替で調整するため、超過率は実質化や円・ドル換算で変わりません。</p>
+            </div>
+            <span id="gcPremiumAsOf">計算中</span>
+          </div>
+          <div class="gc-premium-cards">
+            <article class="gc-premium-card sp500">
+              <div class="gc-premium-card-heading"><span>S&amp;P 500</span><strong id="gcSpPremiumNow" class="gc-premium-number">－</strong></div>
+              <p class="gc-premium-caption">理論中心値からの上乗せ</p>
+              <dl>
+                <div><dt>市場価格</dt><dd id="gcSpMarketNow">－</dd></div>
+                <div><dt>理論中心値</dt><dd id="gcSpCenterNow">－</dd></div>
+                <div><dt>感応度レンジ</dt><dd id="gcSpRangeNow">－</dd></div>
+                <div><dt>実質 市場／理論</dt><dd id="gcSpRealPairNow">－</dd></div>
+              </dl>
+              <p id="gcSpGrowthNow" class="gc-premium-assumption">－</p>
+              <p id="gcSpAboveHigh" class="gc-range-judgment">－</p>
+            </article>
+            <article class="gc-premium-card nikkei">
+              <div class="gc-premium-card-heading"><span>日経平均</span><strong id="gcNkPremiumNow" class="gc-premium-number">－</strong></div>
+              <p class="gc-premium-caption">理論中心値からの上乗せ。円建てでも同月のドル換算でも比率は同じ</p>
+              <dl>
+                <div><dt>市場価格</dt><dd id="gcNkMarketNow">－</dd></div>
+                <div><dt>理論中心値</dt><dd id="gcNkCenterNow">－</dd></div>
+                <div><dt>感応度レンジ</dt><dd id="gcNkRangeNow">－</dd></div>
+                <div><dt>実質USD 市場／理論</dt><dd id="gcNkRealPairNow">－</dd></div>
+              </dl>
+              <p id="gcNkGrowthNow" class="gc-premium-assumption">－</p>
+              <p id="gcNkAboveHigh" class="gc-range-judgment">－</p>
+            </article>
+          </div>
+          <div class="gc-premium-chart-frame">
+            <div class="gc-premium-chart-stage"><canvas id="valuationExcessChart" aria-label="S&P 500と日経平均のモデル超過率チャート" role="img"></canvas></div>
+          </div>
+          <div class="gc-premium-reading">
+            <p><strong>中心値超過：</strong>通常の成長前提を超えて市場が期待している大きさです。正なら直ちにバブルという意味ではありません。</p>
+            <p><strong>楽観上限超過：</strong>実質成長をさらに0.5ポイント高く、株式リスクプレミアムを0.75ポイント低くした楽観シナリオでも説明できない上乗せです。</p>
+            <p><strong>重要な限界：</strong>「本来価値」は観測値ではなくモデル推計です。構成銘柄別DCF、将来利益予想、無形資産価値を完全には含みません。</p>
+          </div>
+        </section>
+
         <div class="gc-chart-frame">
+          <div class="gc-secondary-chart-title">
+            <strong>補助チャート：名目・実質・理論価値の長期推移</strong>
+            <span>価格の成り立ちを確認するための詳細表示です</span>
+          </div>
           <div class="gc-line-key" aria-label="線種の意味">
             <span><i class="gc-line solid" aria-hidden="true"></i>実線：名目または単純ドル換算</span>
             <span><i class="gc-line dashed" aria-hidden="true"></i>破線：CPI調整後</span>

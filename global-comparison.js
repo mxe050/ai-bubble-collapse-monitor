@@ -3,6 +3,7 @@
 
   var DATA_URL = "data/global-market-value-comparison.json";
   var state = {
+    valuationChart: null,
     payload: null,
     chart: null,
     range: "all",
@@ -354,6 +355,143 @@
       context.restore();
     },
   };
+  var premiumZonePlugin = {
+    id: "gcPremiumZones",
+    beforeDatasetsDraw: function (chart) {
+      var area = chart.chartArea;
+      var scale = chart.scales.y;
+      if (!area || !scale) return;
+      var zeroY = Math.max(area.top, Math.min(area.bottom, scale.getPixelForValue(0)));
+      var context = chart.ctx;
+      context.save();
+      context.fillStyle = "rgba(192, 57, 43, 0.055)";
+      context.fillRect(area.left, area.top, area.right - area.left, Math.max(0, zeroY - area.top));
+      context.fillStyle = "rgba(34, 139, 94, 0.055)";
+      context.fillRect(area.left, zeroY, area.right - area.left, Math.max(0, area.bottom - zeroY));
+      context.strokeStyle = "#526476";
+      context.lineWidth = 2;
+      context.beginPath();
+      context.moveTo(area.left, zeroY);
+      context.lineTo(area.right, zeroY);
+      context.stroke();
+      context.fillStyle = "#34475c";
+      context.font = "800 11px Meiryo, sans-serif";
+      context.textAlign = "left";
+      context.fillText("0%＝成長込み理論中心値", area.left + 8, zeroY - 7);
+      context.restore();
+    },
+  };
+
+  var premiumEndLabelPlugin = {
+    id: "gcPremiumEndLabels",
+    afterDatasetsDraw: function (chart) {
+      var area = chart.chartArea;
+      if (!area) return;
+      var context = chart.ctx;
+      context.save();
+      context.font = (window.innerWidth < 700 ? "800 10px" : "800 12px") + " Meiryo, sans-serif";
+      context.textBaseline = "middle";
+      chart.data.datasets.forEach(function (dataset, datasetIndex) {
+        var meta = chart.getDatasetMeta(datasetIndex);
+        var index = dataset.data.length - 1;
+        while (index >= 0 && dataset.data[index].y == null) index -= 1;
+        if (index < 0 || !meta.data[index]) return;
+        var point = meta.data[index];
+        var label = dataset.shortLabel + " " + (dataset.data[index].y >= 0 ? "+" : "") + formatNumber(dataset.data[index].y, 1) + "%";
+        var x = area.right + 10;
+        context.strokeStyle = dataset.borderColor;
+        context.lineWidth = 3;
+        context.beginPath();
+        context.moveTo(area.right + 2, point.y);
+        context.lineTo(x - 5, point.y);
+        context.stroke();
+        context.fillStyle = "rgba(255,255,255,0.95)";
+        context.fillRect(x - 3, point.y - 9, context.measureText(label).width + 7, 18);
+        context.fillStyle = dataset.borderColor;
+        context.fillText(label, x, point.y);
+      });
+      context.restore();
+    },
+  };
+
+  function renderValuationChart(rows) {
+    var canvas = byId("valuationExcessChart");
+    if (!canvas || !rows.length) return;
+    if (state.valuationChart) state.valuationChart.destroy();
+    var datasets = [
+      { id: "sp500Premium", label: "S&P 500・モデル中心値からの上乗せ", shortLabel: "S&P", field: "sp500MarketPremiumPct", color: "#0057B8" },
+      { id: "nikkeiPremium", label: "日経平均・モデル中心値からの上乗せ", shortLabel: "日経", field: "nikkeiMarketPremiumPct", color: "#D83B2D" },
+    ].map(function (definition) {
+      return {
+        id: definition.id,
+        label: definition.label,
+        shortLabel: definition.shortLabel,
+        data: rows.map(function (row) { return { x: row.x, y: finite(row[definition.field]), sourceRow: row }; }),
+        borderColor: definition.color,
+        backgroundColor: "transparent",
+        borderWidth: 4.2,
+        hoverBorderWidth: 5.5,
+        borderCapStyle: "round",
+        borderJoinStyle: "round",
+        pointRadius: 0,
+        pointHoverRadius: 6,
+        pointHitRadius: 10,
+        tension: 0,
+        spanGaps: false,
+        parsing: false,
+      };
+    });
+    state.valuationChart = new window.Chart(canvas, {
+      type: "line",
+      data: { datasets: datasets },
+      plugins: [whiteBackgroundPlugin, premiumZonePlugin, crisisPlugin, premiumEndLabelPlugin],
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        animation: { duration: 260 },
+        interaction: { mode: "nearest", intersect: false, axis: "x" },
+        layout: { padding: { top: 8, right: window.innerWidth < 700 ? 92 : 126, bottom: 4, left: 4 } },
+        scales: {
+          x: {
+            type: "linear",
+            min: rows[0].x,
+            max: rows[rows.length - 1].x,
+            grid: { display: false },
+            ticks: { maxTicksLimit: window.innerWidth < 700 ? 6 : 11, callback: function (value) { return String(Math.round(value)); }, color: "#526476", font: { family: "Meiryo, sans-serif", size: window.innerWidth < 700 ? 11 : 13, weight: "700" } },
+            title: { display: true, text: "年（月次）", color: "#34475c", font: { weight: "700" } },
+          },
+          y: {
+            type: "linear",
+            beginAtZero: true,
+            grid: { color: "rgba(71, 85, 105, 0.11)", lineWidth: 1 },
+            ticks: { color: "#526476", callback: function (value) { return (value > 0 ? "+" : "") + formatNumber(value, 0) + "%"; }, font: { family: "Meiryo, sans-serif", size: window.innerWidth < 700 ? 11 : 13, weight: "700" } },
+            title: { display: true, text: "市場価格のモデル超過率", color: "#34475c", font: { weight: "800" } },
+          },
+        },
+        plugins: {
+          title: { display: true, text: "市場価格は、持続可能な成長を含む理論中心値を何％上回るか", color: "#102033", font: { family: "Meiryo, sans-serif", size: window.innerWidth < 700 ? 14 : 18, weight: "800" }, padding: { bottom: 12 } },
+          legend: { position: "bottom", labels: { boxWidth: 48, boxHeight: 5, padding: 18, color: "#24384c", font: { family: "Meiryo, sans-serif", size: window.innerWidth < 700 ? 11 : 13, weight: "800" } } },
+          tooltip: {
+            backgroundColor: "rgba(16, 32, 51, 0.96)",
+            titleFont: { family: "Meiryo, sans-serif", weight: "700" },
+            bodyFont: { family: "Meiryo, sans-serif", size: 12 },
+            padding: 12,
+            callbacks: {
+              title: function (items) { return items.length ? formatDate(items[0].raw.sourceRow.date) : ""; },
+              label: function (context) { return context.dataset.label + "：" + (context.parsed.y >= 0 ? "+" : "") + formatNumber(context.parsed.y, 1) + "%"; },
+              afterLabel: function (context) {
+                var row = context.raw.sourceRow;
+                var isSp = context.dataset.id === "sp500Premium";
+                return "成長率前提 " + formatNumber(row[isSp ? "sp500NominalGrowthPct" : "nikkeiNominalGrowthPct"], 2) + "% / 公正PER " + formatNumber(row[isSp ? "sp500FairPe" : "nikkeiFairPe"], 1) + "倍";
+              },
+              footer: function () { return "0%は割安・割高の事実ではなく、本サイトの基準モデル中心値です"; },
+            },
+          },
+        },
+      },
+    });
+  }
+
 
   function definitionForDataset(dataset) {
     return state.payload.seriesDefinitions.find(function (row) { return row.id === dataset.id; });
@@ -416,6 +554,7 @@
     var rows = visibleRows();
     var canvas = byId("globalComparisonChart");
     if (!canvas || !rows.length) return;
+    renderValuationChart(rows);
     if (state.chart) state.chart.destroy();
     state.chart = new window.Chart(canvas, {
       type: "line",
@@ -573,6 +712,38 @@
         ? "中心値は5年平準化EPS、直近EPS維持参考は最近の利益へ同じ理論PERを掛けた別計算です。幅は要求収益率と成長率の感応度です。"
         : "必要な利益・金利データがそろっていないため表示していません。";
     });
+  }
+
+  function renderValuationFocus() {
+    var latestRow = (state.payload.points || []).slice().reverse().find(function (row) {
+      return finite(row.sp500MarketPremiumPct) != null && finite(row.nikkeiMarketPremiumPct) != null;
+    });
+    if (!latestRow) return;
+    [
+      { id: "Sp", model: state.payload.theoreticalModels.sp500, premiumField: "sp500MarketPremiumPct", growthField: "sp500NominalGrowthPct", riskFreeField: "sp500RiskFreePct", erpField: "sp500ErpPct", creditField: "sp500CreditStressPct", realMarketField: "sp500Real", realTheoryField: "sp500TheoreticalReal", realPrefix: "", unit: "" },
+      { id: "Nk", model: state.payload.theoreticalModels.nikkei225, premiumField: "nikkeiMarketPremiumPct", growthField: "nikkeiNominalGrowthPct", riskFreeField: "nikkeiRiskFreePct", erpField: "nikkeiErpPct", creditField: "nikkeiCreditStressPct", realMarketField: "nikkeiRealUsd", realTheoryField: "nikkeiTheoreticalUsd", realPrefix: "$", unit: "円" },
+    ].forEach(function (item) {
+      var latest = item.model.latest;
+      var premium = finite(latestRow[item.premiumField]);
+      var overHigh = latest && latest.high ? (latest.market / latest.high - 1) * 100 : null;
+      var requiredReturn = [item.riskFreeField, item.erpField, item.creditField].reduce(function (sum, field) {
+        return sum + (finite(latestRow[field]) || 0);
+      }, 0);
+      byId("gc" + item.id + "PremiumNow").textContent = (premium >= 0 ? "+" : "") + formatNumber(premium, 1) + "%";
+      byId("gc" + item.id + "PremiumNow").className = "gc-premium-number " + (premium > 0 ? "above" : "below");
+      byId("gc" + item.id + "MarketNow").textContent = formatNumber(latest.market, 0) + item.unit;
+      byId("gc" + item.id + "CenterNow").textContent = formatNumber(latest.central, 0) + item.unit;
+      byId("gc" + item.id + "RangeNow").textContent = formatNumber(latest.low, 0) + "～" + formatNumber(latest.high, 0) + item.unit;
+      byId("gc" + item.id + "RealPairNow").textContent = item.realPrefix + formatNumber(latestRow[item.realMarketField], 2) + " / " + item.realPrefix + formatNumber(latestRow[item.realTheoryField], 2);
+      byId("gc" + item.id + "GrowthNow").textContent = "名目成長 " + formatNumber(latestRow[item.growthField], 2) + "% / 要求収益率 " + formatNumber(requiredReturn, 2) + "%";
+      byId("gc" + item.id + "AboveHigh").textContent = overHigh == null
+        ? "楽観上限との比較は未算出"
+        : overHigh > 0
+          ? "楽観シナリオ上限も " + formatNumber(overHigh, 1) + "%上回る"
+          : "中心値より高いが、楽観シナリオ上限より " + formatNumber(Math.abs(overHigh), 1) + "%低い";
+      byId("gc" + item.id + "AboveHigh").className = "gc-range-judgment " + (overHigh > 0 ? "outside" : "inside");
+    });
+    byId("gcPremiumAsOf").textContent = formatDate(latestRow.date) + "時点";
   }
 
   function updateControls() {
@@ -798,6 +969,7 @@
       if (!byId("gcCustomEnd").value) byId("gcCustomEnd").value = last;
       renderMetadata();
       renderCoverage();
+      renderValuationFocus();
       renderSources();
       updateControls();
       renderChart();
@@ -805,7 +977,7 @@
         return payload.points.some(function (point) { return point[definition.normalizedField] != null; });
       }).length;
       status.textContent = availableSeries === 6
-        ? "6系列を取得済み。比較しやすい5系列を初期表示しています"
+        ? "モデル超過率2系列と、補助チャート5系列を表示しています"
         : "実データ" + availableSeries + "系列を表示。理論価値は80%カバー率を満たす期間だけ表示";
       status.className = "gc-load-status ready";
       if (window.lucide) window.lucide.createIcons();

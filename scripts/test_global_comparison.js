@@ -25,6 +25,16 @@ assert.match(section, /理論価値2系列を非表示/);
 assert.match(section, /危機期間を非表示/);
 assert.match(section, /gcRefreshData/);
 assert.match(section, /gcSourceList/);
+assert.match(section, /valuationExcessChart/);
+assert.match(section, /モデル超過率＝市場価格÷成長込み理論中心値－1/);
+assert.match(section, /gcSpPremiumNow/);
+assert.match(section, /gcNkPremiumNow/);
+assert.match(section, /gcSpAboveHigh/);
+assert.match(section, /gcNkAboveHigh/);
+assert.match(section, /gcSpRealPairNow/);
+assert.match(section, /gcNkRealPairNow/);
+assert.match(section, /楽観上限超過/);
+assert.match(section, /本来価値.*モデル推計/);
 assert.match(section, /gcExportPng/);
 assert.match(section, /gcExportSvg/);
 assert.match(section, /gcExportCsv/);
@@ -51,6 +61,10 @@ assert.match(script, /gcEndLabels/);
 assert.match(script, /lineWidthFor/);
 assert.match(script, /markerStepFor/);
 assert.match(script, /showSp500Nominal/);
+assert.match(script, /gcPremiumZones/);
+assert.match(script, /renderValuationChart/);
+assert.match(script, /renderValuationFocus/);
+assert.match(script, /sp500MarketPremiumPct/);
 const actual = payload.seriesDefinitions.filter((definition) =>
   payload.points.some((point) => point[definition.normalizedField] != null),
 );
