@@ -127,7 +127,7 @@
           <div>
             <p class="section-kicker">GLOBAL MARKET / REAL VALUE / VALUATION</p>
             <h2>S&amp;P 500と日経平均を、同じ物差しで比較する</h2>
-            <p>名目価格、物価調整後の実質価格、構成企業の理論価値を1つの線形チャートに統合します。日経平均の3系列はすべて「1米ドル当たりの円」でドル換算し、各系列を基準日=100にそろえます。</p>
+            <p>名目価格、物価調整後の実質価格、指数利益から計算した推計理論価値を1つの線形チャートに統合します。日経平均の3系列は「1米ドル当たりの円」でドル換算し、理論値は対応する市場系列と同じ基準額で100にそろえます。</p>
           </div>
           <span id="gcLoadStatus" class="gc-load-status loading" aria-live="polite">月次データを読込中</span>
         </div>
@@ -175,7 +175,7 @@
           <div class="gc-line-key" aria-label="線種の意味">
             <span><i class="gc-line solid" aria-hidden="true"></i>実線：名目または単純ドル換算</span>
             <span><i class="gc-line dashed" aria-hidden="true"></i>破線：CPI調整後</span>
-            <span><i class="gc-line dashdot" aria-hidden="true"></i>一点鎖線＋ひし形：理論価値</span>
+            <span><i class="gc-line dashdot" aria-hidden="true"></i>一点鎖線＋ひし形：推計理論価値</span>
           </div>
           <div class="gc-chart-scroll" tabindex="0" aria-label="統合チャート。狭い画面では横にスクロールできます">
             <div class="gc-canvas-stage">
@@ -202,30 +202,56 @@
 
         <div class="gc-coverage-intro">
           <div>
-            <p class="label">理論価値2系列の扱い</p>
-            <h3>実在するポイント・イン・タイム財務データだけを使う</h3>
+            <p class="label">推計理論価値の位置づけ</p>
+            <h3>指数全体の利益を、金利と成長率で現在価値へ戻す</h3>
           </div>
-          <p>過去の構成銘柄、当時すでに公表されていた財務情報、株式分割や指数除数まで追えるデータが必要です。指数ウェイトの80%未満しか評価できない月は、欠損企業を0にせず、理論価値の線そのものを描きません。</p>
+          <p>完全な企業別DCFには、過去時点の構成銘柄・財務公表日・指数ウェイトを含む有料データが必要です。そこで本チャートは、S&amp;P 500の指数利益と、日経公式PERから復元した日経平均EPSを使うトップダウン推計を表示します。企業別DCFとは別物ですが、利益・金利・成長率のどれが理論値を動かしたかを月ごとに追えます。</p>
         </div>
         <div class="gc-coverage-grid">
           <article>
-            <div class="gc-coverage-heading"><h3>S&amp;P 500・実質理論価値</h3><span id="gcSpCoverageStatus" class="gc-coverage-state missing">算出不可</span></div>
+            <div class="gc-coverage-heading"><h3>S&amp;P 500・推計理論価値</h3><span id="gcSpModelStatus" class="gc-coverage-state missing">確認中</span></div>
             <dl>
-              <div><dt>評価企業</dt><dd id="gcSpCoverageCompanies">0/500社</dd></div>
-              <div><dt>指数ウェイト・カバー率</dt><dd id="gcSpCoverageRatio">0%</dd></div>
-              <div><dt>財務情報基準日</dt><dd id="gcSpFinancialDate">未取得</dd></div>
+              <div><dt>モデル基準月</dt><dd id="gcSpModelDate">未取得</dd></div>
+              <div><dt>5年平準化EPS</dt><dd id="gcSpEarningsPower">未算出</dd></div>
+              <div><dt>中心推計</dt><dd id="gcSpTheoreticalCenter">未算出</dd></div>
+              <div><dt>直近EPS維持参考</dt><dd id="gcSpLatestEarningsValue">未算出</dd></div>
+              <div><dt>感応度レンジ</dt><dd id="gcSpTheoreticalRange">未算出</dd></div>
+              <div><dt>理論PER</dt><dd id="gcSpFairPe">未算出</dd></div>
+              <div><dt>市場価格との差</dt><dd id="gcSpMarketGap">未算出</dd></div>
             </dl>
-            <p id="gcSpCoverageReason">データを確認中です。</p>
+            <p id="gcSpModelReason">データを確認中です。</p>
           </article>
           <article>
-            <div class="gc-coverage-heading"><h3>日経平均・理論価値USD</h3><span id="gcNkCoverageStatus" class="gc-coverage-state missing">算出不可</span></div>
+            <div class="gc-coverage-heading"><h3>日経平均・推計理論価値</h3><span id="gcNkModelStatus" class="gc-coverage-state missing">確認中</span></div>
             <dl>
-              <div><dt>評価企業</dt><dd id="gcNkCoverageCompanies">0/225社</dd></div>
-              <div><dt>指数ウェイト・カバー率</dt><dd id="gcNkCoverageRatio">0%</dd></div>
-              <div><dt>財務情報基準日</dt><dd id="gcNkFinancialDate">未取得</dd></div>
+              <div><dt>モデル基準月</dt><dd id="gcNkModelDate">未取得</dd></div>
+              <div><dt>5年平準化EPS</dt><dd id="gcNkEarningsPower">未算出</dd></div>
+              <div><dt>中心推計</dt><dd id="gcNkTheoreticalCenter">未算出</dd></div>
+              <div><dt>直近EPS維持参考</dt><dd id="gcNkLatestEarningsValue">未算出</dd></div>
+              <div><dt>感応度レンジ</dt><dd id="gcNkTheoreticalRange">未算出</dd></div>
+              <div><dt>理論PER</dt><dd id="gcNkFairPe">未算出</dd></div>
+              <div><dt>市場価格との差</dt><dd id="gcNkMarketGap">未算出</dd></div>
             </dl>
-            <p id="gcNkCoverageReason">データを確認中です。</p>
+            <p id="gcNkModelReason">データを確認中です。</p>
           </article>
+        </div>
+
+        <div class="gc-model-equation" aria-label="推計理論価値の計算式">
+          <div>
+            <span>利益の実力</span>
+            <strong>過去5年のEPSを各月の物価へ換算し、その中央値を使う</strong>
+            <p>一時的な好況・不況で利益が振れた影響を弱めます。カードの「直近EPS維持参考」は、最近の利益が続く場合を同じ理論PERで別計算し、平準値との差を見せます。</p>
+          </div>
+          <div>
+            <span>利益を価値へ変換</span>
+            <strong>理論値 ＝ 平準化EPS ÷ 資本還元率</strong>
+            <p>資本還元率は「10年国債利回り＋株式リスクプレミアム4.5％＋信用不安の上乗せ－長期名目成長率」。極端な値を避けるため2.5％を下限にします。</p>
+          </div>
+          <div>
+            <span>一点で断定しない</span>
+            <strong>要求収益率と実質成長率を動かし、低位・中心・高位を併記</strong>
+            <p>市場価格が中心値より高い割合は「期待の上乗せ」の目安です。中心値への下落予測や底値保証ではなく、仮定を変えたときにどこまで動くかを見る道具です。</p>
+          </div>
         </div>
 
         <div class="gc-method-grid">
@@ -235,7 +261,7 @@
             <ol>
               <li>S&amp;P 500は米国CPIで実質化します。</li>
               <li>日経平均は日本CPIで実質化し、1米ドル当たりの円でドル換算します。</li>
-              <li>理論価値は企業別に計算し、指数方式で集計します。</li>
+              <li>推計理論価値は平準化EPSと利益還元率から算出します。</li>
               <li>すべての計算後に、各系列の基準月を100として正規化します。</li>
             </ol>
           </div>
@@ -247,6 +273,9 @@
               <li>為替：日本銀行「FXERM06」月末、円/米ドル</li>
               <li>米国物価：BLS/FREDのCPI-U全品目</li>
               <li>日本物価：総務省統計局・e-Statの全国CPI総合</li>
+              <li>S&amp;P 500利益：NYU Damodaranの指数利益表</li>
+              <li>日経平均EPS：日経公式の指数ウェイト基準PERから復元</li>
+              <li>割引率：米10年国債、国債10年、Moody's Baa－Aaa</li>
             </ul>
           </div>
         </div>
@@ -260,8 +289,11 @@
           <p>すべてのY軸は通常の線形軸であり、対数軸ではありません。</p>
           <p>実質指数は、各国の消費者物価指数を使用して物価調整しています。</p>
           <p>日経平均のドル換算指数は、円建て指数をUSD/JPYで為替調整した参考指数であり、実際のドル金額ではありません。</p>
-          <p>理論価値指数は、財務データ、将来キャッシュフロー、WACC、永続成長率などの仮定に基づく推計値であり、実際の株価や公式指数ではありません。</p>
-          <p>S&amp;P 500構成企業・実質理論価値指数は、公式のS&amp;P 500指数ではありません。日経平均構成企業・理論価値指数／ドル換算も、公式の日経平均株価ではありません。</p>
+          <p>推計理論価値は、指数全体の平準化利益を金利・株式リスクプレミアム・長期成長率で還元した独自の参考値です。企業別DCF、目標株価、公式指数ではありません。</p>
+          <p>「直近EPS維持参考」は、直近EPSが今後も維持されると仮定した比較値です。利益予想でも中心推計でもなく、平準化によって理論値がどれだけ変わったかを確認する補助線です。</p>
+          <p>理論値と市場値は、同じ市場の1985年基準額で割って正規化します。このため同じ月の線の上下差は割高・割安の方向と整合しますが、絶対水準は直上のカードで確認します。</p>
+          <p>日経のPERデータは日本経済新聞社が権利を保有します。本ツールは非公開・個人調査用として、そこから計算した分析値を表示します。</p>
+          <p>完全な企業別DCFは、過去構成銘柄と公表時点財務を含むライセンスデータが指数ウェイトの80％以上そろうまで別枠で未算出です。</p>
           <p>危機期間はチャート表示用の代表期間であり、開始日と終了日に唯一の定義があるものではありません。本チャートは情報提供を目的とし、投資助言ではありません。</p>
         </div>
       </div>

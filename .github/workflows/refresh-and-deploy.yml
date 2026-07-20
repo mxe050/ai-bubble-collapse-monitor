@@ -1,4 +1,4 @@
-name: Refresh data and deploy Pages
+name: Refresh and validate private monitor
 
 on:
   push:
@@ -9,11 +9,9 @@ on:
 
 permissions:
   contents: read
-  pages: write
-  id-token: write
 
 concurrency:
-  group: pages
+  group: private-monitor-validation
   cancel-in-progress: true
 
 jobs:
@@ -35,6 +33,7 @@ jobs:
           key: global-comparison-${{ runner.os }}-${{ github.run_id }}
           restore-keys: |
             global-comparison-${{ runner.os }}-
+
       - name: Retrieve market, financial, and credit data
         run: python scripts/update_data.py
 
@@ -52,22 +51,5 @@ jobs:
       - name: Test six-series comparison
         run: node scripts/test_global_comparison.js
 
-      - name: Configure GitHub Pages
-        uses: actions/configure-pages@v5
-
-      - name: Upload site artifact
-        uses: actions/upload-pages-artifact@v3
-        with:
-          path: .
-
-  deploy:
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-    runs-on: ubuntu-latest
-    needs: build
-    steps:
-      - name: Deploy GitHub Pages
-        id: deployment
-        uses: actions/deploy-pages@v4
-
+      - name: Audit theoretical-value comparison
+        run: python scripts/validate_global_comparison.py

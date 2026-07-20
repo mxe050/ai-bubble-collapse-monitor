@@ -148,8 +148,9 @@
       return rows.map(function (row) { return finite(row[definition.normalizedField]); });
     }
     var base = null;
+    var anchorField = definition.normalizationAnchorField || definition.rawField;
     rows.some(function (row) {
-      var value = finite(row[definition.rawField]);
+      var value = finite(row[anchorField]);
       if (value != null && value !== 0) {
         base = value;
         return true;
@@ -270,11 +271,16 @@
       lines.push("CPI参照値：" + formatNumber(state.payload.cpiReferences.us.value, 3));
       lines.push("実質指数：" + formatNumber(row.sp500Real, 2));
     } else if (definition.id === "sp500TheoreticalReal") {
-      lines.push("実質理論価値指数：" + formatNumber(row.sp500TheoreticalReal, 2));
-      lines.push("評価企業：" + (row.sp500ValuationAvailableCompanies == null ? "未取得" : row.sp500ValuationAvailableCompanies + "/" + row.sp500ValuationTotalCompanies + "社"));
-      lines.push("カバー率：" + (row.sp500ValuationCoverage == null ? "未取得" : formatNumber(row.sp500ValuationCoverage * 100, 1) + "%"));
-      lines.push("加重WACC：" + formatNumber(row.sp500WeightedWaccPct, 2) + "% / 永続成長率：" + formatNumber(row.sp500WeightedPerpetualGrowthPct, 2) + "%");
-      lines.push("財務情報基準日：" + (row.sp500ValuationFinancialAsOfDate || "未取得"));
+      lines.push("推計理論価値（名目）：" + formatNumber(row.sp500TheoreticalNominal, 2));
+      lines.push("感応度レンジ：" + formatNumber(row.sp500TheoreticalLow, 2) + "～" + formatNumber(row.sp500TheoreticalHigh, 2));
+      lines.push("5年平準化EPS：" + formatNumber(row.sp500EarningsPower, 2));
+      lines.push("理論PER：" + formatNumber(row.sp500FairPe, 2) + "倍");
+      lines.push("直近EPS：" + formatNumber(row.sp500LatestEarnings, 2));
+      lines.push("直近EPS維持参考：" + formatNumber(row.sp500TheoreticalAtLatestEarnings, 2));
+      lines.push("10年国債：" + formatNumber(row.sp500RiskFreePct, 2) + "% / ERP：" + formatNumber(row.sp500ErpPct, 2) + "%");
+      lines.push("長期名目成長：" + formatNumber(row.sp500NominalGrowthPct, 2) + "% / 信用上乗せ：" + formatNumber(row.sp500CreditStressPct, 2) + "%");
+      lines.push("市場価格の上乗せ：" + formatNumber(row.sp500MarketPremiumPct, 1) + "%");
+      lines.push("利益データ：" + (row.sp500EarningsAvailableThroughYear || "未取得") + "年まで");
     } else if (definition.id === "nikkeiUsd") {
       lines.push("円建て日経平均：" + formatNumber(row.nikkeiJpy, 2));
       lines.push("1米ドル：" + formatNumber(row.usdjpyJpyPerUsd, 2) + "円");
@@ -287,12 +293,18 @@
       lines.push("1米ドル：" + formatNumber(row.usdjpyJpyPerUsd, 2) + "円");
       lines.push("実質ドル換算指数：" + formatNumber(row.nikkeiRealUsd, 2));
     } else if (definition.id === "nikkeiTheoreticalUsd") {
-      lines.push("円建て理論価値指数：" + formatNumber(row.nikkeiTheoreticalJpy, 2));
+      lines.push("推計理論価値（円）：" + formatNumber(row.nikkeiTheoreticalJpy, 2));
+      lines.push("感応度レンジ：" + formatNumber(row.nikkeiTheoreticalLowJpy, 2) + "～" + formatNumber(row.nikkeiTheoreticalHighJpy, 2));
       lines.push("1米ドル：" + formatNumber(row.usdjpyJpyPerUsd, 2) + "円");
-      lines.push("理論価値USD：" + formatNumber(row.nikkeiTheoreticalUsd, 2));
-      lines.push("評価企業：" + (row.nikkeiValuationAvailableCompanies == null ? "未取得" : row.nikkeiValuationAvailableCompanies + "/" + row.nikkeiValuationTotalCompanies + "社"));
-      lines.push("カバー率：" + (row.nikkeiValuationCoverage == null ? "未取得" : formatNumber(row.nikkeiValuationCoverage * 100, 1) + "%"));
-      lines.push("財務情報基準日：" + (row.nikkeiValuationFinancialAsOfDate || "未取得"));
+      lines.push("5年平準化EPS：" + formatNumber(row.nikkeiEarningsPower, 2));
+      lines.push("公式指数PER：" + formatNumber(row.nikkeiIndexWeightPe, 2) + "倍 / 復元EPS：" + formatNumber(row.nikkeiIndexEps, 2));
+      lines.push("直近EPS：" + formatNumber(row.nikkeiLatestEarnings, 2));
+      lines.push("直近EPS維持参考：" + formatNumber(row.nikkeiTheoreticalAtLatestEarningsJpy, 2) + "円");
+      lines.push("理論PER：" + formatNumber(row.nikkeiFairPe, 2) + "倍");
+      lines.push("10年国債：" + formatNumber(row.nikkeiRiskFreePct, 2) + "% / ERP：" + formatNumber(row.nikkeiErpPct, 2) + "%");
+      lines.push("長期名目成長：" + formatNumber(row.nikkeiNominalGrowthPct, 2) + "% / 信用上乗せ：" + formatNumber(row.nikkeiCreditStressPct, 2) + "%");
+      lines.push("市場価格の上乗せ：" + formatNumber(row.nikkeiMarketPremiumPct, 1) + "%");
+      lines.push("公式PER観測日：" + (row.nikkeiPeObservationDate || "未取得"));
     }
     lines.push("この系列の固定基準日：" + formatDate(state.payload.seriesBaseDates[definition.id] || state.payload.baseDate));
     return lines;
@@ -344,7 +356,7 @@
         plugins: {
           title: {
             display: true,
-            text: "S&P 500・日経平均：市場価格、実質価格、理論価値（線形軸）",
+            text: "S&P 500・日経平均：市場価格、実質価格、推計理論価値（線形軸）",
             color: "#102033",
             font: { family: "Meiryo, sans-serif", size: window.innerWidth < 700 ? 13 : 16, weight: "700" },
             padding: { bottom: 12 },
@@ -425,26 +437,40 @@
     }).join("");
   }
 
-  function coverageLabel(row) {
-    if (!row || row.status === "unavailable") return "算出不可";
-    if (row.status === "insufficient-coverage") return "カバー率不足";
-    return "算出可能";
+  function modelLabel(row) {
+    return row && row.status === "available" ? "推計あり" : "推計不可";
+  }
+
+  function modelGapText(value) {
+    var number = finite(value);
+    if (number == null) return "未算出";
+    if (Math.abs(number) < 0.05) return "市場価格と中心値がほぼ同じ";
+    return number > 0
+      ? "市場価格が中心値より" + formatNumber(number, 1) + "%高い"
+      : "市場価格が中心値より" + formatNumber(Math.abs(number), 1) + "%低い";
   }
 
   function renderCoverage() {
     [
-      { id: "Sp", row: state.payload.valuationCoverage.sp500 },
-      { id: "Nk", row: state.payload.valuationCoverage.nikkei225 },
+      { id: "Sp", row: state.payload.theoreticalModels.sp500, unit: "" },
+      { id: "Nk", row: state.payload.theoreticalModels.nikkei225, unit: "円" },
     ].forEach(function (item) {
       var row = item.row;
-      byId("gc" + item.id + "CoverageStatus").textContent = coverageLabel(row);
-      byId("gc" + item.id + "CoverageStatus").className = "gc-coverage-state " + (row.status === "available" ? "ok" : "missing");
-      byId("gc" + item.id + "CoverageCompanies").textContent = row.availableCompanies + "/" + row.totalCompanies + "社";
-      byId("gc" + item.id + "CoverageRatio").textContent = formatNumber(row.coverageRatio * 100, 1) + "%";
-      byId("gc" + item.id + "FinancialDate").textContent = row.financialAsOfDate || "未取得";
-      byId("gc" + item.id + "CoverageReason").textContent = row.status === "available"
-        ? "指数ウェイトの80%以上を評価できるため、理論価値系列を表示できます。"
-        : "ポイント・イン・タイムの構成銘柄・財務データが80%に届かないため、架空の線を描かず欠損にしています。";
+      var latest = row && row.latest ? row.latest : {};
+      var available = row && row.status === "available";
+      var suffix = item.unit;
+      byId("gc" + item.id + "ModelStatus").textContent = modelLabel(row);
+      byId("gc" + item.id + "ModelStatus").className = "gc-coverage-state " + (available ? "ok" : "missing");
+      byId("gc" + item.id + "ModelDate").textContent = row && row.latestDate ? formatDate(row.latestDate) : "未取得";
+      byId("gc" + item.id + "EarningsPower").textContent = formatNumber(latest.earningsPower, 2);
+      byId("gc" + item.id + "TheoreticalCenter").textContent = formatNumber(latest.central, 0) + suffix;
+      byId("gc" + item.id + "TheoreticalRange").textContent = formatNumber(latest.low, 0) + "～" + formatNumber(latest.high, 0) + suffix;
+      byId("gc" + item.id + "LatestEarningsValue").textContent = formatNumber(latest.latestEarningsValue, 0) + suffix;
+      byId("gc" + item.id + "FairPe").textContent = formatNumber(latest.fairPe, 1) + "倍";
+      byId("gc" + item.id + "MarketGap").textContent = modelGapText(latest.marketPremiumPct);
+      byId("gc" + item.id + "ModelReason").textContent = available
+        ? "中心値は5年平準化EPS、直近EPS維持参考は最近の利益へ同じ理論PERを掛けた別計算です。幅は要求収益率と成長率の感応度です。"
+        : "必要な利益・金利データがそろっていないため表示していません。";
     });
   }
 
@@ -527,7 +553,7 @@
     var svg = [];
     svg.push("<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"" + width + "\" height=\"" + height + "\" viewBox=\"0 0 " + width + " " + height + "\">");
     svg.push("<rect width=\"100%\" height=\"100%\" fill=\"white\"/>");
-    svg.push("<text x=\"70\" y=\"48\" font-family=\"Meiryo,sans-serif\" font-size=\"25\" font-weight=\"700\" fill=\"#102033\">S&amp;P 500・日経平均：市場価格、実質価格、理論価値</text>");
+    svg.push("<text x=\"70\" y=\"48\" font-family=\"Meiryo,sans-serif\" font-size=\"25\" font-weight=\"700\" fill=\"#102033\">S&amp;P 500・日経平均：市場価格、実質価格、推計理論価値</text>");
     svg.push("<text x=\"70\" y=\"76\" font-family=\"Meiryo,sans-serif\" font-size=\"14\" fill=\"#526476\">基準日=100 / 通常の線形軸 / " + escapeHtml(formatDate(rows[0].date)) + "～" + escapeHtml(formatDate(rows[rows.length - 1].date)) + "</text>");
     if (state.showCrises) {
       (state.payload.crises || []).forEach(function (crisis) {
@@ -569,10 +595,10 @@
   var SERIES_CSV_COLUMNS = {
     sp500Nominal: ["sp500Nominal", "sp500NominalNormalized"],
     sp500Real: ["sp500Real", "sp500RealNormalized"],
-    sp500TheoreticalReal: ["sp500TheoreticalNominal", "sp500TheoreticalReal", "sp500TheoreticalRealNormalized", "sp500ValuationCoverage"],
+    sp500TheoreticalReal: ["sp500EarningsPower", "sp500LatestEarnings", "sp500TheoreticalAtLatestEarnings", "sp500TheoreticalNominal", "sp500TheoreticalLow", "sp500TheoreticalHigh", "sp500TheoreticalReal", "sp500TheoreticalRealNormalized", "sp500FairPe", "sp500RiskFreePct", "sp500ErpPct", "sp500NominalGrowthPct", "sp500MarketPremiumPct"],
     nikkeiUsd: ["nikkeiUsd", "nikkeiUsdNormalized"],
     nikkeiRealUsd: ["nikkeiRealJpy", "nikkeiRealUsd", "nikkeiRealUsdNormalized"],
-    nikkeiTheoreticalUsd: ["nikkeiTheoreticalJpy", "nikkeiTheoreticalUsd", "nikkeiTheoreticalUsdNormalized", "nikkeiValuationCoverage"],
+    nikkeiTheoreticalUsd: ["nikkeiIndexWeightPe", "nikkeiIndexEps", "nikkeiEarningsPower", "nikkeiLatestEarnings", "nikkeiLatestEarningsDate", "nikkeiTheoreticalAtLatestEarningsJpy", "nikkeiTheoreticalJpy", "nikkeiTheoreticalLowJpy", "nikkeiTheoreticalHighJpy", "nikkeiTheoreticalUsd", "nikkeiTheoreticalUsdNormalized", "nikkeiFairPe", "nikkeiRiskFreePct", "nikkeiErpPct", "nikkeiNominalGrowthPct", "nikkeiMarketPremiumPct"],
   };
 
   function csvValue(value) {
@@ -678,7 +704,7 @@
         return payload.points.some(function (point) { return point[definition.normalizedField] != null; });
       }).length;
       status.textContent = availableSeries === 6
-        ? "6系列すべてに検証済みデータがあります"
+        ? "6系列すべてを表示。理論価値は利益還元モデルの推計です"
         : "実データ" + availableSeries + "系列を表示。理論価値は80%カバー率を満たす期間だけ表示";
       status.className = "gc-load-status ready";
       if (window.lucide) window.lucide.createIcons();

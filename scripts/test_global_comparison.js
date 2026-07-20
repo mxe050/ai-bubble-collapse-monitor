@@ -13,7 +13,7 @@ assert.strictEqual(payload.axis.type, "linear");
 assert.strictEqual(payload.axis.min, 0);
 assert.strictEqual(payload.axis.secondAxis, false);
 assert.strictEqual(payload.exchangeRate.direction, "JPY_PER_USD");
-assert.ok(100 / 150 < 100 / 100, "a weaker yen must lower the USD-converted value");
+assert.ok(100 / 150 < 100 / 100, "a weaker yen must lower USD-converted value");
 
 const section = html.split('<section id="global-comparison"')[1].split('<section id="analysis-map"')[0];
 assert.ok(section);
@@ -26,12 +26,19 @@ assert.match(section, /gcSourceList/);
 assert.match(section, /gcExportPng/);
 assert.match(section, /gcExportSvg/);
 assert.match(section, /gcExportCsv/);
+assert.match(section, /gcSpModelStatus/);
+assert.match(section, /gcNkModelStatus/);
+assert.match(section, /平準化EPS/);
+assert.match(section, /gcSpLatestEarningsValue/);
+assert.match(section, /gcNkLatestEarningsValue/);
+assert.match(section, /感応度レンジ/);
 assert.ok(html.indexOf('id="global-comparison"') < html.indexOf('id="analysis-map"'));
 
-assert.match(script, /if \(value == null \|\| value === ""\) return null;/, "missing values must remain null in the browser");
+assert.match(script, /if \(value == null \|\| value === ""\) return null;/, "missing values must remain null");
 assert.match(script, /showSp500Nominal: true/);
 assert.match(script, /showTheoreticalValueSeries: true/);
 assert.match(script, /state\.legendVisible\[definition\.id\] !== false/);
+assert.match(script, /normalizationAnchorField/);
 assert.match(script, /hideSp500Nominal/);
 assert.match(script, /showTheoreticalValue/);
 assert.match(script, /duration: 260/);
@@ -41,9 +48,18 @@ assert.doesNotMatch(script, /logarithmic/);
 const actual = payload.seriesDefinitions.filter((definition) =>
   payload.points.some((point) => point[definition.normalizedField] != null),
 );
-assert.strictEqual(actual.length, 4, "current free-data package should expose four observed series");
+assert.strictEqual(actual.length, 6, "all observed and theoretical series should be available");
 for (const definition of payload.seriesDefinitions.filter((row) => row.isTheoretical)) {
-  assert.ok(payload.points.every((point) => point[definition.normalizedField] == null));
+  assert.ok(payload.points.some((point) => point[definition.normalizedField] != null));
+}
+
+for (const model of [payload.theoreticalModels.sp500, payload.theoreticalModels.nikkei225]) {
+  assert.strictEqual(model.status, "available");
+  assert.strictEqual(model.methodId, "capitalized-normalized-earnings-v1");
+  assert.ok(model.latest.latestEarnings > 0);
+  assert.ok(model.latest.latestEarningsValue > 0);
+  assert.ok(model.latest.low <= model.latest.central);
+  assert.ok(model.latest.central <= model.latest.high);
 }
 
 console.log(JSON.stringify({
@@ -52,5 +68,5 @@ console.log(JSON.stringify({
   baseDate: payload.baseDate,
   latestCommonMonth: payload.latestCommonMonth,
   actualSeries: actual.length,
-  theoreticalStatus: payload.valuationCoverage,
+  theoreticalStatus: payload.theoreticalModels,
 }, null, 2));

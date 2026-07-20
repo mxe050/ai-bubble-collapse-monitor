@@ -184,6 +184,20 @@ Brav・Gompersは一般IPO 1,948社のロックアップ満了時平均異常収
 - 現在価値は時価総額と比較しますが、標準FCFが厳密なFCFEではないため、「株主価値」ではなく比較用近似です。
 - 「基準シナリオ外の部分」はバブルの額ではありません。
 
+## 指数理論価値プロキシの監査
+
+S&P 500と日経平均には、企業別DCFとは別に、指数全体の平準化EPSを長期金利・ERP・信用ストレス・長期成長率で還元するトップダウン参考指数を追加しました。
+
+- S&P 500の年次利益は、過去時点で未公表の年を使わないよう、年Yの値をY+1年5月から採用します。直近5年を当月CPIへ換算した中央値を使います。
+- 日経平均EPSは、当月終値を日経公式の指数ウェイト基準PERで割って復元します。直近60か月を当月CPIへ換算した中央値を使い、24か月未満では表示しません。
+- 理論値は `平準化EPS ÷ max(2.5%, 10年国債 + 4.5% ERP + 信用ストレス - 長期名目成長率)` です。低位・高位ではERPと実質成長率を動かします。
+- 直近EPS維持参考は、最新EPSへ中心と同じ理論PERを掛けます。最近の収益性が維持される仮定であり、中心推計や利益予想ではありません。
+- 2026年5月の共通月では、S&P 500は市場7,580、平準化中心6,058、感応度4,434～7,680、直近EPS維持参考6,857です。日経平均は市場66,330円、平準化中心40,380円、感応度30,608～55,016円、直近EPS維持参考58,748円です。
+
+この式は、指数全体の利益請求権を一つの還元率で比較するモデルです。企業別の配当、自社株買い、利益留保、再投資収益率、負債・現金を解くDCFではありません。2.5%下限を含む仮定は公式基準でも統計的信頼区間でもないため、中心値だけを底値予測として使用しません。
+
+理論線は自分の初値で100へ再基準化せず、同じ市場価格系列の1985年基準額を使います。したがって同月の市場線と理論線の距離は、カードの割高・割安方向と一致します。完全な企業別DCFは、ライセンス済みポイント・イン・タイムデータが指数ウェイトの80%以上そろうまで別枠で欠損とします。
+
 ## 底値モデルの残る限界
 
 - 日経平均の利益・PBR・過去下落率を使うストレステストで、将来の底値を保証しません。
@@ -202,6 +216,12 @@ Brav・Gompersは一般IPO 1,948社のロックアップ満了時平均異常収
 - [IMF: Global Bonding - Do U.S. Bond and Equity Spillovers Dominate Global Financial Markets?](https://www.imf.org/en/publications/wp/issues/2016/12/31/global-bonding-do-u-s-40180)
 - [日本銀行: Cross-country Transmission Effect of the U.S. Monetary Shock](https://www.boj.or.jp/en/research/wps_rev/wps_2013/wp13e16.htm)
 - [日経公式: 2026年7月17日日次サマリー](https://indexes.nikkei.co.jp/en/nkave/archives/summary?dt=07172026&idx=nk225)
+- [日経公式: Historical P/E, index-weight basis](https://indexes.nikkei.co.jp/en/nkave/archives/data?list=per)
+- [日経公式: User's Guide・指数ウェイトPERの定義](https://indexes.nikkei.co.jp/nkave/archives/file/users_guide_en.pdf)
+- [NYU Stern / Aswath Damodaran: S&P 500 Earnings and Dividends](https://pages.stern.nyu.edu/~adamodar/New_Home_Page/datafile/spearn.html)
+- [FRED: 10-Year Treasury Constant Maturity Rate](https://fred.stlouisfed.org/series/GS10)
+- [FRED: Moody's Seasoned Aaa Corporate Bond Yield](https://fred.stlouisfed.org/series/AAA)
+- [FRED: Moody's Seasoned Baa Corporate Bond Yield](https://fred.stlouisfed.org/series/BAA)
 - [日経公式: Nikkei Semiconductor Stock Index](https://indexes.nikkei.co.jp/en/nkave/index/profile?cid=2&idx=nkscd)
 - [経済産業省: 日米戦略投資・AIデータセンター関連供給網](https://www.meti.go.jp/english/press/2026/0218_002.html)
 - [IMF: When Bubbles Burst](https://www.elibrary.imf.org/display/book/9781589062122/ch02.xml)

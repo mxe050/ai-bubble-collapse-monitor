@@ -1,8 +1,13 @@
 # Point-in-time valuation provider files
 
-The production chart never invents historical theoretical values. Add a licensed,
-audited provider export only when it can reproduce historical membership,
-availability dates, weights, corporate actions and financial statements.
+The public-data chart contains a separate top-down capitalized-earnings proxy. It
+uses index-level earnings, rates and explicit assumptions; it is not a constituent
+DCF and never claims licensed point-in-time coverage.
+
+This directory is reserved for the exact constituent-by-constituent valuation
+layer. That layer never invents historical observations. Add a licensed, audited
+provider export only when it can reproduce historical membership, availability
+dates, weights, corporate actions and financial statements.
 
 Expected files:
 
