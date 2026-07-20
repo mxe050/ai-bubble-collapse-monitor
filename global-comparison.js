@@ -7,7 +7,7 @@
     chart: null,
     range: "all",
     normalization: "fixed",
-    showSp500Nominal: true,
+    showSp500Nominal: false,
     showTheoreticalValueSeries: true,
     showCrises: true,
     legendVisible: {},
@@ -73,7 +73,8 @@
 
   function readUrlState() {
     var params = new URLSearchParams(window.location.search);
-    state.showSp500Nominal = params.get("hideSp500Nominal") !== "true";
+    state.showSp500Nominal = params.get("showSp500Nominal") === "true";
+    if (params.get("hideSp500Nominal") === "true") state.showSp500Nominal = false;
     state.showTheoreticalValueSeries = params.get("showTheoreticalValue") !== "false";
     state.showCrises = params.get("showComparisonCrises") !== "false";
     var range = params.get("comparisonRange");
@@ -86,8 +87,9 @@
 
   function writeUrlState() {
     var url = new URL(window.location.href);
-    if (state.showSp500Nominal) url.searchParams.delete("hideSp500Nominal");
-    else url.searchParams.set("hideSp500Nominal", "true");
+    url.searchParams.delete("hideSp500Nominal");
+    if (state.showSp500Nominal) url.searchParams.set("showSp500Nominal", "true");
+    else url.searchParams.delete("showSp500Nominal");
     if (state.showTheoreticalValueSeries) url.searchParams.delete("showTheoreticalValue");
     else url.searchParams.set("showTheoreticalValue", "false");
     if (state.showCrises) url.searchParams.delete("showComparisonCrises");
@@ -173,10 +175,33 @@
     return definition.lineStyle === "dash-dot-diamond" ? "rectRot" : false;
   }
 
+  function lineWidthFor(definition) {
+    if (definition.isTheoretical) return 4.6;
+    if (definition.lineStyle === "dashed") return 3.4;
+    return 4.2;
+  }
+
+  function markerStepFor(pointCount) {
+    if (pointCount > 360) return 24;
+    if (pointCount > 180) return 12;
+    if (pointCount > 72) return 6;
+    if (pointCount > 36) return 3;
+    return 1;
+  }
+
+  function endLabelFor(id) {
+    return {
+      sp500Nominal: "S&P名目", sp500Real: "S&P実質", sp500TheoreticalReal: "S&P理論",
+      nikkeiUsd: "日経USD", nikkeiRealUsd: "日経実質", nikkeiTheoreticalUsd: "日経理論",
+    }[id] || id;
+  }
+
   function buildDatasets(rows) {
     return state.payload.seriesDefinitions.map(function (definition) {
       var values = normalizedValues(rows, definition);
       var available = values.some(function (value) { return value != null; });
+      var markerStep = markerStepFor(rows.length);
+      var lineWidth = lineWidthFor(definition);
       return {
         id: definition.id,
         label: definition.shortName + (definition.isTheoretical && !available ? "（算出不可）" : ""),
@@ -184,13 +209,25 @@
           return { x: row.x, y: values[index], sourceRow: row };
         }),
         borderColor: definition.color,
-        backgroundColor: definition.color,
-        borderWidth: definition.lineStyle === "dashed" ? 2.4 : 3.2,
+        backgroundColor: "transparent",
+        borderWidth: lineWidth,
+        hoverBorderWidth: lineWidth + 1.4,
         borderDash: dashFor(definition),
+        borderCapStyle: "round",
+        borderJoinStyle: "round",
         pointStyle: pointStyleFor(definition),
-        pointRadius: definition.isTheoretical ? 2.8 : 0,
-        pointHoverRadius: 5,
-        pointHitRadius: 8,
+        pointRadius: definition.isTheoretical ? function (context) {
+          var last = context.dataIndex === values.length - 1;
+          return last || context.dataIndex % markerStep === 0 ? 4.2 : 0;
+        } : 0,
+        pointBackgroundColor: definition.color,
+        pointBorderColor: "#ffffff",
+        pointBorderWidth: 1.5,
+        pointHoverRadius: 7,
+        pointHoverBorderWidth: 2,
+        pointHitRadius: 11,
+        fill: false,
+        order: definition.isTheoretical ? 0 : (definition.lineStyle === "dashed" ? 1 : 2),
         spanGaps: false,
         tension: 0,
         hidden: !effectiveVisible(definition),
@@ -249,6 +286,70 @@
         if (start == null || end == null || end < scale.min || start > scale.max) return;
         var center = Math.max(area.left + 28, Math.min(area.right - 28, scale.getPixelForValue((Math.max(start, scale.min) + Math.min(end, scale.max)) / 2)));
         context.fillText(crisis.label, center, area.top + 16);
+      });
+      context.restore();
+    },
+  };
+
+  var endLabelPlugin = {
+    id: "gcEndLabels",
+    afterDatasetsDraw: function (chart) {
+      var area = chart.chartArea;
+      if (!area || !state.payload) return;
+      var labels = [];
+      chart.data.datasets.forEach(function (dataset, datasetIndex) {
+        if (!chart.isDatasetVisible(datasetIndex)) return;
+        var meta = chart.getDatasetMeta(datasetIndex);
+        var pointIndex = -1;
+        for (var index = dataset.data.length - 1; index >= 0; index -= 1) {
+          if (dataset.data[index].y != null && meta.data[index]) {
+            pointIndex = index;
+            break;
+          }
+        }
+        if (pointIndex < 0) return;
+        labels.push({
+          y: meta.data[pointIndex].y,
+          color: dataset.borderColor,
+          text: endLabelFor(dataset.id),
+        });
+      });
+      if (!labels.length) return;
+      labels.sort(function (a, b) { return a.y - b.y; });
+      var minimumY = area.top + 10;
+      var maximumY = area.bottom - 10;
+      var gap = window.innerWidth < 700 ? 16 : 18;
+      labels.forEach(function (label, index) {
+        label.labelY = Math.max(label.y, index ? labels[index - 1].labelY + gap : minimumY);
+      });
+      if (labels[labels.length - 1].labelY > maximumY) {
+        var shift = labels[labels.length - 1].labelY - maximumY;
+        labels.forEach(function (label) { label.labelY -= shift; });
+      }
+      for (var reverse = labels.length - 2; reverse >= 0; reverse -= 1) {
+        labels[reverse].labelY = Math.min(labels[reverse].labelY, labels[reverse + 1].labelY - gap);
+      }
+      if (labels[0].labelY < minimumY) {
+        var correction = minimumY - labels[0].labelY;
+        labels.forEach(function (label) { label.labelY += correction; });
+      }
+      var context = chart.ctx;
+      context.save();
+      context.font = (window.innerWidth < 700 ? "700 10px" : "700 11px") + " Meiryo, sans-serif";
+      context.textBaseline = "middle";
+      labels.forEach(function (label) {
+        var labelX = area.right + 12;
+        var width = context.measureText(label.text).width;
+        context.fillStyle = "rgba(255,255,255,0.94)";
+        context.fillRect(labelX - 4, label.labelY - 8, width + 8, 16);
+        context.strokeStyle = label.color;
+        context.lineWidth = 3;
+        context.beginPath();
+        context.moveTo(area.right + 2, label.y);
+        context.lineTo(labelX - 6, label.labelY);
+        context.stroke();
+        context.fillStyle = label.color;
+        context.fillText(label.text, labelX, label.labelY);
       });
       context.restore();
     },
@@ -319,24 +420,24 @@
     state.chart = new window.Chart(canvas, {
       type: "line",
       data: { datasets: buildDatasets(rows) },
-      plugins: [whiteBackgroundPlugin, crisisPlugin],
+      plugins: [whiteBackgroundPlugin, crisisPlugin, endLabelPlugin],
       options: {
         responsive: true,
         maintainAspectRatio: false,
         animation: { duration: 260 },
         interaction: { mode: "nearest", intersect: false, axis: "x" },
-        layout: { padding: { top: 6, right: 8, bottom: 2, left: 2 } },
+        layout: { padding: { top: 8, right: window.innerWidth < 700 ? 86 : 108, bottom: 4, left: 4 } },
         scales: {
           x: {
             type: "linear",
             min: rows[0].x,
             max: rows[rows.length - 1].x,
-            grid: { color: "rgba(100, 116, 139, 0.12)" },
+            grid: { display: false },
             ticks: {
               maxTicksLimit: window.innerWidth < 700 ? 6 : 11,
               callback: function (value) { return String(Math.round(value)); },
               color: "#526476",
-              font: { family: "Meiryo, sans-serif", size: 12, weight: "600" },
+              font: { family: "Meiryo, sans-serif", size: window.innerWidth < 700 ? 11 : 13, weight: "700" },
             },
             title: { display: true, text: "年（月次）", color: "#34475c", font: { weight: "700" } },
           },
@@ -344,11 +445,11 @@
             type: "linear",
             beginAtZero: true,
             min: 0,
-            grid: { color: "rgba(100, 116, 139, 0.14)" },
+            grid: { color: "rgba(71, 85, 105, 0.11)", lineWidth: 1 },
             ticks: {
               color: "#526476",
               callback: function (value) { return Number(value).toLocaleString("ja-JP"); },
-              font: { family: "Meiryo, sans-serif", size: 12, weight: "600" },
+              font: { family: "Meiryo, sans-serif", size: window.innerWidth < 700 ? 11 : 13, weight: "700" },
             },
             title: { display: true, text: "基準日＝100（線形軸）", color: "#34475c", font: { weight: "700" } },
           },
@@ -358,7 +459,7 @@
             display: true,
             text: "S&P 500・日経平均：市場価格、実質価格、推計理論価値（線形軸）",
             color: "#102033",
-            font: { family: "Meiryo, sans-serif", size: window.innerWidth < 700 ? 13 : 16, weight: "700" },
+            font: { family: "Meiryo, sans-serif", size: window.innerWidth < 700 ? 14 : 18, weight: "800" },
             padding: { bottom: 12 },
           },
           legend: {
@@ -366,11 +467,11 @@
             position: "bottom",
             labels: {
               usePointStyle: false,
-              boxWidth: 36,
-              boxHeight: 3,
-              padding: 16,
+              boxWidth: 48,
+              boxHeight: 5,
+              padding: 18,
               color: "#24384c",
-              font: { family: "Meiryo, sans-serif", size: window.innerWidth < 700 ? 10 : 12, weight: "700" },
+              font: { family: "Meiryo, sans-serif", size: window.innerWidth < 700 ? 11 : 13, weight: "800" },
             },
             onClick: function (_event, item, legend) {
               var chart = legend.chart;
@@ -575,7 +676,7 @@
       var definition = definitionForDataset(dataset);
       var dash = dashFor(definition).join(" ");
       svgPolyline(dataset.data, xScale, yScale).forEach(function (points) {
-        svg.push("<polyline points=\"" + points + "\" fill=\"none\" stroke=\"" + definition.color + "\" stroke-width=\"3\"" + (dash ? " stroke-dasharray=\"" + dash + "\"" : "") + "/>");
+        svg.push("<polyline points=\"" + points + "\" fill=\"none\" stroke=\"" + definition.color + "\" stroke-width=\"" + lineWidthFor(definition) + "\" stroke-linecap=\"round\" stroke-linejoin=\"round\"" + (dash ? " stroke-dasharray=\"" + dash + "\"" : "") + "/>");
       });
     });
     svg.push("<line x1=\"" + area.left + "\" y1=\"" + area.bottom + "\" x2=\"" + area.right + "\" y2=\"" + area.bottom + "\" stroke=\"#526476\" stroke-width=\"1.4\"/>");
@@ -704,7 +805,7 @@
         return payload.points.some(function (point) { return point[definition.normalizedField] != null; });
       }).length;
       status.textContent = availableSeries === 6
-        ? "6系列すべてを表示。理論価値は利益還元モデルの推計です"
+        ? "6系列を取得済み。比較しやすい5系列を初期表示しています"
         : "実データ" + availableSeries + "系列を表示。理論価値は80%カバー率を満たす期間だけ表示";
       status.className = "gc-load-status ready";
       if (window.lucide) window.lucide.createIcons();

@@ -13,12 +13,14 @@ assert.strictEqual(payload.axis.type, "linear");
 assert.strictEqual(payload.axis.min, 0);
 assert.strictEqual(payload.axis.secondAxis, false);
 assert.strictEqual(payload.exchangeRate.direction, "JPY_PER_USD");
+assert.strictEqual(new Set(payload.seriesDefinitions.map((row) => row.color)).size, 6);
+assert.ok(payload.seriesDefinitions.every((row) => /^#[0-9A-F]{6}$/i.test(row.color)));
 assert.ok(100 / 150 < 100 / 100, "a weaker yen must lower USD-converted value");
 
 const section = html.split('<section id="global-comparison"')[1].split('<section id="analysis-map"')[0];
 assert.ok(section);
 assert.doesNotMatch(section, /TOPIX/i);
-assert.match(section, /比較を拡大：S&amp;P 500名目を除外/);
+assert.match(section, /全体表示：S&amp;P 500名目を戻す/);
 assert.match(section, /理論価値2系列を非表示/);
 assert.match(section, /危機期間を非表示/);
 assert.match(section, /gcRefreshData/);
@@ -35,7 +37,7 @@ assert.match(section, /感応度レンジ/);
 assert.ok(html.indexOf('id="global-comparison"') < html.indexOf('id="analysis-map"'));
 
 assert.match(script, /if \(value == null \|\| value === ""\) return null;/, "missing values must remain null");
-assert.match(script, /showSp500Nominal: true/);
+assert.match(script, /showSp500Nominal: false/);
 assert.match(script, /showTheoreticalValueSeries: true/);
 assert.match(script, /state\.legendVisible\[definition\.id\] !== false/);
 assert.match(script, /normalizationAnchorField/);
@@ -45,6 +47,10 @@ assert.match(script, /duration: 260/);
 assert.match(script, /beginAtZero: true/);
 assert.doesNotMatch(script, /logarithmic/);
 
+assert.match(script, /gcEndLabels/);
+assert.match(script, /lineWidthFor/);
+assert.match(script, /markerStepFor/);
+assert.match(script, /showSp500Nominal/);
 const actual = payload.seriesDefinitions.filter((definition) =>
   payload.points.some((point) => point[definition.normalizedField] != null),
 );

@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "generatedAtUtc": "2026-07-20T01:20:08.353436+00:00",
-  "generatedAtJst": "2026-07-20T10:20:08.353436+09:00",
+  "generatedAtUtc": "2026-07-20T01:50:08.642531+00:00",
+  "generatedAtJst": "2026-07-20T10:50:08.642531+09:00",
   "title": "S&P 500・日経平均の市場価格と推計理論価値を比較する統合チャート",
   "frequency": "monthly",
   "baseDate": "1985-01-01",
@@ -46,7 +46,7 @@
       "normalizedField": "sp500NominalNormalized",
       "rawField": "sp500Nominal",
       "market": "S&P 500",
-      "color": "#155EEF",
+      "color": "#0057B8",
       "lineStyle": "solid",
       "defaultVisible": true,
       "isTheoretical": false
@@ -58,7 +58,7 @@
       "normalizedField": "sp500RealNormalized",
       "rawField": "sp500Real",
       "market": "S&P 500",
-      "color": "#2563EB",
+      "color": "#008B8B",
       "lineStyle": "dashed",
       "defaultVisible": true,
       "isTheoretical": false
@@ -71,7 +71,7 @@
       "rawField": "sp500TheoreticalReal",
       "normalizationAnchorField": "sp500Real",
       "market": "S&P 500",
-      "color": "#0B4EA2",
+      "color": "#6D28D9",
       "lineStyle": "dash-dot-diamond",
       "defaultVisible": true,
       "isTheoretical": true
@@ -83,7 +83,7 @@
       "normalizedField": "nikkeiUsdNormalized",
       "rawField": "nikkeiUsd",
       "market": "Nikkei 225",
-      "color": "#D92D20",
+      "color": "#D83B2D",
       "lineStyle": "solid",
       "defaultVisible": true,
       "isTheoretical": false
@@ -95,7 +95,7 @@
       "normalizedField": "nikkeiRealUsdNormalized",
       "rawField": "nikkeiRealUsd",
       "market": "Nikkei 225",
-      "color": "#EF4444",
+      "color": "#C66A00",
       "lineStyle": "dashed",
       "defaultVisible": true,
       "isTheoretical": false
@@ -108,7 +108,7 @@
       "rawField": "nikkeiTheoreticalUsd",
       "normalizationAnchorField": "nikkeiUsd",
       "market": "Nikkei 225",
-      "color": "#9F1239",
+      "color": "#B0005A",
       "lineStyle": "dash-dot-diamond",
       "defaultVisible": true,
       "isTheoretical": true
@@ -28007,7 +28007,7 @@
         "exchangeTimezone": "America/New_York",
         "frequency": "Monthly; provider month-end close",
         "latestMonth": "2026-07",
-        "cacheState": "network"
+        "cacheState": "fresh-cache"
       },
       {
         "provider": "Yahoo Finance chart API",
@@ -28016,7 +28016,7 @@
         "exchangeTimezone": "Asia/Tokyo",
         "frequency": "Monthly; provider month-end close",
         "latestMonth": "2026-07",
-        "cacheState": "network"
+        "cacheState": "fresh-cache"
       }
     ],
     "ExchangeRateProvider": {
@@ -28028,7 +28028,7 @@
       "sourceUrl": "https://www.stat-search.boj.or.jp/ssi/mtshtml/fm08_m_1_en.html",
       "latestMonth": "2026-06",
       "lastSourceUpdate": 20260703,
-      "cacheState": "network"
+      "cacheState": "fresh-cache"
     },
     "CPIProvider": [
       {
@@ -28051,7 +28051,7 @@
         "downloadUrl": "https://www.e-stat.go.jp/en/stat-search/file-download?fileKind=1&statInfId=000032103842",
         "latestMonth": "2026-05",
         "encoding": "cp932",
-        "cacheState": "network"
+        "cacheState": "fresh-cache"
       }
     ],
     "RateProvider": [
@@ -28212,7 +28212,7 @@
       "exchangeTimezone": "America/New_York",
       "frequency": "Monthly; provider month-end close",
       "latestMonth": "2026-07",
-      "cacheState": "network"
+      "cacheState": "fresh-cache"
     },
     {
       "provider": "Yahoo Finance chart API",
@@ -28221,7 +28221,7 @@
       "exchangeTimezone": "Asia/Tokyo",
       "frequency": "Monthly; provider month-end close",
       "latestMonth": "2026-07",
-      "cacheState": "network"
+      "cacheState": "fresh-cache"
     },
     {
       "provider": "Bank of Japan Time-Series Data Search API",
@@ -28232,7 +28232,7 @@
       "sourceUrl": "https://www.stat-search.boj.or.jp/ssi/mtshtml/fm08_m_1_en.html",
       "latestMonth": "2026-06",
       "lastSourceUpdate": 20260703,
-      "cacheState": "network"
+      "cacheState": "fresh-cache"
     },
     {
       "provider": "FRED / U.S. Bureau of Labor Statistics",
@@ -28254,7 +28254,7 @@
       "downloadUrl": "https://www.e-stat.go.jp/en/stat-search/file-download?fileKind=1&statInfId=000032103842",
       "latestMonth": "2026-05",
       "encoding": "cp932",
-      "cacheState": "network"
+      "cacheState": "fresh-cache"
     },
     {
       "provider": "FRED",
@@ -28329,30 +28329,30 @@
     "entries": [
       {
         "cacheKey": "yahoo-sp500-monthly.json",
-        "sourceUrl": "https://query1.finance.yahoo.com/v8/finance/chart/%5EGSPC?period1=473385600&period2=1784769605&interval=1mo&events=history&includeAdjustedClose=true",
-        "state": "network",
-        "fetchedAtUtc": "2026-07-20T01:20:05.414629+00:00",
+        "sourceUrl": "https://query1.finance.yahoo.com/v8/finance/chart/%5EGSPC?period1=473385600&period2=1784771407&interval=1mo&events=history&includeAdjustedClose=true",
+        "state": "fresh-cache",
+        "fetchedAtUtc": "2026-07-20T01:20:05.927000+00:00",
         "warning": null
       },
       {
         "cacheKey": "yahoo-nikkei225-monthly.json",
-        "sourceUrl": "https://query1.finance.yahoo.com/v8/finance/chart/%5EN225?period1=473385600&period2=1784769605&interval=1mo&events=history&includeAdjustedClose=true",
-        "state": "network",
-        "fetchedAtUtc": "2026-07-20T01:20:05.971412+00:00",
+        "sourceUrl": "https://query1.finance.yahoo.com/v8/finance/chart/%5EN225?period1=473385600&period2=1784771407&interval=1mo&events=history&includeAdjustedClose=true",
+        "state": "fresh-cache",
+        "fetchedAtUtc": "2026-07-20T01:20:06.228000+00:00",
         "warning": null
       },
       {
         "cacheKey": "boj-fxerm06.json",
         "sourceUrl": "https://www.stat-search.boj.or.jp/api/v1/getDataCode?format=json&lang=en&db=FM08&startDate=198501&endDate=202607&code=FXERM06",
-        "state": "network",
-        "fetchedAtUtc": "2026-07-20T01:20:06.274163+00:00",
+        "state": "fresh-cache",
+        "fetchedAtUtc": "2026-07-20T01:20:07.014000+00:00",
         "warning": null
       },
       {
         "cacheKey": "japan-cpi-all-items.csv",
         "sourceUrl": "https://www.e-stat.go.jp/en/stat-search/file-download?fileKind=1&statInfId=000032103842",
-        "state": "network",
-        "fetchedAtUtc": "2026-07-20T01:20:07.106961+00:00",
+        "state": "fresh-cache",
+        "fetchedAtUtc": "2026-07-20T01:20:07.666000+00:00",
         "warning": null
       },
       {

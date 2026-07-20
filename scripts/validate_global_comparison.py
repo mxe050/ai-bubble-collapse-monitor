@@ -155,7 +155,7 @@ def validate_global_comparison() -> None:
     ):
         require(f'id="{element_id}"' in section, f"comparison UI is missing #{element_id}")
     require(html.index('id="global-comparison"') < html.index('id="analysis-map"'), "comparison chart must precede six-question map")
-    require("比較を拡大：S&amp;P 500名目を除外" in section, "nominal-series toggle label is missing")
+    require("全体表示：S&amp;P 500名目を戻す" in section, "nominal-series toggle label is missing")
 
     script = SCRIPT_FILE.read_text(encoding="utf-8")
     require('type: "linear"' in script and "beginAtZero: true" in script, "browser chart must use zero-based linear scale")
