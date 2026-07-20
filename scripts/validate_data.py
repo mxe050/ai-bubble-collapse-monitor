@@ -64,7 +64,7 @@ def check_yoy_dates(company: dict[str, Any], prefix: str) -> None:
 def main() -> None:
     data = json.loads(DATA_FILE.read_text(encoding="utf-8"))
     require(data.get("schemaVersion") == 13, "schemaVersion must be 13")
-    require(data.get("methodVersion") == "4.0.0", "methodVersion must be 4.0.0")
+    require(data.get("methodVersion") == "4.1.0", "methodVersion must be 4.1.0")
 
     generated = datetime.fromisoformat(data["generatedAtUtc"]).date()
     market_day = date.fromisoformat(data["marketDate"])
@@ -510,7 +510,7 @@ def main() -> None:
     require(len(html_id_list) == len(html_ids), "index.html contains duplicate element ids")
     missing_ids = sorted(referenced_ids - html_ids)
     require(not missing_ids, f"app.js references missing HTML ids: {missing_ids}")
-    require("Method v4.0" in index_source, "method label is missing")
+    require("Method v4.1" in index_source, "method label is missing")
     require("評価への脆弱性は別枠20点" in index_source, "valuation/collapse score separation is missing")
 
     from validate_global_comparison import validate_global_comparison

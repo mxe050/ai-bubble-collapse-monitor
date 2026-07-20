@@ -18,7 +18,7 @@
       <div>
         <p class="eyebrow">VALUATION / CAPITAL CYCLE / COLLAPSE</p>
         <h1>AIバブル崩壊・日経平均底値モニター</h1>
-        <p class="header-summary">主目的は、日経平均の底値候補にどこまで近づき、反転を確認できたかを追うことです。バブル崩壊の判定は、その前提となる市場環境として別に示します。</p>
+        <p class="header-summary">企業利益で説明できる実体価値、そこに乗る期待、崩壊の兆候、正常化とパニックの2経路、そして底打ち確認までを一続きで追います。高値を恐れるためではなく、期待が剥がれた後にどこで慎重に買いを検討できるかを考えるためのモニターです。</p>
       </div>
       <div class="header-actions">
         <button id="refreshButton" class="command primary" type="button">
@@ -37,20 +37,14 @@
   <nav class="section-nav" aria-label="ページ内ナビゲーション">
     <div class="nav-inner">
       <a href="#today">今日の判定</a>
-      <a href="#global-comparison">世界比較</a>
-      <a href="#analysis-map">計算の地図</a>
-      <a href="#us-japan-link">米国→日本</a>
-      <a href="#sakakibara-method">榊原式</a>
-      <a href="#money-strategist">マネーストラテジスト</a>
-      <a href="#us-breakdown">米国崩壊進行度</a>
-      <a href="#nikkei-bottom">日経底値</a>
-      <a href="#signals">崩壊シグナル</a>
+      <a href="#decision-path">全体像</a>
+      <a href="#global-comparison">過熱度</a>
+      <a href="#signals">崩壊の兆候</a>
+      <a href="#collapse-path">下落の2経路</a>
+      <a href="#nikkei-bottom">底値候補</a>
+      <a href="#bottom-confirmation">反転確認</a>
       <a href="#valuation">企業価値</a>
-      <a href="#manual-inputs">未取得データ</a>
-      <a href="#history">過去との比較</a>
-      <a href="#dotcom-spillover">IT崩壊の波及</a>
-      <a href="#methodology">計算根拠</a>
-      <a href="#sources">出典</a>
+      <a href="#methodology">根拠・出典</a>
     </div>
   </nav>
 
@@ -76,8 +70,8 @@
             <p id="todayNikkeiBottomMessage" class="supporting">底値候補と反転条件を計算しています。</p>
           </div>
           <div class="bottom-glance-metrics">
-            <div><span>ゾーン上端まで</span><strong id="todayNikkeiDistance">―</strong></div>
-            <div><span>底値接近度</span><strong id="todayNikkeiProximity">―</strong></div>
+            <div><span>現在値→正常化中心</span><strong id="todayNikkeiDistance">―</strong></div>
+            <div><span>現在値→パニック中心</span><strong id="todayNikkeiProximity">―</strong></div>
             <div><span>底打ち確認</span><strong id="todayNikkeiConfirmation">―</strong></div>
           </div>
           <a class="command" href="#nikkei-bottom"><i data-lucide="arrow-down" aria-hidden="true"></i>底値の計算根拠を見る</a>
@@ -116,7 +110,86 @@
         </div>
 
         <div class="hypothesis-note">
-          <strong>出発点：</strong>AI関連株には実体のある利益成長と、実現可能性を超える期待が混在している、という仮説から始めます。高値そのものをバブル崩壊とは判定しません。
+          <strong>このアプリでいうバブル：</strong>株価が将来の成長を織り込むこと自体は正常です。企業が十分に発展しても説明しにくい水準まで期待が上乗せされ、その期待を支える価格・利益・信用の条件が崩れ始めた状態を「バブル崩壊」と考えます。高値だけでは崩壊と判定しません。
+        </div>
+      </div>
+    </section>
+
+    <section id="decision-path" class="band band-decision-path">
+      <div class="content">
+        <div class="section-heading heading-row">
+          <div>
+            <p class="section-kicker">FROM VALUE TO THE BOTTOM</p>
+            <h2>このアプリは、5つの問いを順番に答える</h2>
+            <p>数字を増やすのではなく、判断の順序を固定します。実体価値を計算し、期待の上乗せを測り、その期待が崩れ始めたかを確認し、正常化とパニックを分け、最後に底打ちの証拠を待ちます。</p>
+          </div>
+          <span id="pathAsOf" class="decision-as-of">計算中</span>
+        </div>
+
+        <div class="decision-spine" aria-label="実体価値から底打ちまでの5段階">
+          <a href="#global-comparison" class="decision-stage">
+            <span class="decision-number">01</span>
+            <div><small>企業の実力</small><strong>実体価値を推計</strong><em id="pathFairValue">計算中</em><p>5年平準化利益を、金利・信用・持続可能な成長率で現在価値へ戻します。</p></div>
+          </a>
+          <i data-lucide="chevron-right" aria-hidden="true"></i>
+          <a href="#global-comparison" class="decision-stage">
+            <span class="decision-number">02</span>
+            <div><small>期待の大きさ</small><strong>上乗せを測定</strong><em id="pathPremium">計算中</em><p>市場価格が成長込みの理論中心値をどれだけ上回るかを測ります。</p></div>
+          </a>
+          <i data-lucide="chevron-right" aria-hidden="true"></i>
+          <a href="#signals" class="decision-stage">
+            <span class="decision-number">03</span>
+            <div><small>崩壊の確認</small><strong>価格・利益・信用</strong><em id="pathCollapse">計算中</em><p>高値や割高だけではなく、期待を支える条件が同時に崩れたかを確認します。</p></div>
+          </a>
+          <i data-lucide="chevron-right" aria-hidden="true"></i>
+          <a href="#collapse-path" class="decision-stage">
+            <span class="decision-number">04</span>
+            <div><small>下落の性質</small><strong>2つの経路を分離</strong><em id="pathRoute">計算中</em><p>期待だけが剥がれる正常化と、実体価値を下回るパニックを混同しません。</p></div>
+          </a>
+          <i data-lucide="chevron-right" aria-hidden="true"></i>
+          <a href="#bottom-confirmation" class="decision-stage">
+            <span class="decision-number">05</span>
+            <div><small>買いを急がない</small><strong>底値と反転を確認</strong><em id="pathBottom">計算中</em><p>安く見える水準と、実際に下げ止まった証拠を別々に追います。</p></div>
+          </a>
+        </div>
+
+        <div id="collapse-path" class="collapse-path-panel">
+          <div class="collapse-path-heading">
+            <div>
+              <p class="label">現在どちらに近いか</p>
+              <h3 id="currentRouteBadge">経路を判定中</h3>
+              <p id="routeSummary">価格、NT倍率、VIX、HY OASを確認しています。</p>
+            </div>
+            <a class="command" href="#nikkei-bottom"><i data-lucide="arrow-down" aria-hidden="true"></i>底値の詳細へ</a>
+          </div>
+          <div class="collapse-route-grid">
+            <article class="collapse-route normalization">
+              <span>A　期待剥落・正常化</span>
+              <h4>価格が実体価値へ近づく</h4>
+              <div class="route-level"><small>直近利益を維持する参考</small><strong id="routeExpectationValue">計算中</strong><p>榊原先生の「約6万円」に近い考え方。AI期待の上乗せが薄れる水準で、パニックの底値ではありません。</p></div>
+              <div class="route-level"><small>5年平準化利益の中心と幅</small><strong id="routeNormalizationValue">計算中</strong><p>一時的な好利益をならした実体価値。通常の評価正常化が深まる場合の比較軸です。</p></div>
+            </article>
+            <article class="collapse-route panic">
+              <span>B　パニック・行き過ぎ</span>
+              <h4>売りが実体価値を下回る</h4>
+              <div class="route-level"><small>過去のモデル割れを当てた中心帯</small><strong id="routePanicValue">計算中</strong><p>日本バブル崩壊と世界金融危機で、株価がモデル中心値を下回った幅を現在へ適用します。</p></div>
+              <div class="route-level severe"><small>低位理論値まで悪化した感応度下限</small><strong id="routeSevereFloor">計算中</strong><p>利益・要求収益率・パニックが同時に厳しくなるストレス端です。予測値でも購入指示でもありません。</p></div>
+            </article>
+          </div>
+        </div>
+
+        <div class="japan-bubble-lesson">
+          <div class="lesson-heading"><span>日本の1989年から学ぶ</span><strong>正常化で終わるとは限らない</strong></div>
+          <div class="lesson-timeline">
+            <div><time>1989年末</time><strong>期待が利益を大幅に上回る</strong><p>本サイトの1985～86年利益基準proxyでは上乗せが約+127%。BIS・IMFもPERの急上昇を報告しています。</p></div>
+            <i data-lucide="arrow-right" aria-hidden="true"></i>
+            <div><time>1990年末</time><strong>まず評価が正常化へ向かう</strong><p>日経平均はピークから約39%下落し、proxyの上乗せは約+21%まで縮小。期待剥落に近い第一段階です。</p></div>
+            <i data-lucide="arrow-right" aria-hidden="true"></i>
+            <div><time>1992年</time><strong>その後は実体価値を下回る</strong><p>金融・景気不安が重なり、proxyは最悪月で約−38%。日次ではピークから約63%下落し、正常化を超えました。</p></div>
+            <i data-lucide="arrow-right" aria-hidden="true"></i>
+            <div><time>約34年</time><strong>名目高値の回復に長い時間</strong><p>1989年末の名目高値を明確に上回ったのは2024年。底値だけでなく回復期間の長さも重く見ます。</p></div>
+          </div>
+          <p class="decision-source">歴史は今回の結末を決めません。通常の正常化を基本経路として監視しながら、パニックを別のストレス経路として備えます。根拠：<a href="https://www.bis.org/publ/arpdf/archive/ar1989_en.pdf" target="_blank" rel="noopener">BIS 1989</a> / <a href="https://www.elibrary.imf.org/downloadpdf/display/book/9781557754622/ch06.pdf" target="_blank" rel="noopener">IMF・日本の資産価格バブル</a> / <a href="https://www.elibrary.imf.org/view/journals/001/1993/085/article-A001-en.xml" target="_blank" rel="noopener">IMF・1992年までの下落</a> / <a href="https://indexes.nikkei.co.jp/atoz/2021/02/70thanniv4.html" target="_blank" rel="noopener">日経公式・1989年高値</a></p>
         </div>
       </div>
     </section>
@@ -127,7 +200,7 @@
           <div>
             <p class="section-kicker">MARKET PRICE / FUNDAMENTAL VALUE / EXPECTATION PREMIUM</p>
             <h2>市場価格には、企業の実力を超える期待がどこまで乗っているか</h2>
-            <p>物価で過去と現在の購買力をそろえ、5年平準化利益、金利、信用環境、持続可能な成長率から理論価値を推計します。最初のチャートでは、市場価格が成長込みの理論中心値を何％上回るかをS&amp;P 500とドル換算日経平均で比較します。</p>
+            <p>現在の上乗せは、5年平準化EPS、金利、信用、持続可能な成長率を含む理論価値と比較します。日経平均の1985年から公式EPSモデル開始前までは、財務省の実質大企業利益に対する相対上乗せproxyを別の破線で示します。精度の違う2本をつなげて1本に見せません。</p>
           </div>
           <span id="gcLoadStatus" class="gc-load-status loading" aria-live="polite">月次データを読込中</span>
         </div>
@@ -149,6 +222,7 @@
               <button type="button" data-gc-range="20" aria-pressed="false">20年</button>
               <button type="button" data-gc-range="10" aria-pressed="false">10年</button>
               <button type="button" data-gc-range="5" aria-pressed="false">5年</button>
+              <button type="button" data-gc-range="future" aria-pressed="false">将来</button>
               <button type="button" data-gc-range="custom" aria-pressed="false">任意</button>
             </div>
           </div>
@@ -215,6 +289,24 @@
             <p><strong>重要な限界：</strong>「本来価値」は観測値ではなくモデル推計です。構成銘柄別DCF、将来利益予想、無形資産価値を完全には含みません。</p>
           </div>
         </section>
+
+        <div class="gc-history-proxy">
+          <div class="gc-history-proxy-heading">
+            <div><p class="label">1985年からの日経平均</p><h3>公式EPSがない期間は、実質大企業利益に対する相対的な上乗せを表示</h3></div>
+            <span id="gcHistoryModelHandoff">境界を確認中</span>
+          </div>
+          <div class="gc-history-proxy-metrics">
+            <div><span>1989年末</span><strong id="gcHistoryPeakPremium">－</strong><p>1985～86年の株価対実質利益を基準にした過熱</p></div>
+            <div><span>1990年末</span><strong id="gcHistoryNormalizationPremium">－</strong><p>最初の約39%下落後に残った上乗せ</p></div>
+            <div><span>1992年の最悪月</span><strong id="gcHistoryOvershootPremium">－</strong><p>正常化を通り越し、基準モデルを下回った幅</p></div>
+          </div>
+          <div class="gc-history-proxy-explanation">
+            <p><strong>1985年から表示できる理由：</strong>財務省「法人企業統計」の資本金10億円以上・金融保険を除く全産業の経常利益を、物価で現在月へ換算し、過去5年中央値でならします。1985～86年の「日経平均÷実質利益」の中央値を平常基準として、株価だけが利益より速く増えた割合を測ります。</p>
+            <p><strong>公式モデルとの境界：</strong>これは日経225構成銘柄のEPSではありません。日経公式PERから指数EPSを復元できる期間以降は、金利と成長率を含む現在の理論価値モデルへ切り替え、2本を別の線種で表示します。</p>
+            <p><strong>使い方：</strong>1989年の過熱、1990年の正常化、1992年の行き過ぎという方向と大きさを比較するためのproxyです。1985年の価格水準が絶対的に適正だったと証明するものでも、現在の理論値と同じ精度でもありません。</p>
+          </div>
+          <p class="gc-history-proxy-source">出典：<a href="https://www.e-stat.go.jp/dbview?sid=0003060791" target="_blank" rel="noopener">e-Stat・法人企業統計</a> / <a href="https://www.mof.go.jp/pri/reference/ssc/results/data.htm" target="_blank" rel="noopener">財務省・時系列データと利用上の注意</a> / <a href="https://fred.stlouisfed.org/series/JPNCPIALLMINMEI" target="_blank" rel="noopener">OECD/FRED・歴史CPI</a></p>
+        </div>
 
         <div class="gc-chart-frame">
           <div class="gc-secondary-chart-title">
@@ -347,38 +439,6 @@
         </div>
       </div>
     </section>
-
-    <section id="analysis-map" class="band band-map">
-      <div class="content">
-        <div class="section-heading">
-          <p class="section-kicker">HOW THE SECTIONS CONNECT</p>
-          <h2>このページが答える6つの質問</h2>
-          <p>同じデータを並べているのではありません。各章は「入力データ → 計算 → 答え」の役割が異なります。最初に全体のつながりを示します。</p>
-        </div>
-        <div class="analysis-map-grid">
-          <a href="#nikkei-bottom" class="map-item">
-            <span>01</span><div><strong>日経平均の底値候補はどこか</strong><p>利益、純資産、過去下落率の3本を重ね、単一値ではなく底値ゾーンを作ります。</p><small>入力：日経平均、PER、PBR、過去6局面</small></div>
-          </a>
-          <a href="#bottom-confirmation" class="map-item">
-            <span>02</span><div><strong>底値に届き、反転したか</strong><p>価格帯への到達と、安値更新停止・50日線・信用・市場の広がりを分けて確認します。</p><small>出力：底値接近度と底打ち確認度</small></div>
-          </a>
-          <a href="#us-japan-link" class="map-item">
-            <span>03</span><div><strong>米国AI相場は崩れ、日本へ波及したか</strong><p>SOXで米国側を監視し、日経平均と日本AI・半導体連動8社で日本への伝播を別判定します。</p><small>入力：SOX、米国企業業績、日経平均、日本監視群</small></div>
-          </a>
-          <a href="#valuation" class="map-item">
-            <span>04</span><div><strong>何が残る企業か</strong><p>各社のFCFから本体価値と期待の上乗せを分け、指数下落後に残る企業の条件を見ます。</p><small>入力：企業FCF、成長率、資本コスト</small></div>
-          </a>
-          <a href="#sakakibara-method" class="map-item">
-            <span>05</span><div><strong>AI一極集中からの揺り戻しが始まったか</strong><p>NT倍率、TOPIX、AI連動株と分散型株を同じ期間で比較し、優良Non-AIへの相対回復を確認します。</p><small>入力：日経平均、TOPIX、日本企業16社、国債金利</small></div>
-          </a>
-          <a href="#money-strategist" class="map-item">
-            <span>06</span><div><strong>過去の暴落と2026年は、どこまで似ているか</strong><p>Money Strategistの説明を株価、物価、2028年大統領選までの予定へ重ね、事実・主張・将来シナリオを分けて検証します。</p><small>入力：S&amp;P長期価格、CPI-U、CAPE、集中度、金利、信用、選挙・FOMC・決算・IPO条件</small></div>
-          </a>
-        </div>
-        <p class="map-footnote">「米国AI相場の崩壊」「日本への波及」「日経の底値ゾーン」「底打ち確認」「企業別FCFストレス」は別の問いです。SOX下落だけで日本崩壊や底打ちを決めないことが、このモニターの中心です。</p>
-      </div>
-    </section>
-
 
     <section id="us-japan-link" class="band band-transmission">
       <div class="content">
@@ -1229,17 +1289,49 @@
       <div class="content">
         <div class="section-heading">
           <p class="section-kicker">NIKKEI 225 BOTTOM ZONE</p>
-          <h2>日経平均の底値を「一点」ではなく「ゾーン」で推計する</h2>
-          <p>底値は事前には確定できません。そこで、利益から見た価格、純資産から見た価格、過去の崩壊で実際に起きた下落率を別々に計算し、3本が近づく範囲を底値候補とします。</p>
+          <h2>期待が剥がれる価格と、パニックで行き過ぎる価格を分ける</h2>
+          <p>底値は事前には確定できません。そこで「好調な直近利益が続くなら説明できる価格」「利益を5年でならした実体価値」「恐怖と信用収縮で実体価値を下回る価格」の三層を分けます。最後に、価格が下がっただけでなく、実際に反転した証拠を確認します。</p>
         </div>
 
         <div class="section-route">
           <strong>この章の流れ</strong>
-          <span>日経平均・PER・PBR・過去下落率</span><i data-lucide="arrow-right" aria-hidden="true"></i>
-          <span>3つの底値アンカー</span><i data-lucide="arrow-right" aria-hidden="true"></i>
-          <span>底値ゾーン</span><i data-lucide="arrow-right" aria-hidden="true"></i>
+          <span>期待剥落</span><i data-lucide="arrow-right" aria-hidden="true"></i>
+          <span>実体価値へ正常化</span><i data-lucide="arrow-right" aria-hidden="true"></i>
+          <span>パニックの行き過ぎ</span><i data-lucide="arrow-right" aria-hidden="true"></i>
           <span>反転確認</span>
           <a href="#method-bottom">計算式を見る</a>
+        </div>
+
+        <div class="bottom-path-overview">
+          <div class="bottom-path-status">
+            <div>
+              <span>現在の下落経路</span>
+              <strong id="nikkeiRouteStatus">判定中</strong>
+            </div>
+            <p id="nikkeiPathExplanation">NT倍率、TOPIXとの相対関係、VIX、米国ハイイールドOASを読み込んでいます。</p>
+          </div>
+          <div class="bottom-path-grid">
+            <article class="expectation">
+              <span>第1層　期待剥落</span>
+              <h3>直近利益が続く参考価格</h3>
+              <strong id="nikkeiExpectationRange">計算中</strong>
+              <p>最近の高い利益を維持できる前提で、現在と同じ理論PERを掛けます。榊原先生の約6万円はこの考え方に近く、暴落時の底値ではありません。</p>
+            </article>
+            <article class="normalization">
+              <span>第2層　実体価値へ正常化</span>
+              <h3>5年平準化利益の中心と幅</h3>
+              <strong id="nikkeiNormalizationRange">計算中</strong>
+              <p>一時的な好況・不況をならした利益へ、金利、信用、持続可能な成長を反映します。通常の期待修正が深まったときの中心的な比較軸です。</p>
+            </article>
+            <article class="panic">
+              <span>第3層　パニックの行き過ぎ</span>
+              <h3>実体価値を下回るストレス帯</h3>
+              <strong id="nikkeiPanicRange">計算中</strong>
+              <p>日本バブル崩壊と世界金融危機で生じた「モデル中心値より約29～38%下」の売られ過ぎを、現在の平準化価値へ当てます。</p>
+              <small>利益・金利も悪化する厳しい感応度下限 <b id="nikkeiPanicSevere">計算中</b></small>
+            </article>
+          </div>
+          <p class="bottom-path-caution"><strong>読み方：</strong>3つは同じ確率の予測ではありません。第1～2層を通常の正常化経路、第3層を流動性・信用不安が重なった場合のストレス経路として監視します。安いという理由だけで買わず、下の反転確認と組み合わせます。</p>
         </div>
 
         <div class="nikkei-snapshot">
@@ -1251,9 +1343,9 @@
 
         <div class="bottom-result-grid">
           <div class="bottom-zone-result">
-            <p class="label">選択シナリオの底値候補</p>
+            <p class="label">詳細・手動ストレス計算の底値候補</p>
             <strong id="nikkeiZone">計算中</strong>
-            <p id="nikkeiZoneContext">3つの価格アンカーを計算しています。</p>
+            <p id="nikkeiZoneContext">PER・PBR・過去下落率の3アンカーを計算しています。</p>
           </div>
           <div class="bottom-position-result">
             <div><span>ゾーン上端まで</span><strong id="nikkeiRemaining">―</strong></div>
@@ -1264,7 +1356,7 @@
         </div>
 
         <fieldset class="scenario-selector" id="nikkeiScenarioSelector">
-          <legend>想定する下落の深さ</legend>
+          <legend>詳細計算で想定する下落の深さ</legend>
           <label><input type="radio" name="nikkeiScenario" value="mild"><span><strong>急落・利益減速</strong><small>信用危機を伴わない調整</small></span></label>
           <label><input type="radio" name="nikkeiScenario" value="standard"><span><strong>標準的な株価崩壊</strong><small>IMFの典型的な株式バストに近い</small></span></label>
           <label><input type="radio" name="nikkeiScenario" value="severe"><span><strong>深い信用収縮</strong><small>ITバブルや金融危機に近いストレス</small></span></label>
@@ -1642,7 +1734,7 @@
           <article><span>STEP 2</span><h3>合理的な成長を加える</h3><p>FCFが一定期間成長し、その後は経済全体に近い永続成長へ落ち着くと仮定して現在価値へ割り引きます。</p></article>
           <article><span>STEP 3</span><h3>市場の要求を逆算する</h3><p>現在の時価総額に一致する10年間のFCF成長率を解きます。高いほど競争、価格低下、顧客内製化に弱くなります。</p></article>
           <article id="method-collapse"><span>STEP 4</span><h3>米国崩壊と日本波及を分ける</h3><p>評価への脆弱性は発生証拠に加えません。米国は価格・利益・供給・信用の80点と3ゲート、日本は日経平均と国内8社で別判定します。</p></article>
-          <article><span>STEP 5</span><h3>日経の底値を3方向から挟む</h3><p>利益、純資産、過去下落率のどれか一つを正解にせず、3価格の最小値から最大値を候補帯にします。</p></article>
+          <article><span>STEP 5</span><h3>正常化とパニックを分ける</h3><p>直近利益維持、5年平準化利益、実体価値を下回る歴史的な売られ過ぎを三層に分けます。PER・PBR・過去下落率は追加の手動感応度として照合します。</p></article>
           <article><span>STEP 6</span><h3>到達と反転を分ける</h3><p>安値圏に入っただけでは底打ちとしません。安値更新停止、50日線反転、信用改善、市場の広がりを追加確認します。</p></article>
         </div>
 
@@ -1682,6 +1774,28 @@
 
         <div id="method-bottom" class="bottom-formula-section">
           <div class="section-heading compact-heading"><p class="section-kicker">NIKKEI BOTTOM FORMULAS</p><h3>日経平均の底値ゾーンに戻る計算式</h3></div>
+          <div class="bottom-primary-formula-grid">
+            <article>
+              <span>第1層</span>
+              <h4>期待剥落の参考価格</h4>
+              <div class="formula">直近EPS維持参考 = 直近の指数EPS × 同月の理論PER</div>
+              <p>最近の高い利益が今後も続く場合の参考です。利益を5年平均へ戻さず、評価倍率だけが理論水準へ戻るため、三層の中では最も浅い下落になりやすい計算です。榊原先生の約6万円はこの層に近く、金融不安を伴う底値予測ではありません。</p>
+            </article>
+            <article>
+              <span>第2層</span>
+              <h4>5年平準化した実体価値</h4>
+              <div class="formula">平準化EPS = 物価換算した直近5年EPSの中央値<br>中心値 = 平準化EPS ÷ 資本還元率</div>
+              <p>資本還元率は「10年国債＋株式リスクプレミアム4.5%＋信用上乗せ－名目成長率」で求め、最低2.5%とします。一時的なAI好況だけを10年延長せず、金利と持続可能な成長を含む通常の正常化水準を低位・中心・高位で示します。</p>
+            </article>
+            <article>
+              <span>第3層</span>
+              <h4>パニック時のモデル割れ</h4>
+              <div class="formula">パニック帯 = 第2層の中心値 × (1－歴史的なモデル割れ率)</div>
+              <p>1989～92年の日本バブル崩壊では歴史proxyを最大約38%下回り、2007～09年の世界金融危機では公式PER由来モデルを最大約29%下回りました。その2局面の29～38%を現在へ適用し、中央値33.8%を中心にします。2例だけのストレス換算であり、発生確率や購入価格の保証ではありません。</p>
+            </article>
+          </div>
+          <h4 class="bottom-manual-method-title">追加の感応度確認：PER・PBR・高値からの下落率</h4>
+          <p class="bottom-manual-method-intro">下のA～Dは、上の主モデルを別の物差しで点検する手動計算です。利益予想、簿価、歴史下落率の前提を動かし、三層モデルだけに依存しないために残しています。</p>
           <div class="bottom-formula-grid">
             <div><span>A</span><h4>利益アンカー</h4><div class="formula">参照日EPS = 同日の終値 ÷ 同日のPER<br>価格A = 参照日EPS × (1−利益悪化率) × ストレス後PER</div><p><a href="#nikkei-bottom">画面の参照日3項目と「利益悪化率」「ストレス後PER」</a>に対応します。基準日を混ぜず、利益予想が崩れるほど下がる計算です。</p></div>
             <div><span>B</span><h4>純資産アンカー</h4><div class="formula">参照日BPS = 同日の終値 ÷ 同日のPBR<br>価格B = 参照日BPS × ストレス後PBR</div><p>同じ基準日の終値とPBRを使い、利益が一時的に消えてPERが使いにくい局面を補います。2009年安値圏の指数ベースPBR 0.87倍を深いストレスの参照にします。</p></div>
@@ -1709,6 +1823,9 @@
             <li>将来の技術進歩、競争優位、規制、戦争、金利を正確に予言すること。</li>
             <li>非公開の契約価格、顧客別採算、データセンターの実利用率を完全に把握すること。</li>
             <li>DCFの弱気値や日経平均の底値ゾーンを「必ず止まる価格」と保証すること。</li>
+            <li>1985～2006年の日経歴史proxyを、日経225構成銘柄の公式EPSや絶対的な公正価値とみなすこと。財務省の大企業経常利益と1985～86年基準による相対比較で、制度・標本・産業構成の変化を含みます。</li>
+            <li>パニック帯を統計的に確立した予測分布とみなすこと。主な較正対象は日本バブル崩壊と世界金融危機の2局面だけで、現在と原因・政策・市場構造が異なります。</li>
+            <li>月次の理論価値と日次の市場判定を同じ鮮度とみなすこと。価格・VIX・信用は先に動き、法人利益・CPI・公式PERは公表の遅れを伴います。各表示の基準日を併記します。</li>
             <li>PER・PBR参照値を日経公式サイトから自動更新すること。画面の日付を確認し、必要なら利用者が更新します。</li>
             <li>底値をリアルタイムで確定すること。底打ち確認は必ず安値より遅れます。</li>
             <li>SOXの下落だけで日本株の崩壊を確定すること。SOXは米国上場半導体30社であり、日本への波及は日経平均と国内監視群で別確認します。</li>
@@ -1740,6 +1857,12 @@
           <a href="https://www.elibrary.imf.org/display/book/9781589062122/ch02.xml" target="_blank" rel="noopener">IMF：資産バブル崩壊の歴史分析</a>
           <a href="https://www.elibrary.imf.org/view/journals/001/2008/274/article-A001-en.xml" target="_blank" rel="noopener">IMF：株式バストの下落率と期間</a>
           <a href="https://fred.stlouisfed.org/series/NIKKEI225" target="_blank" rel="noopener">FRED：日経平均の公式系列</a>
+          <a href="https://www.e-stat.go.jp/dbview?sid=0003060791" target="_blank" rel="noopener">e-Stat：法人企業統計・大企業経常利益</a>
+          <a href="https://www.mof.go.jp/pri/reference/ssc/results/data.htm" target="_blank" rel="noopener">財務省：法人企業統計の時系列データと利用上の注意</a>
+          <a href="https://fred.stlouisfed.org/series/JPNCPIALLMINMEI" target="_blank" rel="noopener">OECD / FRED：日本の歴史CPI</a>
+          <a href="https://www.bis.org/publ/arpdf/archive/ar1989_en.pdf" target="_blank" rel="noopener">BIS 1989：日本株PERの歴史的上昇</a>
+          <a href="https://www.elibrary.imf.org/downloadpdf/display/book/9781557754622/ch06.pdf" target="_blank" rel="noopener">IMF：日本の資産価格バブルと評価正常化</a>
+          <a href="https://www.elibrary.imf.org/view/journals/001/1993/085/article-A001-en.xml" target="_blank" rel="noopener">IMF：1989～92年の日経平均下落</a>
           <a href="https://indexes.nikkei.co.jp/en/nkave/archives/summary?idx=nk225" target="_blank" rel="noopener">日経公式：日次サマリー</a>
           <a href="https://indexes.nikkei.co.jp/nkave/archives/file/users_guide_jp.pdf" target="_blank" rel="noopener">日経公式：PER・PBR計算式</a>
           <a href="https://indexes.nasdaq.com/docs/Nasdaq-100_A%20Tale%20of%20Three%20Crises%20over%20Two%20Decades.pdf" target="_blank" rel="noopener">Nasdaq：Tech Bubble比較</a>
@@ -1763,7 +1886,7 @@
   <footer>
     <div class="content footer-inner">
       <p><strong>重要：</strong>本サイトは教育・調査用です。投資助言、価格予測、売買推奨ではありません。取得値には遅延・欠損・定義差があり、重要な判断では企業IRと提出資料を確認してください。</p>
-      <p>Method v4.0 / <a href="https://github.com/mxe050/ai-bubble-collapse-monitor" target="_blank" rel="noopener">GitHub</a></p>
+      <p>Method v4.1 / <a href="https://github.com/mxe050/ai-bubble-collapse-monitor" target="_blank" rel="noopener">GitHub</a></p>
     </div>
   </footer>
 

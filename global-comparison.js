@@ -79,7 +79,7 @@
     state.showTheoreticalValueSeries = params.get("showTheoreticalValue") !== "false";
     state.showCrises = params.get("showComparisonCrises") !== "false";
     var range = params.get("comparisonRange");
-    if (["all", "30", "20", "10", "5", "custom"].indexOf(range) >= 0) state.range = range;
+    if (["all", "30", "20", "10", "5", "future", "custom"].indexOf(range) >= 0) state.range = range;
     var normalization = params.get("comparisonNormalization");
     if (["fixed", "visible"].indexOf(normalization) >= 0) state.normalization = normalization;
     if (params.get("comparisonStart") && byId("gcCustomStart")) byId("gcCustomStart").value = params.get("comparisonStart");
@@ -128,6 +128,7 @@
         end: customEnd ? customEnd + "-01" : last,
       };
     }
+    if (state.range === "future") return { start: subtractYears(last, 5), end: last };
     if (state.range !== "all") return { start: subtractYears(last, Number(state.range)), end: last };
     return { start: first, end: last };
   }
@@ -137,6 +138,11 @@
     return (state.payload.points || []).filter(function (row) {
       return row.date >= bounds.start && row.date <= bounds.end;
     });
+  }
+
+  function chartMaxX(rows) {
+    if (state.range === "future") return 2028 + 11 / 12;
+    return rows.length ? rows[rows.length - 1].x : null;
   }
 
   function effectiveVisible(definition) {
@@ -292,6 +298,47 @@
     },
   };
 
+  var futureWindowPlugin = {
+    id: "gcFutureWindow",
+    beforeDatasetsDraw: function (chart) {
+      if (state.range !== "future" || !state.payload) return;
+      var area = chart.chartArea;
+      var scale = chart.scales.x;
+      var points = state.payload.points || [];
+      if (!area || !scale || !points.length) return;
+      var latestX = points[points.length - 1].x;
+      var left = Math.max(area.left, Math.min(area.right, scale.getPixelForValue(latestX)));
+      var context = chart.ctx;
+      context.save();
+      context.fillStyle = "rgba(42, 113, 131, 0.07)";
+      context.fillRect(left, area.top, Math.max(0, area.right - left), area.bottom - area.top);
+      context.setLineDash([7, 5]);
+      context.strokeStyle = "#2a7183";
+      context.lineWidth = 1.5;
+      context.beginPath();
+      context.moveTo(left, area.top);
+      context.lineTo(left, area.bottom);
+      context.stroke();
+      context.restore();
+    },
+    afterDatasetsDraw: function (chart) {
+      if (state.range !== "future" || !state.payload) return;
+      var area = chart.chartArea;
+      var scale = chart.scales.x;
+      var points = state.payload.points || [];
+      if (!area || !scale || !points.length) return;
+      var latestX = points[points.length - 1].x;
+      var left = Math.max(area.left, Math.min(area.right, scale.getPixelForValue(latestX)));
+      var context = chart.ctx;
+      context.save();
+      context.fillStyle = "#1e6070";
+      context.font = "800 11px Meiryo, sans-serif";
+      context.textAlign = "left";
+      context.fillText("将来：価格を予言せず、予定と監視条件を確認", Math.min(left + 8, area.right - 230), area.top + 34);
+      context.restore();
+    },
+  };
+
   var endLabelPlugin = {
     id: "gcEndLabels",
     afterDatasetsDraw: function (chart) {
@@ -393,6 +440,7 @@
       context.textBaseline = "middle";
       chart.data.datasets.forEach(function (dataset, datasetIndex) {
         var meta = chart.getDatasetMeta(datasetIndex);
+        if (dataset.showEndLabel === false) return;
         var index = dataset.data.length - 1;
         while (index >= 0 && dataset.data[index].y == null) index -= 1;
         if (index < 0 || !meta.data[index]) return;
@@ -418,19 +466,30 @@
     var canvas = byId("valuationExcessChart");
     if (!canvas || !rows.length) return;
     if (state.valuationChart) state.valuationChart.destroy();
+    var proxy = state.payload.theoreticalModels
+      && state.payload.theoreticalModels.nikkei225
+      && state.payload.theoreticalModels.nikkei225.historicalRelativeProxy;
+    var proxyEnd = proxy && proxy.displayEndDate ? proxy.displayEndDate : "0000-00-00";
     var datasets = [
-      { id: "sp500Premium", label: "S&P 500・モデル中心値からの上乗せ", shortLabel: "S&P", field: "sp500MarketPremiumPct", color: "#0057B8" },
-      { id: "nikkeiPremium", label: "日経平均・モデル中心値からの上乗せ", shortLabel: "日経", field: "nikkeiMarketPremiumPct", color: "#D83B2D" },
+      { id: "sp500Premium", label: "S&P 500・現行モデル中心値からの上乗せ", shortLabel: "S&P", field: "sp500MarketPremiumPct", color: "#0057B8", width: 4.2, dash: [] },
+      { id: "nikkeiHistoricalPremium", label: "日経平均・1985～公式モデル前（実質大企業利益proxy）", shortLabel: "日経歴史proxy", field: "nikkeiHistoricalPremiumProxyPct", color: "#9A6700", width: 3.5, dash: [10, 6], showEndLabel: false },
+      { id: "nikkeiPremium", label: "日経平均・現行モデル中心値からの上乗せ", shortLabel: "日経現行", field: "nikkeiMarketPremiumPct", color: "#D83B2D", width: 4.2, dash: [] },
     ].map(function (definition) {
       return {
         id: definition.id,
         label: definition.label,
         shortLabel: definition.shortLabel,
-        data: rows.map(function (row) { return { x: row.x, y: finite(row[definition.field]), sourceRow: row }; }),
+        showEndLabel: definition.showEndLabel !== false,
+        data: rows.map(function (row) {
+          var value = finite(row[definition.field]);
+          if (definition.id === "nikkeiHistoricalPremium" && row.date > proxyEnd) value = null;
+          return { x: row.x, y: value, sourceRow: row };
+        }),
         borderColor: definition.color,
         backgroundColor: "transparent",
-        borderWidth: 4.2,
-        hoverBorderWidth: 5.5,
+        borderWidth: definition.width,
+        hoverBorderWidth: definition.width + 1.3,
+        borderDash: definition.dash,
         borderCapStyle: "round",
         borderJoinStyle: "round",
         pointRadius: 0,
@@ -444,7 +503,7 @@
     state.valuationChart = new window.Chart(canvas, {
       type: "line",
       data: { datasets: datasets },
-      plugins: [whiteBackgroundPlugin, premiumZonePlugin, crisisPlugin, premiumEndLabelPlugin],
+      plugins: [whiteBackgroundPlugin, premiumZonePlugin, crisisPlugin, futureWindowPlugin, premiumEndLabelPlugin],
       options: {
         responsive: true,
         maintainAspectRatio: false,
@@ -455,7 +514,7 @@
           x: {
             type: "linear",
             min: rows[0].x,
-            max: rows[rows.length - 1].x,
+            max: chartMaxX(rows),
             grid: { display: false },
             ticks: { maxTicksLimit: window.innerWidth < 700 ? 6 : 11, callback: function (value) { return String(Math.round(value)); }, color: "#526476", font: { family: "Meiryo, sans-serif", size: window.innerWidth < 700 ? 11 : 13, weight: "700" } },
             title: { display: true, text: "年（月次）", color: "#34475c", font: { weight: "700" } },
@@ -469,7 +528,7 @@
           },
         },
         plugins: {
-          title: { display: true, text: "市場価格は、持続可能な成長を含む理論中心値を何％上回るか", color: "#102033", font: { family: "Meiryo, sans-serif", size: window.innerWidth < 700 ? 14 : 18, weight: "800" }, padding: { bottom: 12 } },
+          title: { display: true, text: "市場価格は、企業利益と持続可能な成長で説明できる水準を何％上回るか", color: "#102033", font: { family: "Meiryo, sans-serif", size: window.innerWidth < 700 ? 14 : 18, weight: "800" }, padding: { bottom: 12 } },
           legend: { position: "bottom", labels: { boxWidth: 48, boxHeight: 5, padding: 18, color: "#24384c", font: { family: "Meiryo, sans-serif", size: window.innerWidth < 700 ? 11 : 13, weight: "800" } } },
           tooltip: {
             backgroundColor: "rgba(16, 32, 51, 0.96)",
@@ -481,10 +540,21 @@
               label: function (context) { return context.dataset.label + "：" + (context.parsed.y >= 0 ? "+" : "") + formatNumber(context.parsed.y, 1) + "%"; },
               afterLabel: function (context) {
                 var row = context.raw.sourceRow;
+                if (context.dataset.id === "nikkeiHistoricalPremium") {
+                  return [
+                    "日経平均 " + formatNumber(row.nikkeiJpy, 0) + "円 / 歴史proxy " + formatNumber(row.nikkeiHistoricalFairValueProxyJpy, 0) + "円",
+                    "実質大企業利益の5年中央値 " + formatNumber(row.nikkeiMacroProfitPowerRaw, 0),
+                    "1985～86年の株価対実質利益を100とした相対比較（公式EPSではありません）",
+                  ];
+                }
                 var isSp = context.dataset.id === "sp500Premium";
                 return "成長率前提 " + formatNumber(row[isSp ? "sp500NominalGrowthPct" : "nikkeiNominalGrowthPct"], 2) + "% / 公正PER " + formatNumber(row[isSp ? "sp500FairPe" : "nikkeiFairPe"], 1) + "倍";
               },
-              footer: function () { return "0%は割安・割高の事実ではなく、本サイトの基準モデル中心値です"; },
+              footer: function (items) {
+                return items.some(function (item) { return item.dataset.id === "nikkeiHistoricalPremium"; })
+                  ? "歴史proxyは方向と規模の比較用。現行モデルと同じ精度ではありません"
+                  : "0%は割安・割高の事実ではなく、本サイトの基準モデル中心値です";
+              },
             },
           },
         },
@@ -559,7 +629,7 @@
     state.chart = new window.Chart(canvas, {
       type: "line",
       data: { datasets: buildDatasets(rows) },
-      plugins: [whiteBackgroundPlugin, crisisPlugin, endLabelPlugin],
+      plugins: [whiteBackgroundPlugin, crisisPlugin, futureWindowPlugin, endLabelPlugin],
       options: {
         responsive: true,
         maintainAspectRatio: false,
@@ -570,7 +640,7 @@
           x: {
             type: "linear",
             min: rows[0].x,
-            max: rows[rows.length - 1].x,
+            max: chartMaxX(rows),
             grid: { display: false },
             ticks: {
               maxTicksLimit: window.innerWidth < 700 ? 6 : 11,
@@ -640,7 +710,9 @@
   }
 
   function updateChartSummary(rows) {
-    byId("gcDisplayedRange").textContent = formatDate(rows[0].date) + "～" + formatDate(rows[rows.length - 1].date);
+    var actualRange = formatDate(rows[0].date) + "～" + formatDate(rows[rows.length - 1].date);
+    byId("gcDisplayedRange").textContent = state.range === "future"
+      ? actualRange + "（実績） / 将来監視窓は2028年12月まで" : actualRange;
     var visibleCount = state.payload.seriesDefinitions.filter(effectiveVisible).length;
     var availableCount = state.chart.data.datasets.filter(function (dataset, index) {
       return state.chart.isDatasetVisible(index) && dataset.data.some(function (point) { return point.y != null; });
@@ -746,6 +818,36 @@
     byId("gcPremiumAsOf").textContent = formatDate(latestRow.date) + "時点";
   }
 
+  function renderHistoricalProxySummary() {
+    var model = state.payload.theoreticalModels && state.payload.theoreticalModels.nikkei225;
+    var proxy = model && model.historicalRelativeProxy;
+    var points = state.payload.points || [];
+    if (!proxy || proxy.status !== "available") {
+      byId("gcHistoryModelHandoff").textContent = "歴史proxyを算出できません";
+      return;
+    }
+    function rowAt(month) {
+      return points.find(function (row) { return String(row.date).slice(0, 7) === month; });
+    }
+    function signed(value) {
+      var number = finite(value);
+      return number == null ? "未算出" : (number >= 0 ? "+" : "") + formatNumber(number, 1) + "%";
+    }
+    var peak = rowAt("1989-12");
+    var normalization = rowAt("1990-12");
+    var overshoot = points.filter(function (row) {
+      return row.date >= "1989-12-01" && row.date <= "1992-08-01" && finite(row.nikkeiHistoricalPremiumProxyPct) != null;
+    }).reduce(function (lowest, row) {
+      return !lowest || row.nikkeiHistoricalPremiumProxyPct < lowest.nikkeiHistoricalPremiumProxyPct ? row : lowest;
+    }, null);
+    byId("gcHistoryPeakPremium").textContent = signed(peak && peak.nikkeiHistoricalPremiumProxyPct);
+    byId("gcHistoryNormalizationPremium").textContent = signed(normalization && normalization.nikkeiHistoricalPremiumProxyPct);
+    byId("gcHistoryOvershootPremium").textContent = signed(overshoot && overshoot.nikkeiHistoricalPremiumProxyPct);
+    byId("gcHistoryModelHandoff").textContent =
+      formatDate(proxy.startDate) + "～" + formatDate(proxy.displayEndDate) + "：歴史proxy / "
+      + formatDate(proxy.officialModelStartDate) + "以降：公式PER由来モデル";
+  }
+
   function updateControls() {
     document.querySelectorAll("[data-gc-range]").forEach(function (button) {
       var active = button.dataset.gcRange === state.range;
@@ -819,7 +921,7 @@
     datasets.forEach(function (dataset) { dataset.data.forEach(function (point) { if (point.y != null) values.push(point.y); }); });
     var maxY = Math.max(100, Math.max.apply(null, values) * 1.08);
     var minX = rows[0].x;
-    var maxX = rows[rows.length - 1].x;
+    var maxX = chartMaxX(rows);
     var xScale = function (value) { return area.left + (value - minX) / Math.max(0.001, maxX - minX) * (area.right - area.left); };
     var yScale = function (value) { return area.bottom - value / maxY * (area.bottom - area.top); };
     var svg = [];
@@ -870,7 +972,12 @@
     sp500TheoreticalReal: ["sp500EarningsPower", "sp500LatestEarnings", "sp500TheoreticalAtLatestEarnings", "sp500TheoreticalNominal", "sp500TheoreticalLow", "sp500TheoreticalHigh", "sp500TheoreticalReal", "sp500TheoreticalRealNormalized", "sp500FairPe", "sp500RiskFreePct", "sp500ErpPct", "sp500NominalGrowthPct", "sp500MarketPremiumPct"],
     nikkeiUsd: ["nikkeiUsd", "nikkeiUsdNormalized"],
     nikkeiRealUsd: ["nikkeiRealJpy", "nikkeiRealUsd", "nikkeiRealUsdNormalized"],
-    nikkeiTheoreticalUsd: ["nikkeiIndexWeightPe", "nikkeiIndexEps", "nikkeiEarningsPower", "nikkeiLatestEarnings", "nikkeiLatestEarningsDate", "nikkeiTheoreticalAtLatestEarningsJpy", "nikkeiTheoreticalJpy", "nikkeiTheoreticalLowJpy", "nikkeiTheoreticalHighJpy", "nikkeiTheoreticalUsd", "nikkeiTheoreticalUsdNormalized", "nikkeiFairPe", "nikkeiRiskFreePct", "nikkeiErpPct", "nikkeiNominalGrowthPct", "nikkeiMarketPremiumPct"],
+    nikkeiTheoreticalUsd: [
+      "nikkeiIndexWeightPe", "nikkeiIndexEps", "nikkeiEarningsPower", "nikkeiLatestEarnings", "nikkeiLatestEarningsDate",
+      "nikkeiTheoreticalAtLatestEarningsJpy", "nikkeiTheoreticalJpy", "nikkeiTheoreticalLowJpy", "nikkeiTheoreticalHighJpy",
+      "nikkeiTheoreticalUsd", "nikkeiTheoreticalUsdNormalized", "nikkeiFairPe", "nikkeiRiskFreePct", "nikkeiErpPct", "nikkeiNominalGrowthPct", "nikkeiMarketPremiumPct",
+      "nikkeiMacroProfitPowerRaw", "nikkeiMacroLatestProfitRaw", "nikkeiHistoricalFairValueProxyJpy", "nikkeiHistoricalFairValueProxyLowJpy", "nikkeiHistoricalFairValueProxyHighJpy", "nikkeiHistoricalPremiumProxyPct",
+    ],
   };
 
   function csvValue(value) {
@@ -960,6 +1067,7 @@
         throw new Error("6系列データの形式が不正です");
       }
       state.payload = payload;
+      window.__globalComparisonPayload = payload;
       payload.seriesDefinitions.forEach(function (definition) {
         if (state.legendVisible[definition.id] == null) state.legendVisible[definition.id] = true;
       });
@@ -971,15 +1079,17 @@
       renderCoverage();
       renderValuationFocus();
       renderSources();
+      renderHistoricalProxySummary();
       updateControls();
       renderChart();
       var availableSeries = payload.seriesDefinitions.filter(function (definition) {
         return payload.points.some(function (point) { return point[definition.normalizedField] != null; });
       }).length;
       status.textContent = availableSeries === 6
-        ? "モデル超過率2系列と、補助チャート5系列を表示しています"
+        ? "現行モデル2系列・日経歴史proxy・補助チャートを表示しています"
         : "実データ" + availableSeries + "系列を表示。理論価値は80%カバー率を満たす期間だけ表示";
       status.className = "gc-load-status ready";
+      window.dispatchEvent(new CustomEvent("monitor:global-comparison-ready", { detail: payload }));
       if (window.lucide) window.lucide.createIcons();
     } catch (error) {
       status.textContent = "チャートデータを読み込めませんでした：" + error.message;

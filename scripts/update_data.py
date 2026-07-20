@@ -761,7 +761,13 @@ class SourceStatus:
 
 
 def request(
-    url: str, *, timeout: int = 35, attempts: int = 3, extra_headers: dict[str, str] | None = None
+    url: str,
+    *,
+    timeout: int = 35,
+    attempts: int = 3,
+    extra_headers: dict[str, str] | None = None,
+    method: str = "GET",
+    data: bytes | None = None,
 ) -> bytes:
     headers = {
         "User-Agent": USER_AGENT,
@@ -772,7 +778,7 @@ def request(
     last_error: Exception | None = None
     for attempt in range(attempts):
         try:
-            req = urllib.request.Request(url, headers=headers)
+            req = urllib.request.Request(url, data=data, headers=headers, method=method)
             with urllib.request.urlopen(req, timeout=timeout) as response:
                 return response.read()
         except (urllib.error.URLError, TimeoutError, ConnectionError) as exc:
@@ -2860,7 +2866,7 @@ def main() -> None:
             "note": "These fields require a consistent paid consensus series, product-level pricing, or verified project announcements. Missing is not zero.",
         },
         "sourceStatus": [status.__dict__ for status in statuses],
-        "methodVersion": "4.0.0",
+        "methodVersion": "4.1.0",
     }
     OUTPUT.parent.mkdir(parents=True, exist_ok=True)
     OUTPUT.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")

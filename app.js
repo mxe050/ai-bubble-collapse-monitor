@@ -12,6 +12,7 @@
     moneyStrategistChart: null,
     moneyStrategist: null,
     moneyStrategistRange: "all",
+    globalComparison: null,
     moneyStrategistIpoDate: "",
     valuations: [],
     companyFilter: "all",
@@ -2344,6 +2345,73 @@
       : "未確認";
   }
 
+  function renderDecisionPath() {
+    var comparison = state.globalComparison;
+    var market = state.data && state.data.market ? state.data.market : {};
+    var path = market.sakakibaraAnalysis && market.sakakibaraAnalysis.marketPath
+      ? market.sakakibaraAnalysis.marketPath : {};
+    var usRisk = market.usBubbleRisk || {};
+    var nikkeiSeries = market.series && market.series.NIKKEI ? market.series.NIKKEI : {};
+    var hy = state.data && state.data.macro ? state.data.macro.highYieldOas || {} : {};
+    if (!comparison || !comparison.theoreticalModels || !comparison.theoreticalModels.nikkei225) return;
+
+    var model = comparison.theoreticalModels.nikkei225;
+    var latest = model.latest || {};
+    var panic = comparison.panicOvershootModel || {};
+    var current = finite(nikkeiSeries.close) || finite(latest.market);
+    var normalizationScore = finite(path.normalization && path.normalization.score);
+    var panicScore = finite(path.panic && path.panic.score);
+    var vix = finite(market.series && market.series.VIX && market.series.VIX.close);
+    var oas = finite(hy.valuePct);
+    var premium = finite(latest.marketPremiumPct);
+    var routeLabel = path.label || "経路を判定できません";
+    var normalMove = current && finite(latest.central) !== null ? (latest.central / current - 1) * 100 : null;
+    var panicMove = current && finite(panic.panicCentralJpy) !== null ? (panic.panicCentralJpy / current - 1) * 100 : null;
+
+    byId("pathAsOf").textContent = "市場 " + (state.data.marketDate || "未確認") + " / 価値モデル " + String(model.latestDate || "未確認").slice(0, 7);
+    byId("pathFairValue").textContent = "中心 " + formatNikkei(latest.central) + "（" + formatNikkei(latest.low) + "～" + formatNikkei(latest.high) + "）";
+    byId("pathPremium").textContent = premium === null ? "未算出" : "市場は中心より" + formatPercent(premium, true);
+    byId("pathCollapse").textContent = finite(usRisk.score) === null
+      ? "米国崩壊進行度を確認中" : "米国 " + numberOne.format(usRisk.score) + "/100・" + (usRisk.stageLabel || "段階を確認");
+    byId("pathRoute").textContent = routeLabel;
+    byId("pathBottom").textContent = "正常化 " + formatNikkei(latest.central) + " / パニック " + formatNikkei(panic.panicCentralJpy);
+
+    byId("currentRouteBadge").textContent = routeLabel;
+    byId("currentRouteBadge").dataset.route = path.statusCode || "unknown";
+    byId("routeSummary").textContent =
+      "正常化方向 " + (normalizationScore === null ? "未確認" : numberOne.format(normalizationScore) + "/100")
+      + "、パニック方向 " + (panicScore === null ? "未確認" : numberOne.format(panicScore) + "/100")
+      + "。VIX " + (vix === null ? "未確認" : numberOne.format(vix))
+      + "、米国HY OAS " + (oas === null ? "未確認" : numberTwo.format(oas) + "%")
+      + "です。これは直近の方向判定で、将来の経路を保証しません。";
+    byId("routeExpectationValue").textContent = formatNikkei(latest.latestEarningsValue);
+    byId("routeNormalizationValue").textContent =
+      formatNikkei(latest.central) + "（" + formatNikkei(latest.low) + "～" + formatNikkei(latest.high) + "）";
+    byId("routePanicValue").textContent =
+      formatNikkei(panic.panicCentralJpy) + "（" + formatNikkei(panic.panicCentralRangeLowJpy) + "～" + formatNikkei(panic.panicCentralRangeHighJpy) + "）";
+    byId("routeSevereFloor").textContent = formatNikkei(panic.severeSensitivityFloorJpy);
+
+    byId("nikkeiRouteStatus").textContent = routeLabel;
+    byId("nikkeiRouteStatus").dataset.route = path.statusCode || "unknown";
+    byId("nikkeiPathExplanation").textContent =
+      "現在は正常化方向 " + (normalizationScore === null ? "未確認" : numberOne.format(normalizationScore) + "/100")
+      + "、パニック方向 " + (panicScore === null ? "未確認" : numberOne.format(panicScore) + "/100")
+      + "です。市場横断のパニックが確認されない間は第1～2層を基本経路とし、信用悪化が加速した場合に第3層を重くします。";
+    byId("nikkeiExpectationRange").textContent = formatNikkei(latest.latestEarningsValue);
+    byId("nikkeiNormalizationRange").textContent =
+      formatNikkei(latest.central) + " / 幅 " + formatNikkei(latest.low) + "～" + formatNikkei(latest.high);
+    byId("nikkeiPanicRange").textContent =
+      formatNikkei(panic.panicCentralJpy) + " / 帯 " + formatNikkei(panic.panicCentralRangeLowJpy) + "～" + formatNikkei(panic.panicCentralRangeHighJpy);
+    byId("nikkeiPanicSevere").textContent = formatNikkei(panic.severeSensitivityFloorJpy);
+
+    byId("todayNikkeiZone").textContent = "正常化 " + formatNikkei(latest.low) + "～" + formatNikkei(latest.high);
+    byId("todayNikkeiBottomMessage").textContent =
+      "現在は「" + routeLabel + "」。パニック中心帯は " + formatNikkei(panic.panicCentralRangeLowJpy) + "～" + formatNikkei(panic.panicCentralRangeHighJpy)
+      + "ですが、予測ではなく信用収縮時のストレス帯です。";
+    byId("todayNikkeiDistance").textContent = normalMove === null ? "未算出" : formatPercent(normalMove, true);
+    byId("todayNikkeiProximity").textContent = panicMove === null ? "未算出" : formatPercent(panicMove, true);
+  }
+
   function renderAll() {
     state.valuations = state.data.companies.map(function (company) { return modelCompany(company); });
     var evidence = scoreEvidence();
@@ -2362,6 +2430,7 @@
     renderMarketChart();
     renderDotComComparison();
     renderNikkeiBottom();
+    renderDecisionPath();
     updateCompanyFilterUi();
     renderValuationChart();
     renderCompanyTable();
@@ -2413,12 +2482,16 @@
       var moneyRequest = fetch("data/money-strategist-history.json?ts=" + Date.now(), { cache: "no-store" })
         .then(function (response) { return response.ok ? response.json() : null; })
         .catch(function () { return null; });
+      var globalComparisonRequest = fetch("data/global-market-value-comparison.json?ts=" + Date.now(), { cache: "no-store" })
+        .then(function (globalResponse) { return globalResponse.ok ? globalResponse.json() : null; })
+        .catch(function () { return null; });
       var response = await fetch("data/latest.json?ts=" + Date.now(), { cache: "no-store" });
       if (!response.ok) throw new Error("HTTP " + response.status);
       var payload = await response.json();
       if (!payload.companies || !payload.market || Number(payload.schemaVersion) < 11) throw new Error("データ形式が古いか不正です");
       state.data = payload;
       state.moneyStrategist = await moneyRequest;
+      state.globalComparison = await globalComparisonRequest;
       renderAll();
       if (typeof window.CustomEvent === "function" && typeof window.dispatchEvent === "function") window.dispatchEvent(new CustomEvent("monitor:data-updated"));
       if (showMessage && refreshMode === "live") {

@@ -8,7 +8,9 @@ provider is not configured.
 
 from __future__ import annotations
 
+import base64
 import csv
+import gzip
 import io
 import json
 import math
@@ -32,6 +34,10 @@ MONEY_HISTORY = ROOT / "data" / "money-strategist-history.json"
 CACHE_DIR = ROOT / "data" / "cache" / "global-comparison"
 VALUATION_DIR = ROOT / "data" / "valuation"
 NIKKEI_PER_HISTORY = CACHE_DIR / "nikkei-per-index-weight-history.json"
+MOF_PROFIT_HISTORY = CACHE_DIR / "mof-corporate-profits-large-ex-finance.json"
+MOF_ESTAT_MODEL_URL = "https://www.e-stat.go.jp/dbview/api_get_model?sid=0003060791"
+MOF_ESTAT_RESULT_URL = "https://www.e-stat.go.jp/dbview/api_get_result?sid=0003060791"
+MOF_ESTAT_SOURCE_URL = "https://www.e-stat.go.jp/dbview?sid=0003060791"
 JST = timezone(timedelta(hours=9))
 MINIMUM_VALUATION_COVERAGE = 0.80
 MODEL_ERP_PCT = 4.50
@@ -595,17 +601,219 @@ class NikkeiPERProvider:
         }, warnings
 
 
+class MOFCorporateProfitsProvider:
+    """Annual ordinary profits for large non-financial Japanese companies."""
+
+    MODEL_HEADERS = {
+        **HTML_HEADERS,
+        "Accept": "application/json",
+        "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
+    }
+
+    def __init__(self, fetcher: CachedFetcher) -> None:
+        self.fetcher = fetcher
+
+    @staticmethod
+    def _compressed(value: Any) -> str:
+        raw = json.dumps(value, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
+        return base64.b64encode(gzip.compress(raw)).decode("ascii")
+
+    @staticmethod
+    def _matter(model: dict[str, Any], matter_id: int) -> dict[str, Any]:
+        matter = (model.get("matters") or {}).get(f"matter{matter_id}")
+        if not isinstance(matter, dict):
+            raise RuntimeError(f"e-Stat model is missing matter {matter_id}")
+        return matter
+
+    @staticmethod
+    def _item(matter: dict[str, Any], code: str) -> dict[str, Any]:
+        item = ((matter.get("listData") or {}).get(f"code{code}"))
+        if not isinstance(item, dict):
+            raise RuntimeError(f"e-Stat matter {matter.get('matterId')} is missing code {code}")
+        return {
+            "name": str(item.get("name") or code),
+            "code": str(item.get("code") or code),
+            "unit": str(item.get("unitName") or ""),
+            "explanation": str(item.get("explanation") or ""),
+        }
+
+    @classmethod
+    def _selection(
+        cls,
+        matter: dict[str, Any],
+        items: list[dict[str, Any]],
+        *,
+        all_selected: bool,
+    ) -> dict[str, Any]:
+        return {
+            "matterId": matter.get("matterId"),
+            "tableName": matter.get("tableName"),
+            "dispTableName": matter.get("dispTableName"),
+            "positionNum": matter.get("positionNum"),
+            "listData": items,
+            "allSelected": 1 if all_selected else 0,
+        }
+
+    def _live_annual(self) -> dict[int, float]:
+        model_body = self.fetcher.request_fn(
+            MOF_ESTAT_MODEL_URL,
+            timeout=40,
+            attempts=3,
+            extra_headers=self.MODEL_HEADERS,
+            method="POST",
+            data=b"",
+        )
+        model = json.loads(model_body.decode("utf-8"))
+        item_matter = self._matter(model, 3)
+        industry_matter = self._matter(model, 4)
+        size_matter = self._matter(model, 5)
+        time_matter = self._matter(model, 2)
+
+        year_items = [
+            self._item(time_matter, str(item.get("code")))
+            for item in (time_matter.get("listData") or {}).values()
+            if isinstance(item, dict) and re.fullmatch(r"19\d{3}|20\d{3}", str(item.get("code") or ""))
+        ]
+        year_items.sort(key=lambda item: item["code"])
+        rows = [self._selection(time_matter, year_items, all_selected=True)]
+        cols = [self._selection(item_matter, [self._item(item_matter, "051")], all_selected=False)]
+        tops = [
+            self._selection(industry_matter, [self._item(industry_matter, "104")], all_selected=False),
+            self._selection(size_matter, [self._item(size_matter, "25")], all_selected=False),
+        ]
+        request_model: dict[str, Any] = {
+            "rows": self._compressed(rows),
+            "cols": self._compressed(cols),
+            "tops": self._compressed(tops),
+            "apiTops": self._compressed(tops),
+            "annotationFlg": 1,
+            "rowNoDataDispFlg": 0,
+            "colNoDataDispFlg": 0,
+            "commaType": 0,
+            "replaceSpChars": 0,
+            "graphAxis": "horizontal",
+            "graphBasis": "head",
+            "graphSort": "asc",
+            "graphTitle": "",
+            "graphType": "barChart",
+            "inputNumberOfCols": 100,
+            "inputNumberOfRows": 100,
+            "movementId": 0,
+            "leftMoveFlg": 0,
+            "rightMoveFlg": 0,
+            "underMoveFlg": 0,
+            "upMoveFlg": 0,
+            "currentCols": "",
+            "currentRows": "",
+            "mode": "table",
+        }
+        body = urllib.parse.urlencode(request_model).encode("ascii")
+        result_body = self.fetcher.request_fn(
+            MOF_ESTAT_RESULT_URL,
+            timeout=50,
+            attempts=3,
+            extra_headers=self.MODEL_HEADERS,
+            method="POST",
+            data=body,
+        )
+        result = json.loads(result_body.decode("utf-8"))
+        if result.get("error"):
+            raise RuntimeError(f"e-Stat result error: {result.get('message')}")
+        table = str(result.get("table") or "")
+        annual: dict[int, float] = {}
+        for row in html_table_rows(table.encode("utf-8")):
+            year_match = re.search(r"(19\d{2}|20\d{2})", " ".join(row))
+            if not year_match:
+                continue
+            year = int(year_match.group(1))
+            for cell in reversed(row):
+                compact = cell.replace("\u00a0", "").replace(" ", "").replace(",", "")
+                if compact.startswith(str(year)) and len(re.sub(r"[^0-9]", "", compact)) <= 5:
+                    continue
+                negative = compact.startswith(("-", "\u25b3", "\u25b2"))
+                numeric = re.sub(r"[^0-9.]", "", compact)
+                if not numeric or not re.fullmatch(r"\d+(?:\.\d+)?", numeric):
+                    continue
+                value = finite(numeric)
+                if value is not None:
+                    annual[year] = -value if negative else value
+                    break
+        if len(annual) < 50 or min(annual) > 1970:
+            raise RuntimeError(f"Insufficient e-Stat corporate-profit history: {len(annual)} years")
+        return annual
+
+    def annual(self) -> tuple[dict[int, float], dict[str, Any]]:
+        CACHE_DIR.mkdir(parents=True, exist_ok=True)
+        now = datetime.now(timezone.utc)
+        stored: dict[str, Any] | None = None
+        if MOF_PROFIT_HISTORY.exists():
+            try:
+                stored = json.loads(MOF_PROFIT_HISTORY.read_text(encoding="utf-8"))
+            except Exception:
+                stored = None
+        cache_fresh = bool(
+            stored
+            and now.timestamp() - MOF_PROFIT_HISTORY.stat().st_mtime <= self.fetcher.ttl_seconds
+        )
+        warning: str | None = None
+        if cache_fresh:
+            annual = {int(year): float(value) for year, value in (stored.get("annual") or {}).items()}
+            cache_state = "fresh-cache"
+        else:
+            try:
+                annual = self._live_annual()
+                stored = {
+                    "schemaVersion": 1,
+                    "updatedAtUtc": now.isoformat(),
+                    "sourceUrl": MOF_ESTAT_SOURCE_URL,
+                    "annual": {str(year): annual[year] for year in sorted(annual)},
+                }
+                MOF_PROFIT_HISTORY.write_text(
+                    json.dumps(stored, ensure_ascii=False, indent=2), encoding="utf-8"
+                )
+                cache_state = "network"
+            except Exception as exc:
+                if not stored:
+                    raise
+                annual = {int(year): float(value) for year, value in (stored.get("annual") or {}).items()}
+                cache_state = "stale-fallback"
+                warning = f"MOF corporate profits: live update failed; retained cache ({exc})"
+        self.fetcher.entries.append({
+            "cacheKey": MOF_PROFIT_HISTORY.name,
+            "sourceUrl": MOF_ESTAT_SOURCE_URL,
+            "state": cache_state,
+            "fetchedAtUtc": (stored or {}).get("updatedAtUtc"),
+            "warning": warning,
+        })
+        return annual, {
+            "provider": "Ministry of Finance Japan / e-Stat",
+            "seriesId": "MOF-CORPORATE-ORDINARY-PROFIT-LARGE-EX-FINANCE",
+            "name": "Annual ordinary profits, all industries excluding finance and insurance, capital JPY 1bn or more",
+            "unit": "Million yen",
+            "frequency": "Annual fiscal year",
+            "availabilityRule": "Fiscal year Y is first used from September of Y+1, when the annual survey is normally released",
+            "sourceUrl": MOF_ESTAT_SOURCE_URL,
+            "methodologyUrl": "https://www.mof.go.jp/pri/reference/ssc/results/data.htm",
+            "latestYear": max(annual),
+            "historyYears": len(annual),
+            "cacheState": cache_state,
+            "usageNote": "Historical macro proxy only; it is not Nikkei 225 constituent EPS.",
+        }
+
+
 def annual_real_earnings_power(
     annual_earnings: dict[int, float],
     cpi: dict[str, float],
     key: str,
+    *,
+    availability_month: int = 5,
 ) -> tuple[float | None, int | None, float | None]:
     current_cpi = cpi.get(key)
     if current_cpi is None:
         return None, None, None
     eligible = [
         year for year in annual_earnings
-        if f"{year + 1:04d}-05" <= key and f"{year:04d}-12" in cpi
+        if f"{year + 1:04d}-{availability_month:02d}" <= key and f"{year:04d}-12" in cpi
     ]
     if len(eligible) < 5:
         return None, None, None
@@ -1091,11 +1299,36 @@ def build_global_comparison(request_fn: Callable[..., bytes]) -> dict[str, Any]:
     fx, fx_source = fx_provider.monthly_jpy_per_usd()
     us_cpi, us_cpi_source = cpi_provider.us_monthly()
     japan_cpi, japan_cpi_source = cpi_provider.japan_monthly()
+    japan_cpi_legacy, japan_cpi_legacy_source = fred_provider.monthly(
+        "JPNCPIALLMINMEI", "Japan consumer price index, OECD historical series"
+    )
+    cpi_overlap_ratios = [
+        japan_cpi[key] / japan_cpi_legacy[key]
+        for key in sorted(set(japan_cpi) & set(japan_cpi_legacy))
+        if min(japan_cpi[key], japan_cpi_legacy[key]) > 0
+    ]
+    if len(cpi_overlap_ratios) < 24:
+        raise RuntimeError("Insufficient overlap to extend Japan CPI history")
+    japan_cpi_legacy_scale = statistics.median(cpi_overlap_ratios)
+    official_japan_cpi_start = min(japan_cpi)
+    for key, value in japan_cpi_legacy.items():
+        if key < official_japan_cpi_start:
+            japan_cpi[key] = value * japan_cpi_legacy_scale
+    japan_cpi_source["historicalExtension"] = {
+        "provider": japan_cpi_legacy_source.get("provider"),
+        "seriesId": japan_cpi_legacy_source.get("seriesId"),
+        "sourceUrl": japan_cpi_legacy_source.get("sourceUrl"),
+        "usedThroughMonth": month_date(max(key for key in japan_cpi_legacy if key < official_japan_cpi_start)),
+        "handoffMonth": month_date(official_japan_cpi_start),
+        "overlapScaleFactor": rounded(japan_cpi_legacy_scale, 8),
+        "usageNote": "Used only before the official e-Stat monthly table begins; rebased by the median overlap ratio.",
+    }
     gs10, gs10_source = fred_provider.monthly("GS10", "10-Year Treasury Constant Maturity Rate")
     aaa, aaa_source = fred_provider.monthly("AAA", "Moody's Seasoned Aaa Corporate Bond Yield")
     baa, baa_source = fred_provider.monthly("BAA", "Moody's Seasoned Baa Corporate Bond Yield")
     jgb10, jgb_source = JGBProvider(fetcher).monthly()
     sp_annual_earnings, sp_earnings_source = SPEarningsProvider(fetcher).annual()
+    mof_annual_profits, mof_profit_source = MOFCorporateProfitsProvider(fetcher).annual()
     nikkei_per_history, nikkei_per_source, nikkei_per_warnings = NikkeiPERProvider(fetcher).history()
     if nikkei_per_warnings:
         errors.extend(nikkei_per_warnings[:8])
@@ -1131,6 +1364,53 @@ def build_global_comparison(request_fn: Callable[..., bytes]) -> dict[str, Any]:
         nikkei_index_eps[key] = close / pe
         nikkei_pe_dates[key] = str(observation.get("date") or month_date(key))
 
+    nikkei_official_power: dict[str, tuple[float | None, float | None, str | None]] = {
+        key: monthly_real_earnings_power(nikkei_index_eps, japan_cpi, key)
+        for key in usable_months
+    }
+    nikkei_macro_power: dict[str, tuple[float | None, int | None, float | None]] = {
+        key: annual_real_earnings_power(
+            mof_annual_profits,
+            japan_cpi,
+            key,
+            availability_month=9,
+        )
+        for key in usable_months
+    }
+    historical_baseline_ratios: list[float] = []
+    historical_baseline_months: list[str] = []
+    for key in usable_months:
+        if not ("1985-01" <= key <= "1986-12"):
+            continue
+        macro_power = nikkei_macro_power[key][0]
+        market_value = nikkei.get(key)
+        if macro_power is None or market_value is None or min(macro_power, market_value) <= 0:
+            continue
+        historical_baseline_ratios.append(market_value / macro_power)
+        historical_baseline_months.append(key)
+    if len(historical_baseline_ratios) < 12:
+        raise RuntimeError(
+            f"Only {len(historical_baseline_ratios)} months are available for the 1985-86 baseline"
+        )
+    baseline_quartiles = statistics.quantiles(
+        historical_baseline_ratios, n=4, method="inclusive"
+    )
+    nikkei_historical_baseline_multiple = statistics.median(historical_baseline_ratios)
+    nikkei_historical_baseline_low = baseline_quartiles[0]
+    nikkei_historical_baseline_high = baseline_quartiles[2]
+    nikkei_official_model_start = next(
+        (key for key in usable_months if nikkei_official_power[key][0] is not None),
+        None,
+    )
+    nikkei_proxy_model_start = next(
+        (key for key in usable_months if nikkei_macro_power[key][0] is not None),
+        None,
+    )
+
+    nikkei_proxy_display_end = max(
+        (key for key in usable_months if nikkei_official_model_start and key < nikkei_official_model_start),
+        default=None,
+    )
     rows: list[dict[str, Any]] = []
     for key in usable_months:
         sp_value = sp500[key]
@@ -1172,9 +1452,30 @@ def build_global_comparison(request_fn: Callable[..., bytes]) -> dict[str, Any]:
             if sp_theoretical_nominal is not None else None
         )
 
-        nikkei_earnings_power, nikkei_latest_earnings, nikkei_latest_earnings_date = monthly_real_earnings_power(
-            nikkei_index_eps, japan_cpi, key
+        official_power, official_latest_earnings, official_latest_date = nikkei_official_power[key]
+        macro_power_raw, macro_year, macro_latest_raw = nikkei_macro_power[key]
+        nikkei_historical_fair = (
+            macro_power_raw * nikkei_historical_baseline_multiple
+            if macro_power_raw is not None else None
         )
+        nikkei_historical_fair_low = (
+            macro_power_raw * nikkei_historical_baseline_low
+            if macro_power_raw is not None else None
+        )
+        nikkei_historical_fair_high = (
+            macro_power_raw * nikkei_historical_baseline_high
+            if macro_power_raw is not None else None
+        )
+        nikkei_historical_premium = (
+            (nikkei_jpy / nikkei_historical_fair - 1.0) * 100.0
+            if nikkei_historical_fair not in (None, 0) else None
+        )
+        nikkei_earnings_power = official_power
+        nikkei_latest_earnings = official_latest_earnings
+        nikkei_latest_earnings_date = official_latest_date
+        nikkei_earnings_source = "official-index-pe-derived-eps" if official_power is not None else None
+        nikkei_model_quality = "official-index-input" if official_power is not None else "historical-relative-proxy"
+        nikkei_latest_is_proxy = False if official_power is not None else None
         nikkei_model = capitalized_earnings_model(
             nikkei_earnings_power,
             value_as_of(jgb10, key),
@@ -1229,6 +1530,16 @@ def build_global_comparison(request_fn: Callable[..., bytes]) -> dict[str, Any]:
             "nikkeiIndexEps": rounded(nikkei_index_eps.get(key)),
             "nikkeiPeObservationDate": nikkei_pe_dates.get(key),
             "nikkeiEarningsPower": rounded(nikkei_earnings_power),
+            "nikkeiEarningsPowerSource": nikkei_earnings_source,
+            "nikkeiModelQuality": nikkei_model_quality,
+            "nikkeiLatestEarningsIsProxy": nikkei_latest_is_proxy,
+            "nikkeiMacroProfitPowerRaw": rounded(macro_power_raw),
+            "nikkeiMacroLatestProfitRaw": rounded(macro_latest_raw),
+            "nikkeiMacroProfitAvailableThroughYear": macro_year,
+            "nikkeiHistoricalFairValueProxyJpy": rounded(nikkei_historical_fair),
+            "nikkeiHistoricalFairValueProxyLowJpy": rounded(nikkei_historical_fair_low),
+            "nikkeiHistoricalFairValueProxyHighJpy": rounded(nikkei_historical_fair_high),
+            "nikkeiHistoricalPremiumProxyPct": rounded(nikkei_historical_premium, 4),
             "nikkeiTheoreticalJpy": rounded(nikkei_theoretical_jpy),
             "nikkeiTheoreticalLowJpy": rounded(nikkei_theoretical_low),
             "nikkeiTheoreticalHighJpy": rounded(nikkei_theoretical_high),
@@ -1249,6 +1560,119 @@ def build_global_comparison(request_fn: Callable[..., bytes]) -> dict[str, Any]:
             ),
             "nikkeiCapRateFloored": bool(nikkei_model["capRateFloored"]) if nikkei_model else None,
         })
+
+    def historical_stress_episode(
+        episode_id: str,
+        label: str,
+        start: str,
+        end: str,
+        premium_field: str,
+        *,
+        calibration_eligible: bool,
+        model_basis: str,
+    ) -> dict[str, Any]:
+        observations = [
+            row for row in rows
+            if start <= row["date"][:7] <= end
+            and row.get("nikkeiJpy") is not None
+            and row.get(premium_field) is not None
+        ]
+        if not observations:
+            return {
+                "id": episode_id,
+                "label": label,
+                "status": "unavailable",
+                "calibrationEligible": False,
+            }
+        peak_index = max(range(len(observations)), key=lambda index: observations[index]["nikkeiJpy"])
+        peak = observations[peak_index]
+        trough = min(observations[peak_index:], key=lambda row: row["nikkeiJpy"])
+        minimum_premium = min(observations, key=lambda row: row[premium_field])
+        maximum_premium = max(observations, key=lambda row: row[premium_field])
+        return {
+            "id": episode_id,
+            "label": label,
+            "status": "available",
+            "startDate": month_date(start),
+            "endDate": month_date(end),
+            "modelBasis": model_basis,
+            "premiumField": premium_field,
+            "calibrationEligible": calibration_eligible,
+            "marketPeak": rounded(peak["nikkeiJpy"], 2),
+            "marketPeakDate": peak["date"],
+            "marketTrough": rounded(trough["nikkeiJpy"], 2),
+            "marketTroughDate": trough["date"],
+            "marketDrawdownPct": rounded(
+                (trough["nikkeiJpy"] / peak["nikkeiJpy"] - 1.0) * 100.0, 2
+            ),
+            "maximumPremiumPct": rounded(maximum_premium[premium_field], 2),
+            "maximumPremiumDate": maximum_premium["date"],
+            "minimumPremiumPct": rounded(minimum_premium[premium_field], 2),
+            "minimumPremiumDate": minimum_premium["date"],
+        }
+
+    historical_stress_episodes = [
+        historical_stress_episode(
+            "japan-bubble-1989-1992",
+            "Japan bubble unwind 1989-1992",
+            "1989-12",
+            "1992-08",
+            "nikkeiHistoricalPremiumProxyPct",
+            calibration_eligible=True,
+            model_basis="1985-86 price-to-real-large-company-profit baseline",
+        ),
+        historical_stress_episode(
+            "dotcom-japan-2000-2002",
+            "Dot-com unwind in Japanese equities 2000-2002",
+            "2000-03",
+            "2002-10",
+            "nikkeiHistoricalPremiumProxyPct",
+            calibration_eligible=False,
+            model_basis="Long-horizon historical proxy; shown for context but excluded from floor calibration",
+        ),
+        historical_stress_episode(
+            "global-financial-crisis-2007-2009",
+            "Global financial crisis 2007-2009",
+            "2007-10",
+            "2009-03",
+            "nikkeiMarketPremiumPct",
+            calibration_eligible=True,
+            model_basis="Official Nikkei P/E-derived EPS capitalized-earnings model",
+        ),
+    ]
+    panic_discounts = [
+        -float(episode["minimumPremiumPct"])
+        for episode in historical_stress_episodes
+        if episode.get("calibrationEligible")
+        and finite(episode.get("minimumPremiumPct")) is not None
+        and float(episode["minimumPremiumPct"]) < 0
+    ]
+    latest_official_row = next(
+        (row for row in reversed(rows) if row.get("nikkeiTheoreticalJpy") is not None),
+        None,
+    )
+    mild_panic_discount = min(panic_discounts) if panic_discounts else None
+    standard_panic_discount = statistics.median(panic_discounts) if panic_discounts else None
+    severe_panic_discount = max(panic_discounts) if panic_discounts else None
+    latest_central = latest_official_row.get("nikkeiTheoreticalJpy") if latest_official_row else None
+    latest_low = latest_official_row.get("nikkeiTheoreticalLowJpy") if latest_official_row else None
+    panic_overshoot_model = {
+        "status": "available" if latest_central and panic_discounts else "unavailable",
+        "methodId": "historical-below-fundamentals-overshoot-v1",
+        "latestDate": latest_official_row.get("date") if latest_official_row else None,
+        "normalizationCentralJpy": rounded(latest_central),
+        "normalizationLowJpy": rounded(latest_low),
+        "normalizationHighJpy": rounded(latest_official_row.get("nikkeiTheoreticalHighJpy") if latest_official_row else None),
+        "mildOvershootDiscountPct": rounded(mild_panic_discount, 2),
+        "standardOvershootDiscountPct": rounded(standard_panic_discount, 2),
+        "severeOvershootDiscountPct": rounded(severe_panic_discount, 2),
+        "panicCentralJpy": rounded(latest_central * (1.0 - standard_panic_discount / 100.0) if latest_central and standard_panic_discount is not None else None),
+        "panicCentralRangeLowJpy": rounded(latest_central * (1.0 - severe_panic_discount / 100.0) if latest_central and severe_panic_discount is not None else None),
+        "panicCentralRangeHighJpy": rounded(latest_central * (1.0 - mild_panic_discount / 100.0) if latest_central and mild_panic_discount is not None else None),
+        "severeSensitivityFloorJpy": rounded(latest_low * (1.0 - severe_panic_discount / 100.0) if latest_low and severe_panic_discount is not None else None),
+        "episodes": historical_stress_episodes,
+        "interpretation": "Applies historical discounts below each episode's model-implied central value to today's normalized-profit central value. It is a stress range, not a forecast or a buy signal.",
+    }
 
     series_base_dates = {
         "sp500Nominal": normalize_rows(rows, "sp500Nominal", "sp500NominalNormalized"),
@@ -1307,6 +1731,23 @@ def build_global_comparison(request_fn: Callable[..., bytes]) -> dict[str, Any]:
                 "latestEarningsValue": latest.get(latest_earnings_value_field) if latest else None,
                 "latestEarningsDate": latest.get(latest_earnings_date_field) if latest else None,
             },
+            "historicalRelativeProxy": ({
+                "status": "available",
+                "methodId": "price-to-real-corporate-profit-baseline-v1",
+                "methodLabel": "Relative premium versus the 1985-86 price-to-real-profit baseline",
+                "startDate": month_date(nikkei_proxy_model_start) if nikkei_proxy_model_start else None,
+                "displayEndDate": month_date(nikkei_proxy_display_end) if nikkei_proxy_display_end else None,
+                "officialModelStartDate": month_date(nikkei_official_model_start) if nikkei_official_model_start else None,
+                "baselineStartDate": month_date(min(historical_baseline_months)) if historical_baseline_months else None,
+                "baselineEndDate": month_date(max(historical_baseline_months)) if historical_baseline_months else None,
+                "baselineMonths": len(historical_baseline_months),
+                "marketField": "nikkeiJpy",
+                "fairValueProxyField": "nikkeiHistoricalFairValueProxyJpy",
+                "premiumField": "nikkeiHistoricalPremiumProxyPct",
+                "sourceSeriesId": mof_profit_source.get("seriesId"),
+                "boundaryRule": "The relative proxy is displayed only before the official Nikkei P/E-derived model begins.",
+                "interpretation": "Measures how much faster the Nikkei rose than CPI-restated large-company ordinary profits versus the 1985-86 baseline; it is not official index EPS or an absolute fair value.",
+            } if market == "nikkei225" else None),
             "assumptions": {
                 "baseEquityRiskPremiumPct": MODEL_ERP_PCT,
                 "realGrowthPct": MODEL_REAL_GROWTH_PCT[market],
@@ -1345,13 +1786,14 @@ def build_global_comparison(request_fn: Callable[..., bytes]) -> dict[str, Any]:
         "seriesDefinitions": _series_definitions(),
         "points": rows,
         "theoreticalModels": {"sp500": sp_model_meta, "nikkei225": nikkei_model_meta},
+        "panicOvershootModel": panic_overshoot_model,
         "valuationCoverage": {"sp500": sp_coverage, "nikkei225": nikkei_coverage},
         "providerAdapters": {
             "MarketIndexProvider": [sp_source, nikkei_source],
             "ExchangeRateProvider": fx_source,
             "CPIProvider": [us_cpi_source, japan_cpi_source],
             "RateProvider": [gs10_source, aaa_source, baa_source, jgb_source],
-            "EarningsProvider": [sp_earnings_source, nikkei_per_source],
+            "EarningsProvider": [sp_earnings_source, nikkei_per_source, mof_profit_source],
             "ValuationProvider": [sp_coverage, nikkei_coverage],
         },
         "crises": [
@@ -1371,10 +1813,13 @@ def build_global_comparison(request_fn: Callable[..., bytes]) -> dict[str, Any]:
             "theoreticalNominal": "normalized_earnings_power / capitalization_rate",
             "sp500TheoreticalReal": "sp500_theoretical_nominal_t * us_cpi_reference / us_cpi_t",
             "nikkeiTheoreticalUsd": "nikkei_theoretical_jpy_t / JPY_PER_USD_t",
+            "nikkeiHistoricalFairValueProxy": "CPI-restated 5-year median large-company ordinary profits_t * median(Nikkei / profit_power) during 1985-86",
+            "panicOvershoot": "today_normalized_profit_value * (1 - historical_below-model_discount)",
         },
         "sources": [
-            sp_source, nikkei_source, fx_source, us_cpi_source, japan_cpi_source,
-            gs10_source, aaa_source, baa_source, jgb_source, sp_earnings_source, nikkei_per_source,
+            sp_source, nikkei_source, fx_source, us_cpi_source, japan_cpi_source, japan_cpi_legacy_source,
+            gs10_source, aaa_source, baa_source, jgb_source, sp_earnings_source,
+            nikkei_per_source, mof_profit_source,
         ],
         "cache": {
             "ttlSeconds": fetcher.ttl_seconds,
@@ -1387,6 +1832,9 @@ def build_global_comparison(request_fn: Callable[..., bytes]) -> dict[str, Any]:
             "This is a top-down capitalized-earnings proxy, not a licensed constituent-by-constituent DCF or an official index.",
             "The 4.50% equity-risk premium, real-growth rates, credit-stress adjustment and 2.50% capitalization-rate floor are model assumptions; the low-high range must be read with the center value.",
             "S&P annual earnings are first used from May of the following year. Nikkei EPS is derived from Nikkei's official index-weight P/E and the monthly index close.",
+            "The 1985-2006 Nikkei history line is a relative proxy anchored to the median 1985-86 price-to-real-large-company-profit ratio. It is not official Nikkei EPS, and it is kept visually separate from the official P/E-derived model.",
+            "MOF Corporate Enterprise Survey sampling and definitions change over time; the historical proxy is suitable for broad overheating and overshoot comparisons, not point estimates.",
+            "The panic floor applies the below-model discounts observed in the 1989-92 Japan unwind and the 2007-09 global financial crisis. Two episodes cannot determine the next bottom or its probability.",
             "The chart lines compare changes and use the same market anchor within each market. Read the cards for the absolute fair-value gap.",
             "Exact historical constituent DCF remains unavailable until licensed point-in-time membership and fundamentals reach 80% index-weight coverage.",
         ],
