@@ -17,7 +17,7 @@ assert.strictEqual(new Set(payload.seriesDefinitions.map((row) => row.color)).si
 assert.ok(payload.seriesDefinitions.every((row) => /^#[0-9A-F]{6}$/i.test(row.color)));
 assert.ok(100 / 150 < 100 / 100, "a weaker yen must lower USD-converted value");
 
-const section = html.split('<section id="global-comparison"')[1].split('<section id="analysis-map"')[0];
+const section = html.split('<section id="global-comparison"')[1].split('<section id="sakakibara-method"')[0];
 assert.ok(section);
 assert.doesNotMatch(section, /TOPIX/i);
 assert.match(section, /全体表示：S&amp;P 500名目を戻す/);
@@ -44,7 +44,7 @@ assert.match(section, /平準化EPS/);
 assert.match(section, /gcSpLatestEarningsValue/);
 assert.match(section, /gcNkLatestEarningsValue/);
 assert.match(section, /感応度レンジ/);
-assert.ok(html.indexOf('id="global-comparison"') < html.indexOf('id="analysis-map"'));
+assert.ok(html.indexOf('id="global-comparison"') < html.indexOf('id="sakakibara-method"'));
 
 assert.match(script, /if \(value == null \|\| value === ""\) return null;/, "missing values must remain null");
 assert.match(script, /showSp500Nominal: false/);

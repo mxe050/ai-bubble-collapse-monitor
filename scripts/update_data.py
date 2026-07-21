@@ -25,6 +25,8 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Iterable
 
+from margin_debt import FINRA_PAGE_URL, write_margin_debt_history
+
 
 ROOT = Path(__file__).resolve().parents[1]
 OUTPUT = ROOT / "data" / "latest.json"
@@ -2722,6 +2724,26 @@ def main() -> None:
         errors.append(f"FRED CPIAUCNS: {exc}")
         statuses.append(SourceStatus("FRED CPI-U", "https://fred.stlouisfed.org/series/CPIAUCNS", False, NOW.isoformat(), f"既存のMoney Strategist CPI系列を保持: {exc}"))
 
+    try:
+        margin_debt = write_margin_debt_history(request, prices.get("SP500"))
+        latest_margin = margin_debt.get("latest") or {}
+        statuses.append(SourceStatus(
+            "FINRA margin debt / FRED nominal GDP",
+            FINRA_PAGE_URL,
+            True,
+            NOW.isoformat(),
+            f"margin {latest_margin.get('date', 'unknown')} / GDP {latest_margin.get('nominalGdpDate', 'unknown')}",
+        ))
+    except Exception as exc:
+        errors.append(f"Margin debt / GDP: {exc}")
+        statuses.append(SourceStatus(
+            "FINRA margin debt / FRED nominal GDP",
+            FINRA_PAGE_URL,
+            False,
+            NOW.isoformat(),
+            f"既存の長期レバレッジ系列を保持: {exc}",
+        ))
+
     overseas_ai_companies = [company for company in companies if company["ticker"] in OVERSEAS_AI_TICKERS]
     japan_ai_companies = [company for company in companies if company["ticker"] in JAPAN_AI_TICKERS]
     company_drawdowns = [company.get("drawdown3yPct") for company in overseas_ai_companies]
@@ -2866,7 +2888,7 @@ def main() -> None:
             "note": "These fields require a consistent paid consensus series, product-level pricing, or verified project announcements. Missing is not zero.",
         },
         "sourceStatus": [status.__dict__ for status in statuses],
-        "methodVersion": "4.1.0",
+        "methodVersion": "4.2.0",
     }
     OUTPUT.parent.mkdir(parents=True, exist_ok=True)
     OUTPUT.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")

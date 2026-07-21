@@ -67,6 +67,10 @@ assert.match(indexSource, /未上場株の「提示価格」は、そのまま�
 assert.match(indexSource, /各社の次回取引価格、売却希望額、買い手の引受余力、IPO時の既存株主売出を個別に追います。/);
 assert.doesNotMatch(indexSource, /職員はすでに株を売っている/);
 assert.doesNotMatch(indexSource, /両社の職員・元職員は累計約140億ドルを現金化/);
+assert.match(indexSource, /Margin Debt \/ GDP/);
+assert.match(indexSource, /燃料、引き金、巻き戻し/);
+assert.match(indexSource, /半導体株の反発だけでは、構造的な底を証明しない/);
+assert.match(indexSource, /1\.1228兆ウォン/);
 const ids = [...indexSource.matchAll(/\bid="([^"]+)"/g)].map((match) => match[1]);
 const elements = new Map(ids.map((id) => [id, new FakeElement(id)]));
 const filters = ["all", "overseas-ai", "japan-ai", "japan-diversified"].map((value) => {
@@ -101,10 +105,13 @@ global.localStorage = {
 };
 const payload = JSON.parse(fs.readFileSync("data/latest.json", "utf8"));
 const moneyPayload = JSON.parse(fs.readFileSync("data/money-strategist-history.json", "utf8"));
+const marginPayload = JSON.parse(fs.readFileSync("data/margin-debt-history.json", "utf8"));
 global.fetch = async (url) => ({
   ok: true,
   status: 200,
-  json: async () => String(url).includes("money-strategist-history") ? moneyPayload : payload,
+  json: async () => String(url).includes("money-strategist-history")
+    ? moneyPayload
+    : String(url).includes("margin-debt-history") ? marginPayload : payload,
 });
 
 vm.runInThisContext(appSource, { filename: "app.js" });
@@ -149,6 +156,12 @@ setTimeout(() => {
   assert.match(elements.get("msRealStockMultiple").textContent, /倍/);
   assert.match(elements.get("msCalendarSummary").innerHTML, /2026年/);
   assert.match(elements.get("msCalendarSummary").innerHTML, /2028年/);
+  assert.match(elements.get("marginDebtLatest").textContent, /兆/);
+  assert.match(elements.get("marginDebtRatio").textContent, /%/);
+  assert.notStrictEqual(elements.get("marginDebtStatus").textContent, "計算中");
+  assert.match(elements.get("marginDebtEventList").innerHTML, /2000年3月/);
+  assert.match(elements.get("marginDebtSourceRegime").innerHTML, /FINRA全会員会社/);
+  assert.notStrictEqual(elements.get("bottomBusinessConclusion").textContent, "価格反発と事業面の裏付けを分けて判定しています。");
   console.log(JSON.stringify({
     headline: elements.get("headlineConclusion").textContent,
     transmission: elements.get("japanTransmissionStatus").textContent,

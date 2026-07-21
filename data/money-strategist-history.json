@@ -9123,6 +9123,12 @@
         "x": 2026.539726,
         "value": 7457.6899,
         "sourceType": "S&P 500 live close appended by the local data update"
+      },
+      {
+        "date": "2026-07-20",
+        "x": 2026.547945,
+        "value": 7443.2798,
+        "sourceType": "S&P 500 live close appended by the local data update"
       }
     ],
     "boundaryNotes": [
@@ -9130,8 +9136,8 @@
       "1928年～1957年3月3日はS&P 500の正式開始前で、後から整備された歴史・バックテスト系列。",
       "1957年3月4日以降が正式なS&P 500。価格指数であり配当を含まない。"
     ],
-    "latestDate": "2026-07-17",
-    "latestValue": 7457.69
+    "latestDate": "2026-07-20",
+    "latestValue": 7443.28
   },
   "crashes": [
     {

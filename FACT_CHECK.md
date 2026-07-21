@@ -1,7 +1,7 @@
 # ファクトチェック・ロジック監査記録
 
-監査日: 2026-07-19
-対象: AIバブル崩壊・日経平均底値モニター Method v4.1
+監査日: 2026-07-21
+対象: AIバブル崩壊・日経平均底値モニター Method v4.2
 
 ## 結論
 
@@ -285,3 +285,68 @@ S&P 500と日経平均には、企業別DCFとは別に、指数全体の平準�
 - [BIS 1989 Annual Report](https://www.bis.org/publ/arpdf/archive/ar1989_en.pdf)
 - [IMF: Japan's asset-price bubble](https://www.elibrary.imf.org/downloadpdf/display/book/9781557754622/ch06.pdf)
 - [IMF: 1989～92年の日経平均下落](https://www.elibrary.imf.org/view/journals/001/1993/085/article-A001-en.xml)
+## Method v4.2: 信用買い残÷GDPと動画2本の検証
+
+### 添付チャートの再構成
+
+添付の「Margin Debt / GDP」は画像転載ではなく、更新可能なデータチャートとして再構成しました。
+
+- 1959～1996年：NYSE Fact Book保存版の月次Margin Debt
+- 1997年以降：FINRA配布Excelの「Debit Balances in Customers' Securities Margin Accounts」
+- 分母：BEA作成、FRED掲載の四半期名目GDP（季節調整済み年率、十億ドル）
+
+2026年7月21日に取得したFINRAの最新値は2026年6月の1,502,072百万ドルです。GDPの直近公表値は2026年1～3月期の31,865.721十億ドルで、計算は次のとおりです。
+
+1,502,072 ÷ (31,865.721 × 1,000) × 100 = 4.7138%
+
+これは2026年6月同月GDPとの同期比率ではありません。2026年4～6月期GDP速報は7月30日公表予定のため、画面では「信用買い残2026年6月 / GDP 2026年1～3月期」と分け、暫定比率と表示します。
+
+最新の信用買い残は前月比+6.112%、3か月比+23.028%、前年比+49.021%です。2010年2月以降の系列では比率が最高ですが、この順位は暴落時期を示しません。信用買い残は株価を追って増えることがあり、月次かつ公表遅れもあります。
+
+### 長期比較の境界
+
+NYSE Fact Bookは、1983年のRegulation T改訂により口座区分が変わり、改訂前後を厳密に比較できないと注記しています。FINRAも2010年2月から全会員会社集計へ移ったこと、月次変動が報告方法変更の影響を受け得ることを注記しています。このため、全期間グラフは歴史的位置を眺める図、現在のパーセンタイルは2010年2月以降だけで計算します。
+
+FINRA信用口座統計は、デリバティブ、証券担保融資、海外口座など全レバレッジを網羅しません。ただし、網羅しないことを理由に「実際のレバレッジは必ずもっと大きい」とも断定しません。
+
+### 動画1：半導体反発の検証
+
+動画の有用な論点は「価格の急反発と構造的な底を分ける」です。ETF流入額、ファンド買い、ヘッジファンドの買い速度は同一定義の一次資料で再現できなかったため、判定へ入れません。代わりに既存の公式・企業データで次を表示します。
+
+1. CapEx：主要AI顧客4社で10%以上の削減が何社あるか
+2. 需要：海外AI10社の最新四半期売上中央値
+3. 投資回収力：FCFが前年同期比20%以上悪化した企業の比率
+
+この3点は底打ち100点へ加えず、価格反転を裏付ける事業面の補助確認です。
+
+### 動画2：韓国のレバレッジ増幅
+
+動画の口座数、Samsung・SK Hynixの上昇率、清算総額の一部は一次資料で再現できないため不採用です。SBSが韓国金融投資協会データとして報じた次の値だけを歴史事例として使います。
+
+- 2026年6月の信用取引関連強制決済：1.1228兆ウォン
+- 前月比：+58.6%
+- 6月のサーキットブレーカー：3回、sidecar：10回
+- VKOSPI日中高値：97.78
+
+これは、集中とレバレッジのある市場で下落が追証・強制決済を通じて増幅し得ることを示します。米国や日本が同じ経路、同じ下落率になる証明ではありません。
+
+### 判定への組み込み
+
+信用買い残÷GDPを既存の崩壊80点へ直接加点しません。次の順序で表示します。
+
+1. 燃料：比率順位と信用買い残増加率
+2. 引き金：CapEx、需要、FCFの変調
+3. 巻き戻し：信用買い残の急減とSOX・VIX・HY OASの同時悪化
+
+高い燃料だけなら「高レバレッジ・崩壊未確認」です。引き金と巻き戻しが重なった時だけ、評価正常化よりパニック経路を重くします。
+
+追加資料:
+
+- [FINRA Margin Statistics](https://www.finra.org/rules-guidance/key-topics/margin-accounts/margin-statistics)
+- [FRED / BEA Nominal GDP](https://fred.stlouisfed.org/series/GDP)
+- [BEA release schedule](https://www.bea.gov/news/schedule/)
+- [Archived NYSE Fact Book](https://web.archive.org/web/20180402044551/http://www.nyxdata.com/nysedata/asp/factbook/viewer_edition.asp?category=8&key=50&mode=tables)
+- [Hussman chart and commentary](https://www.advisorperspectives.com/commentaries/2026/07/15/mountain-cliff-ocean)
+- [SBS / Korea Financial Investment Association figures](https://news.sbs.co.kr/english/endPagePrintPopup.do?news_id=N1008637238)
+- [Video 1](https://www.youtube.com/watch?v=mVqqXI9TmCw&t=5s)
+- [Video 2](https://www.youtube.com/watch?v=hy90LdpEUvQ)

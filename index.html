@@ -25,7 +25,7 @@
           <i data-lucide="refresh-cw" aria-hidden="true"></i>
           最新データを取得・再計算
         </button>
-        <small id="refreshHint" class="refresh-hint">S&amp;P・信用・企業・海外情報を更新</small>
+        <small id="refreshHint" class="refresh-hint">市場・企業・信用買い残・海外情報を更新</small>
         <a class="command" href="#methodology">
           <i data-lucide="calculator" aria-hidden="true"></i>
           計算根拠
@@ -39,6 +39,7 @@
       <a href="#today">今日の判定</a>
       <a href="#decision-path">全体像</a>
       <a href="#global-comparison">過熱度</a>
+      <a href="#margin-leverage">信用レバレッジ</a>
       <a href="#signals">崩壊の兆候</a>
       <a href="#collapse-path">下落の2経路</a>
       <a href="#nikkei-bottom">底値候補</a>
@@ -110,7 +111,7 @@
         </div>
 
         <div class="hypothesis-note">
-          <strong>このアプリでいうバブル：</strong>株価が将来の成長を織り込むこと自体は正常です。企業が十分に発展しても説明しにくい水準まで期待が上乗せされ、その期待を支える価格・利益・信用の条件が崩れ始めた状態を「バブル崩壊」と考えます。高値だけでは崩壊と判定しません。
+          <strong>このアプリでいうバブル：</strong>株価が将来の成長を織り込むこと自体は正常です。企業が十分に発展しても説明しにくい水準まで期待が上乗せされ、その期待を支える価格・利益・信用の条件が崩れ始めた状態を「バブル崩壊」と考えます。信用買い残は下落を増幅する燃料として別に確認し、高値やレバレッジの多さだけでは崩壊と判定しません。
         </div>
       </div>
     </section>
@@ -139,7 +140,7 @@
           <i data-lucide="chevron-right" aria-hidden="true"></i>
           <a href="#signals" class="decision-stage">
             <span class="decision-number">03</span>
-            <div><small>崩壊の確認</small><strong>価格・利益・信用</strong><em id="pathCollapse">計算中</em><p>高値や割高だけではなく、期待を支える条件が同時に崩れたかを確認します。</p></div>
+            <div><small>崩壊の確認</small><strong>価格・利益・信用・レバレッジ</strong><em id="pathCollapse">計算中</em><p>割高や借入の多さだけではなく、期待を支える条件と強制売りの連鎖が崩れたかを確認します。</p></div>
           </a>
           <i data-lucide="chevron-right" aria-hidden="true"></i>
           <a href="#collapse-path" class="decision-stage">
@@ -1232,6 +1233,147 @@
       </div>
     </section>
 
+    <section id="margin-leverage" class="band band-margin-debt">
+      <div class="content">
+        <div class="section-heading heading-row">
+          <div>
+            <p class="section-kicker">LEVERAGE: FUEL, TRIGGER, UNWIND</p>
+            <h2>借りた資金は、下落を増幅するほど積み上がったか</h2>
+            <p>添付チャートの論点を、NYSE・FINRAの信用買い残とBEA/FREDの名目GDPから更新可能な形で再構成しました。ここでは「燃料、引き金、巻き戻し」の三段階で読みます。比率が高いことは「売りが始まる日」を示しません。高い借入ポジションは燃料であり、AI設備投資・需要・投資回収の悪化が引き金となり、信用買い残の急減と市場横断ストレスが重なった時に強制売りの連鎖を疑います。</p>
+          </div>
+          <div class="margin-live-badge">
+            <span>現在の読み</span>
+            <strong id="marginDebtStatus">計算中</strong>
+          </div>
+        </div>
+
+        <div class="section-route">
+          <strong>この章の役割</strong>
+          <span>借入ポジションの蓄積</span><i data-lucide="arrow-right" aria-hidden="true"></i>
+          <span>AI投資の変調</span><i data-lucide="arrow-right" aria-hidden="true"></i>
+          <span>強制売りの確認</span><i data-lucide="arrow-right" aria-hidden="true"></i>
+          <span>パニック経路へ接続</span><a href="#collapse-path">2つの下落経路</a>
+        </div>
+
+        <div class="margin-metric-grid" aria-live="polite">
+          <div><span>FINRA信用買い残</span><strong id="marginDebtLatest">―</strong><small id="marginDebtLatestDate">月次データ</small></div>
+          <div><span>信用買い残 ÷ 名目GDP</span><strong id="marginDebtRatio">―</strong><small id="marginDebtRatioDate">分母の日付を確認</small></div>
+          <div><span>信用買い残・前年比</span><strong id="marginDebtYoy">―</strong><small id="marginDebtYoyDetail">増加速度を確認</small></div>
+          <div><span>信用買い残成長 − S&amp;P成長</span><strong id="marginDebtSp500Gap">―</strong><small id="marginDebtSp500Detail">価格追随を超えた増加か</small></div>
+          <div><span>2010年以降の比率順位</span><strong id="marginDebtPercentile">―</strong><small id="marginDebtPercentileDetail">比較可能性を優先</small></div>
+        </div>
+
+        <div class="margin-chart-panel">
+          <div class="margin-chart-heading">
+            <div>
+              <p class="chart-overline">HISTORICAL RECONSTRUCTION / MONTHLY</p>
+              <h3>Margin Debt / GDP</h3>
+              <p>同じ縦幅が同じ比率差です。赤い帯は最新約1年を目立たせるだけで、暴落予測期間ではありません。</p>
+            </div>
+            <div class="margin-range-control" role="group" aria-label="信用買い残チャートの表示期間">
+              <button type="button" class="margin-range-button is-active" data-margin-range="all" aria-pressed="true">全期間</button>
+              <button type="button" class="margin-range-button" data-margin-range="30y" aria-pressed="false">30年</button>
+              <button type="button" class="margin-range-button" data-margin-range="20y" aria-pressed="false">20年</button>
+              <button type="button" class="margin-range-button" data-margin-range="10y" aria-pressed="false">10年</button>
+              <button type="button" class="margin-range-button" data-margin-range="5y" aria-pressed="false">5年</button>
+            </div>
+          </div>
+          <div class="margin-chart-frame">
+            <canvas id="marginDebtChart" role="img" aria-label="1959年から最新月までの米国信用買い残対名目GDP比率"></canvas>
+          </div>
+          <p id="marginDebtTimingNote" class="margin-timing-note">信用買い残とGDPの基準月を確認しています。</p>
+        </div>
+
+        <div class="margin-current-reading">
+          <div>
+            <span>現在の結論</span>
+            <strong id="marginDebtStatusDetail">燃料・引き金・巻き戻しを分けて判定しています。</strong>
+          </div>
+          <p>比率の最高値は危険の大きさを示す補助情報で、暴落の時期を当てるタイマーではありません。信用買い残は株価上昇を追って増えることもあり、因果の向きは一方向ではありません。</p>
+        </div>
+
+        <div class="margin-chain-grid" aria-label="強制売り連鎖の三段階">
+          <article id="marginChainFuel" data-level="unknown">
+            <span>01　燃料</span>
+            <strong>計算中</strong>
+            <p>借入ポジションの量と増加速度を確認します。</p>
+          </article>
+          <article id="marginChainTrigger" data-level="unknown">
+            <span>02　引き金</span>
+            <strong>計算中</strong>
+            <p>設備投資・需要・FCFの悪化を確認します。</p>
+          </article>
+          <article id="marginChainUnwind" data-level="unknown">
+            <span>03　巻き戻し</span>
+            <strong>計算中</strong>
+            <p>信用買い残の減少と市場横断ストレスを確認します。</p>
+          </article>
+        </div>
+
+        <div class="margin-explanation-grid">
+          <div class="margin-event-column">
+            <div class="subsection-heading">
+              <span>歴史上の観測点</span>
+              <h3>高い比率の後に下落した例はあるが、待ち時間は一定ではない</h3>
+              <p>1968年、1972年、1987年、2000年、2007年、2018年、2021年と最新月を同じ系列に置きます。ピークの直後に必ず暴落した、という読み方はしません。</p>
+            </div>
+            <div id="marginDebtEventList" class="margin-event-list"></div>
+          </div>
+          <div class="margin-source-column">
+            <div class="subsection-heading">
+              <span>系列の切れ目</span>
+              <h3>1959年から一本に見えても、母集団は同じではない</h3>
+              <p>添付図の見た目を再現するだけでなく、比較できる範囲を明示します。現在の順位は2010年2月以降だけで計算します。</p>
+            </div>
+            <div id="marginDebtSourceRegime" class="margin-regime-list"></div>
+          </div>
+        </div>
+
+        <div class="video-evidence-grid">
+          <article class="video-evidence semiconductor">
+            <div class="video-evidence-label"><i data-lucide="cpu" aria-hidden="true"></i><span>動画1から採用した論点</span></div>
+            <h3>半導体株の反発だけでは、構造的な底を証明しない</h3>
+            <p>大きな資金流入や急反発は、売られ過ぎからの戻りでも起こります。本サイトでは次の3点を、価格の反転とは別に確認します。</p>
+            <ol>
+              <li><strong>CapExが確認できる</strong><span>Microsoft、Alphabet、Amazon、Metaの設備投資が広く削減されていないか。</span></li>
+              <li><strong>需要が維持される</strong><span>海外AI10社の最新四半期売上が、前年同期比で広く悪化していないか。</span></li>
+              <li><strong>投資回収力が保たれる</strong><span>設備投資を増やしてもFCF悪化が多数社へ広がっていないか。</span></li>
+            </ol>
+            <p class="video-evidence-caution">動画内のETF流入額などは、同じ定義の一次資料で確認できない数字を崩壊判定へ加えていません。</p>
+          </article>
+
+          <article class="video-evidence korea">
+            <div class="video-evidence-label"><i data-lucide="landmark" aria-hidden="true"></i><span>動画2を公式情報で絞り込む</span></div>
+            <h3>韓国は「集中 × レバレッジ」が下落を増幅する実例</h3>
+            <div class="korea-verified-metrics">
+              <div><span>2026年6月の強制決済</span><strong>1.1228兆ウォン</strong><small>前月比 +58.6%</small></div>
+              <div><span>6月のサーキットブレーカー</span><strong>3回</strong><small>sidecarは10回</small></div>
+              <div><span>VKOSPI日中高値</span><strong>97.78</strong><small>2008年以来の高水準</small></div>
+            </div>
+            <p>価格下落が追証と強制決済を呼び、その売りが次の下落を生む仕組みは確認できます。ただし、韓国の市場構成・個人信用取引・政策は米国や日本と異なります。韓国で起きたことを、そのまま日経平均の下落率へ移しません。</p>
+            <p class="video-evidence-caution">動画内の口座数、個別銘柄の上昇率、清算総額の一部は一次資料で再現できないため不採用です。</p>
+          </article>
+        </div>
+
+        <div class="margin-logic-note">
+          <i data-lucide="workflow" aria-hidden="true"></i>
+          <div>
+            <strong>現在のアプリへの接続</strong>
+            <p>信用買い残÷GDPは、既存の崩壊80点へ機械的に加点しません。燃料が高くても、CapEx・需要・FCFが維持され、信用買い残が増え続け、VIXとHY OASが落ち着いている間は「高評価・高レバレッジ」と「崩壊」を区別します。反対に、事業面の悪化、信用買い残の急減、SOX急落、VIX・OAS上昇が重なれば、正常化よりパニック経路を重く見ます。</p>
+          </div>
+        </div>
+
+        <p class="transmission-sources">データと検証資料：
+          <a href="https://www.finra.org/rules-guidance/key-topics/margin-accounts/margin-statistics" target="_blank" rel="noopener">FINRA Margin Statistics</a> /
+          <a href="https://fred.stlouisfed.org/series/GDP" target="_blank" rel="noopener">FRED / BEA 名目GDP</a> /
+          <a href="https://web.archive.org/web/20180402044551/http://www.nyxdata.com/nysedata/asp/factbook/viewer_edition.asp?category=8&amp;key=50&amp;mode=tables" target="_blank" rel="noopener">NYSE Fact Book保存版</a> /
+          <a href="https://www.advisorperspectives.com/commentaries/2026/07/15/mountain-cliff-ocean" target="_blank" rel="noopener">Hussman・添付図の原資料</a> /
+          <a href="https://news.sbs.co.kr/english/endPagePrintPopup.do?news_id=N1008637238" target="_blank" rel="noopener">SBS・韓国金融投資協会データ</a> /
+          <a href="https://www.youtube.com/watch?v=mVqqXI9TmCw&amp;t=5s" target="_blank" rel="noopener">検討動画1</a> /
+          <a href="https://www.youtube.com/watch?v=hy90LdpEUvQ" target="_blank" rel="noopener">検討動画2</a>。
+        </p>
+      </div>
+    </section>
     <section id="signals" class="band">
       <div class="content">
         <div class="section-heading">
@@ -1421,6 +1563,31 @@
               <small>価格帯40点、安値更新停止25点、50日線20点、信用10点、市場の広がり5点。価格帯まで10%以内でない間は、他の反転項目が良好でも総合点を0点として判定を保留します。</small>
             </div>
             <div id="nikkeiChecklist" class="confirmation-checklist"></div>
+          </div>
+          <div class="bottom-business-evidence">
+            <div class="bottom-business-heading">
+              <span>PRICE REBOUND IS NOT A BUSINESS BOTTOM</span>
+              <h4>反発を底と呼ぶ前に、事業面の3条件を確認する</h4>
+              <p>半導体株への資金流入や急反発は、短期の売られ過ぎでも起きます。底打ち100点へは加点せず、価格と別の補助確認として表示します。</p>
+            </div>
+            <div class="bottom-business-grid">
+              <article id="bottomCapexEvidence" data-level="unknown">
+                <span>CapExが続く</span>
+                <strong>計算中</strong>
+                <p>主要AI顧客4社の設備投資を確認しています。</p>
+              </article>
+              <article id="bottomDemandEvidence" data-level="unknown">
+                <span>需要が残る</span>
+                <strong>計算中</strong>
+                <p>海外AI10社の最新四半期売上を確認しています。</p>
+              </article>
+              <article id="bottomReturnsEvidence" data-level="unknown">
+                <span>投資回収力が残る</span>
+                <strong>計算中</strong>
+                <p>FCF悪化が何社へ広がったか確認しています。</p>
+              </article>
+            </div>
+            <p id="bottomBusinessConclusion" class="bottom-business-conclusion">価格反発と事業面の裏付けを分けて判定しています。</p>
           </div>
         </div>
 
@@ -1718,7 +1885,7 @@
           <table>
             <thead><tr><th>知りたい答え</th><th>上の対応画面</th><th>主な入力</th><th>計算</th><th>表示される答え</th></tr></thead>
             <tbody>
-              <tr><th>米国AI相場が崩壊したか</th><td><a href="#signals">米国側の崩壊シグナル</a></td><td>SOX、海外AI10社の四半期業績、CapEx、供給、米国HY OAS</td><td>崩壊確認4群80点＋別枠の評価脆弱性20点＋3ゲート</td><td>米国側の崩壊段階・確認証拠・欠損幅</td></tr>
+              <tr><th>米国AI相場が崩壊したか</th><td><a href="#margin-leverage">信用レバレッジ</a>＋<a href="#signals">米国側の崩壊シグナル</a></td><td>信用買い残÷GDP、SOX、海外AI10社の四半期業績、CapEx、供給、米国HY OAS</td><td>燃料・引き金・巻き戻しの3段階＋崩壊確認4群80点＋3ゲート</td><td>高レバレッジと崩壊を分離し、強制売り連鎖の有無を表示</td></tr>
               <tr><th>過去と2026年はどこまで似るか</th><td><a href="#money-strategist">マネーストラテジスト</a></td><td>1900年以降の米国株、主要10局面、CAPE、上位10社比率、NY連銀モデル、動画の時期説明</td><td>実数チャート＋同一規則の最大下落率＋中間選挙年19回の再計算＋主張と事実の照合</td><td>過去の実績は赤、動画の主張と説明用青線は別表示、2028年までは価格目標でなく危険期間</td></tr>
               <tr><th>米国から日本へ波及したか</th><td><a href="#us-japan-link">米国→日本</a></td><td>SOX、日経平均、日本AI・半導体連動8社</td><td>短期波及2項目＋持続的波及4項目</td><td>日本への短期波及・持続的波及</td></tr>
               <tr><th>IT崩壊で非ITもどこまで下がるか</th><td><a href="#dotcom-spillover">IT崩壊の波及</a></td><td>2000～2003年のIT指数、広範囲指数、日本の技術感応型・非IT企業</td><td>同一期間騰落率＋期間内最大下落＋日本延長期間</td><td>直撃群と非IT群の下落差、含み損の大きさ、単純類推の限界</td></tr>
@@ -1733,7 +1900,7 @@
           <article><span>STEP 1</span><h3>現在の実力を測る</h3><p>売上、営業利益、FCF、現金、負債、CapExを使います。PERだけでは、会計利益の質、再投資負担、資本構成を区別できません。</p></article>
           <article><span>STEP 2</span><h3>合理的な成長を加える</h3><p>FCFが一定期間成長し、その後は経済全体に近い永続成長へ落ち着くと仮定して現在価値へ割り引きます。</p></article>
           <article><span>STEP 3</span><h3>市場の要求を逆算する</h3><p>現在の時価総額に一致する10年間のFCF成長率を解きます。高いほど競争、価格低下、顧客内製化に弱くなります。</p></article>
-          <article id="method-collapse"><span>STEP 4</span><h3>米国崩壊と日本波及を分ける</h3><p>評価への脆弱性は発生証拠に加えません。米国は価格・利益・供給・信用の80点と3ゲート、日本は日経平均と国内8社で別判定します。</p></article>
+          <article id="method-collapse"><span>STEP 4</span><h3>レバレッジ、米国崩壊、日本波及を分ける</h3><p>信用買い残÷GDPの高さは燃料であり、崩壊80点へ直接加えません。米国は価格・利益・供給・信用と3ゲート、日本は日経平均と国内8社で別判定し、信用買い残の急減が市場横断ストレスと重なった時だけ強制売りを疑います。</p></article>
           <article><span>STEP 5</span><h3>正常化とパニックを分ける</h3><p>直近利益維持、5年平準化利益、実体価値を下回る歴史的な売られ過ぎを三層に分けます。PER・PBR・過去下落率は追加の手動感応度として照合します。</p></article>
           <article><span>STEP 6</span><h3>到達と反転を分ける</h3><p>安値圏に入っただけでは底打ちとしません。安値更新停止、50日線反転、信用改善、市場の広がりを追加確認します。</p></article>
         </div>
@@ -1829,6 +1996,8 @@
             <li>PER・PBR参照値を日経公式サイトから自動更新すること。画面の日付を確認し、必要なら利用者が更新します。</li>
             <li>底値をリアルタイムで確定すること。底打ち確認は必ず安値より遅れます。</li>
             <li>SOXの下落だけで日本株の崩壊を確定すること。SOXは米国上場半導体30社であり、日本への波及は日経平均と国内監視群で別確認します。</li>
+            <li>信用買い残÷GDPの高値を、暴落時期の予測や売買シグナルとみなすこと。信用買い残は株価上昇を追って増えることもあり、最新GDPは公表が遅れるため分子と分母の基準月も一致しません。</li>
+            <li>1959年以降の信用買い残を完全に同質な系列とみなすこと。NYSE会員会社、FINRA移行期間、2010年2月以降の全会員会社集計で母集団が異なり、デリバティブや海外口座など市場全体のレバレッジも含みません。</li>
             <li>日本AI・半導体連動8社を日経225全体の公式な市場幅とみなすこと。この8社は本サイト独自の代理指標で、1社で比率が12.5ポイント動く小標本です。統計的有意性は検定していません。</li>
             <li>固定8社を無作為標本とみなすこと。現存し、データ取得でき、現在の事業分類に合う代表企業を選んでいるため、生存者バイアスと選択バイアスが入り得ます。</li>
             <li>「AI連動」「分散型」という分類を永久不変とみなすこと。事業構成、投資計画、相場の評価軸が変われば分類も見直します。</li>
@@ -1886,7 +2055,7 @@
   <footer>
     <div class="content footer-inner">
       <p><strong>重要：</strong>本サイトは教育・調査用です。投資助言、価格予測、売買推奨ではありません。取得値には遅延・欠損・定義差があり、重要な判断では企業IRと提出資料を確認してください。</p>
-      <p>Method v4.1 / <a href="https://github.com/mxe050/ai-bubble-collapse-monitor" target="_blank" rel="noopener">GitHub</a></p>
+      <p>Method v4.2 / <a href="https://github.com/mxe050/ai-bubble-collapse-monitor" target="_blank" rel="noopener">GitHub</a></p>
     </div>
   </footer>
 

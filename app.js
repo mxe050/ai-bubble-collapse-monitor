@@ -12,6 +12,9 @@
     moneyStrategistChart: null,
     moneyStrategist: null,
     moneyStrategistRange: "all",
+    marginDebtChart: null,
+    marginDebt: null,
+    marginDebtRange: "all",
     globalComparison: null,
     moneyStrategistIpoDate: "",
     valuations: [],
@@ -721,6 +724,340 @@
     return getComputedStyle(document.documentElement).getPropertyValue("--muted").trim() || "#647386";
   }
 
+  function formatMarginDebt(value) {
+    var number = finite(value);
+    return number === null ? "未確認" : "$" + numberTwo.format(number / 1000000) + "兆";
+  }
+
+  function formatMonthJa(value) {
+    if (!value) return "未確認";
+    var parts = String(value).split("-").map(Number);
+    return parts.length >= 2 && Number.isFinite(parts[0]) && Number.isFinite(parts[1])
+      ? parts[0] + "年" + parts[1] + "月"
+      : String(value);
+  }
+
+  function marginDebtRangeBounds() {
+    var data = state.marginDebt || {};
+    var series = data.series || [];
+    var latestX = decimalYearFromIso(((data.latest || {}).date)) || new Date().getFullYear();
+    var firstX = series.length ? decimalYearFromIso(series[0].date) : 1959;
+    var years = { "30y": 30, "20y": 20, "10y": 10, "5y": 5 };
+    if (state.marginDebtRange === "all" || !years[state.marginDebtRange]) {
+      return { min: firstX - 0.3, max: latestX + 0.8 };
+    }
+    return { min: latestX - years[state.marginDebtRange], max: latestX + 0.35 };
+  }
+
+  function renderMarginDebtRangeUi() {
+    document.querySelectorAll(".margin-range-button").forEach(function (button) {
+      var active = button.dataset.marginRange === state.marginDebtRange;
+      button.classList.toggle("is-active", active);
+      button.setAttribute("aria-pressed", active ? "true" : "false");
+    });
+  }
+
+  function assessMarginDebtChain() {
+    var latest = (state.marginDebt || {}).latest || {};
+    var derived = (state.data || {}).derived || {};
+    var market = (state.data || {}).market || {};
+    var series = market.series || {};
+    var hy = ((state.data || {}).macro || {}).highYieldOas || {};
+    var percentile = finite(latest.ratioPercentileSince2010Pct);
+    var debtYoy = finite(latest.marginDebtChange12mPct);
+    var debt1m = finite(latest.marginDebtChange1mPct);
+    var debt3m = finite(latest.marginDebtChange3mPct);
+
+    var fuelLevel = percentile !== null && percentile >= 95 && debtYoy !== null && debtYoy >= 20
+      ? "high" : percentile !== null && percentile >= 80 ? "medium" : "low";
+    var fuelLabel = fuelLevel === "high" ? "強制売りの燃料は非常に多い"
+      : fuelLevel === "medium" ? "借入ポジションは多い" : "歴史的な極端さは未確認";
+
+    var capexCoverage = finite(derived.hyperscalerCapexCoverage);
+    var capexCuts = capexCoverage === 4 ? finite(derived.hyperscalersWithCapexCuts) : null;
+    var revenueCoverage = finite(derived.latestQuarterRevenueGrowthCoverage);
+    var revenueGrowth = revenueCoverage !== null && revenueCoverage >= 7
+      ? finite(derived.medianLatestQuarterRevenueGrowthYoYPct) : null;
+    var fcfCoverage = finite(derived.fcfDeteriorationCoverage);
+    var fcfBreadth = fcfCoverage !== null && fcfCoverage >= 7
+      ? finite(derived.fcfDeteriorationBreadthPct) : null;
+    var triggerCount = [
+      capexCuts !== null && capexCuts >= 2,
+      revenueGrowth !== null && revenueGrowth <= 0,
+      fcfBreadth !== null && fcfBreadth >= 50,
+    ].filter(Boolean).length;
+    var triggerKnown = [capexCuts, revenueGrowth, fcfBreadth].filter(function (value) { return value !== null; }).length;
+    var triggerLevel = triggerCount >= 2 ? "high" : triggerCount === 1 ? "medium" : triggerKnown < 2 ? "unknown" : "low";
+    var triggerLabel = triggerLevel === "high" ? "事業面の引き金を複数確認"
+      : triggerLevel === "medium" ? "事業面に一つの変調"
+        : triggerLevel === "unknown" ? "事業面の確認不足" : "設備投資・需要の同時悪化は未確認";
+
+    var sox = series.SOX || {};
+    var vix = series.VIX || {};
+    var marketStressCount = [
+      finite(sox.change5dPct) !== null && sox.change5dPct <= -8,
+      finite(vix.close) !== null && vix.close >= 30,
+      finite(hy.valuePct) !== null && hy.valuePct >= 5,
+    ].filter(Boolean).length;
+    var debtContraction = (debt1m !== null && debt1m <= -5) || (debt3m !== null && debt3m <= -10);
+    var unwindLevel = debtContraction && marketStressCount >= 2 ? "high"
+      : debtContraction || marketStressCount >= 2 ? "medium" : "low";
+    var unwindLabel = unwindLevel === "high" ? "強制売り連鎖を疑う"
+      : unwindLevel === "medium" ? "巻き戻しの初期警戒" : "信用買い残の巻き戻しは未確認";
+
+    var overall;
+    if (unwindLevel === "high") overall = "レバレッジの巻き戻しと市場横断ストレスが重なっています";
+    else if (triggerLevel === "high") overall = "燃料は多く、事業面の引き金も増えています";
+    else if (fuelLevel === "high") overall = "燃料は多いが、強制売りの連鎖はまだ確認できません";
+    else overall = "レバレッジは監視対象ですが、崩壊の連鎖は未確認です";
+
+    return {
+      fuelLevel: fuelLevel,
+      fuelLabel: fuelLabel,
+      fuelDetail: "2010年2月以降の比率順位 " + formatPercent(percentile, false)
+        + "、信用買い残の前年比 " + formatPercent(debtYoy, true) + "。高水準は売りの開始時期を示しません。",
+      triggerLevel: triggerLevel,
+      triggerLabel: triggerLabel,
+      triggerDetail: "CapExを10%以上削減 " + (capexCuts === null ? "未確認" : capexCuts + "/4社")
+        + "、売上中央値 " + formatPercent(revenueGrowth, true)
+        + "、FCFが20%以上悪化した比率 " + formatPercent(fcfBreadth, false) + "。",
+      unwindLevel: unwindLevel,
+      unwindLabel: unwindLabel,
+      unwindDetail: "信用買い残は前月比 " + formatPercent(debt1m, true)
+        + "、3か月比 " + formatPercent(debt3m, true)
+        + "。SOX急落・VIX 30以上・OAS 5%以上の該当は " + marketStressCount + "/3項目です。",
+      overall: overall,
+    };
+  }
+
+  function renderMarginDebtChart() {
+    var data = state.marginDebt;
+    var canvas = byId("marginDebtChart");
+    if (!data || !canvas || typeof Chart === "undefined") return;
+    if (state.marginDebtChart) state.marginDebtChart.destroy();
+    var bounds = marginDebtRangeBounds();
+    var rows = (data.series || []).filter(function (row) {
+      var x = decimalYearFromIso(row.date);
+      return x !== null && x >= bounds.min - 0.2 && x <= bounds.max + 0.2;
+    });
+    var events = (data.events || []).filter(function (event) {
+      var x = decimalYearFromIso(event.date);
+      return x !== null && x >= bounds.min && x <= bounds.max;
+    });
+    var points = rows.map(function (row) {
+      return { x: decimalYearFromIso(row.date), y: row.marginDebtToGdpPct, row: row };
+    });
+    var annotationPlugin = {
+      id: "marginDebtAnnotations",
+      beforeDatasetsDraw: function (chart) {
+        var latestX = decimalYearFromIso((data.latest || {}).date);
+        if (latestX === null || latestX < bounds.min || latestX > bounds.max) return;
+        var ctx = chart.ctx;
+        var xScale = chart.scales.x;
+        var area = chart.chartArea;
+        var startX = xScale.getPixelForValue(Math.max(bounds.min, latestX - 0.95));
+        ctx.save();
+        ctx.fillStyle = "rgba(201, 45, 49, 0.11)";
+        ctx.fillRect(startX, area.top, area.right - startX, area.bottom - area.top);
+        ctx.restore();
+      },
+      afterDatasetsDraw: function (chart) {
+        var ctx = chart.ctx;
+        var xScale = chart.scales.x;
+        var yScale = chart.scales.y;
+        var compact = chart.width < 720;
+        ctx.save();
+        ctx.textAlign = "center";
+        ctx.textBaseline = "bottom";
+        ctx.font = (compact ? "700 10px " : "700 11px ") + "Meiryo, sans-serif";
+        events.forEach(function (event, index) {
+          if (compact && !/2000|2007/.test(event.date) && event.date !== (data.latest || {}).date) return;
+          var x = xScale.getPixelForValue(decimalYearFromIso(event.date));
+          var y = yScale.getPixelForValue(event.marginDebtToGdpPct);
+          var labelY = chart.chartArea.top + 24 + (index % 3) * 20;
+          ctx.strokeStyle = event.date === (data.latest || {}).date ? "#c92d31" : "rgba(91, 104, 122, 0.72)";
+          ctx.lineWidth = event.date === (data.latest || {}).date ? 2 : 1;
+          ctx.beginPath();
+          ctx.moveTo(x, labelY + 4);
+          ctx.lineTo(x, y - 7);
+          ctx.stroke();
+          ctx.fillStyle = event.date === (data.latest || {}).date ? "#c92d31" : "#173854";
+          ctx.beginPath();
+          ctx.arc(x, y, event.date === (data.latest || {}).date ? 5 : 3.5, 0, Math.PI * 2);
+          ctx.fill();
+          var shortLabel = event.label.replace("ITバブル・", "").replace("金融危機前・", "");
+          ctx.fillText(shortLabel, x, labelY);
+        });
+        ctx.restore();
+      },
+    };
+
+    state.marginDebtChart = new Chart(canvas, {
+      type: "line",
+      data: {
+        datasets: [{
+          label: "Margin Debt / GDP",
+          data: points,
+          parsing: false,
+          borderColor: "#126b9a",
+          backgroundColor: "rgba(18, 107, 154, 0.12)",
+          borderWidth: 3,
+          pointRadius: 0,
+          pointHitRadius: 8,
+          fill: true,
+          tension: 0.08,
+        }],
+      },
+      plugins: [annotationPlugin],
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        interaction: { mode: "nearest", intersect: false },
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            callbacks: {
+              title: function (items) {
+                return items.length ? formatMonthJa(items[0].raw.row.date) : "";
+              },
+              label: function (context) {
+                var row = context.raw.row;
+                return [
+                  "信用買い残 / GDP: " + numberTwo.format(row.marginDebtToGdpPct) + "%",
+                  "信用買い残: " + formatMarginDebt(row.marginDebtUsdMillions),
+                  "GDP: $" + numberOne.format(row.nominalGdpUsdBillions / 1000) + "兆（" + formatMonthJa(row.nominalGdpDate) + "）",
+                ];
+              },
+            },
+          },
+        },
+        scales: {
+          x: {
+            type: "linear",
+            min: bounds.min,
+            max: bounds.max,
+            grid: { color: "rgba(97, 113, 132, 0.11)" },
+            ticks: {
+              color: chartTextColor(),
+              maxTicksLimit: state.marginDebtRange === "all" ? 12 : 10,
+              callback: function (value) { return Math.round(value); },
+            },
+          },
+          y: {
+            beginAtZero: true,
+            suggestedMax: 5,
+            grid: { color: "rgba(97, 113, 132, 0.16)" },
+            ticks: {
+              color: chartTextColor(),
+              callback: function (value) { return numberOne.format(value) + "%"; },
+            },
+          },
+        },
+      },
+    });
+  }
+
+  function renderMarginDebt() {
+    var data = state.marginDebt;
+    if (!data || !data.latest) {
+      byId("marginDebtStatus").textContent = "信用買い残データを読み込めません";
+      byId("marginDebtStatusDetail").textContent = "FINRA・GDP系列の更新状態を確認してください。";
+      return;
+    }
+    var latest = data.latest;
+    var chain = assessMarginDebtChain();
+    byId("marginDebtLatest").textContent = formatMarginDebt(latest.marginDebtUsdMillions);
+    byId("marginDebtLatestDate").textContent = formatMonthJa(latest.date) + "・FINRA";
+    byId("marginDebtRatio").textContent = numberTwo.format(latest.marginDebtToGdpPct) + "%";
+    byId("marginDebtRatioDate").textContent = "GDP " + formatMonthJa(latest.nominalGdpDate) + "で暫定計算";
+    byId("marginDebtYoy").textContent = formatPercent(latest.marginDebtChange12mPct, true);
+    byId("marginDebtYoyDetail").textContent = "前月比 " + formatPercent(latest.marginDebtChange1mPct, true)
+      + " / 3か月比 " + formatPercent(latest.marginDebtChange3mPct, true);
+    byId("marginDebtSp500Gap").textContent = formatPctPoints(latest.debtGrowthMinusSp500PctPoints, true);
+    byId("marginDebtSp500Detail").textContent = "S&P 500前年比 " + formatPercent(latest.sp500Change12mPct, true)
+      + "（" + formatMonthJa(latest.sp500Date) + "まで）";
+    byId("marginDebtPercentile").textContent = formatPercent(latest.ratioPercentileSince2010Pct, false);
+    byId("marginDebtPercentileDetail").textContent = "2010年2月以降の同一定義に近い期間";
+    byId("marginDebtStatus").textContent = chain.overall;
+    byId("marginDebtStatus").dataset.level = chain.unwindLevel === "high" ? "high" : chain.triggerLevel === "high" ? "medium" : chain.fuelLevel;
+    byId("marginDebtStatusDetail").textContent = "高い比率はタイミング予測ではありません。燃料、引き金、巻き戻しの三段階が重なった時だけ、パニック経路を強く疑います。";
+    byId("marginDebtTimingNote").textContent = latest.gdpTimingNote || "";
+
+    ["fuel", "trigger", "unwind"].forEach(function (key) {
+      var prefix = key.charAt(0).toUpperCase() + key.slice(1);
+      var card = byId("marginChain" + prefix);
+      card.dataset.level = chain[key + "Level"];
+      card.querySelector("strong").textContent = chain[key + "Label"];
+      card.querySelector("p").textContent = chain[key + "Detail"];
+    });
+
+    byId("marginDebtEventList").innerHTML = (data.events || []).map(function (event) {
+      return "<div><time>" + escapeHtml(formatMonthJa(event.date)) + "</time><strong>"
+        + numberTwo.format(event.marginDebtToGdpPct) + "%</strong><span>"
+        + escapeHtml(event.label) + "</span></div>";
+    }).join("");
+    byId("marginDebtSourceRegime").innerHTML = (data.sourceRegimes || []).map(function (regime) {
+      return "<div><strong>" + escapeHtml(regime.label) + "</strong><span>"
+        + escapeHtml(formatMonthJa(regime.start)) + "～" + escapeHtml(formatMonthJa(regime.end))
+        + "</span><p>" + escapeHtml(regime.importantLimit) + "</p></div>";
+    }).join("");
+    renderMarginDebtRangeUi();
+    renderMarginDebtChart();
+  }
+
+  function renderBottomBusinessEvidence() {
+    var derived = (state.data || {}).derived || {};
+    var capexCoverage = finite(derived.hyperscalerCapexCoverage);
+    var capexCuts = capexCoverage === 4 ? finite(derived.hyperscalersWithCapexCuts) : null;
+    var capexGrowth = capexCoverage === 4 ? finite(derived.medianHyperscalerCapexGrowthYoYPct) : null;
+    var revenueCoverage = finite(derived.latestQuarterRevenueGrowthCoverage);
+    var revenueGrowth = revenueCoverage !== null && revenueCoverage >= 7
+      ? finite(derived.medianLatestQuarterRevenueGrowthYoYPct) : null;
+    var fcfCoverage = finite(derived.fcfDeteriorationCoverage);
+    var fcfBreadth = fcfCoverage !== null && fcfCoverage >= 7
+      ? finite(derived.fcfDeteriorationBreadthPct) : null;
+
+    var capexLevel = capexCuts === null ? "unknown" : capexCuts >= 2 ? "fail" : capexGrowth !== null && capexGrowth >= 0 ? "pass" : "watch";
+    var demandLevel = revenueGrowth === null ? "unknown" : revenueGrowth <= 0 ? "fail" : revenueGrowth >= 5 ? "pass" : "watch";
+    var returnsLevel = fcfBreadth === null ? "unknown" : fcfBreadth >= 50 ? "fail" : fcfBreadth < 30 ? "pass" : "watch";
+    var labels = {
+      pass: "維持を確認",
+      watch: "減速を監視",
+      fail: "悪化を確認",
+      unknown: "データ不足",
+    };
+    var rows = [
+      {
+        id: "bottomCapexEvidence", level: capexLevel, label: labels[capexLevel],
+        detail: "ハイパースケーラー4社のCapEx中央値は前年比 " + formatPercent(capexGrowth, true)
+          + "、10%以上削減は " + (capexCuts === null ? "未確認" : capexCuts + "/4社") + "。",
+      },
+      {
+        id: "bottomDemandEvidence", level: demandLevel, label: labels[demandLevel],
+        detail: "海外AI10社の最新四半期売上中央値は前年比 " + formatPercent(revenueGrowth, true)
+          + "（比較可能 " + (revenueCoverage === null ? "0" : revenueCoverage) + "/10社）。",
+      },
+      {
+        id: "bottomReturnsEvidence", level: returnsLevel, label: labels[returnsLevel],
+        detail: "FCFが前年同期比20%以上悪化した企業は " + formatPercent(fcfBreadth, false)
+          + "（比較可能 " + (fcfCoverage === null ? "0" : fcfCoverage) + "/10社）。",
+      },
+    ];
+    rows.forEach(function (row) {
+      var card = byId(row.id);
+      if (!card) return;
+      card.dataset.level = row.level;
+      card.querySelector("strong").textContent = row.label;
+      card.querySelector("p").textContent = row.detail;
+    });
+    var bad = rows.filter(function (row) { return row.level === "fail"; }).length;
+    var good = rows.filter(function (row) { return row.level === "pass"; }).length;
+    byId("bottomBusinessConclusion").textContent = bad
+      ? "株価が反発しても、事業面の悪化が残っています。価格だけで底と判断しません。"
+      : good === 3
+        ? "設備投資・需要・FCFの三つは維持されています。ただし価格と信用の反転確認も必要です。"
+        : "一部の裏付けはありますが、三つがそろっていません。反発を構造的な底とはまだ呼びません。";
+  }
   function renderMarketChart() {
     if (typeof Chart === "undefined") return;
     var rows = state.data.market.normalizedChart || [];
@@ -2425,11 +2762,13 @@
     renderJapanTransmission(transmission);
     renderSakakibaraMethod();
     renderMoneyStrategist();
+    renderMarginDebt();
     renderUsMarketIntelligence();
     renderMarketReading();
     renderMarketChart();
     renderDotComComparison();
     renderNikkeiBottom();
+    renderBottomBusinessEvidence();
     renderDecisionPath();
     updateCompanyFilterUi();
     renderValuationChart();
@@ -2482,6 +2821,9 @@
       var moneyRequest = fetch("data/money-strategist-history.json?ts=" + Date.now(), { cache: "no-store" })
         .then(function (response) { return response.ok ? response.json() : null; })
         .catch(function () { return null; });
+      var marginDebtRequest = fetch("data/margin-debt-history.json?ts=" + Date.now(), { cache: "no-store" })
+        .then(function (marginResponse) { return marginResponse.ok ? marginResponse.json() : null; })
+        .catch(function () { return null; });
       var globalComparisonRequest = fetch("data/global-market-value-comparison.json?ts=" + Date.now(), { cache: "no-store" })
         .then(function (globalResponse) { return globalResponse.ok ? globalResponse.json() : null; })
         .catch(function () { return null; });
@@ -2491,6 +2833,7 @@
       if (!payload.companies || !payload.market || Number(payload.schemaVersion) < 11) throw new Error("データ形式が古いか不正です");
       state.data = payload;
       state.moneyStrategist = await moneyRequest;
+      state.marginDebt = await marginDebtRequest;
       state.globalComparison = await globalComparisonRequest;
       renderAll();
       if (typeof window.CustomEvent === "function" && typeof window.dispatchEvent === "function") window.dispatchEvent(new CustomEvent("monitor:data-updated"));
@@ -2517,6 +2860,13 @@
 
   function bindEvents() {
     byId("refreshButton").addEventListener("click", function () { loadData(true); });
+    document.querySelectorAll(".margin-range-button").forEach(function (button) {
+      button.addEventListener("click", function () {
+        state.marginDebtRange = this.dataset.marginRange || "all";
+        renderMarginDebtRangeUi();
+        renderMarginDebtChart();
+      });
+    });
     document.querySelectorAll(".ms-range-button").forEach(function (button) {
       button.addEventListener("click", function () {
         state.moneyStrategistRange = this.dataset.msRange || "all";

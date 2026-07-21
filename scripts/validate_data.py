@@ -15,6 +15,7 @@ from typing import Any
 ROOT = Path(__file__).resolve().parents[1]
 DATA_FILE = ROOT / "data" / "latest.json"
 MONEY_DATA_FILE = ROOT / "data" / "money-strategist-history.json"
+MARGIN_DATA_FILE = ROOT / "data" / "margin-debt-history.json"
 APP_FILE = ROOT / "app.js"
 INDEX_FILE = ROOT / "index.html"
 
@@ -64,7 +65,7 @@ def check_yoy_dates(company: dict[str, Any], prefix: str) -> None:
 def main() -> None:
     data = json.loads(DATA_FILE.read_text(encoding="utf-8"))
     require(data.get("schemaVersion") == 13, "schemaVersion must be 13")
-    require(data.get("methodVersion") == "4.1.0", "methodVersion must be 4.1.0")
+    require(data.get("methodVersion") == "4.2.0", "methodVersion must be 4.2.0")
 
     generated = datetime.fromisoformat(data["generatedAtUtc"]).date()
     market_day = date.fromisoformat(data["marketDate"])
@@ -248,10 +249,14 @@ def main() -> None:
     kioxia = sakakibara.get("kioxiaCase") or {}
     require(kioxia.get("articleStartDate") == "2026-03-31", "Kioxia article start date changed")
     require(close_enough(kioxia.get("articleStartLow"), 18540.0), "Kioxia article start price changed")
-    require(close_enough(kioxia.get("peak2026"), 112700.0), "Kioxia article peak changed")
-    require(close_enough(kioxia.get("close"), 52110.0), "Kioxia article end price changed")
+    require(close_enough(kioxia.get("articleStartClose"), 19080.0), "Kioxia article start close changed")
+    require(finite(kioxia.get("close")) and kioxia["close"] > 0, "Kioxia latest close is invalid")
+    require(finite(kioxia.get("peak2026")) and kioxia["peak2026"] >= kioxia["close"], "Kioxia 2026 peak is invalid")
+    require(date.fromisoformat(kioxia["date"]) >= date.fromisoformat(kioxia["articleStartDate"]), "Kioxia latest date is stale")
     expected_kioxia_rise = (kioxia["peak2026"] / kioxia["articleStartLow"] - 1) * 100
     require(close_enough(kioxia["riseFromArticleStartToPeakPct"], expected_kioxia_rise), "Kioxia rise identity failed")
+    expected_kioxia_drawdown = (1 - kioxia["close"] / kioxia["peak2026"]) * 100
+    require(close_enough(kioxia["drawdownFrom2026HighPct"], expected_kioxia_drawdown), "Kioxia drawdown identity failed")
 
     article = sakakibara.get("articleScenario") or {}
     require(article.get("asOfDate") == "2026-07-17", "article valuation date changed")
@@ -428,6 +433,50 @@ def main() -> None:
 
     require("highYieldOas" in data.get("macro", {}), "FRED high-yield OAS is missing")
 
+    margin = json.loads(MARGIN_DATA_FILE.read_text(encoding="utf-8"))
+    require(margin.get("schemaVersion") == 1, "margin-debt schemaVersion must be 1")
+    margin_rows = margin.get("series") or []
+    margin_latest = margin.get("latest") or {}
+    require(len(margin_rows) >= 800, "margin-debt/GDP history is too short")
+    require(margin_rows[0].get("date") == "1959-01-01", "margin-debt history must start in January 1959")
+    require(margin_rows[-1].get("date") == margin_latest.get("date"), "margin-debt latest row is not synchronized")
+    require(margin_latest.get("date", "") >= "2026-06-01", "FINRA margin-debt series is stale")
+    require(all(margin_rows[index]["date"] < margin_rows[index + 1]["date"] for index in range(len(margin_rows) - 1)), "margin-debt history is not strictly chronological")
+    require(all(finite(row.get("marginDebtUsdMillions")) and row["marginDebtUsdMillions"] > 0 for row in margin_rows), "margin-debt history contains invalid balances")
+    require(all(finite(row.get("nominalGdpUsdBillions")) and row["nominalGdpUsdBillions"] > 0 for row in margin_rows), "margin-debt history contains invalid GDP")
+    latest_margin_row = margin_rows[-1]
+    expected_margin_ratio = latest_margin_row["marginDebtUsdMillions"] / (latest_margin_row["nominalGdpUsdBillions"] * 1000) * 100
+    require(close_enough(latest_margin_row["marginDebtToGdpPct"], expected_margin_ratio, relative=1e-4), "margin-debt/GDP identity failed")
+    require(close_enough(margin_latest["marginDebtToGdpPct"], latest_margin_row["marginDebtToGdpPct"]), "margin-debt latest ratio changed between summary and series")
+    require(margin_latest["marginDebtUsdMillions"] == latest_margin_row["marginDebtUsdMillions"], "margin-debt latest balance changed between summary and series")
+    require(date.fromisoformat(margin_latest["nominalGdpDate"]) <= date.fromisoformat(margin_latest["date"]), "margin-debt ratio uses a future GDP quarter")
+    margin_by_date = {row["date"]: row for row in margin_rows}
+    latest_observed = date.fromisoformat(margin_latest["date"])
+    prior_year_key = f"{latest_observed.year - 1:04d}-{latest_observed.month:02d}-01"
+    prior_year_debt = margin_by_date[prior_year_key]["marginDebtUsdMillions"]
+    expected_margin_yoy = (margin_latest["marginDebtUsdMillions"] / prior_year_debt - 1) * 100
+    require(close_enough(margin_latest["marginDebtChange12mPct"], expected_margin_yoy, relative=1e-4), "margin-debt YoY identity failed")
+    comparable_ratios = [
+        row["marginDebtToGdpPct"] for row in margin_rows if row["date"] >= "2010-02-01"
+    ]
+    expected_percentile = sum(1 for value in comparable_ratios if value <= margin_latest["marginDebtToGdpPct"]) / len(comparable_ratios) * 100
+    require(close_enough(margin_latest["ratioPercentileSince2010Pct"], expected_percentile, relative=1e-4), "margin-debt comparable-period percentile failed")
+    regimes = margin.get("sourceRegimes") or []
+    require(len(regimes) == 3, "margin-debt source-regime boundaries are missing")
+    require(regimes[0].get("start") == "1959-01-01", "NYSE source regime start changed")
+    require(regimes[2].get("start") == "2010-02-01", "FINRA all-firms regime boundary changed")
+    margin_events = margin.get("events") or []
+    require(len(margin_events) == 8, "margin-debt chart must contain eight historical observation markers")
+    require(any(row.get("date") == "2000-03-01" for row in margin_events), "dot-com margin-debt marker is missing")
+    require(any(row.get("date") == "2007-07-01" for row in margin_events), "pre-GFC margin-debt marker is missing")
+    korea = margin.get("koreaStressCase") or {}
+    require(close_enough(korea.get("forcedLiquidationsKrwTrillions"), 1.1228), "Korea forced-liquidation fact changed")
+    require(korea.get("circuitBreakers") == 3, "Korea circuit-breaker fact changed")
+    require(close_enough(korea.get("vkospiIntradayHigh"), 97.78), "Korea VKOSPI fact changed")
+    margin_limits = " ".join(margin.get("limits") or [])
+    require("単独では暴落時期を予測しません" in margin_limits, "margin-debt timing limitation is missing")
+    require("デリバティブ" in margin_limits and "海外口座" in margin_limits, "margin-debt coverage limitation is missing")
+
     money = json.loads(MONEY_DATA_FILE.read_text(encoding="utf-8"))
     money_series = money.get("series") or {}
     money_history = money_series.get("history") or []
@@ -510,15 +559,19 @@ def main() -> None:
     require(len(html_id_list) == len(html_ids), "index.html contains duplicate element ids")
     missing_ids = sorted(referenced_ids - html_ids)
     require(not missing_ids, f"app.js references missing HTML ids: {missing_ids}")
-    require("Method v4.1" in index_source, "method label is missing")
+    require("Method v4.2" in index_source, "method label is missing")
     require("評価への脆弱性は別枠20点" in index_source, "valuation/collapse score separation is missing")
+    require("Margin Debt / GDP" in index_source, "margin-debt chart title is missing")
+    require("燃料、引き金、巻き戻し" in index_source, "margin-debt three-stage explanation is missing")
+    require("半導体株の反発だけでは" in index_source, "business-bottom explanation is missing")
+    require("margin-debt-history.json" in app_source, "margin-debt browser data load is missing")
 
     from validate_global_comparison import validate_global_comparison
     validate_global_comparison()
 
     print(
         "Data and logic audit passed: schema, formulas, coverage, YoY dates, baskets, "
-        "automaker DCF overrides, Nikkei reference, Sakakibara rotation and market-path audit, Money Strategist history, CPI, event calendar and scenarios, dot-com spillovers, history, and UI contracts."
+        "automaker DCF overrides, Nikkei reference, Sakakibara rotation and market-path audit, margin debt/GDP, Money Strategist history, CPI, event calendar and scenarios, dot-com spillovers, history, and UI contracts."
     )
 
 
