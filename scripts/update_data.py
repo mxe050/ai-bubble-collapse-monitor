@@ -31,6 +31,8 @@ from margin_debt import FINRA_PAGE_URL, write_margin_debt_history
 ROOT = Path(__file__).resolve().parents[1]
 OUTPUT = ROOT / "data" / "latest.json"
 MONEY_STRATEGIST_OUTPUT = ROOT / "data" / "money-strategist-history.json"
+SNAPSHOT_HISTORY_DIR = ROOT / "data" / "history"
+SNAPSHOT_HISTORY_INDEX = SNAPSHOT_HISTORY_DIR / "index.json"
 USER_AGENT = "mxe050-ai-bubble-monitor/1.0 (https://github.com/mxe050)"
 JST = timezone(timedelta(hours=9))
 NOW = datetime.now(timezone.utc)
@@ -419,6 +421,7 @@ PRICE_SYMBOLS = {
     "SP500": "^GSPC",
     "NIKKEI": "^N225",
     "VIX": "^VIX",
+    "GOLD": "GC=F",
     "KIOXIA": "285A.T",
     **{k: k for k in COMPANIES},
 }
@@ -2085,6 +2088,12 @@ def fetch_fred_level(
         "value": last_value,
         "change3m": last_value - prior,
         "calibration": calibration,
+        "history": [
+            {"date": date_value, "value": value}
+            for date_value, value in rows
+            if datetime.fromisoformat(date_value).date()
+            >= datetime.fromisoformat(last_date).date() - timedelta(days=365 * 6)
+        ],
         "sourceUrl": f"https://fred.stlouisfed.org/series/{series_id}",
     }
 
@@ -2529,6 +2538,151 @@ def sampled_chart(price_data: dict[str, dict[str, Any]]) -> list[dict[str, Any]]
     return output
 
 
+def _change_at_offset(rows: list[dict[str, Any]], key: str, offset: int) -> float | None:
+    if len(rows) <= offset:
+        return None
+    return pct_change(finite(rows[-1].get(key)), finite(rows[-1 - offset].get(key)))
+
+
+def _latest_common_fred_pair(
+    left: dict[str, Any] | None,
+    right: dict[str, Any] | None,
+) -> dict[str, Any] | None:
+    left_rows = (left or {}).get("history") or []
+    right_rows = (right or {}).get("history") or []
+    left_map = {row.get("date"): finite(row.get("value")) for row in left_rows}
+    right_map = {row.get("date"): finite(row.get("value")) for row in right_rows}
+    dates = sorted(
+        date_value
+        for date_value in set(left_map).intersection(right_map)
+        if date_value and left_map[date_value] is not None and right_map[date_value] is not None
+    )
+    if not dates:
+        return None
+    date_value = dates[-1]
+    return {
+        "date": date_value,
+        "left": left_map[date_value],
+        "right": right_map[date_value],
+    }
+
+
+def build_purchasing_power_stress(
+    prices: dict[str, dict[str, Any]],
+    macro: dict[str, Any],
+) -> dict[str, Any]:
+    """Keep nominal returns separate from a transparent gold-denominated proxy."""
+    sp500 = prices.get("SP500") or {}
+    gold = prices.get("GOLD") or {}
+    sp_map = {
+        row.get("date"): finite(row.get("close"))
+        for row in sp500.get("history") or []
+        if row.get("date") and finite(row.get("close")) is not None
+    }
+    gold_map = {
+        row.get("date"): finite(row.get("close"))
+        for row in gold.get("history") or []
+        if row.get("date") and finite(row.get("close")) is not None
+    }
+    dates = sorted(set(sp_map).intersection(gold_map))
+    if len(dates) < 61:
+        raise RuntimeError("Insufficient aligned S&P 500 and gold history")
+    aligned = [
+        {
+            "date": date_value,
+            "sp500": sp_map[date_value],
+            "gold": gold_map[date_value],
+            "sp500GoldRatio": sp_map[date_value] / gold_map[date_value],
+        }
+        for date_value in dates
+    ]
+    base = aligned[0]
+    chart: list[dict[str, Any]] = []
+    for index, row in enumerate(aligned):
+        if index % 5 != 0 and index != len(aligned) - 1:
+            continue
+        chart.append({
+            "date": row["date"],
+            "sp500NominalIndex": row["sp500"] / base["sp500"] * 100.0,
+            "sp500GoldIndex": row["sp500GoldRatio"] / base["sp500GoldRatio"] * 100.0,
+            "goldIndex": row["gold"] / base["gold"] * 100.0,
+        })
+
+    nominal_20d = _change_at_offset(aligned, "sp500", 20)
+    gold_ratio_20d = _change_at_offset(aligned, "sp500GoldRatio", 20)
+    if nominal_20d is None or gold_ratio_20d is None:
+        divergence_code = "insufficient"
+        divergence_label = "判定材料不足"
+    elif nominal_20d > 0 and gold_ratio_20d < 0:
+        divergence_code = "stealth-loss"
+        divergence_label = "名目上昇・金建て低下"
+    elif nominal_20d < 0 and gold_ratio_20d < 0:
+        divergence_code = "broad-loss"
+        divergence_label = "名目・金建てとも低下"
+    elif nominal_20d < 0 <= gold_ratio_20d:
+        divergence_code = "nominal-only-loss"
+        divergence_label = "名目下落・金建て改善"
+    else:
+        divergence_code = "aligned-rise"
+        divergence_label = "名目・金建てとも上昇"
+
+    policy_pair = _latest_common_fred_pair(
+        macro.get("treasury2y"), macro.get("effectiveFedFunds")
+    )
+    latest = aligned[-1]
+    return {
+        "asOfDate": latest["date"],
+        "sp500": latest["sp500"],
+        "goldUsdPerOunce": latest["gold"],
+        "sp500GoldRatio": latest["sp500GoldRatio"],
+        "changes": {
+            "sp500": {
+                "1dPct": _change_at_offset(aligned, "sp500", 1),
+                "5dPct": _change_at_offset(aligned, "sp500", 5),
+                "20dPct": nominal_20d,
+                "60dPct": _change_at_offset(aligned, "sp500", 60),
+            },
+            "gold": {
+                "1dPct": _change_at_offset(aligned, "gold", 1),
+                "5dPct": _change_at_offset(aligned, "gold", 5),
+                "20dPct": _change_at_offset(aligned, "gold", 20),
+                "60dPct": _change_at_offset(aligned, "gold", 60),
+            },
+            "sp500GoldRatio": {
+                "1dPct": _change_at_offset(aligned, "sp500GoldRatio", 1),
+                "5dPct": _change_at_offset(aligned, "sp500GoldRatio", 5),
+                "20dPct": gold_ratio_20d,
+                "60dPct": _change_at_offset(aligned, "sp500GoldRatio", 60),
+            },
+        },
+        "divergence": {
+            "code": divergence_code,
+            "label": divergence_label,
+            "windowTradingDays": 20,
+            "meaning": "S&P 500のドル建て変化と、S&P 500を金価格で割った比率の方向を分けて確認します。金建て比率は購買力そのものではなく、希少資産に対する相対価格のproxyです。",
+        },
+        "policySpread": {
+            "date": policy_pair["date"] if policy_pair else None,
+            "treasury2yPct": policy_pair["left"] if policy_pair else None,
+            "effectiveFedFundsPct": policy_pair["right"] if policy_pair else None,
+            "spreadPctPoints": (
+                policy_pair["left"] - policy_pair["right"] if policy_pair else None
+            ),
+            "meaning": "2年米国債利回り－実効FF金利。市場金利と現在の政策金利の位置関係であり、単独で政策転換や暴落を予測しません。",
+        },
+        "personalSavingRate": macro.get("personalSavingRate") or {},
+        "chart": chart,
+        "videoContext": {
+            "title": "The Last 3 Crashes All Had An Exit. This One Doesn't.",
+            "channel": "Mark Moss",
+            "publishedDate": "2026-06-11",
+            "url": "https://www.youtube.com/watch?v=g0YV9hVN3Mg",
+            "adoptedView": "名目株価だけでなく、金建ての相対価値と金利・家計余力を別に確認する。",
+            "importantLimit": "動画の主張は仮説として扱い、動画内の数値をそのまま崩壊判定へ加点しません。画面の値はYahoo FinanceとFREDの取得値から再計算します。",
+        },
+    }
+
+
 def build_dotcom_comparison() -> dict[str, Any]:
     summaries: list[dict[str, Any]] = []
     for group, label in DOTCOM_GROUP_LABELS.items():
@@ -2564,6 +2718,56 @@ def strip_history(price_data: dict[str, dict[str, Any]]) -> dict[str, dict[str, 
     for symbol, data in price_data.items():
         compact[symbol] = {key: value for key, value in data.items() if key != "history"}
     return compact
+
+
+def _snapshot_date(payload: dict[str, Any]) -> str | None:
+    stamp = payload.get("generatedAtJst") or payload.get("generatedAtUtc")
+    if not stamp:
+        return None
+    try:
+        return datetime.fromisoformat(str(stamp)).astimezone(JST).date().isoformat()
+    except (TypeError, ValueError):
+        return None
+
+
+def archive_daily_snapshot(payload: dict[str, Any]) -> None:
+    """Preserve the as-published daily payload so later revisions do not rewrite history."""
+    snapshot_date = _snapshot_date(payload)
+    if not snapshot_date or not payload.get("market"):
+        return
+    SNAPSHOT_HISTORY_DIR.mkdir(parents=True, exist_ok=True)
+    snapshot_name = f"{snapshot_date}.json"
+    snapshot_path = SNAPSHOT_HISTORY_DIR / snapshot_name
+    snapshot_tmp = SNAPSHOT_HISTORY_DIR / f".{snapshot_name}.tmp"
+    snapshot_tmp.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+    snapshot_tmp.replace(snapshot_path)
+
+    entries: list[dict[str, Any]] = []
+    for path in sorted(SNAPSHOT_HISTORY_DIR.glob("????-??-??.json")):
+        try:
+            stored = json.loads(path.read_text(encoding="utf-8"))
+        except Exception:
+            continue
+        stored_date = _snapshot_date(stored)
+        if not stored_date:
+            continue
+        entries.append({
+            "snapshotDate": stored_date,
+            "generatedAtJst": stored.get("generatedAtJst"),
+            "marketDate": stored.get("marketDate"),
+            "methodVersion": stored.get("methodVersion"),
+            "file": path.name,
+        })
+    index_payload = {
+        "schemaVersion": 1,
+        "updatedAtJst": NOW.astimezone(JST).isoformat(),
+        "selectionRule": "比較対象日以前で最も近い保存日を使用し、実際の保存日を画面に表示する。",
+        "revisionPolicy": "各日の当時公表値を固定保存し、後日の系列改定で過去スナップショットを再計算しない。",
+        "snapshots": entries,
+    }
+    index_tmp = SNAPSHOT_HISTORY_DIR / ".index.json.tmp"
+    index_tmp.write_text(json.dumps(index_payload, ensure_ascii=False, indent=2), encoding="utf-8")
+    index_tmp.replace(SNAPSHOT_HISTORY_INDEX)
 
 
 def sync_money_strategist_latest(
@@ -2614,6 +2818,7 @@ def main() -> None:
             previous_payload = json.loads(OUTPUT.read_text(encoding="utf-8"))
         except Exception:
             previous_payload = {}
+    archive_daily_snapshot(previous_payload)
     statuses: list[SourceStatus] = []
     errors: list[str] = []
     prices: dict[str, dict[str, Any]] = {}
@@ -2717,6 +2922,23 @@ def main() -> None:
         errors.append(f"FRED NFCI: {exc}")
         statuses.append(SourceStatus("FRED / Chicago Fed NFCI", "https://fred.stlouisfed.org/series/NFCI", False, NOW.isoformat(), str(exc)))
 
+    for key, series_id, name, units, thresholds in (
+        ("treasury2y", "DGS2", "2-Year Treasury Constant Maturity Rate", "Percent", [2.0, 3.0, 4.0, 5.0]),
+        ("effectiveFedFunds", "DFF", "Effective Federal Funds Rate", "Percent", [2.0, 3.0, 4.0, 5.0]),
+        ("personalSavingRate", "PSAVERT", "U.S. Personal Saving Rate", "Percent of disposable personal income", [2.5, 5.0, 8.0, 12.0]),
+    ):
+        try:
+            macro[key] = fetch_fred_level(
+                series_id,
+                name=name,
+                units=units,
+                thresholds=thresholds,
+            )
+            statuses.append(SourceStatus("FRED", macro[key]["sourceUrl"], True, NOW.isoformat(), series_id))
+        except Exception as exc:
+            errors.append(f"FRED {series_id}: {exc}")
+            statuses.append(SourceStatus("FRED", f"https://fred.stlouisfed.org/series/{series_id}", False, NOW.isoformat(), str(exc)))
+
     try:
         cpi_history = fetch_cpi_history()
         statuses.append(SourceStatus("FRED CPI-U", cpi_history["sourceUrl"], True, NOW.isoformat(), cpi_history["latestDate"]))
@@ -2815,6 +3037,12 @@ def main() -> None:
     }
 
     try:
+        purchasing_power_stress = build_purchasing_power_stress(prices, macro)
+    except Exception as exc:
+        purchasing_power_stress = {}
+        errors.append(f"Purchasing-power stress: {exc}")
+
+    try:
         berkshire_monitor = build_berkshire_monitor()
         source_note = "SEC原表を再取得" if berkshire_monitor["thirteenF"]["directSecRefresh"] else "SEC公表済み原表の監査済み控えを使用"
         statuses.append(SourceStatus("SEC Berkshire 10-Q / 13F", berkshire_monitor["thirteenF"]["latest"]["sourceUrl"], True, NOW.isoformat(), source_note))
@@ -2833,7 +3061,7 @@ def main() -> None:
         statuses.append(SourceStatus("Google News English RSS", "https://news.google.com/", False, NOW.isoformat(), str(exc)))
 
     payload = {
-        "schemaVersion": 13,
+        "schemaVersion": 14,
         "generatedAtUtc": NOW.isoformat(),
         "generatedAtJst": NOW.astimezone(JST).isoformat(),
         "marketDate": prices.get("SOX", {}).get("date"),
@@ -2848,6 +3076,7 @@ def main() -> None:
             "series": strip_history(prices),
             "aiBasket": ai_basket,
             "usBubbleRisk": us_bubble_risk,
+            "purchasingPowerStress": purchasing_power_stress,
             "berkshireMonitor": berkshire_monitor,
             "japanAiBasket": {
                 "label": "日本AI・半導体連動8社（本サイト独自・等ウェイト監視群）",
@@ -2888,10 +3117,11 @@ def main() -> None:
             "note": "These fields require a consistent paid consensus series, product-level pricing, or verified project announcements. Missing is not zero.",
         },
         "sourceStatus": [status.__dict__ for status in statuses],
-        "methodVersion": "4.2.0",
+        "methodVersion": "4.3.0",
     }
     OUTPUT.parent.mkdir(parents=True, exist_ok=True)
     OUTPUT.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+    archive_daily_snapshot(payload)
     sync_money_strategist_latest(prices.get("SP500"), cpi_history)
     try:
         from global_comparison import write_global_comparison

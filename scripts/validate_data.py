@@ -18,6 +18,7 @@ MONEY_DATA_FILE = ROOT / "data" / "money-strategist-history.json"
 MARGIN_DATA_FILE = ROOT / "data" / "margin-debt-history.json"
 APP_FILE = ROOT / "app.js"
 INDEX_FILE = ROOT / "index.html"
+SNAPSHOT_HISTORY_INDEX = ROOT / "data" / "history" / "index.json"
 
 
 def require(condition: bool, message: str) -> None:
@@ -64,15 +65,15 @@ def check_yoy_dates(company: dict[str, Any], prefix: str) -> None:
 
 def main() -> None:
     data = json.loads(DATA_FILE.read_text(encoding="utf-8"))
-    require(data.get("schemaVersion") == 13, "schemaVersion must be 13")
-    require(data.get("methodVersion") == "4.2.0", "methodVersion must be 4.2.0")
+    require(data.get("schemaVersion") == 14, "schemaVersion must be 14")
+    require(data.get("methodVersion") == "4.3.0", "methodVersion must be 4.3.0")
 
     generated = datetime.fromisoformat(data["generatedAtUtc"]).date()
     market_day = date.fromisoformat(data["marketDate"])
     require(0 <= (generated - market_day).days <= 10, "market date is future-dated or stale")
 
     series = data["market"]["series"]
-    for key in ("SOX", "NASDAQ", "NIKKEI", "VIX", "SP500"):
+    for key in ("SOX", "NASDAQ", "NIKKEI", "VIX", "SP500", "GOLD"):
         row = series.get(key)
         require(bool(row), f"missing core market series: {key}")
         require(finite(row.get("close")) and row["close"] > 0, f"invalid close: {key}")
@@ -80,6 +81,23 @@ def main() -> None:
         require(finite(row.get("weeksBelowSma200")) and row["weeksBelowSma200"] >= 0, f"invalid SMA duration: {key}")
         calculated_drawdown = (1 - row["close"] / row["peak3y"]) * 100
         require(close_enough(calculated_drawdown, row["drawdown3yPct"]), f"{key}: drawdown identity failed")
+
+    purchasing_power = data["market"].get("purchasingPowerStress") or {}
+    require(bool(purchasing_power), "purchasing-power monitor is missing")
+    require(finite(purchasing_power.get("sp500GoldRatio")) and purchasing_power["sp500GoldRatio"] > 0, "invalid S&P 500 / gold ratio")
+    require(
+        close_enough(
+            purchasing_power["sp500GoldRatio"],
+            purchasing_power["sp500"] / purchasing_power["goldUsdPerOunce"],
+        ),
+        "S&P 500 / gold ratio identity failed",
+    )
+    require(len(purchasing_power.get("chart") or []) >= 100, "purchasing-power chart history is too short")
+    require(
+        (purchasing_power.get("divergence") or {}).get("code")
+        in {"stealth-loss", "broad-loss", "nominal-only-loss", "aligned-rise", "insufficient"},
+        "invalid purchasing-power divergence code",
+    )
 
     topix = series.get("TOPIX")
     require(bool(topix), "missing TOPIX series")
@@ -228,13 +246,16 @@ def main() -> None:
     require(sakakibara.get("methodLabel") == "榊原式 proxy v1.1", "Sakakibara method label changed")
     nt = sakakibara.get("ntRatio") or {}
     require(finite(nt.get("latest")) and finite(nt.get("peak252d")), "NT ratio values are missing")
-    require(nt.get("latestDate") == topix.get("date") == series["NIKKEI"].get("date"), "NT ratio inputs are not aligned to one market date")
-    expected_nt = series["NIKKEI"]["close"] / topix["close"]
+    nt_history = nt.get("history") or []
+    require(bool(nt_history), "NT ratio history is missing")
+    require(nt.get("latestDate") == topix.get("date") == nt_history[-1].get("date"), "NT ratio inputs are not aligned to the latest common market date")
+    require(nt.get("latestDate") <= series["NIKKEI"].get("date"), "NT ratio common date is after the Nikkei series date")
+    expected_nt = nt_history[-1].get("ntRatio")
     require(close_enough(nt["latest"], expected_nt), "latest NT ratio identity failed")
     require(nt["peak252d"] >= nt["latest"], "NT peak is below latest ratio")
     expected_nt_decline = (1 - nt["latest"] / nt["peak252d"]) * 100
     require(close_enough(nt["declineFromPeakPct"], expected_nt_decline), "NT peak decline identity failed")
-    require(len(nt.get("history") or []) >= 200, "NT ratio history is too short")
+    require(len(nt_history) >= 200, "NT ratio history is too short")
 
     gates = sakakibara.get("gates") or {}
     for key in ("distortion", "ntReversal", "broadOutperformance", "basketRotation", "breadthConfirmation"):
@@ -559,6 +580,18 @@ def main() -> None:
     require(len(html_id_list) == len(html_ids), "index.html contains duplicate element ids")
     missing_ids = sorted(referenced_ids - html_ids)
     require(not missing_ids, f"app.js references missing HTML ids: {missing_ids}")
+
+    require(SNAPSHOT_HISTORY_INDEX.exists(), "daily snapshot history index is missing")
+    snapshot_index = json.loads(SNAPSHOT_HISTORY_INDEX.read_text(encoding="utf-8"))
+    snapshots = snapshot_index.get("snapshots") or []
+    require(len(snapshots) >= 2, "daily snapshot history must preserve the prior and current update")
+    snapshot_dates = [row.get("snapshotDate") for row in snapshots]
+    require(snapshot_dates == sorted(set(snapshot_dates)), "snapshot dates must be unique and sorted")
+    for entry in snapshots:
+        snapshot_file = SNAPSHOT_HISTORY_INDEX.parent / entry["file"]
+        require(snapshot_file.exists(), f"snapshot file is missing: {entry['file']}")
+        snapshot_payload = json.loads(snapshot_file.read_text(encoding="utf-8"))
+        require(snapshot_payload.get("generatedAtJst"), f"snapshot timestamp is missing: {entry['file']}")
     require("Method v4.2" in index_source, "method label is missing")
     require("評価への脆弱性は別枠20点" in index_source, "valuation/collapse score separation is missing")
     require("Margin Debt / GDP" in index_source, "margin-debt chart title is missing")

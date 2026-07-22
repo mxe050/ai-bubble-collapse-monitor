@@ -26,8 +26,16 @@ class FakeElement {
     this.dataset = {};
     this.style = {};
     this.classList = new FakeClassList();
+    this.listeners = {};
+    this.hidden = false;
   }
-  addEventListener() {}
+  addEventListener(type, listener) {
+    if (!this.listeners[type]) this.listeners[type] = [];
+    this.listeners[type].push(listener);
+  }
+  async click() {
+    for (const listener of this.listeners.click || []) await listener.call(this, { preventDefault() {} });
+  }
   querySelector() { return new FakeElement(); }
   setAttribute(name, value) { this[name] = value; }
   scrollIntoView() {}
@@ -71,6 +79,12 @@ assert.match(indexSource, /Margin Debt \/ GDP/);
 assert.match(indexSource, /燃料、引き金、巻き戻し/);
 assert.match(indexSource, /半導体株の反発だけでは、構造的な底を証明しない/);
 assert.match(indexSource, /1\.1228兆ウォン/);
+assert.match(indexSource, /昨日との比較/);
+assert.match(indexSource, /1週間前との比較/);
+assert.match(indexSource, /1か月前との比較/);
+assert.match(indexSource, /S&amp;P 500 ÷ 金/);
+assert.match(indexSource, /金27%、米国債22%/);
+assert.match(indexSource, /動画の結論を崩壊スコアへ直接加点しません/);
 const ids = [...indexSource.matchAll(/\bid="([^"]+)"/g)].map((match) => match[1]);
 const elements = new Map(ids.map((id) => [id, new FakeElement(id)]));
 const filters = ["all", "overseas-ai", "japan-ai", "japan-diversified"].map((value) => {
@@ -84,12 +98,18 @@ const scenarios = ["mild", "standard", "severe"].map((value) => {
   element.checked = value === "standard";
   return element;
 });
+const snapshotButtons = [1, 7, 30].map((value) => {
+  const element = new FakeElement();
+  element.dataset.compareDays = String(value);
+  return element;
+});
 
 global.document = {
   documentElement: new FakeElement("root"),
   getElementById(id) { return elements.get(id) || null; },
   querySelectorAll(selector) {
     if (selector === ".company-filter-button") return filters;
+    if (selector === ".snapshot-compare-button") return snapshotButtons;
     if (selector === 'input[name="nikkeiScenario"]') return scenarios;
     return [];
   },
@@ -106,17 +126,22 @@ global.localStorage = {
 const payload = JSON.parse(fs.readFileSync("data/latest.json", "utf8"));
 const moneyPayload = JSON.parse(fs.readFileSync("data/money-strategist-history.json", "utf8"));
 const marginPayload = JSON.parse(fs.readFileSync("data/margin-debt-history.json", "utf8"));
+const snapshotIndexPayload = JSON.parse(fs.readFileSync("data/history/index.json", "utf8"));
+const priorSnapshotPayload = JSON.parse(fs.readFileSync("data/history/2026-07-21.json", "utf8"));
 global.fetch = async (url) => ({
   ok: true,
   status: 200,
-  json: async () => String(url).includes("money-strategist-history")
+  json: async () => String(url).includes("data/history/index.json")
+    ? snapshotIndexPayload
+    : String(url).includes("data/history/2026-07-21.json") ? priorSnapshotPayload
+    : String(url).includes("money-strategist-history")
     ? moneyPayload
     : String(url).includes("margin-debt-history") ? marginPayload : payload,
 });
 
 vm.runInThisContext(appSource, { filename: "app.js" });
 
-setTimeout(() => {
+setTimeout(async () => {
   if (elements.get("dataHealth").textContent === "読込失敗") console.error("UI load error:", elements.get("uncertaintySummary").textContent);
   assert.notStrictEqual(elements.get("dataHealth").textContent, "読込失敗");
   assert.notStrictEqual(elements.get("headlineConclusion").textContent, "");
@@ -162,6 +187,16 @@ setTimeout(() => {
   assert.match(elements.get("marginDebtEventList").innerHTML, /2000年3月/);
   assert.match(elements.get("marginDebtSourceRegime").innerHTML, /FINRA全会員会社/);
   assert.notStrictEqual(elements.get("bottomBusinessConclusion").textContent, "価格反発と事業面の裏付けを分けて判定しています。");
+  assert.match(elements.get("ppStatus").textContent, /名目|判定/);
+  assert.match(elements.get("ppGold").textContent, /\$/);
+  assert.match(elements.get("ppPolicySpread").textContent, /ポイント/);
+  assert.strictEqual(snapshotButtons[0].disabled, false);
+  assert.strictEqual(snapshotButtons[1].disabled, true);
+  assert.strictEqual(snapshotButtons[2].disabled, true);
+  await snapshotButtons[0].click();
+  assert.match(elements.get("snapshotComparisonHeading").textContent, /昨日/);
+  assert.match(elements.get("snapshotComparisonGrid").innerHTML, /S&amp;P 500|S&P 500/);
+  assert.match(elements.get("snapshotComparisonNote").textContent, /当時公表値/);
   console.log(JSON.stringify({
     headline: elements.get("headlineConclusion").textContent,
     transmission: elements.get("japanTransmissionStatus").textContent,

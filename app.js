@@ -15,6 +15,10 @@
     marginDebtChart: null,
     marginDebt: null,
     marginDebtRange: "all",
+    purchasingPowerChart: null,
+    snapshotHistoryIndex: null,
+    snapshotComparisonDays: null,
+    snapshotComparisonPayload: null,
     globalComparison: null,
     moneyStrategistIpoDate: "",
     valuations: [],
@@ -2669,6 +2673,183 @@
     }).join("");
   }
 
+  function snapshotEntryForDays(days) {
+    var entries = ((state.snapshotHistoryIndex || {}).snapshots || []).slice();
+    var currentStamp = state.data && (state.data.generatedAtJst || state.data.generatedAtUtc);
+    var currentDate = currentStamp ? new Date(currentStamp) : null;
+    if (!currentDate || Number.isNaN(currentDate.valueOf())) return null;
+    var target = new Date(currentDate.valueOf());
+    target.setDate(target.getDate() - days);
+    var targetKey = target.toLocaleDateString("sv-SE", { timeZone: "Asia/Tokyo" });
+    return entries
+      .filter(function (entry) { return entry.snapshotDate && entry.snapshotDate <= targetKey; })
+      .sort(function (a, b) { return b.snapshotDate.localeCompare(a.snapshotDate); })[0] || null;
+  }
+
+  function updateSnapshotComparisonButtons() {
+    var entries = ((state.snapshotHistoryIndex || {}).snapshots || []);
+    document.querySelectorAll(".snapshot-compare-button").forEach(function (button) {
+      var days = Number(button.dataset.compareDays);
+      var available = Boolean(snapshotEntryForDays(days));
+      button.disabled = !available;
+      button.classList.toggle("is-active", state.snapshotComparisonDays === days);
+      button.setAttribute("aria-pressed", state.snapshotComparisonDays === days ? "true" : "false");
+      if (!available) button.title = "この時点の保存データはまだありません";
+      else button.title = "";
+    });
+    if (!entries.length) {
+      byId("snapshotAvailability").textContent = "履歴保存は今回から開始します。過去値は推測せず、保存された日だけ比較します。";
+      return;
+    }
+    var oldest = entries.slice().sort(function (a, b) { return a.snapshotDate.localeCompare(b.snapshotDate); })[0];
+    byId("snapshotAvailability").textContent = "保存開始 " + oldest.snapshotDate + "。休場・未更新日は対象日以前の最寄り保存日を使います。";
+  }
+
+  function snapshotMetric(payload, key) {
+    var market = (payload || {}).market || {};
+    var series = market.series || {};
+    var macro = (payload || {}).macro || {};
+    var risk = market.usBubbleRisk || {};
+    var purchasingPower = market.purchasingPowerStress || {};
+    var basket = market.aiBasket || {};
+    var quality = (payload || {}).dataQuality || {};
+    var values = {
+      usRisk: finite(risk.score),
+      sp500: finite((series.SP500 || {}).close),
+      nikkei: finite((series.NIKKEI || {}).close),
+      vix: finite((series.VIX || {}).close),
+      oas: finite((macro.highYieldOas || {}).valuePct),
+      breadth: finite(basket.breadthBelowSma200Pct),
+      goldRatio: finite(purchasingPower.sp500GoldRatio),
+      failures: finite(quality.failedRequests),
+    };
+    return values[key];
+  }
+
+  function renderSnapshotComparison() {
+    var previousPayload = state.snapshotComparisonPayload;
+    var panel = byId("snapshotComparison");
+    if (!previousPayload || !state.data) {
+      panel.hidden = true;
+      return;
+    }
+    panel.hidden = false;
+    var days = state.snapshotComparisonDays;
+    var labels = { 1: "昨日", 7: "1週間前", 30: "1か月前" };
+    var previousDate = String(previousPayload.generatedAtJst || previousPayload.generatedAtUtc || "").slice(0, 10);
+    var currentDate = String(state.data.generatedAtJst || state.data.generatedAtUtc || "").slice(0, 10);
+    byId("snapshotComparisonHeading").textContent = (labels[days] || "過去") + "の保存状態との比較";
+    byId("snapshotComparisonDates").textContent = previousDate + "（市場 " + (previousPayload.marketDate || "未確認") + "）→ " + currentDate + "（市場 " + (state.data.marketDate || "未確認") + "）";
+
+    var definitions = [
+      { key: "usRisk", label: "米国株の崩壊進行度", unit: " / 100", difference: "points", riskHigher: true },
+      { key: "sp500", label: "S&P 500", unit: " pt", difference: "percent", digits: 1 },
+      { key: "nikkei", label: "日経平均", unit: " 円", difference: "percent", digits: 0 },
+      { key: "vix", label: "VIX", unit: "", difference: "percent", riskHigher: true },
+      { key: "oas", label: "米国HY OAS", unit: "%", difference: "points", riskHigher: true },
+      { key: "breadth", label: "海外AI・200日線割れ", unit: "%", difference: "points", riskHigher: true },
+      { key: "goldRatio", label: "S&P 500 ÷ 金", unit: "", difference: "percent", riskHigher: false, riskLower: true, digits: 3 },
+      { key: "failures", label: "データ取得失敗", unit: "件", difference: "points", riskHigher: true, digits: 0 },
+    ];
+    byId("snapshotComparisonGrid").innerHTML = definitions.map(function (definition) {
+      var current = snapshotMetric(state.data, definition.key);
+      var previous = snapshotMetric(previousPayload, definition.key);
+      if (current === null || previous === null) {
+        return "<article class=\"neutral\"><span>" + escapeHtml(definition.label) + "</span><strong>比較不可</strong><small>一方の保存値なし</small></article>";
+      }
+      var change = definition.difference === "percent" && previous !== 0
+        ? (current / previous - 1) * 100 : current - previous;
+      var riskDirection = definition.riskLower ? -change : change;
+      var className = Math.abs(change) < 0.0001 ? "neutral" : definition.riskHigher || definition.riskLower
+        ? (riskDirection > 0 ? "risk-up" : "risk-down") : "neutral";
+      var digits = definition.digits === undefined ? 1 : definition.digits;
+      var valueText = new Intl.NumberFormat("ja-JP", { maximumFractionDigits: digits }).format(current) + definition.unit;
+      var changeText = (change > 0 ? "+" : "") + numberOne.format(change)
+        + (definition.difference === "percent" ? "%" : definition.key === "failures" ? "件" : "ポイント");
+      return "<article class=\"" + className + "\"><span>" + escapeHtml(definition.label) + "</span><strong>" + escapeHtml(valueText) + "</strong><small>過去値 "
+        + new Intl.NumberFormat("ja-JP", { maximumFractionDigits: digits }).format(previous) + definition.unit + " / 差 " + escapeHtml(changeText) + "</small></article>";
+    }).join("");
+    var methodChanged = previousPayload.methodVersion && previousPayload.methodVersion !== state.data.methodVersion;
+    byId("snapshotComparisonNote").textContent = (methodChanged
+      ? "計算方法の版が異なります（" + previousPayload.methodVersion + " → " + state.data.methodVersion + "）。スコア差は参考比較です。 " : "")
+      + "過去値はその日に保存した当時公表値です。月次系列が後日改定されても、この比較用スナップショットは再計算しません。";
+  }
+
+  async function loadSnapshotComparison(days) {
+    var entry = snapshotEntryForDays(days);
+    state.snapshotComparisonDays = days;
+    state.snapshotComparisonPayload = null;
+    updateSnapshotComparisonButtons();
+    if (!entry) {
+      byId("snapshotComparison").hidden = false;
+      byId("snapshotComparisonHeading").textContent = "比較データなし";
+      byId("snapshotComparisonDates").textContent = "保存開始前の状況は復元しません";
+      byId("snapshotComparisonGrid").innerHTML = "";
+      byId("snapshotComparisonNote").textContent = "今後の日次更新で履歴が蓄積すると、自動的に比較できるようになります。";
+      return;
+    }
+    try {
+      var response = await fetch("data/history/" + entry.file + "?ts=" + Date.now(), { cache: "no-store" });
+      if (!response.ok) throw new Error("HTTP " + response.status);
+      state.snapshotComparisonPayload = await response.json();
+      renderSnapshotComparison();
+    } catch (error) {
+      byId("snapshotComparison").hidden = false;
+      byId("snapshotComparisonHeading").textContent = "保存データを読み込めませんでした";
+      byId("snapshotComparisonDates").textContent = entry.snapshotDate || "日付未確認";
+      byId("snapshotComparisonGrid").innerHTML = "";
+      byId("snapshotComparisonNote").textContent = error.message;
+    }
+  }
+
+  function renderPurchasingPower() {
+    var monitor = ((state.data.market || {}).purchasingPowerStress || {});
+    var changes = monitor.changes || {};
+    var divergence = monitor.divergence || {};
+    var policy = monitor.policySpread || {};
+    var saving = monitor.personalSavingRate || {};
+    byId("ppAsOf").textContent = monitor.asOfDate ? "市場 " + monitor.asOfDate : "基準日未確認";
+    byId("ppStatus").textContent = divergence.label || "算定不可";
+    byId("ppStatus").className = "purchasing-power-status " + escapeHtml(divergence.code || "insufficient");
+    byId("ppStatusDetail").textContent = "S&P 500は20日 " + formatPercent((changes.sp500 || {})["20dPct"], true)
+      + "、金建て比率は " + formatPercent((changes.sp500GoldRatio || {})["20dPct"], true) + "。";
+    byId("ppSp500").textContent = finite(monitor.sp500) === null ? "未確認" : numberOne.format(monitor.sp500) + " pt";
+    byId("ppSp500Change").textContent = "20日 " + formatPercent((changes.sp500 || {})["20dPct"], true);
+    byId("ppGold").textContent = finite(monitor.goldUsdPerOunce) === null ? "未確認" : "$" + numberOne.format(monitor.goldUsdPerOunce) + " / oz";
+    byId("ppGoldChange").textContent = "20日 " + formatPercent((changes.gold || {})["20dPct"], true);
+    byId("ppRatio").textContent = finite(monitor.sp500GoldRatio) === null ? "未確認" : numberThree.format(monitor.sp500GoldRatio);
+    byId("ppRatioChange").textContent = "20日 " + formatPercent((changes.sp500GoldRatio || {})["20dPct"], true);
+    byId("ppPolicySpread").textContent = finite(policy.spreadPctPoints) === null ? "未確認" : formatPctPoints(policy.spreadPctPoints, true);
+    byId("ppPolicyDate").textContent = "観測日 " + (policy.date || "未確認");
+    byId("ppSavings").textContent = finite(saving.value) === null ? "未確認" : formatPercent(saving.value, false);
+    byId("ppSavingsDate").textContent = "観測月 " + (saving.date || "未確認") + "（最新改定値）";
+
+    if (!window.Chart || !(monitor.chart || []).length) return;
+    if (state.purchasingPowerChart) state.purchasingPowerChart.destroy();
+    var context = byId("purchasingPowerChart").getContext("2d");
+    state.purchasingPowerChart = new Chart(context, {
+      type: "line",
+      data: {
+        labels: monitor.chart.map(function (row) { return row.date; }),
+        datasets: [
+          { label: "S&P 500（ドル建て）", data: monitor.chart.map(function (row) { return row.sp500NominalIndex; }), borderColor: "#126e82", borderWidth: 2.4, pointRadius: 0, tension: 0.08 },
+          { label: "S&P 500 ÷ 金", data: monitor.chart.map(function (row) { return row.sp500GoldIndex; }), borderColor: "#b68b24", borderWidth: 2.8, pointRadius: 0, tension: 0.08 },
+          { label: "金価格", data: monitor.chart.map(function (row) { return row.goldIndex; }), borderColor: "rgba(182,139,36,.38)", borderWidth: 1.4, pointRadius: 0, tension: 0.08 },
+        ],
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        interaction: { mode: "index", intersect: false },
+        plugins: { legend: { position: "bottom", labels: { color: chartTextColor(), boxWidth: 18 } } },
+        scales: {
+          x: { ticks: { color: chartTextColor(), maxTicksLimit: 9 }, grid: { display: false } },
+          y: { ticks: { color: chartTextColor() }, grid: { color: "rgba(20,42,61,.09)" }, title: { display: true, text: "起点＝100" } },
+        },
+      },
+    });
+  }
+
   function renderMetadata() {
     var quality = state.data.dataQuality || {};
     var failures = quality.failedRequests || 0;
@@ -2764,6 +2945,9 @@
     renderMoneyStrategist();
     renderMarginDebt();
     renderUsMarketIntelligence();
+    renderPurchasingPower();
+    updateSnapshotComparisonButtons();
+    if (state.snapshotComparisonPayload) renderSnapshotComparison();
     renderMarketReading();
     renderMarketChart();
     renderDotComComparison();
@@ -2827,6 +3011,9 @@
       var globalComparisonRequest = fetch("data/global-market-value-comparison.json?ts=" + Date.now(), { cache: "no-store" })
         .then(function (globalResponse) { return globalResponse.ok ? globalResponse.json() : null; })
         .catch(function () { return null; });
+      var snapshotIndexRequest = fetch("data/history/index.json?ts=" + Date.now(), { cache: "no-store" })
+        .then(function (historyResponse) { return historyResponse.ok ? historyResponse.json() : null; })
+        .catch(function () { return null; });
       var response = await fetch("data/latest.json?ts=" + Date.now(), { cache: "no-store" });
       if (!response.ok) throw new Error("HTTP " + response.status);
       var payload = await response.json();
@@ -2835,6 +3022,9 @@
       state.moneyStrategist = await moneyRequest;
       state.marginDebt = await marginDebtRequest;
       state.globalComparison = await globalComparisonRequest;
+      state.snapshotHistoryIndex = await snapshotIndexRequest;
+      state.snapshotComparisonPayload = null;
+      state.snapshotComparisonDays = null;
       renderAll();
       if (typeof window.CustomEvent === "function" && typeof window.dispatchEvent === "function") window.dispatchEvent(new CustomEvent("monitor:data-updated"));
       if (showMessage && refreshMode === "live") {
@@ -2860,6 +3050,11 @@
 
   function bindEvents() {
     byId("refreshButton").addEventListener("click", function () { loadData(true); });
+    document.querySelectorAll(".snapshot-compare-button").forEach(function (button) {
+      button.addEventListener("click", function () {
+        loadSnapshotComparison(Number(this.dataset.compareDays));
+      });
+    });
     document.querySelectorAll(".margin-range-button").forEach(function (button) {
       button.addEventListener("click", function () {
         state.marginDebtRange = this.dataset.marginRange || "all";

@@ -38,6 +38,7 @@
     <div class="nav-inner">
       <a href="#today">今日の判定</a>
       <a href="#decision-path">全体像</a>
+      <a href="#purchasing-power">購買力</a>
       <a href="#global-comparison">過熱度</a>
       <a href="#margin-leverage">信用レバレッジ</a>
       <a href="#signals">崩壊の兆候</a>
@@ -61,6 +62,29 @@
             <span id="dataHealth" class="status-dot">読込中</span>
             <span>市場基準日 <strong id="marketDate">―</strong></span>
             <span>最終更新（JST） <strong id="generatedAt">―</strong></span>
+          </div>
+        </div>
+
+        <div class="snapshot-compare" aria-labelledby="snapshotCompareTitle">
+          <div class="snapshot-compare-heading">
+            <div>
+              <p class="label">更新前の状況を残して比較</p>
+              <h3 id="snapshotCompareTitle">昨日・1週間前・1か月前と何が変わったか</h3>
+              <p id="snapshotAvailability">保存済みの日次スナップショットを確認しています。</p>
+            </div>
+            <div class="snapshot-compare-buttons" role="group" aria-label="過去との比較期間">
+              <button class="snapshot-compare-button" type="button" data-compare-days="1" aria-pressed="false">昨日との比較</button>
+              <button class="snapshot-compare-button" type="button" data-compare-days="7" aria-pressed="false">1週間前との比較</button>
+              <button class="snapshot-compare-button" type="button" data-compare-days="30" aria-pressed="false">1か月前との比較</button>
+            </div>
+          </div>
+          <div id="snapshotComparison" class="snapshot-comparison-panel" hidden>
+            <div class="snapshot-comparison-title">
+              <strong id="snapshotComparisonHeading">比較データを選択してください</strong>
+              <span id="snapshotComparisonDates"></span>
+            </div>
+            <div id="snapshotComparisonGrid" class="snapshot-comparison-grid"></div>
+            <p id="snapshotComparisonNote" class="snapshot-comparison-note"></p>
           </div>
         </div>
 
@@ -112,6 +136,65 @@
 
         <div class="hypothesis-note">
           <strong>このアプリでいうバブル：</strong>株価が将来の成長を織り込むこと自体は正常です。企業が十分に発展しても説明しにくい水準まで期待が上乗せされ、その期待を支える価格・利益・信用の条件が崩れ始めた状態を「バブル崩壊」と考えます。信用買い残は下落を増幅する燃料として別に確認し、高値やレバレッジの多さだけでは崩壊と判定しません。
+        </div>
+      </div>
+    </section>
+
+    <section id="purchasing-power" class="band band-purchasing-power">
+      <div class="content">
+        <div class="section-heading heading-row">
+          <div>
+            <p class="section-kicker">NOMINAL PRICE / PURCHASING-POWER PROXY</p>
+            <h2>株価が上がっていても、希少資産に対する価値は落ちていないか</h2>
+            <p>ドル建てのS&amp;P 500だけでなく、S&amp;P 500を金価格で割った比率を並べます。名目上昇と金建て低下が同時に起きる「見えにくい価値低下」を、通常の株価崩壊とは別の補助線として確認します。</p>
+          </div>
+          <span id="ppAsOf" class="purchasing-power-as-of">読込中</span>
+        </div>
+
+        <div class="purchasing-power-verdict">
+          <div>
+            <p class="label">20営業日の方向</p>
+            <strong id="ppStatus">判定中</strong>
+            <p id="ppStatusDetail">名目価格と金建て比率を比較しています。</p>
+          </div>
+          <p><strong>読み方：</strong>金建て比率は家計の購買力そのものではなく、株式を希少資産で測った相対価格のproxyです。単独で暴落や通貨危機を判定しません。</p>
+        </div>
+
+        <div class="purchasing-power-metrics">
+          <article><span>S&amp;P 500</span><strong id="ppSp500">―</strong><small id="ppSp500Change">20日変化 ―</small></article>
+          <article><span>COMEX金先物（GC=F）</span><strong id="ppGold">―</strong><small id="ppGoldChange">20日変化 ―</small></article>
+          <article class="primary"><span>S&amp;P 500 ÷ 金</span><strong id="ppRatio">―</strong><small id="ppRatioChange">20日変化 ―</small></article>
+          <article><span>2年米国債 − 実効FF金利</span><strong id="ppPolicySpread">―</strong><small id="ppPolicyDate">観測日 ―</small></article>
+          <article><span>米個人貯蓄率</span><strong id="ppSavings">―</strong><small id="ppSavingsDate">観測月 ―</small></article>
+        </div>
+
+        <div class="purchasing-power-chart-wrap">
+          <div class="chart-heading">
+            <div><p class="label">同じ起点を100として比較</p><h3>ドル建てS&amp;P 500と、金建てS&amp;P 500</h3></div>
+            <p>青線が名目、金色線がS&amp;P 500 ÷ 金です。金価格そのものも薄い線で併記します。</p>
+          </div>
+          <canvas id="purchasingPowerChart" height="380" aria-label="S&P 500の名目指数と金建て指数の比較チャート"></canvas>
+        </div>
+
+        <div class="purchasing-power-evidence">
+          <article>
+            <span>動画から採用した観点</span>
+            <strong>名目価格だけを見ず、金建て・政策金利差・家計余力を分離して監視</strong>
+            <p>Mark Mossの動画は、次の調整が名目株価の急落ではなく、資産価格上昇の裏で購買力が落ちる形かもしれないという仮説を示します。本アプリはその観点だけを採用し、動画の結論を崩壊スコアへ直接加点しません。</p>
+            <a href="https://www.youtube.com/watch?v=g0YV9hVN3Mg" target="_blank" rel="noopener">元動画を開く</a>
+          </article>
+          <article>
+            <span>重要な事実確認</span>
+            <strong>金27%・米国債22%は市場評価額。金価格上昇の評価効果が大きい</strong>
+            <p>ECBの2026年6月報告では2025年末の公的準備を市場価格で測ると金27%、米国債22%。ただし2023年末の金価格で補正すると金16%、米国債26%であり、「保有量だけで金が最大になった」とは読めません。</p>
+            <a href="https://www.ecb.europa.eu/press/other-publications/ire/html/ecb.ire202606.en.html" target="_blank" rel="noopener">ECB一次資料を開く</a>
+          </article>
+          <article>
+            <span>改定値の扱い</span>
+            <strong>月次指標は後日改定されるため、当時公表値を日次スナップショットに固定</strong>
+            <p>動画内の米個人貯蓄率2.6%は公開当時の速報値でしたが、その後改定されています。現在カードは最新改定値、過去比較はその日に保存した当時公表値を使います。</p>
+            <a href="https://fred.stlouisfed.org/series/PSAVERT" target="_blank" rel="noopener">FRED・米個人貯蓄率</a>
+          </article>
         </div>
       </div>
     </section>
