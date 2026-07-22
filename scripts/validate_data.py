@@ -492,6 +492,11 @@ def main() -> None:
     require(len(margin_events) == 8, "margin-debt chart must contain eight historical observation markers")
     require(any(row.get("date") == "2000-03-01" for row in margin_events), "dot-com margin-debt marker is missing")
     require(any(row.get("date") == "2007-07-01" for row in margin_events), "pre-GFC margin-debt marker is missing")
+    period_names = " ".join(row.get("label", "") for row in margin_events)
+    require("ITバブルの天井" in period_names, "dot-com period name is missing")
+    require("ブラックマンデー" in period_names and "住宅・信用バブル" in period_names, "historical period names are incomplete")
+    require("AI・半導体集中相場" in period_names, "current AI-market period name is missing")
+    require(all(row.get("chartLabel") and row.get("description") for row in margin_events), "margin event chart labels or descriptions are missing")
     korea = margin.get("koreaStressCase") or {}
     require(close_enough(korea.get("forcedLiquidationsKrwTrillions"), 1.1228), "Korea forced-liquidation fact changed")
     require(korea.get("circuitBreakers") == 3, "Korea circuit-breaker fact changed")

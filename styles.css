@@ -6911,8 +6911,17 @@ footer {
 }
 
 .margin-event-list span {
-  color: #4d6371;
-  font-size: .84rem;
+  color: #244f67;
+  font-size: .9rem;
+  font-weight: 900;
+  line-height: 1.55;
+}
+
+.margin-event-list p {
+  margin: 7px 0 0;
+  color: #5a6f7c;
+  font-size: .8rem;
+  line-height: 1.68;
 }
 
 .margin-regime-list > div {

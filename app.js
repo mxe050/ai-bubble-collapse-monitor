@@ -875,23 +875,39 @@
         ctx.textAlign = "center";
         ctx.textBaseline = "bottom";
         ctx.font = (compact ? "700 10px " : "700 11px ") + "Meiryo, sans-serif";
-        events.forEach(function (event, index) {
-          if (compact && !/2000|2007/.test(event.date) && event.date !== (data.latest || {}).date) return;
+        var labeledEvents = events.filter(function (event) {
+          if (!compact || events.length <= 5) return true;
+          return /1987|2000|2007|2021/.test(event.date) || event.date === (data.latest || {}).date;
+        });
+        labeledEvents.forEach(function (event, index) {
           var x = xScale.getPixelForValue(decimalYearFromIso(event.date));
           var y = yScale.getPixelForValue(event.marginDebtToGdpPct);
-          var labelY = chart.chartArea.top + 24 + (index % 3) * 20;
-          ctx.strokeStyle = event.date === (data.latest || {}).date ? "#c92d31" : "rgba(91, 104, 122, 0.72)";
-          ctx.lineWidth = event.date === (data.latest || {}).date ? 2 : 1;
+          var labelY = chart.chartArea.top + 30 + (index % 3) * (compact ? 42 : 46);
+          var lines = String(event.chartLabel || event.label).split("|");
+          var labelX = Math.max(chart.chartArea.left + 48, Math.min(chart.chartArea.right - 48, x));
+          var lineHeight = compact ? 12 : 14;
+          var boxWidth = Math.min(compact ? 104 : 142, Math.max.apply(null, lines.map(function (line) {
+            return ctx.measureText(line).width;
+          })) + 14);
+          var boxHeight = lines.length * lineHeight + 8;
+          var isLatest = event.date === (data.latest || {}).date;
+          ctx.strokeStyle = isLatest ? "#c92d31" : "rgba(75, 94, 111, 0.78)";
+          ctx.lineWidth = isLatest ? 2 : 1;
           ctx.beginPath();
-          ctx.moveTo(x, labelY + 4);
+          ctx.moveTo(labelX, labelY + boxHeight / 2);
           ctx.lineTo(x, y - 7);
           ctx.stroke();
-          ctx.fillStyle = event.date === (data.latest || {}).date ? "#c92d31" : "#173854";
+          ctx.fillStyle = "rgba(255, 255, 255, 0.94)";
+          ctx.fillRect(labelX - boxWidth / 2, labelY - boxHeight / 2, boxWidth, boxHeight);
+          ctx.strokeRect(labelX - boxWidth / 2, labelY - boxHeight / 2, boxWidth, boxHeight);
+          ctx.fillStyle = isLatest ? "#b6242b" : "#173854";
+          lines.forEach(function (line, lineIndex) {
+            ctx.fillText(line, labelX, labelY - ((lines.length - 1) * lineHeight) / 2 + lineIndex * lineHeight + 4);
+          });
+          ctx.fillStyle = isLatest ? "#c92d31" : "#173854";
           ctx.beginPath();
-          ctx.arc(x, y, event.date === (data.latest || {}).date ? 5 : 3.5, 0, Math.PI * 2);
+          ctx.arc(x, y, isLatest ? 5 : 3.5, 0, Math.PI * 2);
           ctx.fill();
-          var shortLabel = event.label.replace("ITバブル・", "").replace("金融危機前・", "");
-          ctx.fillText(shortLabel, x, labelY);
         });
         ctx.restore();
       },
@@ -1006,7 +1022,7 @@
     byId("marginDebtEventList").innerHTML = (data.events || []).map(function (event) {
       return "<div><time>" + escapeHtml(formatMonthJa(event.date)) + "</time><strong>"
         + numberTwo.format(event.marginDebtToGdpPct) + "%</strong><span>"
-        + escapeHtml(event.label) + "</span></div>";
+        + escapeHtml(event.label) + "</span><p>" + escapeHtml(event.description || "") + "</p></div>";
     }).join("");
     byId("marginDebtSourceRegime").innerHTML = (data.sourceRegimes || []).map(function (regime) {
       return "<div><strong>" + escapeHtml(regime.label) + "</strong><span>"

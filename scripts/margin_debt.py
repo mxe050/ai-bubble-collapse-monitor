@@ -195,26 +195,65 @@ def build_margin_debt_history(
     latest_yoy = finite(latest.get("marginDebtChange12mPct"))
     sp500_yoy = finite(sp500.get("change12mPct"))
 
-    event_dates = [
-        ("1968-06-01", "1968年6月"),
-        ("1972-12-01", "1972年12月"),
-        ("1987-08-01", "1987年8月"),
-        ("2000-03-01", "ITバブル・2000年3月"),
-        ("2007-07-01", "金融危機前・2007年7月"),
-        ("2018-01-01", "2018年1月"),
-        ("2021-08-01", "2021年8月"),
-        (latest["date"], latest["date"][:7].replace("-", "年") + "月"),
+    event_definitions = [
+        {
+            "date": "1968-06-01",
+            "label": "ゴーゴー相場（Go-Go Years）の終盤",
+            "chartLabel": "1968|ゴーゴー相場終盤",
+            "description": "長い景気拡大と株高が続いた1960年代末の観測点。後の下落原因を一つに断定する名称ではありません。",
+        },
+        {
+            "date": "1972-12-01",
+            "label": "ニフティ・フィフティ相場の終盤",
+            "chartLabel": "1972|ニフティ・フィフティ",
+            "description": "大型優良成長株へ人気が集中した相場の終盤。企業の質と、どの価格でも正当化できることは別だという歴史例です。",
+        },
+        {
+            "date": "1987-08-01",
+            "label": "ブラックマンデー直前の株高",
+            "chartLabel": "1987|ブラックマンデー前",
+            "description": "1987年10月19日の急落前。8月までの急速な株高と、その後の市場構造を通じた下落増幅を分けて見ます。",
+        },
+        {
+            "date": "2000-03-01",
+            "label": "ITバブルの天井",
+            "chartLabel": "2000|ITバブル天井",
+            "description": "インターネット企業への成長期待が極端に高まった局面。信用買い残の高さだけでなく、価格と利益の乖離が重要でした。",
+        },
+        {
+            "date": "2007-07-01",
+            "label": "住宅・信用バブルの終盤",
+            "chartLabel": "2007|住宅・信用バブル終盤",
+            "description": "住宅金融と証券化を中心とする信用拡大の終盤。株式信用口座以外の金融レバレッジが危機を深くした例です。",
+        },
+        {
+            "date": "2018-01-01",
+            "label": "低ボラティリティ相場・VIXショック前",
+            "chartLabel": "2018|低ボラ・VIX急騰前",
+            "description": "世界的な低変動相場の後、2018年2月にVIXが急騰し、低ボラティリティ戦略の巻き戻しが値動きを増幅しました。",
+        },
+        {
+            "date": "2021-08-01",
+            "label": "コロナ後の流動性・ミーム株相場",
+            "chartLabel": "2021|コロナ後流動性相場",
+            "description": "金融・財政支援後の豊富な流動性と個人取引の活発化が重なった局面。SECはミーム株の価格・出来高・空売りを検証しました。",
+        },
+        {
+            "date": latest["date"],
+            "label": "AI・半導体集中相場（監視中）",
+            "chartLabel": "最新|AI・半導体集中相場",
+            "description": "AI需要と設備投資への期待が大型株・半導体株へ集中する現在の観測点。崩壊済みという名称ではありません。",
+        },
     ]
     series_by_date = {row["date"]: row for row in series}
     events = [
         {
-            "date": event_date,
-            "label": label,
-            "marginDebtToGdpPct": series_by_date[event_date]["marginDebtToGdpPct"],
-            "marginDebtUsdMillions": series_by_date[event_date]["marginDebtUsdMillions"],
+            **event,
+            "marginDebtToGdpPct": series_by_date[event["date"]]["marginDebtToGdpPct"],
+            "marginDebtUsdMillions": series_by_date[event["date"]]["marginDebtUsdMillions"],
         }
-        for event_date, label in event_dates
-        if event_date in series_by_date
+        for event in event_definitions
+        if event["date"] in series_by_date
     ]
 
     latest_payload = {
