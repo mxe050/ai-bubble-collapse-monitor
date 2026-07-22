@@ -350,3 +350,15 @@ FINRA信用口座統計は、デリバティブ、証券担保融資、海外口
 - [SBS / Korea Financial Investment Association figures](https://news.sbs.co.kr/english/endPagePrintPopup.do?news_id=N1008637238)
 - [Video 1](https://www.youtube.com/watch?v=mVqqXI9TmCw&t=5s)
 - [Video 2](https://www.youtube.com/watch?v=hy90LdpEUvQ)
+
+## データ取得経路の画面表示監査（2026-07-22）
+
+数値が出典名だけで突然表示されないよう、画面に「提供元 → 取得形式 → 利用項目 → 加工 → 限界」の経路を追加しました。
+
+- 信用買い残はFINRA配布Excel第1シートのA列年月とB列の顧客信用口座借方残高（百万ドル）を直接読みます。1959～1996年はNYSE Fact Book保存版の監査済み履歴、分母はFRED CSVのBEA名目GDP系列 `GDP`（十億ドル、四半期、季節調整済み年率）です。
+- 信用買い残とGDPの原数値、基準月、単位換算、代入式を最新JSONから画面へ表示します。未来のGDPは使わず、信用買い残月時点で利用可能な直近四半期を対応させます。
+- 株価、企業財務、FRED、財務省・日銀・e-Stat、長期理論価値、過去局面、SEC/Berkshire、海外ニュース・Xについても取得形式と計算上の役割を明記しました。
+- `sourceStatus` の取得記録から、提供元ごとの成功件数、対象系列、最終取得時刻を日本時間で表示します。
+- 更新ボタンの挙動を監査しました。ローカルサーバーでは取得・再計算・検証を実行します。静的画面はコミット済みJSONを再読込します。6時間ごとのGitHub Actionsは読み取り専用の検証であり、生成値をリポジトリへ書き戻しません。
+
+この変更は既存の市場判定、DCF、底値、信用買い残の計算式を変更せず、データ来歴と更新動作を可視化するものです。

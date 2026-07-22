@@ -37,12 +37,15 @@ class FakeElement {
     for (const listener of this.listeners.click || []) await listener.call(this, { preventDefault() {} });
   }
   querySelector() { return new FakeElement(); }
+  getContext() { return this; }
   setAttribute(name, value) { this[name] = value; }
   scrollIntoView() {}
 }
 
 const indexSource = fs.readFileSync("index.html", "utf8");
 const appSource = fs.readFileSync("app.js", "utf8");
+const chartVendorSource = fs.readFileSync("vendor/chart.umd.min.js", "utf8");
+const lucideVendorSource = fs.readFileSync("vendor/lucide.min.js", "utf8");
 assert.match(indexSource, /Option-Adjusted Spread/);
 assert.match(indexSource, /新規借入で実際に支払う金利そのものでも、倒産確率そのものでもありません/);
 assert.match(indexSource, /VIX上昇に加え、OASが拡大/);
@@ -77,6 +80,11 @@ assert.doesNotMatch(indexSource, /職員はすでに株を売っている/);
 assert.doesNotMatch(indexSource, /両社の職員・元職員は累計約140億ドルを現金化/);
 assert.match(indexSource, /Margin Debt \/ GDP/);
 assert.match(indexSource, /燃料、引き金、巻き戻し/);
+assert.match(indexSource, /FINRA配布Excelを直接取得/);
+assert.match(indexSource, /元データが画面の数字になるまで/);
+assert.match(indexSource, /主要データごとの取得経路/);
+assert.match(indexSource, /FREDのCSVを系列IDごとに直接取得/);
+assert.match(indexSource, /SEC EDGAR submissions JSON/);
 assert.match(indexSource, /半導体株の反発だけでは、構造的な底を証明しない/);
 assert.match(indexSource, /1\.1228兆ウォン/);
 assert.match(indexSource, /昨日との比較/);
@@ -85,6 +93,15 @@ assert.match(indexSource, /1か月前との比較/);
 assert.match(indexSource, /S&amp;P 500 ÷ 金/);
 assert.match(indexSource, /金27%、米国債22%/);
 assert.match(indexSource, /動画の結論を崩壊スコアへ直接加点しません/);
+assert.match(indexSource, /src="vendor\/chart\.umd\.min\.js"/);
+assert.match(indexSource, /src="vendor\/lucide\.min\.js"/);
+assert.match(indexSource, /class="purchasing-power-chart-stage"/);
+assert.doesNotMatch(indexSource, /cdn\.jsdelivr\.net\/npm\/chart\.js/);
+assert.match(chartVendorSource, /Chart\.js v4\.4\.9/);
+assert.match(lucideVendorSource, /lucide v0\.468\.0/);
+assert.match(indexSource, /なぜ「Margin Debt \/ GDP」を調べるのか/);
+assert.match(indexSource, /担保が不足すると、待ちたくても売らなければならない/);
+assert.match(indexSource, /返済能力そのものではなく長期比較のための物差し/);
 const ids = [...indexSource.matchAll(/\bid="([^"]+)"/g)].map((match) => match[1]);
 const elements = new Map(ids.map((id) => [id, new FakeElement(id)]));
 const filters = ["all", "overseas-ai", "japan-ai", "japan-diversified"].map((value) => {
@@ -117,6 +134,18 @@ global.document = {
 global.window = global;
 global.window.innerWidth = 1280;
 global.window.lucide = null;
+const renderedCharts = [];
+class FakeChart {
+  constructor(target, config) {
+    this.target = target;
+    this.config = config;
+    this.data = config.data;
+    renderedCharts.push(this);
+  }
+  destroy() {}
+}
+global.Chart = FakeChart;
+global.window.Chart = FakeChart;
 global.getComputedStyle = () => ({ getPropertyValue: () => "#647386" });
 const storage = new Map();
 global.localStorage = {
@@ -186,10 +215,21 @@ setTimeout(async () => {
   assert.notStrictEqual(elements.get("marginDebtStatus").textContent, "計算中");
   assert.match(elements.get("marginDebtEventList").innerHTML, /2000年3月/);
   assert.match(elements.get("marginDebtSourceRegime").innerHTML, /FINRA全会員会社/);
+  assert.match(elements.get("marginDebtRawInput").textContent, /百万ドル/);
+  assert.match(elements.get("marginGdpRawInput").textContent, /十億ドル/);
+  assert.match(elements.get("marginWorkedFormula").textContent, /× 1,000/);
+  assert.match(elements.get("marginWorkedFormula").textContent, /%/);
+  assert.match(elements.get("sourceStatusList").innerHTML, /最終取得/);
+  assert.match(elements.get("sourceStatusList").innerHTML, /対象:/);
   assert.notStrictEqual(elements.get("bottomBusinessConclusion").textContent, "価格反発と事業面の裏付けを分けて判定しています。");
   assert.match(elements.get("ppStatus").textContent, /名目|判定/);
   assert.match(elements.get("ppGold").textContent, /\$/);
   assert.match(elements.get("ppPolicySpread").textContent, /ポイント/);
+  const purchasingPowerRender = renderedCharts.find((chart) => chart.target.id === "purchasingPowerChart");
+  assert.ok(purchasingPowerRender, "purchasing power chart should be constructed");
+  assert.strictEqual(purchasingPowerRender.data.labels.length, 252);
+  assert.strictEqual(purchasingPowerRender.data.datasets.length, 3);
+  purchasingPowerRender.data.datasets.forEach((dataset) => assert.strictEqual(dataset.data.length, 252));
   assert.strictEqual(snapshotButtons[0].disabled, false);
   assert.strictEqual(snapshotButtons[1].disabled, true);
   assert.strictEqual(snapshotButtons[2].disabled, true);

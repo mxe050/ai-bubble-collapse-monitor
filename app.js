@@ -32,6 +32,7 @@
   var numberOne = new Intl.NumberFormat("ja-JP", { maximumFractionDigits: 1 });
   var numberTwo = new Intl.NumberFormat("ja-JP", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   var numberThree = new Intl.NumberFormat("ja-JP", { minimumFractionDigits: 3, maximumFractionDigits: 3 });
+  var numberFour = new Intl.NumberFormat("ja-JP", { minimumFractionDigits: 4, maximumFractionDigits: 4 });
   var nikkeiFormat = new Intl.NumberFormat("ja-JP", { maximumFractionDigits: 0 });
   var moneyFormatters = {};
   var priceFormatters = {};
@@ -986,6 +987,13 @@
     byId("marginDebtStatus").dataset.level = chain.unwindLevel === "high" ? "high" : chain.triggerLevel === "high" ? "medium" : chain.fuelLevel;
     byId("marginDebtStatusDetail").textContent = "高い比率はタイミング予測ではありません。燃料、引き金、巻き戻しの三段階が重なった時だけ、パニック経路を強く疑います。";
     byId("marginDebtTimingNote").textContent = latest.gdpTimingNote || "";
+    byId("marginWorkedPeriod").textContent = formatMonthJa(latest.date) + "の計算";
+    byId("marginDebtRawInput").textContent = nikkeiFormat.format(latest.marginDebtUsdMillions) + " 百万ドル（" + formatMonthJa(latest.date) + "）";
+    byId("marginGdpRawInput").textContent = numberThree.format(latest.nominalGdpUsdBillions) + " 十億ドル（" + formatMonthJa(latest.nominalGdpDate) + "）";
+    byId("marginWorkedFormula").textContent = nikkeiFormat.format(latest.marginDebtUsdMillions)
+      + " ÷（" + numberThree.format(latest.nominalGdpUsdBillions) + " × 1,000）× 100 = "
+      + numberFour.format(latest.marginDebtToGdpPct) + "%";
+    byId("marginWorkedTiming").textContent = latest.gdpTimingNote || "信用買い残は月次、GDPは四半期の直近公表値を対応させます。";
 
     ["fuel", "trigger", "unwind"].forEach(function (key) {
       var prefix = key.charAt(0).toUpperCase() + key.slice(1);
@@ -2657,9 +2665,13 @@
     var grouped = {};
     (state.data.sourceStatus || []).forEach(function (source) {
       var key = source.name;
-      if (!grouped[key]) grouped[key] = { name: key, url: source.url, ok: 0, failed: 0, notes: [] };
-      if (source.ok) grouped[key].ok += 1;
-      else {
+      if (!grouped[key]) grouped[key] = { name: key, url: source.url, ok: 0, failed: 0, notes: [], successNotes: [], retrievedAt: null };
+      var retrievedAt = source.retrieved_at || source.retrievedAt || null;
+      if (retrievedAt && (!grouped[key].retrievedAt || retrievedAt > grouped[key].retrievedAt)) grouped[key].retrievedAt = retrievedAt;
+      if (source.ok) {
+        grouped[key].ok += 1;
+        if (source.note && grouped[key].successNotes.indexOf(source.note) < 0) grouped[key].successNotes.push(source.note);
+      } else {
         grouped[key].failed += 1;
         if (source.note) grouped[key].notes.push(source.note);
       }
@@ -2667,9 +2679,16 @@
     byId("sourceStatusList").innerHTML = Object.values(grouped).map(function (group) {
       var failed = group.failed > 0;
       var summary = group.ok + "件成功" + (failed ? " / " + group.failed + "件失敗" : "");
-      var note = failed ? group.notes.slice(0, 2).join(" / ") : "取得済み";
+      var targets = group.successNotes.slice(0, 5).join("、");
+      if (group.successNotes.length > 5) targets += " ほか" + (group.successNotes.length - 5) + "件";
+      var note = failed ? group.notes.slice(0, 2).join(" / ") : targets ? "対象: " + targets : "取得済み";
+      var retrievedDate = group.retrievedAt ? new Date(group.retrievedAt) : null;
+      var retrievedText = retrievedDate && !Number.isNaN(retrievedDate.valueOf())
+        ? new Intl.DateTimeFormat("ja-JP", { dateStyle: "medium", timeStyle: "short", timeZone: "Asia/Tokyo" }).format(retrievedDate)
+        : "時刻未記録";
       return "<a class=\"source-item " + (failed ? "failed" : "") + "\" href=\"" + escapeHtml(group.url) + "\" target=\"_blank\" rel=\"noopener\">"
-        + "<span aria-hidden=\"true\"></span><div><p><strong>" + escapeHtml(group.name) + "</strong>：" + escapeHtml(summary) + "</p><small>" + escapeHtml(note) + "</small></div></a>";
+        + "<span aria-hidden=\"true\"></span><div><p><strong>" + escapeHtml(group.name) + "</strong>：" + escapeHtml(summary) + "</p>"
+        + "<small class=\"source-retrieved\">最終取得 " + escapeHtml(retrievedText) + "</small><small>" + escapeHtml(note) + "</small></div></a>";
     }).join("");
   }
 

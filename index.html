@@ -7,8 +7,8 @@
   <title>AIバブル崩壊・日経平均底値モニター</title>
   <link rel="icon" href="data:,">
   <link rel="stylesheet" href="styles.css">
-  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.9/dist/chart.umd.min.js" defer></script>
-  <script src="https://unpkg.com/lucide@0.468.0/dist/umd/lucide.min.js" defer></script>
+  <script src="vendor/chart.umd.min.js" defer></script>
+  <script src="vendor/lucide.min.js" defer></script>
   <script src="app.js" defer></script>
   <script src="global-comparison.js" defer></script>
 </head>
@@ -47,6 +47,7 @@
       <a href="#bottom-confirmation">反転確認</a>
       <a href="#valuation">企業価値</a>
       <a href="#methodology">根拠・出典</a>
+      <a href="#sources">データの来歴</a>
     </div>
   </nav>
 
@@ -173,7 +174,9 @@
             <div><p class="label">同じ起点を100として比較</p><h3>ドル建てS&amp;P 500と、金建てS&amp;P 500</h3></div>
             <p>青線が名目、金色線がS&amp;P 500 ÷ 金です。金価格そのものも薄い線で併記します。</p>
           </div>
-          <canvas id="purchasingPowerChart" height="380" aria-label="S&P 500の名目指数と金建て指数の比較チャート"></canvas>
+          <div class="purchasing-power-chart-stage">
+            <canvas id="purchasingPowerChart" role="img" aria-label="S&P 500の名目指数と金建て指数の比較チャート"></canvas>
+          </div>
         </div>
 
         <div class="purchasing-power-evidence">
@@ -1338,6 +1341,86 @@
           <span>パニック経路へ接続</span><a href="#collapse-path">2つの下落経路</a>
         </div>
 
+        <div class="margin-primer" aria-labelledby="marginPrimerTitle">
+          <div class="margin-primer-heading">
+            <div>
+              <p class="chart-overline">WHY THIS MATTERS</p>
+              <h3 id="marginPrimerTitle">なぜ「Margin Debt / GDP」を調べるのか</h3>
+            </div>
+            <p>株価の下落だけなら、投資家は回復を待つこともできます。しかし借りた資金で保有する投資家が多い局面では、担保不足により本人の見通しとは関係なく売却が必要になることがあります。その強制売りが次の値下がりを呼ぶ「増幅装置」になり得るため、相場の過熱度とは別に信用の積み上がりを監視します。</p>
+          </div>
+          <div class="margin-primer-grid">
+            <article>
+              <span>01　何を数えるか</span>
+              <h4>信用買い残は、借りて買ったまま返済されていない残高</h4>
+              <p>証券会社の信用口座で、顧客が証券購入のために借りている金額です。上昇時には利益を大きくできますが、下落時には損失も大きくなります。</p>
+            </article>
+            <article>
+              <span>02　なぜ下落を増幅するか</span>
+              <h4>担保が不足すると、待ちたくても売らなければならない</h4>
+              <p>株価下落で口座の自己資金が必要水準を下回ると、追加入金やポジション縮小が求められます。売却がさらに価格を下げ、別の口座の強制売りへ連鎖することがあります。</p>
+            </article>
+            <article>
+              <span>03　なぜGDPで割るか</span>
+              <h4>金額の大きさを、経済全体の規模に対して測り直す</h4>
+              <p>残高だけの長期比較は、物価や経済規模の拡大で大きく見えやすくなります。名目GDPで割ることで「現在の経済規模に対して、借入ポジションがどれほど積み上がったか」を比べやすくします。</p>
+            </article>
+            <article>
+              <span>04　どう判断に使うか</span>
+              <h4>高い比率は「燃料」。急減と市場ストレスが「巻き戻し」</h4>
+              <p>高水準だけでは暴落の時期は分かりません。信用買い残の急減に、SOX下落、VIX上昇、HY OAS拡大などが重なった時に、強制売りの連鎖を疑います。</p>
+            </article>
+          </div>
+          <div class="margin-primer-equation">
+            <span>この画面の計算</span>
+            <strong>信用買い残（百万ドル）÷〔名目GDP年率換算値（十億ドル）× 1,000〕× 100</strong>
+            <p>信用買い残は月次、GDPは四半期で公表時期も異なるため、未公表期間は直近のGDPを使う暫定比率です。また、GDPは年間の経済活動を示すフローなので、この比率は返済能力そのものではなく長期比較のための物差しです。オプション、先物、海外口座など市場の全レバレッジも含みません。</p>
+          </div>
+        </div>
+
+        <div class="margin-data-lineage" aria-labelledby="marginDataLineageTitle">
+          <div class="margin-data-lineage-heading">
+            <div>
+              <p class="chart-overline">FROM SOURCE TO NUMBER</p>
+              <h3 id="marginDataLineageTitle">信用買い残の数字は、どこから来てどう計算されるか</h3>
+            </div>
+            <a href="#data-route-catalog">ほかのデータの取得経路も見る</a>
+          </div>
+          <div class="margin-source-route">
+            <article>
+              <span>1　現在の信用買い残</span>
+              <h4><a href="https://www.finra.org/sites/default/files/2021-03/margin-statistics.xlsx" target="_blank" rel="noopener">FINRA配布Excelを直接取得</a></h4>
+              <p>ワークブックの第1シートから、A列の年月とB列の「Debit Balances in Customers' Securities Margin Accounts」を読みます。単位は百万ドルです。1997年以降を月次系列として取り込み、2010年2月以降はFINRA全会員会社集計として別区分にします。</p>
+            </article>
+            <article>
+              <span>2　1959～1996年の履歴</span>
+              <h4><a href="https://web.archive.org/web/20180402044551/http://www.nyxdata.com/nysedata/asp/factbook/viewer_edition.asp?category=8&amp;key=50&amp;mode=tables" target="_blank" rel="noopener">NYSE Fact Book保存版を使用</a></h4>
+              <p>旧NYSE会員会社の月次表を監査済みの履歴ファイルとして保存しています。更新のたびに変わる値ではありません。1983年の口座区分変更があるため、現在のFINRA系列と完全に同じ母集団とは扱いません。</p>
+            </article>
+            <article>
+              <span>3　分母の経済規模</span>
+              <h4><a href="https://fred.stlouisfed.org/series/GDP" target="_blank" rel="noopener">BEA作成・FRED掲載の名目GDP</a></h4>
+              <p>FREDのCSVから系列ID「GDP」を取得します。四半期、季節調整済み年率、十億ドル単位です。信用買い残の月より後のGDPは使わず、その時点で公表済みの直近四半期を対応させます。</p>
+            </article>
+            <article>
+              <span>4　結合・計算・検証</span>
+              <h4>単位と公表時点をそろえてJSONへ保存</h4>
+              <p>百万ドルの信用買い残を、十億ドルのGDP×1,000で割ります。前月比・3か月比・前年比、2010年2月以降の順位も再計算し、式の恒等性、系列開始月、最新月、GDPが未来日でないことを検証してからチャートへ渡します。</p>
+            </article>
+          </div>
+          <div class="margin-worked-example" aria-live="polite">
+            <div class="margin-worked-example-heading">
+              <span>現在表示中の原数値を代入</span>
+              <strong id="marginWorkedPeriod">読込中</strong>
+            </div>
+            <dl>
+              <div><dt>FINRA原表の信用買い残</dt><dd id="marginDebtRawInput">―</dd></div>
+              <div><dt>対応させた名目GDP</dt><dd id="marginGdpRawInput">―</dd></div>
+              <div><dt>実際の計算</dt><dd id="marginWorkedFormula">―</dd></div>
+            </dl>
+            <p id="marginWorkedTiming">信用買い残とGDPの基準日を確認しています。</p>
+          </div>
+        </div>
         <div class="margin-metric-grid" aria-live="polite">
           <div><span>FINRA信用買い残</span><strong id="marginDebtLatest">―</strong><small id="marginDebtLatestDate">月次データ</small></div>
           <div><span>信用買い残 ÷ 名目GDP</span><strong id="marginDebtRatio">―</strong><small id="marginDebtRatioDate">分母の日付を確認</small></div>
@@ -2095,9 +2178,119 @@
         <div class="section-heading">
           <p class="section-kicker">DATA PROVENANCE</p>
           <h2>取得元・更新状況・検証先</h2>
-          <p>GitHub Actionsが6時間ごとにデータを生成します。ブラウザーのボタンは、公開済みの最新データパッケージをキャッシュを使わず再読込します。</p>
+          <p>ローカルサーバーでは更新ボタンが原表取得・再計算・検証を実行します。静的画面では、現在のコミットに保存されたデータパッケージをキャッシュを使わず再読込します。GitHub Actionsは6時間ごとに取得・検証しますが、読み取り専用のため結果をリポジトリへ書き戻しません。</p>
         </div>
 
+        <div class="data-journey-overview" aria-labelledby="dataJourneyTitle">
+          <div class="data-journey-heading">
+            <div>
+              <p class="chart-overline">DATA JOURNEY</p>
+              <h3 id="dataJourneyTitle">元データが画面の数字になるまで</h3>
+            </div>
+            <p>この画面は、ウェブページに書かれた数字を手で転記していません。取得プログラムが原表を読み、日付と単位をそろえ、計算式を再実行し、検証を通過したJSONだけをブラウザーが表示します。</p>
+          </div>
+          <ol class="data-journey-flow">
+            <li><span>1</span><strong>提供元を指定</strong><p>系列ID、銘柄コード、公式Excel・CSV・JSON・XMLのURLを固定します。</p></li>
+            <li><span>2</span><strong>原表を取得</strong><p>HTTPで直接取得し、取得日時、成功・失敗、対象名を記録します。</p></li>
+            <li><span>3</span><strong>日付と単位を統一</strong><p>日次・月次・四半期、ドル・円、百万・十億を明示して対応させます。</p></li>
+            <li><span>4</span><strong>計算と監査</strong><p>前年比、移動平均、DCF、比率などを再計算し、恒等式と期間を自動検証します。</p></li>
+            <li><span>5</span><strong>表示用に保存</strong><p>検証済みデータだけを4つのJSONへ保存し、画面はキャッシュを使わず読み込みます。</p></li>
+          </ol>
+          <div class="data-package-strip" aria-label="画面が読み込むデータファイル">
+            <div><strong>最新市場・企業</strong><span>data/latest.json</span></div>
+            <div><strong>信用買い残</strong><span>data/margin-debt-history.json</span></div>
+            <div><strong>長期6系列</strong><span>data/global-market-value-comparison.json</span></div>
+            <div><strong>1900年以降</strong><span>data/money-strategist-history.json</span></div>
+          </div>
+          <p class="data-refresh-explanation"><strong>更新ボタンの意味：</strong>ローカルサーバーでは原表の再取得、再計算、検証まで実行します。静的画面ではサーバー処理を起動できないため、現在のコミットに保存されたJSONを再読込します。6時間ごとのGitHub Actionsは取得・検証の成否を確認しますが、読み取り専用で値を書き戻しません。「ボタンを押した時刻」と「各原表の基準日」は同じとは限らないため、画面にはそれぞれの日付を表示します。</p>
+        </div>
+
+        <div id="data-route-catalog" class="data-route-catalog">
+          <div class="data-route-catalog-heading">
+            <p class="chart-overline">SOURCE / RETRIEVAL / TRANSFORM / LIMIT</p>
+            <h3>主要データごとの取得経路</h3>
+            <p>「どこから」「どの形式で」「何を使い」「どう加工したか」を同じ順番で示します。リンクは原表または提供元の説明ページです。</p>
+          </div>
+          <div class="data-route-grid">
+            <article>
+              <div class="data-route-title"><span>市場価格</span><h4>指数・株価・金・VIX・TOPIX</h4></div>
+              <dl>
+                <div><dt>どこから</dt><dd><a href="https://finance.yahoo.com/" target="_blank" rel="noopener">Yahoo Finance</a>公開チャート、TOPIXは<a href="https://finance.yahoo.co.jp/quote/998405/history" target="_blank" rel="noopener">Yahoo!ファイナンス日本版</a></dd></div>
+                <div><dt>どう取得</dt><dd>銘柄コードを指定して日次JSONを取得。TOPIXだけは公開履歴表のHTMLから日付・始値・高値・安値・終値を読みます。</dd></div>
+                <div><dt>どう加工</dt><dd>終値を日付順に並べ、1・5・20・60日変化、50・200日移動平均、3年高値、2026年高値、最大下落を再計算します。バスケットは同じ日付でそろえます。</dd></div>
+                <div><dt>注意</dt><dd>取引所公式フィードではなく公開集計値です。休場日や欠損値は補間せず除外します。</dd></div>
+              </dl>
+            </article>
+            <article>
+              <div class="data-route-title"><span>企業財務</span><h4>売上、FCF、CapEx、時価総額</h4></div>
+              <dl>
+                <div><dt>どこから</dt><dd>Yahoo Finance標準化財務時系列。ホンダとトヨタの評価用FCFは各社公式IRの非金融事業キャッシュフローを優先します。</dd></div>
+                <div><dt>どう取得</dt><dd>各銘柄について過去6年の四半期・TTM財務JSONを取得し、通貨、決算日、期間種別と一緒に保存します。</dd></div>
+                <div><dt>どう加工</dt><dd>最新四半期を前年同期の同じ四半期と対応。標準FCFは営業CF－設備投資の近似です。DCFは5年平準化または企業別補正後FCFを使います。</dd></div>
+                <div><dt>注意</dt><dd>欠損値を0にしません。会計基準、リース、金融事業、持株会社、余剰現金の違いは企業別注意書きで分離します。</dd></div>
+              </dl>
+            </article>
+            <article>
+              <div class="data-route-title"><span>マクロ・信用</span><h4>OAS、NFCI、金利、CPI、貯蓄率</h4></div>
+              <dl>
+                <div><dt>どこから</dt><dd><a href="https://fred.stlouisfed.org/" target="_blank" rel="noopener">FRED</a>の系列ID BAMLH0A0HYM2、NFCI、DGS2、DFF、PSAVERT、CPIAUCNS。日本10年金利は<a href="https://www.mof.go.jp/jgbs/reference/interest_rate/jgbcm.csv" target="_blank" rel="noopener">財務省CSV</a>です。</dd></div>
+                <div><dt>どう取得</dt><dd>FREDのCSVを系列IDごとに直接取得。財務省CSVは日本語列「10年」を読みます。</dd></div>
+                <div><dt>どう加工</dt><dd>最新の非欠損値、3か月変化、取得標本内順位を計算。CPIは1913年を共通起点にした物価倍率へ変換します。</dd></div>
+                <div><dt>注意</dt><dd>公表頻度と遅れは系列ごとに異なります。標本内順位は将来の暴落確率ではありません。</dd></div>
+              </dl>
+            </article>
+            <article>
+              <div class="data-route-title"><span>信用レバレッジ</span><h4>NYSE・FINRA信用買い残 ÷ GDP</h4></div>
+              <dl>
+                <div><dt>どこから</dt><dd><a href="https://www.finra.org/sites/default/files/2021-03/margin-statistics.xlsx" target="_blank" rel="noopener">FINRA Excel</a>、NYSE Fact Book保存版、<a href="https://fred.stlouisfed.org/series/GDP" target="_blank" rel="noopener">BEA/FRED GDP</a></dd></div>
+                <div><dt>どう取得</dt><dd>FINRA第1シートの年月・借方残高を読み、1959～96年は監査済みNYSE履歴を接続。GDPはFREDの四半期CSVです。</dd></div>
+                <div><dt>どう加工</dt><dd>信用買い残（百万ドル）÷〔名目GDP（十億ドル）×1,000〕×100。未来のGDPを使わず、2010年2月以降だけで現在順位を計算します。</dd></div>
+                <div><dt>注意</dt><dd>母集団変更を3期間に分けます。デリバティブや海外口座を含む市場全体の借入額ではありません。</dd></div>
+              </dl>
+            </article>
+            <article>
+              <div class="data-route-title"><span>長期理論価値</span><h4>S&amp;P 500・日経平均・物価・為替</h4></div>
+              <dl>
+                <div><dt>どこから</dt><dd>市場価格はYahoo、ドル円は日銀、米CPI・金利はFRED、日本CPI・大企業利益はe-Stat、米指数利益はNYU Stern、日経EPSは日経公式PERから復元します。</dd></div>
+                <div><dt>どう取得</dt><dd>日次・月次・年次の原表をそれぞれ取得し、月末系列へ変換。原表が未更新なら監査済みキャッシュを残して警告します。</dd></div>
+                <div><dt>どう加工</dt><dd>市場価格、実質価格、5年平準化利益、金利・信用・持続成長を含む理論値を同月で比較。1985～2006年は大企業利益proxyを別線で表示します。</dd></div>
+                <div><dt>注意</dt><dd>指数構成銘柄別DCFではありません。歴史proxyと現行PER由来モデルは精度が違うため接続して1本に見せません。</dd></div>
+              </dl>
+            </article>
+            <article>
+              <div class="data-route-title"><span>過去局面</span><h4>1900年以降とITバブル比較</h4></div>
+              <dl>
+                <div><dt>どこから</dt><dd><a href="https://www.econ.yale.edu/~shiller/data.htm" target="_blank" rel="noopener">Shiller/Yale長期データ</a>、S&amp;P DJI資料、Yahoo Finance調整後終値、日経・IMF・BIS等の一次資料です。</dd></div>
+                <div><dt>どう取得</dt><dd>長期月次表と、あらかじめ定義した危機窓の価格系列を取得。ITバブル比較は同じ開始日・終了日を全銘柄へ適用します。</dd></div>
+                <div><dt>どう加工</dt><dd>名目価格、物価調整、固定窓リターン、期間内最大下落、回復期間を同一規則で計算します。</dd></div>
+                <div><dt>注意</dt><dd>配当なしの系列や生存企業中心の小標本を含みます。過去の下落率を現在の予測値として使いません。</dd></div>
+              </dl>
+            </article>
+            <article>
+              <div class="data-route-title"><span>SEC・Berkshire</span><h4>現金比率と13Fの売買変化</h4></div>
+              <dl>
+                <div><dt>どこから</dt><dd><a href="https://data.sec.gov/submissions/CIK0001067983.json" target="_blank" rel="noopener">SEC EDGAR submissions JSON</a>、13F情報表XML、Berkshire 10-Qです。</dd></div>
+                <div><dt>どう取得</dt><dd>最新2回の13F-HRをEDGARで探し、情報表XMLをCUSIP単位で集計。10-Qの現金・短期国債・株式等は監査済みスナップショットを保持します。</dd></div>
+                <div><dt>どう加工</dt><dd>同一CUSIPの株数差で新規、買い増し、縮小、全売却を分類。現金比率は当サイトの明示式で前回と比較します。</dd></div>
+                <div><dt>注意</dt><dd>13Fは最大45日遅れ、米国上場株中心です。時価変動を売買と誤認しないよう株数で比較します。</dd></div>
+              </dl>
+            </article>
+            <article>
+              <div class="data-route-title"><span>海外情報・手入力</span><h4>ニュース、X、非公開情報</h4></div>
+              <dl>
+                <div><dt>どこから</dt><dd>Google News英語RSS、設定時のみX Recent Search。決算、会社IR、SEC提出書類を最終確認先にします。</dd></div>
+                <div><dt>どう取得</dt><dd>AI、半導体、CapEx、資金調達、IPO等の検索語で候補を収集し、媒体名・日時・URLを保存します。</dd></div>
+                <div><dt>どう加工</dt><dd>見出しを論点別に整理しますが、報道や投稿だけでは崩壊スコアへ加点しません。確認できない稼働率、価格、計画中止は手入力欄に残します。</dd></div>
+                <div><dt>注意</dt><dd>速報は発見の入口です。Xトークンは環境変数だけで管理し、HTMLやJSONへ保存しません。</dd></div>
+              </dl>
+            </article>
+          </div>
+        </div>
+
+        <div class="source-live-heading">
+          <div><p class="chart-overline">LIVE RETRIEVAL STATUS</p><h3>今回の更新で、実際に取得できたか</h3></div>
+          <p>下の一覧は最新JSONに保存された取得記録です。成功件数、対象、最終取得時刻を表示し、失敗した提供元は前回値を保持したことを明示します。</p>
+        </div>
         <div id="sourceStatusList" class="source-status-list"></div>
 
         <div class="official-links">

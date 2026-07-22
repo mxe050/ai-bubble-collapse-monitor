@@ -596,6 +596,13 @@ def main() -> None:
     require("評価への脆弱性は別枠20点" in index_source, "valuation/collapse score separation is missing")
     require("Margin Debt / GDP" in index_source, "margin-debt chart title is missing")
     require("燃料、引き金、巻き戻し" in index_source, "margin-debt three-stage explanation is missing")
+    require("FINRA配布Excelを直接取得" in index_source, "FINRA acquisition path is missing")
+    require("元データが画面の数字になるまで" in index_source, "data journey explanation is missing")
+    require("主要データごとの取得経路" in index_source, "source route catalog is missing")
+    require("FREDのCSVを系列IDごとに直接取得" in index_source, "FRED retrieval explanation is missing")
+    require("SEC EDGAR submissions JSON" in index_source, "SEC retrieval explanation is missing")
+    require("marginWorkedFormula" in app_source, "margin-debt worked formula rendering is missing")
+    require("source.retrieved_at" in app_source, "source retrieval timestamp rendering is missing")
     require("半導体株の反発だけでは" in index_source, "business-bottom explanation is missing")
     require("margin-debt-history.json" in app_source, "margin-debt browser data load is missing")
 
