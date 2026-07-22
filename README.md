@@ -235,6 +235,20 @@ node scripts\smoke_ui.js
 python -m http.server 8000
 ```
 
+## 日次スナップショット比較
+
+ローカル更新では、更新前と更新後の `data/latest.json` を `data/history/YYYY-MM-DD.json` に日次保存します。画面上部の「昨日との比較」「1週間前との比較」「1か月前との比較」は、対象日以前で最も近い保存日を使い、実際に採用した保存日と市場基準日を表示します。保存開始前の状態は現在の時系列から逆算せず、「比較データなし」とします。
+
+月次統計は後日改定されることがあります。現在カードは最新改定値、過去比較はその日に保存した当時公表値です。履歴を蓄積しながら更新ボタンを使うには、単純な `python -m http.server` ではなく次のローカルサーバーを起動してください。
+
+```powershell
+& "C:\Users\Hidemichi\.cache\codex-runtimes\codex-primary-runtime\dependencies\python\python.exe" scripts\local_server.py 8765
+```
+
+## 購買力の追加レンズ
+
+Mark Mossの動画「The Last 3 Crashes All Had An Exit. This One Doesn't.」から、名目株価だけでなく希少資産に対する相対価値を見る観点を採用しました。S&P 500、COMEX金先物、S&P 500÷金、2年米国債利回り－実効FF金利、米個人貯蓄率を表示します。金建て比率は家計の購買力そのものではなく相対価格のproxyであり、既存の崩壊スコア、底値判定、売買推奨には組み込みません。
+
 ## 重要な制約
 
 本サイトは教育・調査用のストレステストです。投資助言、目標株価、売買指示、底値保証ではありません。利益予想、PER/PBR、資本コスト、政策、為替、信用危機、技術競争によって結果は大きく変わります。

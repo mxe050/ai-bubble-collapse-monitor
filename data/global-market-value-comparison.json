@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "generatedAtUtc": "2026-07-21T12:57:46.140248+00:00",
-  "generatedAtJst": "2026-07-21T21:57:46.140248+09:00",
+  "generatedAtUtc": "2026-07-22T07:23:54.443524+00:00",
+  "generatedAtJst": "2026-07-22T16:23:54.443524+09:00",
   "title": "S&P 500・日経平均の市場価格と推計理論価値を比較する統合チャート",
   "frequency": "monthly",
   "baseDate": "1985-01-01",
@@ -33440,79 +33440,79 @@
     "entries": [
       {
         "cacheKey": "yahoo-sp500-monthly.json",
-        "sourceUrl": "https://query1.finance.yahoo.com/v8/finance/chart/%5EGSPC?period1=473385600&period2=1784897858&interval=1mo&events=history&includeAdjustedClose=true",
+        "sourceUrl": "https://query1.finance.yahoo.com/v8/finance/chart/%5EGSPC?period1=473385600&period2=1784964206&interval=1mo&events=history&includeAdjustedClose=true",
         "state": "network",
-        "fetchedAtUtc": "2026-07-21T12:57:38.159780+00:00",
+        "fetchedAtUtc": "2026-07-22T07:23:26.221503+00:00",
         "warning": null
       },
       {
         "cacheKey": "yahoo-nikkei225-monthly.json",
-        "sourceUrl": "https://query1.finance.yahoo.com/v8/finance/chart/%5EN225?period1=473385600&period2=1784897858&interval=1mo&events=history&includeAdjustedClose=true",
+        "sourceUrl": "https://query1.finance.yahoo.com/v8/finance/chart/%5EN225?period1=473385600&period2=1784964207&interval=1mo&events=history&includeAdjustedClose=true",
         "state": "network",
-        "fetchedAtUtc": "2026-07-21T12:57:38.426878+00:00",
+        "fetchedAtUtc": "2026-07-22T07:23:27.321207+00:00",
         "warning": null
       },
       {
         "cacheKey": "boj-fxerm06.json",
         "sourceUrl": "https://www.stat-search.boj.or.jp/api/v1/getDataCode?format=json&lang=en&db=FM08&startDate=198501&endDate=202607&code=FXERM06",
         "state": "network",
-        "fetchedAtUtc": "2026-07-21T12:57:38.715045+00:00",
+        "fetchedAtUtc": "2026-07-22T07:23:27.782668+00:00",
         "warning": null
       },
       {
         "cacheKey": "japan-cpi-all-items.csv",
         "sourceUrl": "https://www.e-stat.go.jp/en/stat-search/file-download?fileKind=1&statInfId=000032103842",
         "state": "network",
-        "fetchedAtUtc": "2026-07-21T12:57:39.655951+00:00",
+        "fetchedAtUtc": "2026-07-22T07:23:30.931383+00:00",
         "warning": null
       },
       {
         "cacheKey": "fred-jpncpiallminmei.csv",
         "sourceUrl": "https://fred.stlouisfed.org/graph/fredgraph.csv?id=JPNCPIALLMINMEI",
         "state": "network",
-        "fetchedAtUtc": "2026-07-21T12:57:40.208735+00:00",
+        "fetchedAtUtc": "2026-07-22T07:23:33.724209+00:00",
         "warning": null
       },
       {
         "cacheKey": "fred-gs10.csv",
         "sourceUrl": "https://fred.stlouisfed.org/graph/fredgraph.csv?id=GS10",
         "state": "network",
-        "fetchedAtUtc": "2026-07-21T12:57:40.757683+00:00",
+        "fetchedAtUtc": "2026-07-22T07:23:34.855425+00:00",
         "warning": null
       },
       {
         "cacheKey": "fred-aaa.csv",
         "sourceUrl": "https://fred.stlouisfed.org/graph/fredgraph.csv?id=AAA",
         "state": "network",
-        "fetchedAtUtc": "2026-07-21T12:57:40.939651+00:00",
+        "fetchedAtUtc": "2026-07-22T07:23:35.521288+00:00",
         "warning": null
       },
       {
         "cacheKey": "fred-baa.csv",
         "sourceUrl": "https://fred.stlouisfed.org/graph/fredgraph.csv?id=BAA",
         "state": "network",
-        "fetchedAtUtc": "2026-07-21T12:57:41.574794+00:00",
+        "fetchedAtUtc": "2026-07-22T07:23:36.721828+00:00",
         "warning": null
       },
       {
         "cacheKey": "mof-jgb-history.csv",
         "sourceUrl": "https://www.mof.go.jp/english/policy/jgbs/reference/interest_rate/historical/jgbcme_all.csv",
         "state": "network",
-        "fetchedAtUtc": "2026-07-21T12:57:42.183041+00:00",
+        "fetchedAtUtc": "2026-07-22T07:23:37.047739+00:00",
         "warning": null
       },
       {
         "cacheKey": "damodaran-sp-earnings.html",
         "sourceUrl": "https://pages.stern.nyu.edu/~adamodar/New_Home_Page/datafile/spearn.html",
         "state": "network",
-        "fetchedAtUtc": "2026-07-21T12:57:42.825858+00:00",
+        "fetchedAtUtc": "2026-07-22T07:23:41.292652+00:00",
         "warning": null
       },
       {
         "cacheKey": "mof-corporate-profits-large-ex-finance.json",
         "sourceUrl": "https://www.e-stat.go.jp/dbview?sid=0003060791",
         "state": "network",
-        "fetchedAtUtc": "2026-07-21T12:57:44.696627+00:00",
+        "fetchedAtUtc": "2026-07-22T07:23:52.016715+00:00",
         "warning": null
       }
     ],
