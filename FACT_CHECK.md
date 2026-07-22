@@ -305,9 +305,19 @@ S&P 500と日経平均には、企業別DCFとは別に、指数全体の平準�
 
 ### 長期比較の境界
 
-NYSE Fact Bookは、1983年のRegulation T改訂により口座区分が変わり、改訂前後を厳密に比較できないと注記しています。FINRAも2010年2月から全会員会社集計へ移ったこと、月次変動が報告方法変更の影響を受け得ることを注記しています。このため、全期間グラフは歴史的位置を眺める図、現在のパーセンタイルは2010年2月以降だけで計算します。
+NYSE Fact Bookは、1983年のRegulation T改訂により口座区分が変わり、改訂前後を厳密に比較できないと注記しています。FINRAも2010年2月から「all member firms」区分へ移ったこと、月次変動が報告方法変更の影響を受け得ることを注記しています。ここでいうall member firmsは、顧客信用口座を取り扱いRule 4521(d)の報告対象となる会員会社の集計であり、全FINRA会員会社が一律に残高を報告する意味ではありません。このため、全期間グラフは歴史的位置を眺める図、現在のパーセンタイルは2010年2月以降だけで計算します。
 
 FINRA信用口座統計は、デリバティブ、証券担保融資、海外口座など全レバレッジを網羅しません。ただし、網羅しないことを理由に「実際のレバレッジは必ずもっと大きい」とも断定しません。
+
+### FINRA集計の「顧客」と残高の意味
+
+FINRA Rule 4210のcustomerは、会員会社が証券を保有・売買し、信用を供与する相手を広く指し、一般個人だけに限定されません。Rule 4521(d)は、顧客の証券信用口座を取り扱う報告対象会員会社に、月末の借方残高とfree credit balancesの合計報告を求めます。公開Excelには個人・法人・機関投資家の別、口座数、利用者数、残高分布、借入目的がありません。
+
+したがって本サイトは、FINRA総額を「米国民の信用買い」「一般家庭の借金」「ヘッジファンドの強気ポジション」のいずれとも断定しません。ロング・ショート、裁定、ヘッジなど戦略的な取引でも借方残高は生じ得ます。一方、目的が合理的でも、価格急落、変動率上昇、保証金引き上げ、資金調達悪化が重なるとポジション縮小を迫られるため、強制売りを増幅する燃料の参考にはなります。
+
+範囲の違いを示す参考として、FRBは2022 Survey of Consumer Financesから家計のmargin loansを約1,794億ドルと推計しました。FINRA系列の2022年12月は約6,067億ドルです。対象・定義・推計方法が異なるので差額を特定主体の借入とはみなしませんが、FINRA総額を一般家庭の借入へ読み替えられないことは確認できます。FRBは、銀行経由の証券担保ローンがFINRA信用口座とは別の経路で存在することも説明しています。
+
+このため画面では、絶対額だけでなくGDP比、1・3・12か月変化、S&P 500前年比との成長差を表示します。高水準は燃料、残高急減とSOX・VIX・HY OAS・企業利益の同時悪化は巻き戻しとして分離します。
 
 ### 動画1：半導体反発の検証
 
@@ -343,6 +353,9 @@ FINRA信用口座統計は、デリバティブ、証券担保融資、海外口
 追加資料:
 
 - [FINRA Margin Statistics](https://www.finra.org/rules-guidance/key-topics/margin-accounts/margin-statistics)
+- [FINRA Rule 4210](https://www.finra.org/rules-guidance/rulebooks/finra-rules/4210)
+- [FINRA Rule 4521(d) FAQ](https://www.finra.org/rules-guidance/key-topics/margin-accounts/frequently-asked-questions-under-finra-rule-4521d)
+- [Federal Reserve: Estimating Securities-Based Loans Outstanding](https://www.federalreserve.gov/econres/notes/feds-notes/estimating-securities-based-loans-outstanding-20240802.html)
 - [FRED / BEA Nominal GDP](https://fred.stlouisfed.org/series/GDP)
 - [BEA release schedule](https://www.bea.gov/news/schedule/)
 - [Archived NYSE Fact Book](https://web.archive.org/web/20180402044551/http://www.nyxdata.com/nysedata/asp/factbook/viewer_edition.asp?category=8&key=50&mode=tables)

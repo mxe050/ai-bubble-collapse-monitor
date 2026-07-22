@@ -81,6 +81,11 @@ assert.doesNotMatch(indexSource, /両社の職員・元職員は累計約140億�
 assert.match(indexSource, /Margin Debt \/ GDP/);
 assert.match(indexSource, /燃料、引き金、巻き戻し/);
 assert.match(indexSource, /FINRA配布Excelを直接取得/);
+assert.match(indexSource, /FINRA信用買い残は「米国の一般個人の借金総額」ではない/);
+assert.match(indexSource, /全会員会社が一律に残高を報告する意味ではありません/);
+assert.match(indexSource, /総額から利用者数や平均借入額は逆算できない/);
+assert.match(indexSource, /ヘッジや複合戦略も混ざり得る/);
+assert.match(indexSource, /FRBは家計調査から2022年のmargin loansを約1,794億ドル/);
 assert.match(indexSource, /元データが画面の数字になるまで/);
 assert.match(indexSource, /主要データごとの取得経路/);
 assert.match(indexSource, /FREDのCSVを系列IDごとに直接取得/);
@@ -214,7 +219,7 @@ setTimeout(async () => {
   assert.match(elements.get("marginDebtRatio").textContent, /%/);
   assert.notStrictEqual(elements.get("marginDebtStatus").textContent, "計算中");
   assert.match(elements.get("marginDebtEventList").innerHTML, /2000年3月/);
-  assert.match(elements.get("marginDebtSourceRegime").innerHTML, /FINRA全会員会社/);
+  assert.match(elements.get("marginDebtSourceRegime").innerHTML, /FINRA・報告対象会員会社集計/);
   assert.match(elements.get("marginDebtRawInput").textContent, /百万ドル/);
   assert.match(elements.get("marginGdpRawInput").textContent, /十億ドル/);
   assert.match(elements.get("marginWorkedFormula").textContent, /× 1,000/);

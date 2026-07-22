@@ -485,7 +485,9 @@ def main() -> None:
     regimes = margin.get("sourceRegimes") or []
     require(len(regimes) == 3, "margin-debt source-regime boundaries are missing")
     require(regimes[0].get("start") == "1959-01-01", "NYSE source regime start changed")
-    require(regimes[2].get("start") == "2010-02-01", "FINRA all-firms regime boundary changed")
+    require(regimes[2].get("start") == "2010-02-01", "FINRA reporting-population regime boundary changed")
+    require("報告対象会員会社" in regimes[2].get("label", ""), "FINRA reporting population label is imprecise")
+    require("全会員会社が一律" in regimes[2].get("importantLimit", ""), "FINRA all-member-firms caveat is missing")
     margin_events = margin.get("events") or []
     require(len(margin_events) == 8, "margin-debt chart must contain eight historical observation markers")
     require(any(row.get("date") == "2000-03-01" for row in margin_events), "dot-com margin-debt marker is missing")
@@ -597,6 +599,10 @@ def main() -> None:
     require("Margin Debt / GDP" in index_source, "margin-debt chart title is missing")
     require("燃料、引き金、巻き戻し" in index_source, "margin-debt three-stage explanation is missing")
     require("FINRA配布Excelを直接取得" in index_source, "FINRA acquisition path is missing")
+    require("一般個人の借金総額" in index_source, "FINRA customer-population limitation is missing")
+    require("利用者数や平均借入額は逆算できない" in index_source, "FINRA aggregate limitation is missing")
+    require("ヘッジや複合戦略" in index_source, "FINRA strategic borrowing caveat is missing")
+    require("約1,794億ドル" in index_source and "約6,067億ドル" in index_source, "FINRA versus household margin-loan comparison is missing")
     require("元データが画面の数字になるまで" in index_source, "data journey explanation is missing")
     require("主要データごとの取得経路" in index_source, "source route catalog is missing")
     require("FREDのCSVを系列IDごとに直接取得" in index_source, "FRED retrieval explanation is missing")

@@ -1378,6 +1378,53 @@
           </div>
         </div>
 
+        <div class="margin-interpretation-audit" aria-labelledby="marginInterpretationTitle">
+          <div class="margin-interpretation-heading">
+            <div>
+              <p class="chart-overline">WHAT THE FINRA TOTAL REALLY MEANS</p>
+              <h3 id="marginInterpretationTitle">FINRA信用買い残は「米国の一般個人の借金総額」ではない</h3>
+            </div>
+            <p>この区別は重要です。FINRAが公表するのは、報告対象の会員会社が顧客の証券信用口座で抱える借方残高の合計です。「何人が借りたか」「一般家庭が平均いくら借りたか」「投機目的が何割か」を示す統計ではありません。</p>
+          </div>
+          <div class="margin-interpretation-grid">
+            <article>
+              <span>誰が含まれ得るか</span>
+              <h4>FINRAの「顧客」は、一般個人だけを意味しない</h4>
+              <p>Rule 4210のcustomerは、会員会社が証券を保有・売買し、信用を供与する相手を広く指します。公表Excelには個人・法人・機関投資家の内訳がないため、残高全体を「米国民の信用買い」と言い換えません。</p>
+            </article>
+            <article>
+              <span>何が分からないか</span>
+              <h4>総額から利用者数や平均借入額は逆算できない</h4>
+              <p>少数の大口口座と多数の小口口座は、同じ総額になり得ます。FINRA表は口座数、利用者数、残高分布、個人・機関別を示さないため、「米国人の何割が借金で株を買っているか」の推計には使いません。</p>
+            </article>
+            <article>
+              <span>借入の目的</span>
+              <h4>上昇への賭けだけでなく、ヘッジや複合戦略も混ざり得る</h4>
+              <p>ロング・ショート、裁定、オプションのヘッジなどでは、口座の一部に借方残高が生じても市場全体への強気一辺倒とは限りません。公開集計だけでは目的を識別できないため、「戦略的借入だから安全」「すべて投機だから危険」のどちらにも決めつけません。</p>
+            </article>
+            <article>
+              <span>それでも見る理由</span>
+              <h4>目的が合理的でも、急変時には強制解消の燃料になり得る</h4>
+              <p>価格急落、変動率上昇、証券会社の保証金引き上げ、資金調達悪化が起きると、ヘッジを含む合理的な戦略でも縮小を迫られます。FINRA残高は危険度そのものではなく、相場反転時に値動きを増幅し得るポジション量の参考です。</p>
+            </article>
+          </div>
+          <div class="margin-interpretation-readout">
+            <strong>このアプリでの正しい読み方</strong>
+            <ol>
+              <li><b>絶対額だけで判断しない：</b>GDP比と2010年以降の同一定義期間で規模を比較します。</li>
+              <li><b>増加速度を見る：</b>1・3・12か月変化と、S&amp;P 500の上昇率を超えて借入が膨らんだかを確認します。</li>
+              <li><b>方向転換を確認する：</b>高水準のまま増えている段階と、価格下落と同時に残高が急減する巻き戻しを分けます。</li>
+              <li><b>他の市場ストレスと組み合わせる：</b>SOX、VIX、HY OAS、企業利益・FCFの悪化が重なった時だけ、強制売り連鎖を強く疑います。</li>
+            </ol>
+          </div>
+          <p class="margin-interpretation-comparison"><strong>数字の範囲が違う実例：</strong>FRBは家計調査から2022年のmargin loansを約1,794億ドルと推計しました。一方、FINRA系列の2022年12月は約6,067億ドルです。調査対象と集計方法が異なるため直接比較はできませんが、FINRA総額をそのまま一般家庭の借入とみなせないことが分かります。また、銀行が提供する証券担保ローンなど、FINRA信用口座とは別経路の借入もあります。</p>
+          <div class="margin-interpretation-sources">定義と検証先：
+            <a href="https://www.finra.org/rules-guidance/rulebooks/finra-rules/4210" target="_blank" rel="noopener">FINRA Rule 4210・customerの定義</a> /
+            <a href="https://www.finra.org/rules-guidance/key-topics/margin-accounts/frequently-asked-questions-under-finra-rule-4521d" target="_blank" rel="noopener">Rule 4521(d)・月次集計方法</a> /
+            <a href="https://www.federalreserve.gov/econres/notes/feds-notes/estimating-securities-based-loans-outstanding-20240802.html" target="_blank" rel="noopener">FRB・証券担保融資と家計margin loans</a>
+          </div>
+        </div>
+
         <div class="margin-data-lineage" aria-labelledby="marginDataLineageTitle">
           <div class="margin-data-lineage-heading">
             <div>
@@ -1390,7 +1437,7 @@
             <article>
               <span>1　現在の信用買い残</span>
               <h4><a href="https://www.finra.org/sites/default/files/2021-03/margin-statistics.xlsx" target="_blank" rel="noopener">FINRA配布Excelを直接取得</a></h4>
-              <p>ワークブックの第1シートから、A列の年月とB列の「Debit Balances in Customers' Securities Margin Accounts」を読みます。単位は百万ドルです。1997年以降を月次系列として取り込み、2010年2月以降はFINRA全会員会社集計として別区分にします。</p>
+              <p>ワークブックの第1シートから、A列の年月とB列の「Debit Balances in Customers' Securities Margin Accounts」を読みます。単位は百万ドルです。1997年以降を月次系列として取り込みます。2010年2月以降はFINRAが「all member firms」として公表する区分ですが、全会員会社が一律に残高を報告する意味ではありません。顧客信用口座を取り扱いRule 4521(d)の報告対象となる会員会社の集計です。</p>
             </article>
             <article>
               <span>2　1959～1996年の履歴</span>
@@ -1422,7 +1469,7 @@
           </div>
         </div>
         <div class="margin-metric-grid" aria-live="polite">
-          <div><span>FINRA信用買い残</span><strong id="marginDebtLatest">―</strong><small id="marginDebtLatestDate">月次データ</small></div>
+          <div><span>FINRA顧客信用口座・借方残高</span><strong id="marginDebtLatest">―</strong><small id="marginDebtLatestDate">個人・機関別ではない月次総額</small></div>
           <div><span>信用買い残 ÷ 名目GDP</span><strong id="marginDebtRatio">―</strong><small id="marginDebtRatioDate">分母の日付を確認</small></div>
           <div><span>信用買い残・前年比</span><strong id="marginDebtYoy">―</strong><small id="marginDebtYoyDetail">増加速度を確認</small></div>
           <div><span>信用買い残成長 − S&amp;P成長</span><strong id="marginDebtSp500Gap">―</strong><small id="marginDebtSp500Detail">価格追随を超えた増加か</small></div>
@@ -1531,6 +1578,9 @@
 
         <p class="transmission-sources">データと検証資料：
           <a href="https://www.finra.org/rules-guidance/key-topics/margin-accounts/margin-statistics" target="_blank" rel="noopener">FINRA Margin Statistics</a> /
+          <a href="https://www.finra.org/rules-guidance/rulebooks/finra-rules/4210" target="_blank" rel="noopener">FINRA Rule 4210</a> /
+          <a href="https://www.finra.org/rules-guidance/key-topics/margin-accounts/frequently-asked-questions-under-finra-rule-4521d" target="_blank" rel="noopener">FINRA Rule 4521(d) FAQ</a> /
+          <a href="https://www.federalreserve.gov/econres/notes/feds-notes/estimating-securities-based-loans-outstanding-20240802.html" target="_blank" rel="noopener">FRB・証券担保融資推計</a> /
           <a href="https://fred.stlouisfed.org/series/GDP" target="_blank" rel="noopener">FRED / BEA 名目GDP</a> /
           <a href="https://web.archive.org/web/20180402044551/http://www.nyxdata.com/nysedata/asp/factbook/viewer_edition.asp?category=8&amp;key=50&amp;mode=tables" target="_blank" rel="noopener">NYSE Fact Book保存版</a> /
           <a href="https://www.advisorperspectives.com/commentaries/2026/07/15/mountain-cliff-ocean" target="_blank" rel="noopener">Hussman・添付図の原資料</a> /

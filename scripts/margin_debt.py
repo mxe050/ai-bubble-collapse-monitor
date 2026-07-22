@@ -241,7 +241,7 @@ def build_margin_debt_history(
         "schemaVersion": 1,
         "generatedAt": datetime.now(timezone.utc).isoformat(),
         "title": "U.S. Margin Debt / Nominal GDP",
-        "definition": "顧客の証券信用取引口座の借方残高を、米国名目GDPの年率換算値で割った比率。",
+        "definition": "Rule 4521(d)の報告対象となるFINRA会員会社が報告した顧客の証券信用取引口座の借方残高を、米国名目GDPの年率換算値で割った比率。一般個人だけの借入ではありません。",
         "latest": latest_payload,
         "series": series,
         "events": events,
@@ -261,8 +261,8 @@ def build_margin_debt_history(
             {
                 "start": "2010-02-01",
                 "end": latest["date"],
-                "label": "FINRA全会員会社集計",
-                "importantLimit": "月次報告方法の変更でも値が動くことがあります。最新順位はこの比較可能期間内で計算します。",
+                "label": "FINRA・報告対象会員会社集計",
+                "importantLimit": "FINRAがall member firmsとする区分ですが、顧客信用口座を取り扱いRule 4521(d)の報告対象となる会員会社の集計です。全会員会社が一律に残高を報告する意味ではありません。月次報告方法の変更でも値が動くことがあります。",
             },
         ],
         "interpretation": {
@@ -288,6 +288,7 @@ def build_margin_debt_history(
         ],
         "limits": [
             "比率は市場規模、家計資産、株式時価総額ではなくGDPで割った一つの尺度です。",
+            "FINRA統計は個人・法人・機関別、口座数、利用者数、残高分布、借入目的を示さず、一般家庭だけの借入統計ではありません。",
             "FINRA統計に現れないデリバティブ、証券担保融資、海外口座などの全レバレッジは測れません。",
             "信用買い残は株価上昇を追って増えることも多く、単独では暴落時期を予測しません。",
             "最新月の分母は同じ月のGDPではなく、その時点で利用できる直近四半期の年率名目GDPです。",
