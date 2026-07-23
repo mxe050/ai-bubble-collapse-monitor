@@ -5627,6 +5627,32 @@ footer {
 .berkshire-metrics span { display: block; color: #526876; font-size: 12px; font-weight: 800; }
 .berkshire-metrics strong { display: block; margin: 6px 0; color: #15382f; font-size: 25px; }
 .berkshire-metrics small { color: #617780; font-size: 12px; font-weight: 700; }
+.berkshire-long-context { margin-top: 24px; padding: 22px; border: 1px solid #bfd3cc; background: #fff; }
+.berkshire-long-context-heading { display: flex; align-items: start; justify-content: space-between; gap: 18px; }
+.berkshire-long-context-heading h4 { margin: 4px 0 0; color: #173b32; font-size: 22px; line-height: 1.35; }
+.berkshire-long-context-heading > a { flex: 0 0 auto; padding: 7px 10px; border: 1px solid #75a093; color: #17614f; font-size: 12px; font-weight: 900; text-decoration: none; }
+.berkshire-long-context-heading > a:hover { background: #edf6f2; }
+.berkshire-long-context > p { margin: 12px 0 0; color: #465f69; font-size: 14px; line-height: 1.75; }
+.berkshire-context-stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin-top: 18px; }
+.berkshire-context-stats article { padding: 14px; border-top: 4px solid #397d6a; background: #f4f8f6; }
+.berkshire-context-stats span,
+.berkshire-context-reading span { display: block; color: #526876; font-size: 11px; font-weight: 900; letter-spacing: .03em; }
+.berkshire-context-stats strong { display: block; margin: 6px 0; color: #15382f; font-size: 23px; }
+.berkshire-context-stats small { color: #60747d; font-size: 12px; font-weight: 700; }
+.berkshire-net-selling-timeline { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 9px; margin: 20px 0 0; padding: 0; }
+.berkshire-net-selling-timeline li { min-width: 0; padding: 13px 12px; border-top: 3px solid #8aaa9f; background: #f8fbfa; list-style: none; }
+.berkshire-net-selling-timeline span { display: block; color: #617780; font-size: 11px; font-weight: 900; }
+.berkshire-net-selling-timeline strong { display: block; margin: 5px 0; color: #173b32; font-size: 16px; }
+.berkshire-net-selling-timeline small { color: #60747d; font-size: 11px; line-height: 1.45; }
+.berkshire-context-reading { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin-top: 20px; }
+.berkshire-context-reading article { padding: 15px; border-left: 4px solid #397d6a; background: #f7faf9; }
+.berkshire-context-reading article:last-child { border-color: #a36b2c; background: #fffaf3; }
+.berkshire-context-reading p { margin: 7px 0 0; color: #3f5965; font-size: 13px; line-height: 1.68; }
+.berkshire-scope-note { padding: 12px 14px; border-left: 4px solid #738b96; background: #f5f8fa; font-size: 12px !important; }
+.berkshire-context-sources { display: flex; align-items: start; gap: 12px; margin-top: 14px; color: #526876; font-size: 12px; }
+.berkshire-context-sources > span { flex: 0 0 auto; font-weight: 900; }
+.berkshire-context-sources > div { display: flex; flex-wrap: wrap; gap: 6px 12px; }
+.berkshire-context-sources a { color: #0f6577; font-weight: 800; }
 .berkshire-holdings-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-top: 24px; }
 .berkshire-holdings-grid > div { padding-top: 18px; border-top: 2px solid #9dbbb1; }
 .berkshire-holdings-grid h4 { display: flex; align-items: center; gap: 8px; }
@@ -5659,6 +5685,7 @@ footer {
   .us-risk-components { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .us-scenario-block { grid-template-columns: 1fr; }
   .berkshire-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .berkshire-net-selling-timeline { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 }
 
 @media (max-width: 700px) {
@@ -5669,8 +5696,15 @@ footer {
   .us-risk-overview,
   .us-risk-components,
   .berkshire-metrics,
+  .berkshire-context-stats,
+  .berkshire-context-reading,
   .berkshire-holdings-grid,
   .overseas-news-list { grid-template-columns: 1fr; }
+  .berkshire-long-context { padding: 17px 14px; }
+  .berkshire-long-context-heading { display: grid; }
+  .berkshire-long-context-heading > a { justify-self: start; }
+  .berkshire-net-selling-timeline { grid-template-columns: 1fr; }
+  .berkshire-context-sources { display: grid; }
   .us-vulnerability-box { grid-column: auto; }
   .berkshire-change-row { grid-template-columns: minmax(110px, 1fr) auto; }
   .berkshire-change-row b { grid-column: 1 / -1; text-align: left; }

@@ -2624,6 +2624,9 @@
     var monitor = ((state.data.market || {}).berkshireMonitor || {});
     var latest = monitor.balanceLatest || {};
     var filing = monitor.thirteenF || {};
+    var longContext = monitor.longTermContext || {};
+    var netSelling = longContext.netSelling || {};
+    var periods = netSelling.periods || [];
     byId("berkshireNarrative").textContent = monitor.narrative || "バークシャーの最新公表値を確認できませんでした。";
     byId("berkshireReserve").textContent = formatUsdBillions(latest.netLiquidReserveBillion);
     byId("berkshireReserveChange").textContent = "前期比 " + formatUsdBillions(monitor.reserveChangeBillion) + "（" + formatPercent(monitor.reserveChangePct, true) + "）";
@@ -2636,6 +2639,38 @@
     byId("berkshireLimit").textContent = monitor.thirteenFLimit || "";
     byId("berkshireBalanceSource").href = latest.sourceUrl || "https://www.berkshirehathaway.com/reports.html";
     byId("berkshire13fSource").href = (filing.latest || {}).sourceUrl || "https://www.sec.gov/edgar/browse/?CIK=1067983";
+    var commentator = longContext.commentator || {};
+    byId("berkshireCommentatorSource").href = commentator.url || "https://www.youtube.com/watch?v=Y8fJNR_xsnI";
+    byId("berkshireCommentatorSource").textContent = (commentator.displayName || "Finance Bureau") + "の解説";
+    byId("berkshireLongTermSummary").textContent = longContext.summary || "長期の株式売買を一次資料で確認できませんでした。";
+    byId("berkshireNetSellerQuarters").textContent = finite(netSelling.consecutiveQuarters) === null
+      ? "未確認"
+      : nikkeiFormat.format(netSelling.consecutiveQuarters) + "四半期連続";
+    byId("berkshireNetSellerPeriod").textContent = netSelling.startLabel && netSelling.endLabel
+      ? netSelling.startLabel + "～" + netSelling.endLabel
+      : "期間未確認";
+    byId("berkshireCumulativeNetSales").textContent = formatUsdBillions(netSelling.cumulativeNetSalesBillion);
+    var acceleration = periods.reduce(function (largest, period) {
+      return finite(period.netSalesBillion) !== null
+        && (!largest || Number(period.netSalesBillion) > Number(largest.netSalesBillion)) ? period : largest;
+    }, null);
+    byId("berkshireAcceleration").textContent = acceleration ? acceleration.label : "未確認";
+    byId("berkshireAccelerationDetail").textContent = acceleration
+      ? "純売却 " + formatUsdBillions(acceleration.netSalesBillion)
+      : "年次資料を確認できませんでした";
+    byId("berkshireNetSellingTimeline").innerHTML = periods.map(function (period) {
+      return "<li><span>" + escapeHtml(period.label || "") + "</span><strong>純売却 "
+        + escapeHtml(formatUsdBillions(period.netSalesBillion)) + "</strong><small>"
+        + escapeHtml(period.detail || "") + "</small></li>";
+    }).join("") || "<li><span>未確認</span><strong>長期データなし</strong></li>";
+    byId("berkshireFactSummary").textContent = longContext.factSummary || "";
+    byId("berkshireInterpretation").textContent = longContext.interpretation || "";
+    byId("berkshireContextCaution").textContent = longContext.caution || "";
+    byId("berkshireScopeNote").textContent = longContext.scopeNote || "";
+    byId("berkshireContextSources").innerHTML = (longContext.sources || []).map(function (source) {
+      return "<a href=\"" + escapeHtml(source.url || "#") + "\" target=\"_blank\" rel=\"noopener\">"
+        + escapeHtml(source.label || "一次資料") + "</a>";
+    }).join("");
 
     function changeRows(rows) {
       return (rows || []).map(function (row) {

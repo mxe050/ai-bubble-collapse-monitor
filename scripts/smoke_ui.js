@@ -110,6 +110,9 @@ assert.match(lucideVendorSource, /lucide v0\.468\.0/);
 assert.match(indexSource, /なぜ「Margin Debt \/ GDP」を調べるのか/);
 assert.match(indexSource, /担保が不足すると、待ちたくても売らなければならない/);
 assert.match(indexSource, /返済能力そのものではなく長期比較のための物差し/);
+assert.match(indexSource, /最近のAI相場を見てから、突然始めた現金化ではない/);
+assert.match(indexSource, /一次資料で確認できること/);
+assert.doesNotMatch(indexSource, /動画群/);
 const ids = [...indexSource.matchAll(/\bid="([^"]+)"/g)].map((match) => match[1]);
 const elements = new Map(ids.map((id) => [id, new FakeElement(id)]));
 const filters = ["all", "overseas-ai", "japan-ai", "japan-diversified"].map((value) => {
@@ -233,6 +236,18 @@ setTimeout(async () => {
   assert.match(elements.get("ppStatus").textContent, /名目|判定/);
   assert.match(elements.get("ppGold").textContent, /\$/);
   assert.match(elements.get("ppPolicySpread").textContent, /ポイント/);
+  assert.match(elements.get("berkshireNetSellerQuarters").textContent, /14四半期連続/);
+  assert.match(elements.get("berkshireCumulativeNetSales").textContent, /\$194\.8B/);
+  assert.match(elements.get("berkshireAcceleration").textContent, /2024年/);
+  assert.match(elements.get("berkshireNetSellingTimeline").innerHTML, /2022年10–12月期/);
+  assert.match(elements.get("berkshireNetSellingTimeline").innerHTML, /2026年1–3月期/);
+  assert.match(elements.get("berkshireContextCaution").textContent, /AIバブル崩壊を予測/);
+  assert.match(elements.get("berkshireContextCaution").textContent, /崩壊スコアへ加えません/);
+  assert.match(elements.get("berkshireContextCaution").textContent, /Finance Bureau/);
+  assert.match(elements.get("berkshireScopeNote").textContent, /\$397\.4B/);
+  assert.match(elements.get("berkshireCommentatorSource").textContent, /Finance Bureauの解説/);
+  assert.match(elements.get("berkshireCommentatorSource").href, /Y8fJNR_xsnI/);
+  assert.match(elements.get("berkshireContextSources").innerHTML, /Finance Bureau/);
   const purchasingPowerRender = renderedCharts.find((chart) => chart.target.id === "purchasingPowerChart");
   assert.ok(purchasingPowerRender, "purchasing power chart should be constructed");
   assert.strictEqual(purchasingPowerRender.data.labels.length, 252);

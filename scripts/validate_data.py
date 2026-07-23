@@ -201,6 +201,23 @@ def main() -> None:
     require(close_enough(balance["netLiquidReserveBillion"], expected_reserve), "Berkshire net liquidity identity failed")
     expected_pool_ratio = expected_reserve / (expected_reserve + balance["equitySecuritiesBillion"] + balance["fixedMaturityBillion"]) * 100
     require(close_enough(balance["investmentPoolLiquidRatioPct"], expected_pool_ratio), "Berkshire liquidity ratio identity failed")
+    long_context = berkshire.get("longTermContext") or {}
+    net_selling = long_context.get("netSelling") or {}
+    net_selling_periods = net_selling.get("periods") or []
+    require(sum(row["quarterCount"] for row in net_selling_periods) == 14, "Berkshire net-selling quarter count failed")
+    require(net_selling.get("consecutiveQuarters") == 14, "Berkshire consecutive net-selling count changed")
+    require(
+        close_enough(sum(row["netSalesBillion"] for row in net_selling_periods), net_selling["cumulativeNetSalesBillion"]),
+        "Berkshire cumulative net sales identity failed",
+    )
+    require(
+        any(row["label"] == "2024年" and close_enough(row["netSalesBillion"], 134.122) for row in net_selling_periods),
+        "Berkshire 2024 acceleration point changed",
+    )
+    commentator = long_context.get("commentator") or {}
+    require(commentator.get("displayName") == "Finance Bureau", "Berkshire commentator attribution changed")
+    require(commentator.get("url") == "https://www.youtube.com/watch?v=Y8fJNR_xsnI", "Berkshire commentator source changed")
+    require("崩壊スコアへ加えません" in long_context.get("caution", ""), "Berkshire commentator-score boundary is missing")
     thirteen_f = berkshire.get("thirteenF") or {}
     require(thirteen_f.get("latest", {}).get("reportDate") > thirteen_f.get("previous", {}).get("reportDate", ""), "13F periods are reversed")
     require(len(thirteen_f.get("buys") or []) >= 3 and len(thirteen_f.get("sells") or []) >= 3, "13F comparison is incomplete")

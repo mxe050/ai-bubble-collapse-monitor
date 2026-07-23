@@ -3091,6 +3091,97 @@
       "reserveChangePct": 1.2260627774495512,
       "investmentPoolLiquidRatioChangePctPoints": 1.091968566504221,
       "equitySecuritiesChangeBillion": -9.744000000000028,
+      "longTermContext": {
+        "commentator": {
+          "displayName": "Finance Bureau",
+          "sourceTitle": "Buffett Expects a COLLAPSE",
+          "url": "https://www.youtube.com/watch?v=Y8fJNR_xsnI",
+          "attributionNote": "YouTube公式ページが公表する発信者名。個人のナレーター名は公開ページで確認できないため推測しない。",
+          "adoptedView": "最近の相場を見て突然現金化したのではなく、数年前から続く価格規律と待機資金の蓄積として確認する。"
+        },
+        "netSelling": {
+          "startLabel": "2022年10–12月期",
+          "endLabel": "2026年1–3月期",
+          "consecutiveQuarters": 14,
+          "cumulativeNetSalesBillion": 194.84,
+          "calculationNote": "各10-Qの年初来額と10-Kの通期額を差分化し、株式売却額から株式購入額を差し引いた。",
+          "periods": [
+            {
+              "label": "2022年10–12月期",
+              "quarterCount": 1,
+              "netSalesBillion": 14.637,
+              "detail": "売却$16.321B－購入$1.684B"
+            },
+            {
+              "label": "2023年",
+              "quarterCount": 4,
+              "netSalesBillion": 24.169,
+              "detail": "売却$40.631B－購入$16.462B"
+            },
+            {
+              "label": "2024年",
+              "quarterCount": 4,
+              "netSalesBillion": 134.122,
+              "detail": "売却$143.359B－購入$9.237B"
+            },
+            {
+              "label": "2025年",
+              "quarterCount": 4,
+              "netSalesBillion": 13.763,
+              "detail": "売却$30.686B－購入$16.923B"
+            },
+            {
+              "label": "2026年1–3月期",
+              "quarterCount": 1,
+              "netSalesBillion": 8.149,
+              "detail": "売却$24.087B－購入$15.938B"
+            }
+          ]
+        },
+        "summary": "バークシャーの株式純売却は2022年10–12月期から2026年1–3月期まで14四半期連続し、累計約1,948億ドルに達しました。現在のAI株高が進んだ後に突然始めた動きではありません。",
+        "factSummary": "14四半期のすべてで株式売却額が購入額を上回り、純売却の累計は約1,948億ドルです。積み上がりが特に加速したのはAppleなどの売却が集中した2024年でした。",
+        "interpretation": "数年前から、価格が十分に魅力的でない局面では無理に買わず、流動性を保ったまま機会を待てる財務余力を維持してきた動きと読めます。",
+        "caution": "バークシャーは流動性を金融混乱への恒常的な備えと好機のための待機資金と説明しています。「AIバブル崩壊を予測して現金化した」と断定する一次根拠はなく、Finance Bureauの解釈を崩壊スコアへ加えません。",
+        "scopeNote": "数字の範囲に注意：Finance Bureauが示した$397.4Bは連結の現金等＋短期T-billのグロス総額です。この画面の$373.5Bは、保険・その他について未決済T-bill購入債務を差し引いたネット流動性です。またFinance Bureauが示した株式$263.1Bは13F対象証券で、貸借対照表の株式$288.0Bとは範囲が異なります。",
+        "sources": [
+          {
+            "label": "2022年Q3",
+            "url": "https://www.berkshirehathaway.com/qtrly/3rdqtr22.pdf"
+          },
+          {
+            "label": "2022年年次報告",
+            "url": "https://www.berkshirehathaway.com/2022ar/2022ar.pdf"
+          },
+          {
+            "label": "2023年年次報告",
+            "url": "https://www.berkshirehathaway.com/2023ar/2023ar.pdf"
+          },
+          {
+            "label": "2025年年次報告",
+            "url": "https://www.berkshirehathaway.com/2025ar/2025ar.pdf"
+          },
+          {
+            "label": "2026年Q1",
+            "url": "https://www.sec.gov/Archives/edgar/data/1067983/000119312526202243/brka-20260331.htm"
+          },
+          {
+            "label": "2023年株主書簡",
+            "url": "https://www.berkshirehathaway.com/letters/2023ltr.pdf"
+          },
+          {
+            "label": "2024年株主書簡",
+            "url": "https://www.berkshirehathaway.com/letters/2024ltr.pdf"
+          },
+          {
+            "label": "2025年株主書簡",
+            "url": "https://www.berkshirehathaway.com/letters/2025ltr.pdf"
+          },
+          {
+            "label": "Finance Bureau",
+            "url": "https://www.youtube.com/watch?v=Y8fJNR_xsnI"
+          }
+        ]
+      },
       "thirteenF": {
         "latest": {
           "reportDate": "2026-03-31",
