@@ -3000,6 +3000,43 @@
     byId("todayNikkeiProximity").textContent = panicMove === null ? "未算出" : formatPercent(panicMove, true);
   }
 
+  function renderCrashLens(evidence, gates) {
+    var valuationNode = byId("crashLensValuationStatus");
+    var leverageNode = byId("crashLensLeverageStatus");
+    var confirmationNode = byId("crashLensConfirmationStatus");
+    if (!valuationNode || !leverageNode || !confirmationNode) return;
+
+    var currentSignals = ((((state.moneyStrategist || {}).audit || {}).currentSignals) || {});
+    var cape = currentSignals.cape || {};
+    var top10 = currentSignals.top10WeightPct || {};
+    var valuationParts = [];
+    if (finite(cape.value) !== null) {
+      valuationParts.push("CAPE Ratio " + numberTwo.format(cape.value) + (cape.date ? "（" + cape.date + "）" : ""));
+    }
+    if (finite(top10.value) !== null) {
+      valuationParts.push("上位10社 " + numberOne.format(top10.value) + "%" + (top10.date ? "（" + top10.date + "）" : ""));
+    }
+    valuationNode.textContent = valuationParts.length ? valuationParts.join(" / ") : "評価指標を取得できません";
+
+    var margin = (state.marginDebt || {}).latest || {};
+    var leverageParts = [];
+    if (finite(margin.marginDebtUsdMillions) !== null) leverageParts.push("信用買い残 " + formatMarginDebt(margin.marginDebtUsdMillions));
+    if (finite(margin.marginDebtToGdpPct) !== null) leverageParts.push("GDP比 " + numberTwo.format(margin.marginDebtToGdpPct) + "%");
+    if (finite(margin.marginDebtChange12mPct) !== null) leverageParts.push("前年比 " + formatPercent(margin.marginDebtChange12mPct, true));
+    leverageNode.textContent = leverageParts.length
+      ? leverageParts.join(" / ") + (margin.date ? "（" + formatMonthJa(margin.date) + "）" : "")
+      : "信用レバレッジ指標を取得できません";
+
+    function gateText(value) {
+      return value === "true" ? "充足" : value === "false" ? "未充足" : "未確認";
+    }
+    confirmationNode.textContent = (gates.collapseName || "判定不能")
+      + " / 崩壊確認 " + numberOne.format(evidence.observed) + "/80点"
+      + " / ゲートA " + gateText(gates.A)
+      + "・B " + gateText(gates.B)
+      + "・C " + gateText(gates.C);
+  }
+
   function renderAll() {
     state.valuations = state.data.companies.map(function (company) { return modelCompany(company); });
     var evidence = scoreEvidence();
@@ -3014,6 +3051,7 @@
     renderSakakibaraMethod();
     renderMoneyStrategist();
     renderMarginDebt();
+    renderCrashLens(evidence, gates);
     renderUsMarketIntelligence();
     renderPurchasingPower();
     updateSnapshotComparisonButtons();
@@ -3116,6 +3154,59 @@
       button.disabled = false;
       if (window.lucide) window.lucide.createIcons();
     }
+  }
+
+  function setupSectionNavigation() {
+    var currentLabel = byId("currentSectionLabel");
+    if (!currentLabel) return;
+    var links = Array.prototype.slice.call(document.querySelectorAll(".section-nav a[data-track]"));
+    var sections = Array.prototype.slice.call(document.querySelectorAll("main > section[id]"));
+    if (!links.length || !sections.length || typeof window.addEventListener !== "function") return;
+
+    var sectionLabels = {
+      "beginner-guide": "案内・用語",
+      "today": "今日の判定",
+      "purchasing-power": "購買力で比較",
+      "decision-path": "判断の全体像",
+      "global-comparison": "市場の過熱度",
+      "us-japan-link": "米国から日本への波及",
+      "sakakibara-method": "正常化とパニック",
+      "money-strategist": "過去との類似点",
+      "margin-leverage": "信用レバレッジ",
+      "signals": "米国側の崩壊確認",
+      "nikkei-bottom": "底値候補と反転",
+      "valuation": "企業価値",
+      "manual-inputs": "未取得データ",
+      "history": "ITバブルからの教訓",
+      "methodology": "計算根拠",
+      "sources": "データの来歴",
+    };
+    var pending = false;
+
+    function updateCurrentSection() {
+      pending = false;
+      var referenceY = (window.scrollY || document.documentElement.scrollTop || 0) + 110;
+      var active = sections[0];
+      sections.forEach(function (section) {
+        if (section.offsetTop <= referenceY) active = section;
+      });
+      var id = active && active.id ? active.id : "beginner-guide";
+      currentLabel.textContent = sectionLabels[id] || "ページ内を表示";
+      links.forEach(function (link) {
+        var tracked = String(link.dataset.track || "").split(",");
+        var isCurrent = tracked.indexOf(id) >= 0;
+        link.classList.toggle("is-current", isCurrent);
+        link.setAttribute("aria-current", isCurrent ? "location" : "false");
+      });
+    }
+
+    window.addEventListener("scroll", function () {
+      if (pending) return;
+      pending = true;
+      window.requestAnimationFrame(updateCurrentSection);
+    }, { passive: true });
+    window.addEventListener("resize", updateCurrentSection);
+    updateCurrentSection();
   }
 
   function bindEvents() {
@@ -3242,6 +3333,7 @@
 
   setManualInputs();
   bindEvents();
+  setupSectionNavigation();
   if (window.lucide) window.lucide.createIcons();
   loadData(false);
 }());

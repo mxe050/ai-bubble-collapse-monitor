@@ -36,22 +36,208 @@
 
   <nav class="section-nav" aria-label="ページ内ナビゲーション">
     <div class="nav-inner">
-      <a href="#today">今日の判定</a>
-      <a href="#decision-path">全体像</a>
-      <a href="#purchasing-power">購買力</a>
-      <a href="#global-comparison">過熱度</a>
-      <a href="#margin-leverage">信用レバレッジ</a>
-      <a href="#signals">崩壊の兆候</a>
-      <a href="#collapse-path">下落の2経路</a>
-      <a href="#nikkei-bottom">底値候補</a>
-      <a href="#bottom-confirmation">反転確認</a>
-      <a href="#valuation">企業価値</a>
-      <a href="#methodology">根拠・出典</a>
-      <a href="#sources">データの来歴</a>
+      <div class="nav-current-location">
+        <span>現在地</span>
+        <strong id="currentSectionLabel">案内・用語</strong>
+      </div>
+      <a href="#beginner-guide" data-track="beginner-guide">案内</a>
+      <a href="#today" data-track="today,decision-path">今日の判定</a>
+      <a href="#global-comparison" data-track="purchasing-power,global-comparison,money-strategist,valuation">過熱度</a>
+      <a href="#margin-leverage" data-track="margin-leverage,signals">暴落確認</a>
+      <a href="#us-japan-link" data-track="us-japan-link,sakakibara-method,history">米国から日本</a>
+      <a href="#nikkei-bottom" data-track="nikkei-bottom">底値・反転</a>
+      <a href="#methodology" data-track="manual-inputs,methodology,sources">根拠・データ</a>
     </div>
   </nav>
 
   <main>
+    <section id="beginner-guide" class="band band-beginner-guide" aria-labelledby="beginnerGuideHeading">
+      <div class="content">
+        <div class="section-heading">
+          <p class="section-kicker">START HERE</p>
+          <h2 id="beginnerGuideHeading">初めての方へ：結論から読み、気になる数字の意味を後から確認する</h2>
+          <p>このアプリは、略語を知っている人だけの画面ではありません。まず今日の結論を読み、次に「なぜそう判断したか」、最後に計算根拠を見る順番にすると理解しやすくなります。略語は最初に日本語を併記し、詳しい意味は下の用語ガイドへまとめました。</p>
+        </div>
+
+        <div class="beginner-reading-path" aria-label="初心者向けの読む順番">
+          <a href="#today">
+            <span>01</span>
+            <strong>今日の結論を見る</strong>
+            <p>現在が割高なのか、崩壊の兆候が出ているのか、日経平均の底値候補はどこかを先に確認します。</p>
+          </a>
+          <a href="#decision-path">
+            <span>02</span>
+            <strong>判断の順番を知る</strong>
+            <p>企業の実力、期待の上乗せ、崩壊の兆候、下落の性質、底打ち確認という5段階を読みます。</p>
+          </a>
+          <a href="#signals">
+            <span>03</span>
+            <strong>悪化している場所を探す</strong>
+            <p>株価だけでなく、企業利益、設備投資、信用市場、借入による強制売りが同時に悪化しているかを確認します。</p>
+          </a>
+          <a href="#methodology">
+            <span>04</span>
+            <strong>計算と限界を確認する</strong>
+            <p>最後に数式、出典、更新日、モデルで言えること・言えないことを確認します。</p>
+          </a>
+        </div>
+
+        <div class="site-atlas" aria-labelledby="siteAtlasHeading">
+          <div class="site-atlas-heading">
+            <div>
+              <p class="section-kicker">PAGE MAP</p>
+              <h3 id="siteAtlasHeading">どこを見れば、何が分かるか</h3>
+            </div>
+            <p>全部を順番に読む必要はありません。知りたい問いの行から、その章へ直接移動できます。</p>
+          </div>
+
+          <div class="site-atlas-rows">
+            <article>
+              <span class="site-atlas-number">01</span>
+              <div class="site-atlas-question"><small>まず1分で確認</small><strong>今日は「割高」「崩壊」「底値」のどこか</strong></div>
+              <p><b>見るもの：</b>総合判定、前回値との差、5段階の判断経路。<br><b>分かること：</b>高評価と崩壊を混同せず、いま詳しく読むべき章を選べます。</p>
+              <div class="site-atlas-links"><a href="#today">今日の判定</a><a href="#decision-path">全体の判断順序</a></div>
+            </article>
+            <article>
+              <span class="site-atlas-number">02</span>
+              <div class="site-atlas-question"><small>期待はどれほど大きいか</small><strong>株価は企業の実力をどれほど上回るか</strong></div>
+              <p><b>見るもの：</b>実質株価、平準化利益、理論価値、CAPE Ratio、指数集中度、企業別DCF。<br><b>分かること：</b>物価や利益成長で説明できる部分と、追加の期待が必要な部分を分けられます。</p>
+              <div class="site-atlas-links"><a href="#purchasing-power">購買力</a><a href="#global-comparison">市場の過熱度</a><a href="#valuation">企業価値</a></div>
+            </article>
+            <article>
+              <span class="site-atlas-number">03</span>
+              <div class="site-atlas-question"><small>暴落が始まったか</small><strong>燃料だけでなく、崩れる連鎖まで起きたか</strong></div>
+              <p><b>見るもの：</b>信用買い残÷GDP、SOX、企業利益、設備投資、VIX、米国HY OAS。<br><b>分かること：</b>高レバレッジという「弱さ」と、価格・利益・信用が同時に悪化する「崩壊」を区別できます。</p>
+              <div class="site-atlas-links"><a href="#margin-leverage">信用レバレッジ</a><a href="#signals">4条件と崩壊確認</a></div>
+            </article>
+            <article>
+              <span class="site-atlas-number">04</span>
+              <div class="site-atlas-question"><small>日本へどう伝わるか</small><strong>AI期待の正常化か、市場全体のパニックか</strong></div>
+              <p><b>見るもの：</b>日経平均、TOPIX、NT倍率、日本AI連動株・分散型株、米国信用市場。<br><b>分かること：</b>米国AI株だけの調整と、日本の非AI株・信用市場まで巻き込む下落を分けられます。</p>
+              <div class="site-atlas-links"><a href="#us-japan-link">米国から日本への波及</a><a href="#sakakibara-method">下落の2経路</a><a href="#history">過去との比較</a></div>
+            </article>
+            <article>
+              <span class="site-atlas-number">05</span>
+              <div class="site-atlas-question"><small>最も知りたい価格</small><strong>どこまで下がり、何を見て底と考えるか</strong></div>
+              <p><b>見るもの：</b>期待剥落、平準化した実体価値、パニック時の行き過ぎ、安値更新停止、50日線、信用改善。<br><b>分かること：</b>安く見える価格帯と、実際に反転し始めた証拠を別々に確認できます。</p>
+              <div class="site-atlas-links"><a href="#nikkei-bottom">底値候補</a><a href="#bottom-confirmation">底打ち確認</a></div>
+            </article>
+            <article>
+              <span class="site-atlas-number">06</span>
+              <div class="site-atlas-question"><small>数字を検証する</small><strong>どこから取得し、どう計算し、何が限界か</strong></div>
+              <p><b>見るもの：</b>数式、閾値の由来、取得経路、基準日、未確認項目、再現できなかった動画数値。<br><b>分かること：</b>画面の数字を結論だけでなく、原表から表示まで逆にたどれます。</p>
+              <div class="site-atlas-links"><a href="#methodology">計算根拠</a><a href="#sources">取得元と更新状況</a></div>
+            </article>
+          </div>
+        </div>
+
+        <div class="cape-capex-primer" aria-labelledby="capeCapexHeading">
+          <div class="cape-capex-primer-heading">
+            <p class="section-kicker">SIMILAR SPELLING, DIFFERENT MEANING</p>
+            <h3 id="capeCapexHeading">最初に区別する：CAPE RatioとCapExは、まったく別の数字</h3>
+          </div>
+          <div class="cape-capex-grid">
+            <article>
+              <span>株価が長期利益に比べて高いか</span>
+              <strong><abbr title="Cyclically Adjusted Price-to-Earnings Ratio">CAPE Ratio</abbr></strong>
+              <small>景気循環調整後の株価収益率</small>
+              <p>株価を、過去10年の利益を物価調整して平均した値で割ります。通常のPERより一時的な好況・不況の影響を弱め、長期的な割高・割安を比べるための指標です。高くても、暴落時期までは決まりません。</p>
+            </article>
+            <div class="cape-capex-not-equal" aria-label="同じではない">≠</div>
+            <article>
+              <span>会社が将来の設備へ使ったお金</span>
+              <strong><abbr title="Capital Expenditure">CapEx</abbr></strong>
+              <small>設備投資額</small>
+              <p>工場、製造装置、データセンター、サーバーなど、長く使う資産への支出です。AI需要への自信を示すことがありますが、増えすぎると投資回収やフリーキャッシュフローを圧迫することもあります。</p>
+            </article>
+          </div>
+        </div>
+
+        <div id="glossary" class="beginner-glossary" aria-labelledby="glossaryHeading">
+          <div class="beginner-glossary-heading">
+            <div>
+              <p class="section-kicker">PLAIN-LANGUAGE GLOSSARY</p>
+              <h3 id="glossaryHeading">略語・専門用語ガイド</h3>
+            </div>
+            <p>各用語は「正式名称」よりも、<strong>この画面で何を見るための数字か</strong>を先に説明しています。</p>
+          </div>
+
+          <details class="glossary-group">
+            <summary><span>まず覚える8語</span><small>評価・利益・設備投資・市場ストレス</small></summary>
+            <dl class="glossary-grid">
+              <div><dt><abbr title="Cyclically Adjusted Price-to-Earnings Ratio">CAPE Ratio</abbr><small>景気循環調整後PER</small></dt><dd>株価を過去10年の物価調整後利益の平均で割った倍率。長期的な評価水準を見る指標で、暴落日を予測するものではありません。</dd></div>
+              <div><dt><abbr title="Capital Expenditure">CapEx</abbr><small>設備投資額</small></dt><dd>工場・装置・データセンターなどへの支出。成長準備と投資過多の両面があるため、売上やFCFと一緒に読みます。</dd></div>
+              <div><dt><abbr title="Price-to-Earnings Ratio">PER</abbr><small>株価収益率</small></dt><dd>株価が1株利益の何倍か。低ければ必ず割安、高ければ必ず暴落という指標ではありません。</dd></div>
+              <div><dt><abbr title="Earnings Per Share">EPS</abbr><small>1株当たり利益</small></dt><dd>会社や指数の利益を株数で割った値。株価÷PERから逆算する場合は、同じ日付・同じ集計方法をそろえます。</dd></div>
+              <div><dt><abbr title="Free Cash Flow">FCF</abbr><small>フリーキャッシュフロー</small></dt><dd>事業で得た現金から設備投資を引いた、比較的自由に使える現金の近似。このアプリでは企業価値計算と業績悪化の確認に使います。</dd></div>
+              <div><dt><abbr title="Discounted Cash Flow">DCF</abbr><small>将来現金の割引現在価値</small></dt><dd>将来のFCFを、時間とリスクを表す割引率で現在の価値へ戻す計算。前提次第で結果が変わるため、確定価格ではありません。</dd></div>
+              <div><dt><abbr title="Cboe Volatility Index">VIX</abbr><small>米国株の30日予想変動率</small></dt><dd>S&amp;P 500オプションから計算する「値動きの荒さ」の予想。上昇しても、下落方向や倒産確率が確定するわけではありません。</dd></div>
+              <div><dt><abbr title="High Yield Option-Adjusted Spread">米国HY OAS</abbr><small>低格付け社債の信用スプレッド</small></dt><dd>信用力の低い米国社債に、米国債よりどれだけ上乗せ利回りが求められているか。拡大は信用不安の強まりと整合します。</dd></div>
+            </dl>
+          </details>
+
+          <details class="glossary-group">
+            <summary><span>企業価値と決算</span><small>会社の実力と株価を比べる言葉</small></summary>
+            <dl class="glossary-grid">
+              <div><dt><abbr title="Price-to-Book Ratio">PBR</abbr><small>株価純資産倍率</small></dt><dd>株価が1株純資産の何倍か。資産の質や将来の収益力を考えず、倍率だけで割安とは判断しません。</dd></div>
+              <div><dt><abbr title="Book Value Per Share">BPS</abbr><small>1株当たり純資産</small></dt><dd>純資産を株数で割った値。利益が大きく落ちてPERが使いにくい場面の補助軸になります。</dd></div>
+              <div><dt><abbr title="Return on Equity">ROE</abbr><small>自己資本利益率</small></dt><dd>株主資本に対してどれだけ利益を生んだか。借入の多さでも上がるため、利益の質や財務と一緒に確認します。</dd></div>
+              <div><dt><abbr title="Enterprise Value">EV</abbr><small>企業価値</small></dt><dd>株式時価総額に純有利子負債などを加えた、事業全体の価値を見る考え方です。</dd></div>
+              <div><dt><abbr title="Sum of the Parts">SOTP</abbr><small>事業別価値の合計</small></dt><dd>複数事業を別々に評価して合計する方法。投資持株会社や金融事業を含む企業で、単純DCFより適する場合があります。</dd></div>
+              <div><dt><abbr title="Trailing Twelve Months">TTM</abbr><small>直近12か月</small></dt><dd>直近4四半期を合計した値。暦年・年度とは期間が違うため、前年比の比較日をそろえる必要があります。</dd></div>
+              <div><dt><abbr title="Year over Year">YoY・前年比</abbr><small>前年同期比</small></dt><dd>同じ四半期または月を1年前と比較した変化率。隣り合う観測値を単純比較したものではありません。</dd></div>
+              <div><dt>ガイダンス<small>会社が示す業績見通し</small></dt><dd>会社が公表する売上・利益・設備投資などの見通し。予想であり、確定した実績ではありません。</dd></div>
+            </dl>
+          </details>
+
+          <details class="glossary-group">
+            <summary><span>株式市場・景気・信用</span><small>価格の広がりと金融環境を見る言葉</small></summary>
+            <dl class="glossary-grid">
+              <div><dt>S&amp;P 500<small>米国大型株500社の指数</small></dt><dd>米国株全体の代表的な値動きを見る指数。価格指数と配当込み指数は別物です。</dd></div>
+              <div><dt><abbr title="PHLX Semiconductor Sector Index">SOX</abbr><small>米国上場半導体株指数</small></dt><dd>米国市場に上場する主要半導体30社の価格指数。日本株やAI産業全体を直接表す指数ではありません。</dd></div>
+              <div><dt>NASDAQ総合<small>米国ナスダック上場株指数</small></dt><dd>ハイテク企業の比重が大きい一方、半導体だけの指数ではありません。</dd></div>
+              <div><dt>TOPIX<small>東証株価指数</small></dt><dd>浮動株調整時価総額で加重する日本株指数。価格加重の日経平均と性格が異なります。</dd></div>
+              <div><dt>NT倍率<small>日経平均÷TOPIX</small></dt><dd>日経平均がTOPIXより相対的に強いかを見る倍率。低下だけで、資金の移動先まで証明することはできません。</dd></div>
+              <div><dt><abbr title="National Financial Conditions Index">NFCI</abbr><small>全米金融環境指数</small></dt><dd>金利・信用・レバレッジなどをまとめた指数。通常はプラスほど金融環境が引き締まり、マイナスほど緩い方向です。</dd></div>
+              <div><dt><abbr title="Gross Domestic Product">GDP</abbr><small>国内総生産</small></dt><dd>一定期間に国内で生み出された付加価値。信用買い残を経済規模と比較する分母に使います。</dd></div>
+              <div><dt><abbr title="Consumer Price Index for All Urban Consumers">CPI-U</abbr><small>米国都市部消費者物価指数</small></dt><dd>家計の代表的な買い物かごの価格変化。平均商品のドル価格ではなく、指数です。</dd></div>
+              <div><dt>実効FF金利<small>米銀行間の翌日物金利</small></dt><dd>米連邦準備制度の政策金利運営に近い実績金利。2年米国債との差から市場の政策見通しを補助的に読みます。</dd></div>
+              <div><dt><abbr title="Federal Open Market Committee">FOMC</abbr><small>米連邦公開市場委員会</small></dt><dd>米国の政策金利などを決める会合。会合日だけで株価の方向が決まるわけではありません。</dd></div>
+              <div><dt>信用買い残・Margin Debt<small>証券信用口座の借方残高</small></dt><dd>借入を使った証券取引に関係する残高。一般家庭だけの借金でも、強気投資家だけの残高でもありません。</dd></div>
+              <div><dt>proxy<small>直接測れないものの代理指標</small></dt><dd>本物そのものではなく、近い動きを観察するための代替値。このアプリでは代理である範囲と限界を併記します。</dd></div>
+            </dl>
+          </details>
+
+          <details class="glossary-group">
+            <summary><span>資料・提出書類・データ提供元</span><small>数字がどこから来たかを読む言葉</small></summary>
+            <dl class="glossary-grid">
+              <div><dt><abbr title="U.S. Securities and Exchange Commission">SEC</abbr><small>米国証券取引委員会</small></dt><dd>米国企業・機関投資家の提出書類を公開する当局。EDGARはその電子開示システムです。</dd></div>
+              <div><dt>13F<small>米機関投資家の四半期保有報告</small></dt><dd>一定規模以上の運用者が提出する米国上場証券中心の保有明細。現金・完全子会社・一部海外株は含みません。</dd></div>
+              <div><dt>T-bill<small>米国短期国債</small></dt><dd>満期1年以内の米国債。バークシャーの待機資金を確認する際、現金と分けて集計します。</dd></div>
+              <div><dt><abbr title="Initial Public Offering">IPO</abbr><small>新規株式公開</small></dt><dd>未上場企業が株式市場へ上場すること。上場後の売却制限期間は会社・株主・目論見書ごとに異なります。</dd></div>
+              <div><dt><abbr title="Financial Industry Regulatory Authority">FINRA</abbr><small>米金融取引業規制機構</small></dt><dd>米証券会社を監督する自主規制機関。信用買い残の月次統計を公開します。</dd></div>
+              <div><dt><abbr title="Federal Reserve Economic Data">FRED</abbr><small>セントルイス連銀の経済データ</small></dt><dd>金利・GDP・物価などの系列をまとめて提供するデータベース。系列の作成者は別の政府機関の場合があります。</dd></div>
+              <div><dt><abbr title="Bureau of Economic Analysis">BEA</abbr><small>米商務省経済分析局</small></dt><dd>米国GDPや個人所得などを作成する政府機関です。</dd></div>
+              <div><dt><abbr title="Bureau of Labor Statistics">BLS</abbr><small>米労働省労働統計局</small></dt><dd>米国の雇用・物価統計を作成する政府機関。CPI-Uの作成元です。</dd></div>
+              <div><dt><abbr title="Bank for International Settlements">BIS</abbr><small>国際決済銀行</small></dt><dd>中央銀行間協力と金融安定に関する資料を公表する国際機関です。</dd></div>
+              <div><dt><abbr title="International Monetary Fund">IMF</abbr><small>国際通貨基金</small></dt><dd>世界経済・金融危機などの調査を公表する国際機関。歴史比較は対象国・期間・モデルの違いに注意します。</dd></div>
+              <div><dt><abbr title="Federal Reserve Board">FRB</abbr><small>米連邦準備制度理事会</small></dt><dd>米国の中央銀行制度を運営する機関。金融政策や金融安定に関する資料を公表します。</dd></div>
+              <div><dt><abbr title="Exchange-Traded Fund">ETF</abbr><small>上場投資信託</small></dt><dd>株式のように市場で売買できる投資信託。ETFへの資金流入だけで、市場全体の底打ちは確定しません。</dd></div>
+              <div><dt>S-1<small>米国IPOの登録届出書</small></dt><dd>企業が米国で株式公開するときに事業・財務・株式供給などを開示する書類。機密提出段階では一般公開されません。</dd></div>
+              <div><dt>10-Q / 10-K<small>米国企業の四半期・年次報告書</small></dt><dd>10-Qは四半期、10-Kは年度の事業・財務情報を開示するSEC提出書類です。</dd></div>
+              <div><dt><abbr title="Net Asset Value">NAV</abbr><small>保有資産の正味価値</small></dt><dd>保有資産の価値から負債を引いた値。投資持株会社では、単純なFCF型DCFより適する場合があります。</dd></div>
+              <div><dt>FCFE / FCFF<small>株主向け・企業全体向けFCF</small></dt><dd>FCFEは株主に帰属する現金、FCFFは債権者と株主の両方に帰属する現金。このアプリの共通FCFは簡易近似です。</dd></div>
+              <div><dt>CSV / JSON / XML<small>データ保存形式</small></dt><dd>CSVは表形式、JSONは項目名付きの構造化データ、XMLはタグで構造を表す形式です。投資指標ではなく、原表を受け渡すためのファイル形式です。</dd></div>
+              <div><dt>CUSIP<small>北米証券の識別コード</small></dt><dd>同名企業や複数種類の株式を区別するための証券コード。13Fの保有株数を同一証券ごとにまとめる際に使います。</dd></div>
+              <div><dt>IR<small>投資家向け情報</small></dt><dd>Investor Relationsの略。企業が決算、事業計画、リスクなどを投資家へ説明する公式資料です。</dd></div>
+              <div><dt>COMEX / GC=F<small>金先物市場・画面上の銘柄コード</small></dt><dd>COMEXは金などの商品先物市場、GC=Fはこのアプリが取得する金先物価格のデータコードです。</dd></div>
+              <div><dt><abbr title="Japan Standard Time">JST</abbr><small>日本標準時</small></dt><dd>日本の時刻。市場の現地日付や米国時間とは日付がずれることがあるため、更新時刻と市場基準日を分けて表示します。</dd></div>
+            </dl>
+          </details>
+        </div>
+      </div>
+    </section>
+
     <section id="today" class="band band-strong">
       <div class="content">
         <div class="section-heading heading-row">
@@ -62,7 +248,7 @@
           <div class="data-stamp" aria-live="polite">
             <span id="dataHealth" class="status-dot">読込中</span>
             <span>市場基準日 <strong id="marketDate">―</strong></span>
-            <span>最終更新（JST） <strong id="generatedAt">―</strong></span>
+            <span>最終更新（JST・日本標準時） <strong id="generatedAt">―</strong></span>
           </div>
         </div>
 
@@ -163,7 +349,7 @@
 
         <div class="purchasing-power-metrics">
           <article><span>S&amp;P 500</span><strong id="ppSp500">―</strong><small id="ppSp500Change">20日変化 ―</small></article>
-          <article><span>COMEX金先物（GC=F）</span><strong id="ppGold">―</strong><small id="ppGoldChange">20日変化 ―</small></article>
+          <article><span>COMEX金先物（銘柄コード GC=F）</span><strong id="ppGold">―</strong><small id="ppGoldChange">20日変化 ―</small></article>
           <article class="primary"><span>S&amp;P 500 ÷ 金</span><strong id="ppRatio">―</strong><small id="ppRatioChange">20日変化 ―</small></article>
           <article><span>2年米国債 − 実効FF金利</span><strong id="ppPolicySpread">―</strong><small id="ppPolicyDate">観測日 ―</small></article>
           <article><span>米個人貯蓄率</span><strong id="ppSavings">―</strong><small id="ppSavingsDate">観測月 ―</small></article>
@@ -245,7 +431,7 @@
             <div>
               <p class="label">現在どちらに近いか</p>
               <h3 id="currentRouteBadge">経路を判定中</h3>
-              <p id="routeSummary">価格、NT倍率、VIX、HY OASを確認しています。</p>
+              <p id="routeSummary">価格、NT倍率（日経平均÷TOPIX）、VIX（米国株の予想変動率）、米国HY OAS（低格付け社債の信用スプレッド）を確認しています。</p>
             </div>
             <a class="command" href="#nikkei-bottom"><i data-lucide="arrow-down" aria-hidden="true"></i>底値の詳細へ</a>
           </div>
@@ -440,7 +626,7 @@
             <div class="gc-coverage-heading"><h3>S&amp;P 500・推計理論価値</h3><span id="gcSpModelStatus" class="gc-coverage-state missing">確認中</span></div>
             <dl>
               <div><dt>モデル基準月</dt><dd id="gcSpModelDate">未取得</dd></div>
-              <div><dt>5年平準化EPS</dt><dd id="gcSpEarningsPower">未算出</dd></div>
+              <div><dt>5年平準化EPS（1株利益）</dt><dd id="gcSpEarningsPower">未算出</dd></div>
               <div><dt>中心推計</dt><dd id="gcSpTheoreticalCenter">未算出</dd></div>
               <div><dt>直近EPS維持参考</dt><dd id="gcSpLatestEarningsValue">未算出</dd></div>
               <div><dt>感応度レンジ</dt><dd id="gcSpTheoreticalRange">未算出</dd></div>
@@ -453,7 +639,7 @@
             <div class="gc-coverage-heading"><h3>日経平均・推計理論価値</h3><span id="gcNkModelStatus" class="gc-coverage-state missing">確認中</span></div>
             <dl>
               <div><dt>モデル基準月</dt><dd id="gcNkModelDate">未取得</dd></div>
-              <div><dt>5年平準化EPS</dt><dd id="gcNkEarningsPower">未算出</dd></div>
+              <div><dt>5年平準化EPS（1株利益）</dt><dd id="gcNkEarningsPower">未算出</dd></div>
               <div><dt>中心推計</dt><dd id="gcNkTheoreticalCenter">未算出</dd></div>
               <div><dt>直近EPS維持参考</dt><dd id="gcNkLatestEarningsValue">未算出</dd></div>
               <div><dt>感応度レンジ</dt><dd id="gcNkTheoreticalRange">未算出</dd></div>
@@ -736,16 +922,16 @@
                 <div><h4>再計算する前提</h4><p>入力を変えると、その場で二つの適正値を再計算します。</p></div>
                 <button id="resetSakakibaraAssumptions" type="button" class="icon-button" title="榊原先生の2026年7月17日値へ戻す"><i data-lucide="rotate-ccw" aria-hidden="true"></i></button>
               </div>
-              <label>日経平均のEPS
+              <label>日経平均のEPS（1株利益）
                 <div class="input-unit"><input id="sakEpsInput" type="number" min="1" max="20000" step="1"><span>円</span></div>
               </label>
-              <label>目標PER
+              <label>目標PER（株価収益率）
                 <div class="input-unit"><input id="sakTargetPeInput" type="number" min="5" max="40" step="0.1"><span>倍</span></div>
               </label>
-              <label>日経平均のBPS
+              <label>日経平均のBPS（1株純資産）
                 <div class="input-unit"><input id="sakBpsInput" type="number" min="1000" max="100000" step="1"><span>円</span></div>
               </label>
-              <label>ROE
+              <label>ROE（自己資本利益率）
                 <div class="input-unit"><input id="sakRoeInput" type="number" min="-20" max="40" step="0.1"><span>%</span></div>
               </label>
               <label>織り込む年数
@@ -1009,7 +1195,7 @@
             </div>
             <div class="us-vulnerability-box">
               <span>崩れやすさの背景</span>
-              <div><strong id="usCape">―</strong><small>Shiller CAPE</small></div>
+              <div><strong id="usCape">―</strong><small>Shiller CAPE（10年実質利益基準）</small></div>
               <div><strong id="usConcentration">―</strong><small>S&amp;P上位10社比率</small></div>
               <p>評価と集中は「壊れやすさ」を示しますが、日付を決めません。進行度とは分けて読みます。</p>
             </div>
@@ -1165,7 +1351,7 @@
               <div class="ms-ipo-assumption-heading"><i data-lucide="calendar-range" aria-hidden="true"></i><div><strong>AI大型IPOの日付を仮置きする</strong><span>未公表日を確定予定にしないための試算欄</span></div></div>
               <label for="msIpoAssumption">仮の上場日</label>
               <div class="ms-ipo-input-row"><input id="msIpoAssumption" type="date" min="2026-07-19" max="2028-05-10"><button id="msIpoClear" type="button">解除</button></div>
-              <p id="msIpoAssumptionText">OpenAIとAnthropicは機密S-1を提出済みですが、公開S-1、上場日、初回決算日、ロックアップ条件は未公表です。日付を入れるまで曲線上に固定しません。</p>
+              <p id="msIpoAssumptionText">OpenAIとAnthropicは機密S-1（米国IPOの登録届出書）を提出済みですが、公開S-1、上場日、初回決算日、ロックアップ条件は未公表です。日付を入れるまで曲線上に固定しません。</p>
             </div>
             <div id="msCalendarSummary" class="ms-calendar-summary" aria-live="polite"></div>
           </div>
@@ -1179,7 +1365,7 @@
         <div class="ms-level-strip" aria-label="青線の計算水準">
           <div><span>中間選挙年の18%調整を換算</span><strong id="msEarlyLevel">―</strong><p>2026年7月17日の実績値から18%下。動画の「7～10月」説明を可視化した値です。</p></div>
           <div><span>景気後退時の30%下落を換算</span><strong id="msRecessionLevel">―</strong><p>同じ起点から30%下。動画が引用する平均値であり、今回の下落率の予測ではありません。</p></div>
-          <div><span>CAPEの完全平均回帰</span><strong id="msMeanReversionRange">―</strong><p>同じ起点から55～60%下。動画自身も「予測ではない」と述べる極端な算術参考帯です。</p></div>
+          <div><span>CAPE（10年実質利益基準）の完全平均回帰</span><strong id="msMeanReversionRange">―</strong><p>同じ起点から55～60%下。CAPEが歴史的平均へ一度に戻ると仮定した極端な算術参考帯で、予測ではありません。</p></div>
         </div>
 
         <div class="ms-window-section">
@@ -1338,7 +1524,7 @@
           </div>
           <div class="ms-fact-grid">
             <div class="ms-fact-row confirmed"><span>再現</span><strong>中間選挙年の最大下落は平均約18%</strong><p>1950～2022年の19回をS&amp;P 500日次終値で再計算すると平均17.5%、中央値16.6%。動画の丸めた18%は概ね再現しました。</p></div>
-            <div class="ms-fact-row confirmed"><span>確認</span><strong>CAPE約41、上位10社36～40%</strong><p>CAPEは算出元・日付で差がありますが、2026年7月8日の公開値は41.64。S&amp;P DJIの2026年7月2日値では上位10社36.4%です。</p></div>
+            <div class="ms-fact-row confirmed"><span>確認</span><strong>CAPE Ratio約41、上位10社36～40%</strong><p>CAPE Ratioは、株価を過去10年の物価調整後利益の平均で割った長期評価倍率です。算出元・日付で差がありますが、2026年7月8日の公開値は41.64。高評価の背景は示しますが、暴落時期は決めません。S&amp;P DJIの2026年7月2日値では上位10社36.4%です。</p></div>
             <div class="ms-fact-row corrected"><span>修正</span><strong>NY連銀モデルは30～49%ではなく16.1%</strong><p>2026年7月7日更新の公式モデルは、2027年6月の景気後退確率を16.0619%としています。これはNY連銀やFRBの公式予測ではありません。</p></div>
             <div class="ms-fact-row corrected"><span>修正</span><strong>SpaceXの売却解禁は一律6か月ではない</strong><p>SEC提出資料は、Musk氏366日、一部保有者は決算後の段階解除、その他も複数段階と記載。中心動画の「2026年12月に一斉解除」は単純化です。</p></div>
             <div class="ms-fact-row conditional"><span>条件付き</span><strong>OpenAI・Anthropicの2027年春ロックアップ</strong><p>Anthropicは2026年6月1日、OpenAIは6月8日に機密S-1を提出しました。ただし公開S-1、上場日、売出株数、ロックアップ対象株数・解除日は未公表です。中心動画が置いた「2027年春」は引き続き仮定で、危険期間の確定根拠には使いません。</p></div>
@@ -1604,7 +1790,7 @@
               <li><strong>需要が維持される</strong><span>海外AI10社の最新四半期売上が、前年同期比で広く悪化していないか。</span></li>
               <li><strong>投資回収力が保たれる</strong><span>設備投資を増やしてもFCF悪化が多数社へ広がっていないか。</span></li>
             </ol>
-            <p class="video-evidence-caution">動画内のETF流入額などは、同じ定義の一次資料で確認できない数字を崩壊判定へ加えていません。</p>
+            <p class="video-evidence-caution">動画内のETF（上場投資信託）流入額などは、同じ定義の一次資料で確認できない数字を崩壊判定へ加えていません。</p>
           </article>
 
           <article class="video-evidence korea">
@@ -1657,6 +1843,54 @@
 
         <div id="signalGrid" class="signal-grid" aria-live="polite"></div>
 
+        <div class="crash-lens" aria-labelledby="crashLensHeading">
+          <div class="crash-lens-heading">
+            <div>
+              <p class="section-kicker">FOUR-CONDITION CRASH LENS</p>
+              <h3 id="crashLensHeading">暴落前に重なる4条件を、現在のデータへ置き換える</h3>
+            </div>
+            <p>Finance Bureauの動画が示す「過熱・レバレッジ・ショック・心理転換」は、ページ全体を整理する見取り図として使えます。ただし、すべての暴落に必ず同じ形でそろうと証明された法則ではありません。本サイトでは、動画の言葉を下の観測可能な数字へ置き換えます。</p>
+          </div>
+
+          <div class="crash-lens-grid">
+            <article>
+              <div class="crash-lens-label"><span>01</span><strong>過熱</strong></div>
+              <h4>利益で説明しにくい期待が積み上がる</h4>
+              <b id="crashLensValuationStatus">CAPE Ratioと上位10社比率を読込中</b>
+              <p>CAPE Ratio、S&amp;P 500上位10社比率、理論価値からの上乗せを見ます。高いほど下落余地は大きくなり得ますが、いつ下がるかは分かりません。</p>
+              <a href="#global-comparison">過熱度の詳しい章へ</a>
+            </article>
+            <article>
+              <div class="crash-lens-label"><span>02</span><strong>レバレッジ</strong></div>
+              <h4>値下がりが強制売りへ変わりやすくなる</h4>
+              <b id="crashLensLeverageStatus">FINRA信用買い残を読込中</b>
+              <p>信用買い残÷GDPとその増加速度を「燃料」として見ます。FSBが指摘するプライベートクレジットの不透明性は構造的な弱さですが、日次の崩壊点数へ直接は加えません。</p>
+              <a href="#margin-leverage">信用レバレッジの詳しい章へ</a>
+            </article>
+            <article>
+              <div class="crash-lens-label"><span>03</span><strong>引き金</strong></div>
+              <h4>すでにある弱さを表面化させる出来事</h4>
+              <b id="crashLensTriggerStatus">出来事の種類や発生日は事前に固定しない</b>
+              <p>決算失敗、金利上昇、供給過剰、政策・地政学など候補は多数あります。出来事を予言するのではなく、その後に価格、利益、信用へ何が波及したかを確認します。</p>
+              <a href="#money-strategist">過去局面と将来予定へ</a>
+            </article>
+            <article>
+              <div class="crash-lens-label"><span>04</span><strong>市場確認</strong></div>
+              <h4>期待の剥落が、広い売りと信用不安へ変わる</h4>
+              <b id="crashLensConfirmationStatus">3ゲートと80点を計算中</b>
+              <p>SOXの持続的下落、利益・FCF・CapExの悪化、VIXと米国HY OASの上昇、市場の広がりを確認します。ここがそろって初めて「高い」から「崩れた」へ進みます。</p>
+              <a href="#gatePrice">3つの確認ゲートへ</a>
+            </article>
+          </div>
+
+          <div class="crash-lens-rule">
+            <strong>4条件の読み順</strong>
+            <p><b>過熱＋レバレッジ</b>は「下落に弱い状態」です。そこへ何らかの<b>引き金</b>が来ても、価格・利益・信用の<b>市場確認</b>がなければ崩壊とは判定しません。反対に、引き金を特定できなくても市場確認が広がれば、原因探しを待たず警戒を強めます。</p>
+          </div>
+        </div>
+
+
+
         <div class="gate-section">
           <h3>崩壊確認に必要な3つのゲート</h3>
           <div class="gate-flow">
@@ -1696,6 +1930,65 @@
             </ul>
           </aside>
         </div>
+
+        <div class="video-claim-audit" aria-labelledby="videoClaimAuditHeading">
+          <div class="video-claim-audit-heading">
+            <div>
+              <p class="section-kicker">VIDEO CLAIM AUDIT</p>
+              <h3 id="videoClaimAuditHeading">動画で挙げられた数字を、そのまま同じ強さで扱わない</h3>
+            </div>
+            <p>動画は仮説を見つける入口です。点数と判定は、更新日が分かる一次資料または再現可能な計算だけで動かします。</p>
+          </div>
+
+          <div class="video-claim-table-wrap">
+            <table class="video-claim-table">
+              <thead><tr><th>動画の論点</th><th>確認できた事実</th><th>このアプリでの扱い</th></tr></thead>
+              <tbody>
+                <tr>
+                  <th>「過去50年の暴落には同じ4条件がある」</th>
+                  <td>過熱、借入、外部ショック、心理転換は1973～74年、日本バブル、ITバブル、世界金融危機を整理する共通語になります。ただし、動画は全暴落を同じ定義で検証した統計研究ではありません。</td>
+                  <td>予測式ではなく、上の4条件へ既存指標を配置する<strong>整理枠</strong>として採用します。</td>
+                </tr>
+                <tr>
+                  <th>CAPE Ratio約40～42、上位10社40%超</th>
+                  <td>公開値はCAPE Ratio 41.64（2026年7月8日）。S&amp;P DJI公式の上位10社比率は36.4%（2026年6月30日）です。集中は非常に高い一方、動画の「40%超」と基準日は一致しません。</td>
+                  <td>高評価・集中の<strong>脆弱性</strong>として表示し、暴落日や崩壊確率には変換しません。</td>
+                </tr>
+                <tr>
+                  <th>信用買い残1.4兆ドル超、純信用残高マイナス9910億ドル</th>
+                  <td>FINRA信用買い残は2026年6月に約1.50兆ドルです。一方、借方残高から全口座のfree creditを単純に引いた値は、同じ借り手の「追証までの余裕」ではありません。</td>
+                  <td>信用買い残、GDP比、増加・減少速度は使います。集計残高の差を投資家一人ひとりの安全余力とは呼ばず、点数にも使いません。</td>
+                </tr>
+                <tr>
+                  <th>プライベートクレジットが次の連鎖を増幅する</th>
+                  <td>FSBは2024年末の市場規模を1.5～2.0兆ドル、把握できた銀行の融資枠を約2200億ドルとし、民間推計2700～5000億ドル、評価の不透明性、PIK増加、相互連関を指摘しました。</td>
+                  <td>重要な構造リスクとして説明しますが、遅行・不完全なデータなので現在の80点へ直接加えず、HY OAS、NFCI、企業FCFなど観測可能な波及で確認します。</td>
+                </tr>
+                <tr>
+                  <th>「CAPEから見て株価は最大50%下がり得る」</th>
+                  <td>利益の分母が変わらない単純計算なら、CAPE 42から21への低下は価格約50%下、16への平均回帰は約62%下です。実際には利益、金利、構成銘柄、投資家の要求収益率も動きます。</td>
+                  <td>50%を予測確率や一点の目標値にせず、正常化とパニックを分けた<strong>ストレスシナリオ</strong>の一つとして扱います。</td>
+                </tr>
+                <tr>
+                  <th>「警告する人が増え、多くの人が暴落を予想している」</th>
+                  <td>Richard Murphy氏の動画はMartin Wolf氏などの警告を紹介しますが、代表性のある投資家調査、予測市場、ポジション統計は示していません。複数の論者が警告しても、市場参加者の多数派とは限りません。</td>
+                  <td>発言数や動画の支持を崩壊点数へ入れません。実際の価格、企業利益、信用、強制売りの広がりが同じ方向へ動いたかを優先します。</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <p class="video-claim-conclusion"><strong>結論：</strong>2本の動画は「何を見るか」を増やしますが、「いつ50%下がるか」を証明しません。本サイトは、過熱とレバレッジを事前の弱さ、SOX・利益・信用・市場幅の悪化を崩壊確認として分離します。</p>
+          <p class="transmission-sources">動画と検証資料：
+            <a href="https://www.youtube.com/watch?v=a0xzk49q-zk&amp;t=770s" target="_blank" rel="noopener">Finance Bureau・4条件の解説</a> /
+            <a href="https://www.youtube.com/watch?v=tpLQftkr99o" target="_blank" rel="noopener">Richard J Murphy・50%下落シナリオ</a> /
+            <a href="https://www.spglobal.com/spdji/en/indices/equity/sp-500/" target="_blank" rel="noopener">S&amp;P DJI・上位10社比率</a> /
+            <a href="https://www.econ.yale.edu/~shiller/data.htm" target="_blank" rel="noopener">Yale・Shiller長期データ</a> /
+            <a href="https://www.finra.org/rules-guidance/key-topics/margin-accounts/margin-statistics" target="_blank" rel="noopener">FINRA Margin Statistics</a> /
+            <a href="https://www.fsb.org/2026/05/report-on-vulnerabilities-in-private-credit/" target="_blank" rel="noopener">FSB・プライベートクレジット脆弱性報告</a>。
+          </p>
+        </div>
+
       </div>
     </section>
 
@@ -1945,7 +2238,7 @@
             <div><span class="definition-mark existing"></span><p><strong>現在FCF横ばいシナリオ</strong>現在の評価用FCFが10年間成長せず、その後も実質ゼロ成長と置いた計算値です。確定した「本体価値」ではありません。</p></div>
             <div><span class="definition-mark growth"></span><p><strong>基準成長の追加価値</strong>本サイトが企業別に置いた成長率・資本コスト・永続成長率で横ばいシナリオから増える計算値です。前提は利用者が変更できます。</p></div>
             <div><span class="definition-mark premium"></span><p><strong>基準シナリオ外の部分</strong>市場価値から本サイトの基準計算を引いた残差です。将来の高成長だけでなく、余剰現金、保有株、金融子会社、ブランド、会計分類、景気循環、一時的に低いFCF、モデル誤差を含むため、バブルの確定値ではありません。</p></div>
-            <div><span class="definition-mark unavailable"></span><p><strong>DCF比較不可</strong>評価用FCFが正でない、またはこの企業に単純DCFを適用できない状態です。企業価値ゼロを意味せず、NAV、SOTP、正常化FCFなど別の方法が必要です。</p></div>
+            <div><span class="definition-mark unavailable"></span><p><strong>DCF比較不可</strong>評価用FCFが正でない、またはこの企業に単純DCFを適用できない状態です。企業価値ゼロを意味せず、NAV（保有資産の正味価値）、SOTP（事業別価値の合計）、正常化FCFなど別の方法が必要です。</p></div>
           </div>
         </div>
 
@@ -2091,7 +2384,7 @@
             <tbody>
               <tr><th>技術の実体</th><td>インターネットは社会基盤として定着した。</td><td>AI利用と売上はすでに拡大している。</td><td>技術の成否ではなく、企業が獲得できるFCFを測る。</td></tr>
               <tr><th>上場企業の質</th><td>売上・利益が乏しく外部資金依存の企業が多数。</td><td>相場を牽引する大企業は大きな利益と現金を持つ。</td><td>赤字企業と高収益企業を同じ倍率で扱わない。</td></tr>
-              <tr><th>過剰投資</th><td>通信・IT設備投資が需要を上回り、2001年に急反転。</td><td>GPU、データセンター、電力への投資が急増。</td><td>CapExだけでなく、顧客側の増分収益とFCFを追う。</td></tr>
+              <tr><th>過剰投資</th><td>通信・IT設備投資が需要を上回り、2001年に急反転。</td><td>GPU、データセンター、電力への投資が急増。</td><td>CapEx（設備投資額）だけでなく、顧客側の増分収益とFCF（自由に使える現金）を追う。</td></tr>
               <tr><th>崩壊の確認</th><td>価格下落、利益悪化、投資縮小が連鎖。</td><td>高値からの調整だけでは未確認。</td><td>価格・利益・実体波及の3ゲートを要求する。</td></tr>
               <tr><th>下落後</th><td>NASDAQは約78%下落した一方、実力のある企業は存続。</td><td>同じ下落率を機械的に当てはめられない。</td><td>各社のFCFと資本コストから弱気価値を別々に計算。</td></tr>
             </tbody>
@@ -2157,7 +2450,7 @@
           <table>
             <thead><tr><th>知りたい答え</th><th>上の対応画面</th><th>主な入力</th><th>計算</th><th>表示される答え</th></tr></thead>
             <tbody>
-              <tr><th>米国AI相場が崩壊したか</th><td><a href="#margin-leverage">信用レバレッジ</a>＋<a href="#signals">米国側の崩壊シグナル</a></td><td>信用買い残÷GDP、SOX、海外AI10社の四半期業績、CapEx、供給、米国HY OAS</td><td>燃料・引き金・巻き戻しの3段階＋崩壊確認4群80点＋3ゲート</td><td>高レバレッジと崩壊を分離し、強制売り連鎖の有無を表示</td></tr>
+              <tr><th>米国AI相場が崩壊したか</th><td><a href="#margin-leverage">信用レバレッジ</a>＋<a href="#signals">米国側の崩壊シグナル</a></td><td>信用買い残÷GDP、SOX（半導体株指数）、海外AI10社の四半期業績、CapEx（設備投資）、供給、米国HY OAS（信用スプレッド）</td><td>燃料・引き金・巻き戻しの3段階＋崩壊確認4群80点＋3ゲート</td><td>高レバレッジと崩壊を分離し、強制売り連鎖の有無を表示</td></tr>
               <tr><th>過去と2026年はどこまで似るか</th><td><a href="#money-strategist">マネーストラテジスト</a></td><td>1900年以降の米国株、主要10局面、CAPE、上位10社比率、NY連銀モデル、動画の時期説明</td><td>実数チャート＋同一規則の最大下落率＋中間選挙年19回の再計算＋主張と事実の照合</td><td>過去の実績は赤、動画の主張と説明用青線は別表示、2028年までは価格目標でなく危険期間</td></tr>
               <tr><th>米国から日本へ波及したか</th><td><a href="#us-japan-link">米国→日本</a></td><td>SOX、日経平均、日本AI・半導体連動8社</td><td>短期波及2項目＋持続的波及4項目</td><td>日本への短期波及・持続的波及</td></tr>
               <tr><th>IT崩壊で非ITもどこまで下がるか</th><td><a href="#dotcom-spillover">IT崩壊の波及</a></td><td>2000～2003年のIT指数、広範囲指数、日本の技術感応型・非IT企業</td><td>同一期間騰落率＋期間内最大下落＋日本延長期間</td><td>直撃群と非IT群の下落差、含み損の大きさ、単純類推の限界</td></tr>
@@ -2169,7 +2462,7 @@
         </div>
 
         <div class="method-steps">
-          <article><span>STEP 1</span><h3>現在の実力を測る</h3><p>売上、営業利益、FCF、現金、負債、CapExを使います。PERだけでは、会計利益の質、再投資負担、資本構成を区別できません。</p></article>
+          <article><span>STEP 1</span><h3>現在の実力を測る</h3><p>売上、営業利益、FCF（フリーキャッシュフロー）、現金、負債、CapEx（設備投資額）を使います。PER（株価収益率）だけでは、会計利益の質、再投資負担、資本構成を区別できません。</p></article>
           <article><span>STEP 2</span><h3>合理的な成長を加える</h3><p>FCFが一定期間成長し、その後は経済全体に近い永続成長へ落ち着くと仮定して現在価値へ割り引きます。</p></article>
           <article><span>STEP 3</span><h3>市場の要求を逆算する</h3><p>現在の時価総額に一致する10年間のFCF成長率を解きます。高いほど競争、価格低下、顧客内製化に弱くなります。</p></article>
           <article id="method-collapse"><span>STEP 4</span><h3>レバレッジ、米国崩壊、日本波及を分ける</h3><p>信用買い残÷GDPの高さは燃料であり、崩壊80点へ直接加えません。米国は価格・利益・供給・信用と3ゲート、日本は日経平均と国内8社で別判定し、信用買い残の急減が市場横断ストレスと重なった時だけ強制売りを疑います。</p></article>
@@ -2179,9 +2472,9 @@
 
         <div id="method-company" class="formula-section">
           <div>
-            <h3>FCF現在価値の簡易スクリーニング</h3>
+            <h3>FCF（フリーキャッシュフロー）現在価値の簡易スクリーニング</h3>
             <div class="formula">市場価値の比較用近似 = Σ FCF<sub>t</sub> ÷ (1+r)<sup>t</sup> + 継続価値 ÷ (1+r)<sup>n</sup></div>
-            <p>ここでの標準FCFはYahoo Financeが集計する営業キャッシュフロー－設備投資の近似値です。厳密なFCFE/FCFFではなく、米国基準とIFRSで利息やリースの分類も異なります。この現在価値を時価総額と比較しますが、余剰現金・純有利子負債・保有資産を全社一律には加減していません。そのため「株主価値の算定」や監査済み公正価値ではなく、同じ粗い物差しを当てる比較用ストレステストです。</p>
+            <p>ここでの標準FCFはYahoo Financeが集計する営業キャッシュフロー－設備投資の近似値です。厳密な株主向けFCF（FCFE）や企業全体向けFCF（FCFF）ではなく、米国会計基準と国際会計基準（IFRS）では利息やリースの分類も異なります。この現在価値を時価総額と比較しますが、余剰現金・純有利子負債・保有資産を全社一律には加減していません。そのため「株主価値の算定」や監査済み公正価値ではなく、同じ粗い物差しを当てる比較用ストレステストです。</p>
           </div>
           <div>
             <h3>継続価値</h3>
@@ -2202,7 +2495,7 @@
             <p>画面のDCFは共通の一次スクリーニングです。事業構造が違うため、次の補正を企業詳細の注意書きとセットで読みます。</p>
           </div>
           <ul>
-            <li><strong>ソフトバンクグループ</strong>投資持株会社なので、連結FCF型DCFより、Armなどの保有資産価値から純有利子負債を引くNAV/SOTPが基本です。</li>
+            <li><strong>ソフトバンクグループ</strong>投資持株会社なので、連結FCF型DCFより、Armなどの保有資産から負債を引くNAV（正味資産価値）や、事業別価値を合計するSOTPが基本です。</li>
             <li><strong>ホンダ・トヨタ</strong>金融サービスとリースを含む連結キャッシュフローを直接使わず、公式の非金融事業CFをFY2022～FY2026の5年中央値に平準化します。金融事業価値は別加算していないため、残差を割高と断定しません。</li>
             <li><strong>アドバンテスト・東京エレクトロン</strong>AI需要が強い単年のFCFを10年延長せず、半導体設備投資サイクルを通した平準化FCFで見ます。</li>
             <li><strong>現金・保有資産が大きい企業</strong>キーエンス、任天堂などでは、FCFの現在価値だけでは余剰現金や投資資産を取り切れず、残差が大きく見えます。残差を割高と断定しません。</li>
@@ -2375,8 +2668,8 @@
             <article>
               <div class="data-route-title"><span>SEC・Berkshire</span><h4>現金比率と13Fの売買変化</h4></div>
               <dl>
-                <div><dt>どこから</dt><dd><a href="https://data.sec.gov/submissions/CIK0001067983.json" target="_blank" rel="noopener">SEC EDGAR submissions JSON</a>、13F情報表XML、Berkshire 10-Qです。</dd></div>
-                <div><dt>どう取得</dt><dd>最新2回の13F-HRをEDGARで探し、情報表XMLをCUSIP単位で集計。10-Qの現金・短期国債・株式等は監査済みスナップショットを保持します。</dd></div>
+                <div><dt>どこから</dt><dd><a href="https://data.sec.gov/submissions/CIK0001067983.json" target="_blank" rel="noopener">SEC EDGAR submissions JSON（提出履歴データ）</a>、13F情報表XML、Berkshireの四半期報告書10-Qです。</dd></div>
+                <div><dt>どう取得</dt><dd>最新2回の13F-HRをEDGARで探し、情報表XMLを北米証券識別コードCUSIP単位で集計。10-Qの現金・短期国債・株式等は監査済みスナップショットを保持します。</dd></div>
                 <div><dt>どう加工</dt><dd>同一CUSIPの株数差で新規、買い増し、縮小、全売却を分類。現金比率は当サイトの明示式で前回と比較します。</dd></div>
                 <div><dt>注意</dt><dd>13Fは最大45日遅れ、米国上場株中心です。時価変動を売買と誤認しないよう株数で比較します。</dd></div>
               </dl>
@@ -2384,7 +2677,7 @@
             <article>
               <div class="data-route-title"><span>海外情報・手入力</span><h4>ニュース、X、非公開情報</h4></div>
               <dl>
-                <div><dt>どこから</dt><dd>Google News英語RSS、設定時のみX Recent Search。決算、会社IR、SEC提出書類を最終確認先にします。</dd></div>
+                <div><dt>どこから</dt><dd>Google News英語RSS、設定時のみX Recent Search。決算、会社の投資家向け情報（IR）、SEC提出書類を最終確認先にします。</dd></div>
                 <div><dt>どう取得</dt><dd>AI、半導体、CapEx、資金調達、IPO等の検索語で候補を収集し、媒体名・日時・URLを保存します。</dd></div>
                 <div><dt>どう加工</dt><dd>見出しを論点別に整理しますが、報道や投稿だけでは崩壊スコアへ加点しません。確認できない稼働率、価格、計画中止は手入力欄に残します。</dd></div>
                 <div><dt>注意</dt><dd>速報は発見の入口です。Xトークンは環境変数だけで管理し、HTMLやJSONへ保存しません。</dd></div>
