@@ -150,6 +150,14 @@ assert.doesNotMatch(appSource, /\?{2,}/);
 assert.match(indexSource, /id="live-briefing"/);
 assert.match(indexSource, /id="briefingLead"/);
 assert.match(indexSource, /name="briefing-topic"/);
+assert.match(indexSource, /name="briefing-sort"/);
+assert.match(indexSource, /data-gc-series-preset="pair"/);
+assert.match(indexSource, /data-gc-series-preset="us3"/);
+assert.match(indexSource, /data-gc-series-preset="jp3"/);
+assert.match(indexSource, /data-gc-series-preset="all6"/);
+assert.match(appSource, /item\.original/);
+assert.match(appSource, /item\.japanese/);
+assert.match(stylesSource, /\.briefing-language-grid/);
 assert.ok(
   indexSource.indexOf('id="beginner-guide"') < indexSource.indexOf('id="live-briefing"'),
   "live briefing should follow today's summary",
@@ -207,6 +215,12 @@ const briefingRadios = ["all", "us", "jp", "ai", "fx-rates"].map((value) => {
   element.checked = value === "all";
   return element;
 });
+const briefingSortRadios = ["latest", "priority", "attention"].map((value) => {
+  const element = new FakeElement();
+  element.value = value;
+  element.checked = value === "latest";
+  return element;
+});
 const briefingMoreElement = new FakeElement("briefingMore");
 let briefingCards = [];
 
@@ -219,6 +233,7 @@ global.document = {
     if (selector === ".ms-range-button") return moneyRangeButtons;
     if (selector === 'input[name="nikkeiScenario"]') return scenarios;
     if (selector === "input[name='briefing-topic']" || selector === 'input[name="briefing-topic"]') return briefingRadios;
+    if (selector === "input[name='briefing-sort']" || selector === 'input[name="briefing-sort"]') return briefingSortRadios;
     if (selector === "[data-briefing-card='true']" || selector === '[data-briefing-card="true"]') return briefingCards;
     return [];
   },
@@ -226,6 +241,9 @@ global.document = {
     if (selector === ".briefing-more") return briefingMoreElement;
     if (selector === "input[name='briefing-topic']:checked" || selector === 'input[name="briefing-topic"]:checked') {
       return briefingRadios.find((radio) => radio.checked) || null;
+    }
+    if (selector === "input[name='briefing-sort']:checked" || selector === 'input[name="briefing-sort"]:checked') {
+      return briefingSortRadios.find((radio) => radio.checked) || null;
     }
     return null;
   },
@@ -329,29 +347,34 @@ setTimeout(async () => {
   assert.match(elements.get("briefingWarning").textContent, /X API/);
   assert.match(elements.get("briefingPrimaryCards").innerHTML, /briefing-original-link/);
   assert.doesNotMatch(elements.get("briefingPrimaryCards").innerHTML, /href="#"/);
+  assert.match(elements.get("briefingPrimaryCards").innerHTML, /briefing-language-grid/);
+  assert.match(elements.get("briefingPrimaryCards").innerHTML, /briefing-copy-ja/);
+  assert.match(elements.get("briefingPrimaryCards").innerHTML, /briefing-copy-original/);
+  assert.match(elements.get("briefingPrimaryCards").innerHTML, /外部日本語表示/);
 
   const articleCount = (markup) => (markup.match(/<article\b/g) || []).length;
+  const briefingPrimaryLimit = 6;
   const allBriefingCount = (livePayload.briefing.items || []).length;
-  assert.strictEqual(articleCount(elements.get("briefingPrimaryCards").innerHTML), Math.min(4, allBriefingCount));
-  assert.strictEqual(articleCount(elements.get("briefingMoreCards").innerHTML), Math.max(0, allBriefingCount - 4));
-  assert.strictEqual(briefingMoreElement.hidden, allBriefingCount <= 4);
-  assert.strictEqual(Number(elements.get("briefingVisibleCount").textContent.replace(/,/g, "")), Math.min(4, allBriefingCount));
+  assert.strictEqual(articleCount(elements.get("briefingPrimaryCards").innerHTML), Math.min(briefingPrimaryLimit, allBriefingCount));
+  assert.strictEqual(articleCount(elements.get("briefingMoreCards").innerHTML), Math.max(0, allBriefingCount - briefingPrimaryLimit));
+  assert.strictEqual(briefingMoreElement.hidden, allBriefingCount <= briefingPrimaryLimit);
+  assert.strictEqual(Number(elements.get("briefingVisibleCount").textContent.replace(/,/g, "")), Math.min(briefingPrimaryLimit, allBriefingCount));
 
   briefingRadios.forEach((radio) => { radio.checked = radio.value === "ai"; });
   await briefingRadios.find((radio) => radio.value === "ai").dispatch("change");
   const expectedAiCards = (livePayload.briefing.items || []).filter((item) => item.topicKey === "ai-bubble").length;
-  assert.strictEqual(articleCount(elements.get("briefingPrimaryCards").innerHTML), Math.min(4, expectedAiCards));
-  assert.strictEqual(articleCount(elements.get("briefingMoreCards").innerHTML), Math.max(0, expectedAiCards - 4));
-  assert.strictEqual(briefingMoreElement.hidden, expectedAiCards <= 4);
-  assert.strictEqual(Number(elements.get("briefingVisibleCount").textContent.replace(/,/g, "")), Math.min(4, expectedAiCards));
+  assert.strictEqual(articleCount(elements.get("briefingPrimaryCards").innerHTML), Math.min(briefingPrimaryLimit, expectedAiCards));
+  assert.strictEqual(articleCount(elements.get("briefingMoreCards").innerHTML), Math.max(0, expectedAiCards - briefingPrimaryLimit));
+  assert.strictEqual(briefingMoreElement.hidden, expectedAiCards <= briefingPrimaryLimit);
+  assert.strictEqual(Number(elements.get("briefingVisibleCount").textContent.replace(/,/g, "")), Math.min(briefingPrimaryLimit, expectedAiCards));
 
   briefingRadios.forEach((radio) => { radio.checked = radio.value === "fx-rates"; });
   await briefingRadios.find((radio) => radio.value === "fx-rates").dispatch("change");
   const expectedFxCards = (livePayload.briefing.items || []).filter((item) => item.topicKey === "fx-rates").length;
-  assert.strictEqual(articleCount(elements.get("briefingPrimaryCards").innerHTML), Math.min(4, expectedFxCards));
-  assert.strictEqual(articleCount(elements.get("briefingMoreCards").innerHTML), Math.max(0, expectedFxCards - 4));
-  assert.strictEqual(briefingMoreElement.hidden, expectedFxCards <= 4);
-  assert.strictEqual(Number(elements.get("briefingVisibleCount").textContent.replace(/,/g, "")), Math.min(4, expectedFxCards));
+  assert.strictEqual(articleCount(elements.get("briefingPrimaryCards").innerHTML), Math.min(briefingPrimaryLimit, expectedFxCards));
+  assert.strictEqual(articleCount(elements.get("briefingMoreCards").innerHTML), Math.max(0, expectedFxCards - briefingPrimaryLimit));
+  assert.strictEqual(briefingMoreElement.hidden, expectedFxCards <= briefingPrimaryLimit);
+  assert.strictEqual(Number(elements.get("briefingVisibleCount").textContent.replace(/,/g, "")), Math.min(briefingPrimaryLimit, expectedFxCards));
   briefingMoreElement.open = true;
   await briefingMoreElement.dispatch("toggle");
   assert.strictEqual(Number(elements.get("briefingVisibleCount").textContent.replace(/,/g, "")), expectedFxCards);

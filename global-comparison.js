@@ -2,12 +2,20 @@
   "use strict";
 
   var DATA_URL = "data/global-market-value-comparison.json";
+  var SERIES_PRESETS = {
+    pair: ["sp500Real", "nikkeiRealUsd"],
+    us3: ["sp500Nominal", "sp500Real", "sp500TheoreticalReal"],
+    jp3: ["nikkeiUsd", "nikkeiRealUsd", "nikkeiTheoreticalUsd"],
+    all6: ["sp500Nominal", "sp500Real", "sp500TheoreticalReal", "nikkeiUsd", "nikkeiRealUsd", "nikkeiTheoreticalUsd"],
+  };
   var state = {
     valuationChart: null,
     payload: null,
     chart: null,
     range: "all",
     normalization: "fixed",
+    seriesPreset: window.matchMedia && window.matchMedia("(max-width: 699px)").matches ? "pair" : "all6",
+    seriesPresetUserSelected: false,
     showSp500Nominal: false,
     showTheoreticalValueSeries: true,
     showCrises: true,
@@ -68,6 +76,30 @@
     return window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches ? 0 : 260;
   }
 
+  function applySeriesPresetVisibility(name) {
+    var visibleIds = SERIES_PRESETS[name];
+    if (!visibleIds) return false;
+    Object.keys(state.legendVisible).forEach(function (id) { state.legendVisible[id] = false; });
+    SERIES_PRESETS.all6.forEach(function (id) {
+      state.legendVisible[id] = visibleIds.indexOf(id) >= 0;
+    });
+    state.showSp500Nominal = visibleIds.indexOf("sp500Nominal") >= 0;
+    state.showTheoreticalValueSeries = visibleIds.indexOf("sp500TheoreticalReal") >= 0
+      || visibleIds.indexOf("nikkeiTheoreticalUsd") >= 0;
+    state.seriesPreset = name;
+    return true;
+  }
+
+  function seriesPresetLabel(name) {
+    return {
+      pair: "日米実質2系列",
+      us3: "米国3系列",
+      jp3: "日本3系列",
+      all6: "全6系列",
+      custom: "個別調整",
+    }[name] || "個別調整";
+  }
+
   function decimalYear(value) {
     var parts = String(value).slice(0, 10).split("-").map(Number);
     if (!parts[0] || !parts[1]) return null;
@@ -90,6 +122,18 @@
     if (["all", "30", "20", "10", "5", "future", "custom"].indexOf(range) >= 0) state.range = range;
     var normalization = params.get("comparisonNormalization");
     if (["fixed", "visible"].indexOf(normalization) >= 0) state.normalization = normalization;
+    var seriesPreset = params.get("comparisonSeries");
+    var hasLegacySeriesState = params.has("showSp500Nominal") || params.has("hideSp500Nominal") || params.has("showTheoreticalValue");
+    if (SERIES_PRESETS[seriesPreset]) {
+      applySeriesPresetVisibility(seriesPreset);
+      state.seriesPresetUserSelected = true;
+    } else if (hasLegacySeriesState) {
+      state.seriesPreset = "custom";
+      state.seriesPresetUserSelected = true;
+    } else {
+      applySeriesPresetVisibility(compactChartMode() ? "pair" : "all6");
+      state.seriesPresetUserSelected = false;
+    }
     if (params.get("comparisonStart") && byId("gcCustomStart")) byId("gcCustomStart").value = params.get("comparisonStart");
     if (params.get("comparisonEnd") && byId("gcCustomEnd")) byId("gcCustomEnd").value = params.get("comparisonEnd");
   }
@@ -97,12 +141,19 @@
   function writeUrlState() {
     var url = new URL(window.location.href);
     url.searchParams.delete("hideSp500Nominal");
-    if (state.showSp500Nominal) url.searchParams.set("showSp500Nominal", "true");
-    else url.searchParams.delete("showSp500Nominal");
-    if (state.showTheoreticalValueSeries) url.searchParams.delete("showTheoreticalValue");
-    else url.searchParams.set("showTheoreticalValue", "false");
+    if (state.seriesPresetUserSelected) {
+      if (state.showSp500Nominal) url.searchParams.set("showSp500Nominal", "true");
+      else url.searchParams.delete("showSp500Nominal");
+      if (state.showTheoreticalValueSeries) url.searchParams.delete("showTheoreticalValue");
+      else url.searchParams.set("showTheoreticalValue", "false");
+    } else {
+      url.searchParams.delete("showSp500Nominal");
+      url.searchParams.delete("showTheoreticalValue");
+    }
     if (state.showCrises) url.searchParams.delete("showComparisonCrises");
     else url.searchParams.set("showComparisonCrises", "false");
+    if (state.seriesPresetUserSelected && SERIES_PRESETS[state.seriesPreset]) url.searchParams.set("comparisonSeries", state.seriesPreset);
+    else url.searchParams.delete("comparisonSeries");
     if (state.range === "all") url.searchParams.delete("comparisonRange");
     else url.searchParams.set("comparisonRange", state.range);
     if (state.normalization === "fixed") url.searchParams.delete("comparisonNormalization");
@@ -696,6 +747,10 @@
               var chart = legend.chart;
               var dataset = chart.data.datasets[item.datasetIndex];
               state.legendVisible[dataset.id] = !chart.isDatasetVisible(item.datasetIndex);
+              state.seriesPreset = "custom";
+              state.seriesPresetUserSelected = true;
+              updateControls();
+              writeUrlState();
               renderChart();
             },
           },
@@ -859,6 +914,12 @@
   }
 
   function updateControls() {
+    document.querySelectorAll("[data-gc-series-preset]").forEach(function (button) {
+      var active = button.dataset.gcSeriesPreset === state.seriesPreset;
+      button.classList.toggle("active", active);
+      button.setAttribute("aria-pressed", String(active));
+    });
+    if (byId("gcSeriesPresetStatus")) byId("gcSeriesPresetStatus").textContent = seriesPresetLabel(state.seriesPreset) + "を表示";
     document.querySelectorAll("[data-gc-range]").forEach(function (button) {
       var active = button.dataset.gcRange === state.range;
       button.classList.toggle("active", active);
@@ -1013,6 +1074,15 @@
   }
 
   function bindEvents() {
+    document.querySelectorAll("[data-gc-series-preset]").forEach(function (button) {
+      button.addEventListener("click", function () {
+        if (!applySeriesPresetVisibility(button.dataset.gcSeriesPreset)) return;
+        state.seriesPresetUserSelected = true;
+        updateControls();
+        writeUrlState();
+        renderChart();
+      });
+    });
     document.querySelectorAll("[data-gc-range]").forEach(function (button) {
       button.addEventListener("click", function () {
         state.range = button.dataset.gcRange;
@@ -1038,12 +1108,21 @@
     });
     byId("gcToggleSpNominal").addEventListener("click", function () {
       state.showSp500Nominal = !state.showSp500Nominal;
+      if (state.showSp500Nominal) state.legendVisible.sp500Nominal = true;
+      state.seriesPreset = "custom";
+      state.seriesPresetUserSelected = true;
       updateControls();
       writeUrlState();
       renderChart();
     });
     byId("gcToggleTheoretical").addEventListener("click", function () {
       state.showTheoreticalValueSeries = !state.showTheoreticalValueSeries;
+      if (state.showTheoreticalValueSeries) {
+        state.legendVisible.sp500TheoreticalReal = true;
+        state.legendVisible.nikkeiTheoreticalUsd = true;
+      }
+      state.seriesPreset = "custom";
+      state.seriesPresetUserSelected = true;
       updateControls();
       writeUrlState();
       renderChart();
@@ -1057,10 +1136,24 @@
     byId("gcExportPng").addEventListener("click", exportPng);
     byId("gcExportSvg").addEventListener("click", exportSvg);
     byId("gcExportCsv").addEventListener("click", exportCsv);
-    window.addEventListener("resize", function () {
+    function scheduleChartRedraw() {
       window.clearTimeout(state.resizeTimer);
       state.resizeTimer = window.setTimeout(renderChart, 180);
-    });
+    }
+    var compactMedia = window.matchMedia ? window.matchMedia("(max-width: 699px)") : null;
+    function handleCompactModeChange(event) {
+      if (!state.seriesPresetUserSelected) {
+        applySeriesPresetVisibility(event.matches ? "pair" : "all6");
+        updateControls();
+      }
+      scheduleChartRedraw();
+    }
+    if (compactMedia) {
+      if (typeof compactMedia.addEventListener === "function") compactMedia.addEventListener("change", handleCompactModeChange);
+      else if (typeof compactMedia.addListener === "function") compactMedia.addListener(handleCompactModeChange);
+    }
+    window.addEventListener("resize", scheduleChartRedraw);
+    window.addEventListener("orientationchange", scheduleChartRedraw);
     window.addEventListener("monitor:data-updated", function () { loadComparison(true); });
   }
 
