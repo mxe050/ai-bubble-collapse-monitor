@@ -7,6 +7,7 @@ import json
 import subprocess
 import sys
 import threading
+from concurrent.futures import ThreadPoolExecutor
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import urlparse
@@ -42,31 +43,45 @@ class MonitorHandler(SimpleHTTPRequestHandler):
             self.send_json(409, {"ok": False, "error": "更新処理はすでに実行中です。"})
             return
         try:
-            update = subprocess.run(
-                [sys.executable, str(ROOT / "scripts" / "update_data.py")],
-                cwd=ROOT,
-                capture_output=True,
-                text=True,
-                timeout=900,
-            )
-            if update.returncode:
-                self.send_json(500, {"ok": False, "error": "データ更新に失敗しました。", "detail": update.stderr[-1600:]})
+            def run_script(name: str, timeout: int) -> subprocess.CompletedProcess[str]:
+                return subprocess.run(
+                    [sys.executable, str(ROOT / "scripts" / name)],
+                    cwd=ROOT,
+                    capture_output=True,
+                    text=True,
+                    timeout=timeout,
+                )
+
+            with ThreadPoolExecutor(max_workers=2) as executor:
+                update_futures = {
+                    "全体データ": executor.submit(run_script, "update_data.py", 900),
+                    "速報・先物": executor.submit(run_script, "live_intelligence.py", 180),
+                }
+                updates = {label: future.result() for label, future in update_futures.items()}
+            failed_updates = [(label, result) for label, result in updates.items() if result.returncode]
+            if failed_updates:
+                label, result = failed_updates[0]
+                self.send_json(500, {"ok": False, "error": label + "の更新に失敗しました。", "detail": result.stderr[-1600:]})
                 return
-            validation = subprocess.run(
-                [sys.executable, str(ROOT / "scripts" / "validate_data.py")],
-                cwd=ROOT,
-                capture_output=True,
-                text=True,
-                timeout=180,
-            )
-            if validation.returncode:
-                self.send_json(500, {"ok": False, "error": "更新後の検証に失敗しました。", "detail": validation.stderr[-1600:]})
+            with ThreadPoolExecutor(max_workers=2) as executor:
+                validation_futures = {
+                    "全体データ": executor.submit(run_script, "validate_data.py", 180),
+                    "速報・先物": executor.submit(run_script, "validate_live_data.py", 180),
+                }
+                validations = {label: future.result() for label, future in validation_futures.items()}
+            failed_validations = [(label, result) for label, result in validations.items() if result.returncode]
+            if failed_validations:
+                label, result = failed_validations[0]
+                self.send_json(500, {"ok": False, "error": label + "の更新後検証に失敗しました。", "detail": (result.stderr or result.stdout)[-1600:]})
                 return
             payload = json.loads((ROOT / "data" / "latest.json").read_text(encoding="utf-8"))
+            live = json.loads((ROOT / "data" / "live-intelligence.json").read_text(encoding="utf-8"))
             self.send_json(200, {
                 "ok": True,
                 "marketDate": payload.get("marketDate"),
                 "generatedAtJst": payload.get("generatedAtJst"),
+                "liveGeneratedAtJst": live.get("generatedAtJst"),
+                "interventionStatus": (live.get("marketShock") or {}).get("interventionStatus"),
                 "warnings": (payload.get("dataQuality") or {}).get("failedRequests", 0),
             })
         except subprocess.TimeoutExpired:

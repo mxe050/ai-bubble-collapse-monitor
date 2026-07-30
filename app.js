@@ -22,6 +22,7 @@
     snapshotComparisonEntry: null,
     globalComparison: null,
     marketSummary: null,
+    liveIntelligence: null,
     moneyStrategistIpoDate: "",
     valuations: [],
     companyFilter: "all",
@@ -170,6 +171,87 @@
     if (!value) return "";
     var parts = String(value).split("-");
     return parts.length === 3 ? Number(parts[1]) + "/" + Number(parts[2]) : String(value);
+  }
+
+  function safeHttpsUrl(value) {
+    if (!value) return "";
+    try {
+      var parsed = new URL(String(value), window.location.href);
+      return parsed.protocol === "https:" ? parsed.href : "";
+    } catch (_error) {
+      return "";
+    }
+  }
+
+  function liveSourceLink(url, label, className) {
+    var safeUrl = safeHttpsUrl(url);
+    var classes = [className || "", safeUrl ? "" : "live-source-unavailable"].filter(Boolean).join(" ");
+    var classAttribute = classes ? " class=\"" + escapeHtml(classes) + "\"" : "";
+    if (!safeUrl) {
+      return "<span" + classAttribute + " aria-disabled=\"true\">" + escapeHtml(label) + "（リンク未確認）</span>";
+    }
+    return "<a" + classAttribute + " href=\"" + escapeHtml(safeUrl)
+      + "\" target=\"_blank\" rel=\"noopener noreferrer\">" + escapeHtml(label) + "</a>";
+  }
+
+  function formatLiveTime(value, prefix) {
+    if (!value) return (prefix || "") + "時刻未確認";
+    var parsed = new Date(value);
+    if (Number.isNaN(parsed.valueOf())) return (prefix || "") + "時刻未確認";
+    return (prefix || "") + new Intl.DateTimeFormat("ja-JP", {
+      month: "numeric",
+      day: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+      timeZone: "Asia/Tokyo",
+    }).format(parsed);
+  }
+
+  function formatLiveValue(key, quote) {
+    var value = finite(quote && quote.value);
+    if (value === null) return "未確認";
+    if (key === "USDJPY") return numberThree.format(value) + "円";
+    if (key === "US10Y") return numberTwo.format(value) + "%";
+    if (key === "VIX") return numberTwo.format(value);
+    if ((quote && quote.currency) === "JPY" || key.indexOf("NIKKEI") === 0) return nikkeiFormat.format(value);
+    return numberTwo.format(value);
+  }
+
+  function formatLiveChange(key, quote) {
+    if (key === "US10Y") {
+      var changePoints = finite(quote && quote.changePoints);
+      if (changePoints === null) return "\u672a\u78ba\u8a8d";
+      var basisPoints = changePoints * 100;
+      return (basisPoints > 0 ? "+" : "") + numberOne.format(basisPoints) + "bp";
+    }
+    return formatPercent(finite(quote && quote.changePct), true);
+  }
+
+  function premarketDirection(key, change) {
+    if (change === null || Math.abs(change) < 0.05) {
+      return { tone: "neutral", marker: "→" };
+    }
+    var contextOnly = key === "USDJPY" || key === "US10Y" || key === "US2Y" || key === "VIX";
+    return {
+      tone: contextOnly ? "context" : change > 0 ? "up" : "down",
+      marker: change > 0 ? "↑" : "↓",
+    };
+  }
+
+  function liveSparkline(points, stateClass) {
+    var usable = (points || []).map(function (point) { return finite(point.value); }).filter(function (value) { return value !== null; });
+    if (usable.length < 2) return "";
+    var min = Math.min.apply(null, usable);
+    var max = Math.max.apply(null, usable);
+    var span = max - min || 1;
+    var coords = usable.map(function (value, index) {
+      var x = usable.length === 1 ? 0 : index / (usable.length - 1) * 160;
+      var y = 38 - (value - min) / span * 32;
+      return x.toFixed(1) + "," + y.toFixed(1);
+    }).join(" ");
+    return "<svg class=\"live-sparkline " + escapeHtml(stateClass || "neutral")
+      + "\" viewBox=\"0 0 160 42\" preserveAspectRatio=\"none\" aria-hidden=\"true\" focusable=\"false\">"
+      + "<polyline points=\"" + coords + "\"></polyline></svg>";
   }
 
   function format2026HighCell(company) {
@@ -703,6 +785,23 @@
     var kioxiaText = finite(calm.referencePriceJpy) === null
       ? "直近2決算による冷静な評価基準は未確認です。"
       : "キオクシアは最新終値" + formatPrice(kioxia.close, "JPY") + "に対し、直近2決算だけを使う中心値は" + formatPrice(calm.referencePriceJpy, "JPY") + "、感度幅は" + formatPrice(calm.sensitivityLowPriceJpy, "JPY") + "～" + formatPrice(calm.sensitivityHighPriceJpy, "JPY") + "です。売買目標ではありません。";
+    var livePackage = state.liveIntelligence || {};
+    var livePremarket = livePackage.premarket || {};
+    var liveQuotes = livePremarket.quotes || {};
+    var livePrimaryKey = livePremarket.primaryNikkeiFutureKey;
+    var livePrimary = livePrimaryKey ? (liveQuotes[livePrimaryKey] || {}) : {};
+    var liveShock = livePackage.marketShock || {};
+    var premarketText = livePrimaryKey
+      ? (livePrimary.shortLabel || "日経先物") + "は" + formatLiveValue(livePrimaryKey, livePrimary)
+        + "、現物終値との差は" + formatPercent(finite(livePremarket.nikkeiFutureCashGapPct), true)
+        + "。米国4指数先物の単純平均は" + formatPercent(finite(livePremarket.usFuturesAverageChangePct), true)
+        + "、USD/JPYは" + (finite(liveShock.current) === null ? "未確認" : numberThree.format(liveShock.current) + "円")
+        + "です。"
+        + (liveShock.severity === "critical" || liveShock.severity === "warning"
+          ? "為替急変を検知していますが、介入確認状態は「" + (liveShock.interventionLabel || "確認中") + "」です。"
+          : "")
+        + "先物差を予想始値や売買指示とは扱いません。"
+      : "日経先物・米国先物・ドル円・米金利・VIXの速報を取得できませんでした。各カードの時刻を確認してください。";
     var items = [
       { label: "総合判定", text: bubble.name + "。" + gates.collapseName + "。高評価と崩壊確認は別々に判定しています。" },
       { label: "米国市場全体", text: spRiskText },
@@ -714,6 +813,7 @@
       { label: "集中相場の揺り戻し", text: "NT倍率は直近ピークから" + formatPercent((sakakibara.ntRatio || {}).declineFromPeakPct, false) + "低下し、確認条件は" + (sakakibara.confirmationCount || 0) + "/" + (sakakibara.confirmationMax || 4) + "。現在の経路判定は「" + (marketPath.label || "未判定") + "」です。" },
       { label: "市場価格と実体価値", text: fairText },
       { label: "個別例・キオクシア", text: kioxiaText },
+      { label: "朝方・先物", text: premarketText },
     ];
     list.innerHTML = items.map(function (item) {
       return "<li><strong>" + escapeHtml(item.label) + "</strong><span>" + escapeHtml(item.text) + "</span></li>";
@@ -3343,6 +3443,270 @@
       + "・C " + gateText(gates.C);
   }
 
+  function renderPremarketBriefing() {
+    var root = byId("premarketBriefing");
+    var lead = byId("premarketLead");
+    var cardsNode = byId("premarketCards");
+    if (!root || !lead || !cardsNode) return;
+    var live = state.liveIntelligence || {};
+    var premarket = live.premarket || {};
+    var quotes = premarket.quotes || {};
+    var keys = Object.keys(quotes);
+    if (!keys.length) {
+      root.dataset.state = "missing";
+      lead.innerHTML = "<strong>先物・時間外情報を取得できませんでした。</strong><p>公開スナップショットの更新時刻と取得元を確認してください。</p>";
+      cardsNode.innerHTML = "<p class=\"briefing-empty\">日経先物、米国株先物、ドル円、米金利、VIXは現在未確認です。</p>";
+      if (byId("premarketCheckedAt")) byId("premarketCheckedAt").textContent = "確認時刻なし";
+      if (byId("premarketMarketState")) byId("premarketMarketState").textContent = "取得不能";
+      return;
+    }
+
+    root.dataset.state = "ready";
+    if (byId("premarketCheckedAt")) byId("premarketCheckedAt").textContent = formatLiveTime(premarket.checkedAtUtc, "");
+    if (byId("premarketMarketState")) byId("premarketMarketState").textContent = premarket.marketStateLabel || "更新状態未確認";
+    var primaryKey = premarket.primaryNikkeiFutureKey;
+    var primary = primaryKey ? (quotes[primaryKey] || {}) : {};
+    var gapPct = finite(premarket.nikkeiFutureCashGapPct);
+    var gapPoints = finite(premarket.nikkeiFutureCashGapPoints);
+    var cues = (premarket.strategyCues || []).slice(0, 4);
+    lead.innerHTML = "<span class=\"label\">東証休場中の中心情報</span>"
+      + "<strong>" + escapeHtml(primary.shortLabel || "日経先物") + " "
+      + escapeHtml(primaryKey ? formatLiveValue(primaryKey, primary) : "未確認") + "</strong>"
+      + "<p>現物終値比 " + escapeHtml(formatPercent(gapPct, true))
+      + (gapPoints === null ? "" : "（" + escapeHtml(nikkeiFormat.format(gapPoints)) + "ポイント）")
+      + "。米国4指数先物の平均 " + escapeHtml(formatPercent(finite(premarket.usFuturesAverageChangePct), true))
+      + "。先物差は予想始値ではありません。</p>"
+      + (cues.length ? "<ul class=\"premarket-cue-list\">" + cues.map(function (cue) {
+        return "<li data-state=\"" + escapeHtml(cue.state || "neutral") + "\"><strong>"
+          + escapeHtml(cue.title || "") + "</strong><span>" + escapeHtml(cue.text || "") + "</span></li>";
+      }).join("") + "</ul>" : "");
+
+    var order = [
+      "NIKKEI_FUTURES_YEN",
+      "NIKKEI_FUTURES_USD",
+      "SP500_FUTURES",
+      "NASDAQ100_FUTURES",
+      "DOW_FUTURES",
+      "RUSSELL2000_FUTURES",
+      "USDJPY",
+      "US10Y",
+      "VIX",
+    ];
+    cardsNode.innerHTML = order.filter(function (key) { return quotes[key]; }).map(function (key) {
+      var quote = quotes[key] || {};
+      var change = finite(quote.changePct);
+      var direction = premarketDirection(key, change);
+      var stateLabel = quote.marketState === "updating" ? "取引・更新中" : "休場または遅延";
+      return "<article class=\"premarket-card\" data-key=\"" + escapeHtml(key) + "\">"
+        + "<span>" + escapeHtml(quote.group === "japan" ? "日本株先物" : quote.group === "us" ? "米国株先物" : quote.group === "fx" ? "為替" : quote.group === "rates" ? "米国金利" : "市場心理") + "</span>"
+        + "<h4>" + escapeHtml(quote.label || key) + "</h4>"
+        + "<strong class=\"premarket-card-value\">" + escapeHtml(formatLiveValue(key, quote)) + "</strong>"
+        + "<span class=\"premarket-card-change " + direction.tone + "\">前日比 " + direction.marker + " "
+        + escapeHtml(formatLiveChange(key, quote)) + "</span>"
+        + liveSparkline(quote.sparkline, direction.tone)
+        + "<small class=\"premarket-card-meta\">" + escapeHtml(stateLabel) + " / "
+        + escapeHtml(formatLiveTime(quote.quoteTimeUtc, "値 ")) + "</small>"
+        + liveSourceLink(quote.sourceUrl, "価格取得元を確認", "premarket-source-link")
+        + "</article>";
+    }).join("");
+    if (byId("premarketCaution")) byId("premarketCaution").textContent = premarket.caution || premarket.summary || "";
+  }
+
+  function verificationLabel(value) {
+    var labels = {
+      primary: "一次資料",
+      "primary-statement": "本人・公式発言",
+      "archived-statement": "第三者アーカイブ",
+      reported: "報道",
+      "reported-unconfirmed": "主要報道・公式未確認",
+      "public-indexed": "公開索引",
+      unverified: "未確認",
+    };
+    return labels[value] || value || "確認状態不明";
+  }
+
+  function briefingFilterMatches(topic, sourceKind, filter) {
+    if (!filter || filter === "all") return true;
+    if (filter === "us") return topic === "us-stocks" || sourceKind === "official-us";
+    if (filter === "jp") return topic === "japan-stocks" || sourceKind === "official-japan";
+    if (filter === "ai") return topic === "ai-bubble";
+    return topic === filter;
+  }
+
+  function briefingCardMarkup(item) {
+    var topic = item.topicKey || "policy";
+    var sourceKind = item.sourceKind || "other";
+    var verification = item.verification || "unverified";
+    var verificationState = verification === "primary" || verification === "primary-statement"
+      ? "confirmed"
+      : verification === "unverified" || verification === "public-indexed" ? "unverified" : "reported";
+    var stanceLabels = { bullish: "強気", bearish: "弱気", mixed: "強弱混在", neutral: "中立・方向なし" };
+    var talk = finite(item.talkScore);
+    var summary = item.summary || "要約は取得できませんでした。原文を開いて確認してください。";
+    return "<article class=\"briefing-card\" data-briefing-card=\"true\" data-topic=\"" + escapeHtml(topic)
+      + "\" data-source-kind=\"" + escapeHtml(sourceKind) + "\" data-verification=\"" + escapeHtml(verificationState) + "\">"
+      + "<div class=\"briefing-card-head\"><span class=\"briefing-topic-badge\">" + escapeHtml(item.topic || topic) + "</span>"
+      + "<span class=\"briefing-source-badge\">" + escapeHtml(item.source || "情報源不明") + "</span>"
+      + "<time datetime=\"" + escapeHtml(item.publishedAtUtc || "") + "\">" + escapeHtml(formatLiveTime(item.publishedAtUtc, "公表 ")) + "</time></div>"
+      + "<h4>" + escapeHtml(item.title || "見出し未取得") + "</h4>"
+      + "<p>" + escapeHtml(summary) + "</p>"
+      + "<div class=\"briefing-card-meta\"><span>" + escapeHtml(verificationLabel(verification)) + "</span>"
+      + "<span>方向 " + escapeHtml(stanceLabels[item.stance] || "未分類") + "</span>"
+      + "<span>取得範囲の話題度 " + escapeHtml(talk === null ? "未算出" : nikkeiFormat.format(talk) + "/100") + "</span>"
+      + "<span>" + escapeHtml(formatLiveTime(item.retrievedAtUtc, "取得 ")) + "</span></div>"
+      + "<details class=\"briefing-card-details\"><summary>根拠・制約と原文を見る</summary>"
+      + "<p>" + escapeHtml(item.identityNote || "掲載元、時刻、本文をリンク先で確認してください。") + "</p>"
+      + "<div class=\"briefing-source-links\">" + liveSourceLink(item.url, "原文・詳細を直接開く", "briefing-original-link") + "</div>"
+      + "</details></article>";
+  }
+
+  function currentBriefingFilter() {
+    var selected = document.querySelector("input[name='briefing-topic']:checked");
+    return selected ? selected.value : "all";
+  }
+
+  function briefingItemsForFilter(filter) {
+    var live = state.liveIntelligence || {};
+    var briefing = live.briefing || {};
+    return (briefing.items || []).filter(function (item) {
+      return briefingFilterMatches(item.topicKey || "policy", item.sourceKind || "other", filter);
+    });
+  }
+
+  function briefingMoreDetails() {
+    return typeof document.querySelector === "function" ? document.querySelector(".briefing-more") : null;
+  }
+
+  function updateBriefingVisibleState(filter, matchingCount) {
+    var details = briefingMoreDetails();
+    var primaryCount = Math.min(matchingCount, 4);
+    var visibleCount = primaryCount + (details && details.open ? Math.max(0, matchingCount - 4) : 0);
+    if (byId("briefingVisibleCount")) byId("briefingVisibleCount").textContent = nikkeiFormat.format(visibleCount);
+    if (byId("briefingFilterStatus")) {
+      var labels = { all: "すべて", us: "米国株", jp: "日本株", ai: "AIバブル", "fx-rates": "為替・金利" };
+      var remainder = Math.max(0, matchingCount - visibleCount);
+      byId("briefingFilterStatus").textContent = (labels[filter] || "すべて") + "：全" + matchingCount
+        + "件中" + visibleCount + "件を表示しています。"
+        + (remainder ? "残り" + remainder + "件は『続報・追加材料』にあります。" : "");
+    }
+  }
+
+  function applyBriefingFilter(filter) {
+    var cardsNode = byId("briefingPrimaryCards");
+    var moreNode = byId("briefingMoreCards");
+    if (!cardsNode || !moreNode) return;
+    var matchingItems = briefingItemsForFilter(filter);
+    cardsNode.innerHTML = matchingItems.slice(0, 4).map(briefingCardMarkup).join("")
+      || "<p class=\"briefing-empty\">このトピックの主要速報はありません。</p>";
+    moreNode.innerHTML = matchingItems.slice(4).map(briefingCardMarkup).join("")
+      || "<p class=\"briefing-empty\">追加情報はありません。</p>";
+    var details = briefingMoreDetails();
+    if (details) {
+      details.open = false;
+      details.hidden = matchingItems.length <= 4;
+    }
+    updateBriefingVisibleState(filter, matchingItems.length);
+  }
+
+  function renderLiveBriefing() {
+    var root = byId("live-briefing");
+    var cardsNode = byId("briefingPrimaryCards");
+    var moreNode = byId("briefingMoreCards");
+    if (!root || !cardsNode || !moreNode) return;
+    var live = state.liveIntelligence || {};
+    var briefing = live.briefing || {};
+    var health = live.dataHealth || {};
+    var items = briefing.items || [];
+    var channels = Array.isArray(briefing.channels) ? briefing.channels : [];
+    var hasLiveSnapshot = Boolean(state.liveIntelligence
+      && (live.generatedAtUtc || briefing.checkedAtUtc || items.length || channels.length));
+    root.dataset.state = hasLiveSnapshot ? "ready" : "missing";
+    if (byId("briefingCheckedAt")) byId("briefingCheckedAt").textContent = hasLiveSnapshot
+      ? formatLiveTime(briefing.checkedAtUtc || live.generatedAtUtc, "") : "確認時刻なし";
+    if (byId("briefingCoverage")) {
+      var successfulChannels = channels.filter(function (channel) { return channel.status === "ok"; }).length;
+      var limitedChannels = channels.filter(function (channel) { return channel.status === "limited" || channel.status === "not-configured"; }).length;
+      byId("briefingCoverage").textContent = hasLiveSnapshot
+        ? successfulChannels + "取得済み・" + limitedChannels + "限定 / 全" + channels.length + "経路・" + items.length + "件"
+        : "取得不能・0件";
+    }
+
+    var xApi = (live.sourceStatus || []).find(function (source) { return source.kind === "x-api"; });
+    var generated = live.generatedAtUtc ? new Date(live.generatedAtUtc) : null;
+    var ageMinutes = generated && !Number.isNaN(generated.valueOf()) ? (Date.now() - generated.valueOf()) / 60000 : null;
+    var warnings = [];
+    if (!hasLiveSnapshot) warnings.push("速報スナップショットを取得できませんでした。前回値ではなく未確認として表示します。");
+    if (health.status && health.status !== "ok") warnings.push(health.message || "一部取得経路が限定または失敗しています。");
+    if (xApi && xApi.status === "not-configured") warnings.push("X APIは未接続です。公開ウェブ索引とXの直接検索リンクを表示し、欠測を中立・弱気とは扱いません。");
+    if (ageMinutes !== null && ageMinutes > 35) warnings.push("スナップショットは" + Math.round(ageMinutes) + "分前です。カードの取得時刻を確認してください。");
+    if (byId("briefingWarning")) {
+      byId("briefingWarning").textContent = warnings.join(" ") || "主要経路を取得済みです。SNSの反応数は事実確認度や相場方向を意味しません。";
+    }
+
+    if (byId("briefingChannelStatus")) {
+      byId("briefingChannelStatus").innerHTML = channels.map(function (channel) {
+        var stateClass = channel.status === "ok" ? "is-ok" : channel.status === "limited" || channel.status === "not-configured" ? "is-limited" : "is-error";
+        var directUrl = safeHttpsUrl(channel.directUrl);
+        var content = "<b>" + escapeHtml(channel.label || channel.key) + "</b><small>"
+          + escapeHtml(channel.statusLabel || channel.status || "不明") + "</small>";
+        return directUrl
+          ? "<a class=\"briefing-channel " + stateClass + "\" href=\"" + escapeHtml(directUrl)
+            + "\" target=\"_blank\" rel=\"noopener noreferrer\" title=\"" + escapeHtml(channel.limitation || "") + "\">" + content + "</a>"
+          : "<span class=\"briefing-channel " + stateClass + " live-source-unavailable\" aria-disabled=\"true\" title=\""
+            + escapeHtml(channel.limitation || "") + "\">" + content + "</span>";
+      }).join("") || "<span class=\"briefing-channel is-error\"><b>取得経路</b><small>未確認</small></span>";
+    }
+
+    var shock = live.marketShock || {};
+    var lead = briefing.lead || {};
+    if (byId("briefingLead")) {
+      if (!hasLiveSnapshot || (!shock.instrument && finite(shock.current) === null)) {
+        byId("briefingLead").innerHTML = "<article class=\"briefing-lead-card\" data-topic=\"fx-rates\" data-verification=\"unverified\">"
+          + "<div class=\"briefing-card-head\"><span class=\"briefing-priority-badge\">未確認</span>"
+          + "<span class=\"briefing-topic-badge\">為替・金利</span><time>時刻未確認</time></div>"
+          + "<div class=\"briefing-lead-body\"><div><p class=\"briefing-eyebrow\">USD/JPY 急変監視</p>"
+          + "<h4>ドル円の急変情報を取得できませんでした。</h4><p>価格、報道、財務省の確認状況を未確認として扱います。</p></div>"
+          + "<dl class=\"briefing-lead-facts\"><div><dt>介入ステータス</dt><dd>未確認</dd></div>"
+          + "<div><dt>現在値 / 前日比</dt><dd>未確認</dd></div><div><dt>確認レンジ</dt><dd>未確認</dd></div>"
+          + "<div><dt>関連報道候補 / 取得範囲の話題度</dt><dd>未確認</dd></div></dl></div></article>";
+      } else {
+        var reportedCount = finite(shock.reportedEvidenceCount);
+        var leadTalkScore = finite(lead.talkScore);
+        byId("briefingLead").innerHTML = "<article class=\"briefing-lead-card\" data-topic=\"fx-rates\" data-verification=\""
+          + escapeHtml(shock.officiallyConfirmed ? "confirmed" : "unverified") + "\">"
+          + "<div class=\"briefing-card-head\"><span class=\"briefing-priority-badge\">" + escapeHtml(shock.severityLabel || "急変監視") + "</span>"
+          + "<span class=\"briefing-topic-badge\">為替・金利</span><time datetime=\"" + escapeHtml(shock.observedAtUtc || "") + "\">"
+          + escapeHtml(formatLiveTime(shock.observedAtUtc, "値 ")) + "</time></div>"
+          + "<div class=\"briefing-lead-body\"><div><p class=\"briefing-eyebrow\">USD/JPY 急変監視</p><h4>"
+          + escapeHtml(shock.headline || "ドル円を確認中") + "</h4><p>" + escapeHtml(shock.summary || "") + "</p>"
+          + "<div class=\"briefing-source-links\">" + liveSourceLink(shock.priceSourceUrl, "価格チャート", "briefing-original-link")
+          + liveSourceLink(shock.officialVerificationUrl, "財務省の公式確認ページ", "briefing-original-link") + "</div></div>"
+          + "<dl class=\"briefing-lead-facts\"><div><dt>介入ステータス</dt><dd>" + escapeHtml(shock.interventionLabel || "判定保留") + "</dd></div>"
+          + "<div><dt>現在値 / 前日比</dt><dd>" + escapeHtml(finite(shock.current) === null ? "未確認" : numberThree.format(shock.current) + "円 / " + formatPercent(finite(shock.changePct), true)) + "</dd></div>"
+          + "<div><dt>確認レンジ</dt><dd>" + escapeHtml(finite(shock.sessionLow) === null || finite(shock.sessionHigh) === null ? "未確認" : numberThree.format(shock.sessionLow) + "～" + numberThree.format(shock.sessionHigh) + "円") + "</dd></div>"
+          + "<div><dt>関連報道候補 / 取得範囲の話題度</dt><dd>" + escapeHtml((reportedCount === null ? "未確認" : reportedCount + "件")
+            + " / " + (leadTalkScore === null ? "未確認" : leadTalkScore + "/100")) + "</dd></div></dl>"
+          + "</div></article>";
+      }
+    }
+
+    function balanceMarkup(rows, emptyText) {
+      return (rows || []).slice(0, 3).map(function (row) {
+        var rowUrl = safeHttpsUrl(row.url);
+        var rowTitle = "<strong>" + escapeHtml(row.title || "") + "</strong>";
+        var titleMarkup = rowUrl
+          ? "<a href=\"" + escapeHtml(rowUrl) + "\" target=\"_blank\" rel=\"noopener noreferrer\">" + rowTitle + "</a>"
+          : rowTitle + " <span class=\"live-source-unavailable\" aria-disabled=\"true\">\uFF08\u30EA\u30F3\u30AF\u672A\u78BA\u8A8D\uFF09</span>";
+        return "<li>" + titleMarkup + "<br><small>" + escapeHtml(row.source || "") + " / "
+          + escapeHtml(verificationLabel(row.verification)) + "</small></li>";
+      }).join("") || "<li>" + escapeHtml(emptyText) + "</li>";
+    }
+    if (byId("briefingBullList")) byId("briefingBullList").innerHTML = balanceMarkup(briefing.bullish, "取得範囲で強気材料を分類できませんでした。");
+    if (byId("briefingBearList")) byId("briefingBearList").innerHTML = balanceMarkup(briefing.bearish, "取得範囲で弱気材料を分類できませんでした。");
+
+    applyBriefingFilter(currentBriefingFilter());
+  }
+
   function renderAll() {
     state.valuations = state.data.companies.map(function (company) { return modelCompany(company); });
     var evidence = scoreEvidence();
@@ -3351,8 +3715,10 @@
     var transmission = assessJapanTransmission();
     renderMetadata();
     renderMarketSummary();
+    renderPremarketBriefing();
     renderTop(evidence, gates, bubble);
     renderDailySummary(evidence, gates, bubble, transmission);
+    renderLiveBriefing();
     renderSignals(evidence);
     renderGates(gates);
     renderJapanTransmission(transmission);
@@ -3408,7 +3774,7 @@
     var refreshWarning = "";
     try {
       if (showMessage) {
-        byId("dataHealth").textContent = "市場・企業・海外情報を更新中";
+        byId("dataHealth").textContent = "市場・先物・為替・海外情報を更新中";
         byId("refreshHint").textContent = "取得、再計算、検証を実行しています";
         try {
           var refreshResult = await requestFreshUpdate();
@@ -3433,6 +3799,9 @@
       var marketSummaryRequest = fetch("data/market-summary.json?ts=" + Date.now(), { cache: "no-store" })
         .then(function (summaryResponse) { return summaryResponse.ok ? summaryResponse.json() : null; })
         .catch(function () { return null; });
+      var liveIntelligenceRequest = fetch("data/live-intelligence.json?ts=" + Date.now(), { cache: "no-store" })
+        .then(function (liveResponse) { return liveResponse.ok ? liveResponse.json() : null; })
+        .catch(function () { return null; });
       var response = await fetch("data/latest.json?ts=" + Date.now(), { cache: "no-store" });
       if (!response.ok) throw new Error("HTTP " + response.status);
       var payload = await response.json();
@@ -3443,6 +3812,7 @@
       state.globalComparison = await globalComparisonRequest;
       state.snapshotHistoryIndex = await snapshotIndexRequest;
       state.marketSummary = await marketSummaryRequest;
+      state.liveIntelligence = await liveIntelligenceRequest;
       state.snapshotComparisonPayload = null;
       state.snapshotComparisonDays = null;
       state.snapshotComparisonEntry = null;
@@ -3451,7 +3821,7 @@
       if (showMessage && refreshMode === "live") {
         byId("refreshHint").textContent = "最新データへ更新しました";
       } else if (showMessage && refreshMode === "static") {
-        byId("refreshHint").textContent = "公開済みの最新データを再読込しました";
+        byId("refreshHint").textContent = "公開済みの最新スナップショット（先物・為替・海外情報を含む）を再読込しました";
       } else if (showMessage && refreshMode === "failed") {
         byId("dataHealth").className = "status-dot warn";
         byId("dataHealth").textContent = "更新失敗・前回値を表示";
@@ -3479,6 +3849,7 @@
     var sectionLabels = {
       "market-summary": "本日のマーケット",
       "beginner-guide": "本日のまとめ",
+      "live-briefing": "速報・介入・市場の話題",
       "today": "今日の判定",
       "purchasing-power": "購買力で比較",
       "decision-path": "価値・過熱の判断手順",
@@ -3525,6 +3896,18 @@
 
   function bindEvents() {
     byId("refreshButton").addEventListener("click", function () { loadData(true); });
+    document.querySelectorAll("input[name='briefing-topic']").forEach(function (radio) {
+      radio.addEventListener("change", function () {
+        if (this.checked) applyBriefingFilter(this.value || "all");
+      });
+    });
+    var briefingMore = briefingMoreDetails();
+    if (briefingMore) {
+      briefingMore.addEventListener("toggle", function () {
+        var filter = currentBriefingFilter();
+        updateBriefingVisibleState(filter, briefingItemsForFilter(filter).length);
+      });
+    }
     document.querySelectorAll(".snapshot-compare-button").forEach(function (button) {
       button.addEventListener("click", function () {
         loadSnapshotComparison(Number(this.dataset.compareDays));

@@ -216,9 +216,18 @@ SOXの35%下落は2021～22年NASDAQ総合の約36.4%下落を丸めた歴史的
 
 ## データ更新と自動監査
 
-`scripts/update_data.py` が市場・財務データを更新します。公開サイトはコミット済みのHTML・JavaScript・JSONをGitHub Pagesから配信します。GitHub Actionsは6時間ごとに原表取得と検証を読み取り専用で実行しますが、その実行中に生成したJSONはリポジトリへ自動保存しません。値を更新して公開版へ保持する場合は、ローカルサーバーの更新ボタンまたはこのスクリプトを実行し、検証済みJSONをコミットして公開します。静的画面の更新ボタンは現在のコミットに含まれるJSONをキャッシュを使わず再読込します。
+長期の市場・財務・企業データは `scripts/update_data.py`、東証休場中の先物・為替急変・海外速報は `scripts/live_intelligence.py` が更新します。6時間ごとの既存監査は長期データを読み取り専用で再取得・検証します。別のGitHub Pages workflowは原則15分ごとに軽量速報を再生成し、`scripts/validate_live_data.py` の検証後にPages artifactを配信します。生成JSONはリポジトリへ自動コミットしません。
+
+公開版の更新ボタンは最後に配信済みのスナップショットをキャッシュなしで再読込します。GitHub Actionsの開始遅延、取得元の休止・遅延・制限により15分を超えることがあります。ローカルサーバーの更新ボタンは長期データと速報を並列取得し、双方の検証に成功した場合だけ画面を更新します。
+
+速報は、CME日経225円建て・ドル建て先物、S&P 500・Nasdaq 100・Dow・Russell 2000先物、USD/JPY、米10年金利、VIXの5分足を監視します。ニュースはGoogle NewsとBing Newsを別経路で探索し、FRB、米財務省、ホワイトハウス、日銀、財務省の一次資料を優先します。X API、X公開索引、LinkedIn公開索引、Bluesky、Truth Socialも接続状態を個別表示し、未接続・取得失敗を中立材料や成功件数へ変換しません。
+
+ドル円の価格急変は介入の証拠ではありません。価格だけの急変、主要報道による未確認観測、当局の監視発言、財務省の一次確認、後日の公式実績を別状態として扱い、一次確認までは `officiallyConfirmed=false` を維持します。
 
 - Yahoo Finance公開チャート: 日経平均、SOX、NASDAQ、キオクシア、各社株価
+- Yahoo Finance公開5分足: CME日経225先物、米国4指数先物、USD/JPY、米10年金利、VIX
+- FRB・米財務省・ホワイトハウス・日銀・財務省: 政策、金利、為替介入の一次確認
+- Google News / Bing News / X / LinkedIn / Bluesky / Truth Social: 海外の論点探索。取得状態・確認階層・原文リンクを個別表示
 - Yahoo Finance公開チャート: 1928年以降のS&P 500日次終値と月末値
 - Robert Shiller/Yale: 1900～1927年の再構成月次株価系列と長期CAPE資料
 - Yahoo!ファイナンス日本版: TOPIX日次履歴
@@ -238,6 +247,8 @@ SOXの35%下落は2021～22年NASDAQ総合の約36.4%下落を丸めた歴史的
 
 `scripts/validate_data.py` が、スキーマ15、26社の構成、前年比の日付差、データカバレッジ、米国・日本バスケット、EV・FCF利回り・下落率の計算恒等式、全社DCF前提、トヨタ・ホンダの公式補正と基準DCF比率、日経公式参照値、資金循環モデルのNT倍率・四条件・適正値・EN-AI proxy、過去局面、ITバブル比較12系列の騰落率・最大下落率・群中央値・分類を検証します。PPIH独立ケースでは、東証プライム・22期連続増配・無配なしの根拠、ピーク・谷の順序、残存率、`直近終値 × 残存率` のストレス価格、取得日の鮮度、スコア不算入を再計算します。画面要素の対応とPPIH比較カードは `scripts/smoke_ui.js` でも確認します。マネーストラテジスト章は、長期系列JSON、1957年の系列境界、10局面の下落率、青線の計算値と描画終了日も照合します。
 
+`scripts/validate_live_data.py` は速報schema、UTC時刻、HTTPS原文、先物差、価格急変、介入状態と証拠、媒体接続、X未接続時の表示、話題度・強弱を独立検証します。価格だけで公式介入確認へ昇格できないこと、`reported-unconfirmed` に主要報道証拠が必要なことも回帰検査します。
+
 信用買い残章は、1959年開始、1997年と2010年2月の系列境界、FINRA最新値、GDPとの比率恒等式、前年比・前月比、2010年以降順位、8つの歴史的観測点、GDP基準日の先行禁止を追加検証します。
 
 詳しい修正点と残る限界は [FACT_CHECK.md](FACT_CHECK.md) を参照してください。
@@ -246,7 +257,9 @@ SOXの35%下落は2021～22年NASDAQ総合の約36.4%下落を丸めた歴史的
 
 ```powershell
 C:\Users\yuasa\.cache\codex-runtimes\codex-primary-runtime\dependencies\python\python.exe scripts\update_data.py
+C:\Users\yuasa\.cache\codex-runtimes\codex-primary-runtime\dependencies\python\python.exe scripts\live_intelligence.py
 C:\Users\yuasa\.cache\codex-runtimes\codex-primary-runtime\dependencies\python\python.exe scripts\validate_data.py
+C:\Users\yuasa\.cache\codex-runtimes\codex-primary-runtime\dependencies\python\python.exe scripts\validate_live_data.py
 node scripts\smoke_ui.js
 python -m http.server 8000
 ```
@@ -272,14 +285,14 @@ Mark Mossの動画「The Last 3 Crashes All Had An Exit. This One Doesn't.」か
 
 ## Method v4.4: 最新取得ボタンと米国株の崩壊進行度
 
-- ローカル閲覧は `scripts/local_server.py` で起動します。画面上部の「最新データを取得・再計算」は、S&P 500、SOX、VIX、米国HY OAS、NFCI、企業決算、Berkshire、海外英語情報を取得し、検証後に画面を更新します。
-- GitHub Pagesなどの静的ホストでは、ブラウザにAPI鍵を置かないため、ボタンは公開済みJSONの再読込へ自動的に切り替わります。
+- ローカル閲覧は `scripts/local_server.py` で起動します。画面上部の「最新データを取得・再計算」は、長期市場・企業データと、日経・米国先物、USD/JPY、金利、VIX、海外速報を並列取得し、双方の検証後に画面を更新します。
+- GitHub Pagesなどの静的ホストでは、ブラウザにAPI鍵を置かないため、ボタンは15分間隔を目標に配信された最新速報JSONの再読込へ自動的に切り替わります。
 - 米国株の「崩壊進行度」は暴落確率ではありません。S&Pの価格30点、半導体・AI市場幅20点、VIX・信用25点、企業の売上・FCF15点、NFCI10点を合成し、期待相場の崩れが市場全体へ広がった程度を示します。
 - Berkshireの純流動性は、現金・現金同等物＋米国短期国債－未決済の短期国債購入債務で再計算します。13Fは時価ではなく株数を前四半期と比較します。
 - Berkshireの長期文脈は、2022年10–12月期から2026年1–3月期までの14四半期連続純売却と、累計約1,948億ドルを10-Q・10-Kの株式購入額と売却額から確認します。最近のAI相場を見て突然始めた現金化とは扱いませんが、AIバブル崩壊予測とも断定せず、Finance Bureauの解釈を崩壊スコアへは加えません。
 - ページの最初に、日本・米国・EU・中国・オールカントリーの「株・為替・金利・政策／政治」を同じ順序で確認する本日のマーケットサマリーを表示します。株・為替、日本・米国・EUの金利は `data/latest.json`、中国LPRと政策・政治の確認文・一次資料リンクは `data/market-summary.json` から読み込み、基準日を分けて表示します。金利欄は年限・種類が異なるため、単純な水準比較には使いません。
 - 初心者向けの入口は「今日の結論→判断の順番→悪化箇所→計算根拠」の短い案内に絞り、詳しいページマップと用語集は折り畳みました。CAPE Ratioは実際のCAPE値の近く、CapExは企業業績・崩壊確認の近くで説明します。説明と配置だけの変更で、既存の計算式・配点・閾値には影響しません。
-- `X_BEARER_TOKEN` がローカル環境に設定されている場合だけX Recent Searchを取得します。トークンはHTMLやJSONへ保存しません。Xと海外報道は新しい材料を見つける入口で、決算、SEC、会社IRで確認後に判定へ反映します。
+- `X_BEARER_TOKEN` をローカル環境またはGitHub ActionsのRepository secretに設定した場合だけX Recent Search APIを利用します。未設定時はXの公開検索導線と検索エンジンの公開インデックスへ限定し、取得制約を画面に明記します。トークンはHTMLやJSONへ保存しません。X、LinkedIn、海外報道は新しい材料を見つける入口で、政府・中央銀行・決算・SEC・会社IRなどの一次資料で確認後に判定へ反映します。
 
 起動例：
 
@@ -343,7 +356,7 @@ Mark Mossの動画「The Last 3 Crashes All Had An Exit. This One Doesn't.」か
 
 上部の「最新データを取得・再計算」は、既存データと同時に `data/global-market-value-comparison.json` を再生成します。取得元の生データは2時間キャッシュし、ライブ取得失敗時には前回成功キャッシュへ戻します。日経PERは初回だけ2004年9月以降を取得し、その後は未取得月と直近2か月だけを再確認します。
 
-GitHubリポジトリとGitHub Pagesは公開されています。定期ワークフローは取得と検算を読み取り専用で行い、生成JSONを自動コミットしません。公開サイトはコミット済みデータを表示し、原表の再取得・再計算・保存はローカルサーバーから行います。
+GitHubリポジトリとGitHub Pagesは公開されています。6時間ごとの長期監査は読み取り専用で、生成JSONを自動コミットしません。15分間隔を目標とする速報workflowは、先物・為替・海外情報の検証済みJSONをPages artifactへ含めて配信します。長期データの保存更新は引き続きローカルサーバーで行います。
 
 ```powershell
 & "C:\Users\yuasa\.cache\codex-runtimes\codex-primary-runtime\dependencies\python\python.exe" scripts\global_comparison.py
