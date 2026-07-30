@@ -25,7 +25,8 @@ from typing import Any, Iterable
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_INPUT = ROOT / "data" / "live-intelligence.json"
 JST = timezone(timedelta(hours=9))
-BRIEFING_ITEM_LIMIT = 16
+BRIEFING_ITEM_LIMIT = 24
+LATEST_ITEM_RESERVE = 10
 
 TOPIC_LABELS = {
     "fx-rates": "為替・金利",
@@ -195,6 +196,21 @@ VERIFICATION_VALUES = {
     "archived-statement",
 }
 STANCE_VALUES = {"bullish", "bearish", "mixed", "neutral"}
+TRANSLATION_MODES = {
+    "source-japanese",
+    "editorial-summary",
+    "deepl",
+    "structured-gist",
+    "unavailable",
+}
+FRESHNESS_BUCKETS = {"breaking", "developing", "today", "context", "unknown"}
+TIMESTAMP_PRECISIONS = {"second", "minute", "date", "unknown"}
+DIRECTION_LABELS = {
+    "bullish": "強気",
+    "bearish": "弱気",
+    "mixed": "強弱混在",
+    "neutral": "方向なし",
+}
 CURATED_X_HANDLES = {
     "federalreserve",
     "ustreasury",
@@ -327,15 +343,39 @@ def require_https_url(value: Any, context: str, *, hosts: set[str] | None = None
 
 
 def normalize_url(value: str) -> str:
-    parsed = urllib.parse.urlparse(value)
-    query = urllib.parse.parse_qs(parsed.query)
-    for key in ("url", "u", "target"):
-        candidate = query.get(key, [None])[0]
-        if candidate and candidate.startswith(("http://", "https://")):
-            return urllib.parse.unquote(candidate)
-    return urllib.parse.urlunparse(
-        (parsed.scheme, parsed.netloc.lower(), parsed.path, "", "", "")
-    )
+    try:
+        parsed = urllib.parse.urlparse(value)
+        query = urllib.parse.parse_qs(parsed.query, keep_blank_values=True)
+        for key in ("url", "u", "target"):
+            candidate = query.get(key, [None])[0]
+            if candidate and candidate.startswith(("http://", "https://")):
+                return normalize_url(urllib.parse.unquote(candidate))
+        tracking_keys = {
+            "fbclid",
+            "gclid",
+            "mc_cid",
+            "mc_eid",
+            "ref",
+            "ref_src",
+            "source",
+        }
+        kept_pairs = [
+            (key, item)
+            for key, values in query.items()
+            if not key.casefold().startswith("utm_")
+            and key.casefold() not in tracking_keys
+            for item in values
+        ]
+        return urllib.parse.urlunparse((
+            parsed.scheme,
+            parsed.netloc.lower(),
+            parsed.path,
+            "",
+            urllib.parse.urlencode(sorted(kept_pairs), doseq=True),
+            "",
+        ))
+    except Exception:
+        return value
 
 
 def contains_term(text: str, term: str) -> bool:
@@ -369,6 +409,376 @@ def expected_stance(title: str, summary: str) -> str:
     if bear:
         return "bearish"
     return "neutral"
+
+
+def has_japanese(value: str) -> bool:
+    return re.search(r"[ぁ-んァ-ン一-龥々〆ヶ]", value or "") is not None
+
+
+def normalized_comparison_text(value: str) -> str:
+    return re.sub(r"[^a-z0-9一-龥ぁ-んァ-ン]+", "", (value or "").casefold())
+
+
+def expected_translation_source_hash(title: str, excerpt: str) -> str:
+    return hashlib.sha256((title + "\n" + excerpt).encode("utf-8")).hexdigest()
+
+
+def parse_nullable_utc_timestamp(value: Any, context: str) -> datetime | None:
+    if value is None:
+        return None
+    return parse_timestamp(value, context, expected_offset=timedelta(0))
+
+
+def validate_localized_fields(
+    item: dict[str, Any],
+    context: str,
+    generated: datetime,
+    published: datetime | None,
+    retrieved: datetime,
+    carried: bool,
+) -> None:
+    """Validate the additive bilingual/freshness contract while retaining legacy keys."""
+
+    original = require_dict(item["original"], f"{context}.original")
+    require_keys(original, {"language", "title", "excerpt"}, f"{context}.original")
+    language = require_string(original["language"], f"{context}.original.language")
+    require(language in {"ja", "en", "und"}, f"{context}.original.language is invalid")
+    original_title = require_string(original["title"], f"{context}.original.title")
+    original_excerpt = require_string(
+        original["excerpt"], f"{context}.original.excerpt", allow_empty=True
+    )
+    require(len(original_title) <= 1000, f"{context}.original.title is unexpectedly long")
+    require(len(original_excerpt) <= 280, f"{context}.original.excerpt exceeds 280 characters")
+    require(
+        original_title == item["title"],
+        f"{context}.original.title must preserve the legacy title exactly",
+    )
+    if original_excerpt:
+        require(
+            normalized_comparison_text(original_excerpt)
+            != normalized_comparison_text(original_title),
+            f"{context}.original.excerpt repeats the title",
+        )
+    if language == "ja":
+        require(has_japanese(original_title), f"{context} marks a non-Japanese title as ja")
+    if language == "en":
+        require(re.search(r"[A-Za-z]", original_title), f"{context} English title lacks Latin text")
+        require(
+            not has_japanese(original_excerpt),
+            f"{context}.original.excerpt contains a Japanese editorial summary",
+        )
+
+    japanese = require_dict(item["japanese"], f"{context}.japanese")
+    require_keys(
+        japanese,
+        {
+            "title",
+            "summary",
+            "mode",
+            "label",
+            "provider",
+            "generatedAtUtc",
+            "sourceHash",
+        },
+        f"{context}.japanese",
+    )
+    ja_title = require_string(japanese["title"], f"{context}.japanese.title")
+    ja_summary = require_string(
+        japanese["summary"], f"{context}.japanese.summary", allow_empty=True
+    )
+    mode = require_string(japanese["mode"], f"{context}.japanese.mode")
+    label = require_string(japanese["label"], f"{context}.japanese.label")
+    provider = japanese["provider"]
+    require(
+        provider is None or isinstance(provider, str),
+        f"{context}.japanese.provider must be a string or null",
+    )
+    require(mode in TRANSLATION_MODES, f"{context}.japanese.mode is invalid: {mode}")
+    generated_at = parse_timestamp(
+        japanese["generatedAtUtc"],
+        f"{context}.japanese.generatedAtUtc",
+        expected_offset=timedelta(0),
+    )
+    require(
+        generated_at <= generated + timedelta(minutes=2),
+        f"{context}.japanese.generatedAtUtc is after package generation",
+    )
+    source_hash = require_string(
+        japanese["sourceHash"], f"{context}.japanese.sourceHash"
+    )
+    require(
+        re.fullmatch(r"[0-9a-f]{64}", source_hash) is not None,
+        f"{context}.japanese.sourceHash is malformed",
+    )
+    require(
+        source_hash == expected_translation_source_hash(original_title, original_excerpt),
+        f"{context}.japanese.sourceHash does not match the original",
+    )
+
+    if mode == "source-japanese":
+        require(language == "ja", f"{context} source-japanese requires a Japanese original")
+        require(ja_title == original_title, f"{context} Japanese source title was altered")
+        require("原文" in label or "日本語" in label, f"{context} source label is unclear")
+    elif mode == "editorial-summary":
+        require(
+            has_japanese(ja_title + ja_summary),
+            f"{context} editorial-summary has no Japanese text",
+        )
+        require("編集" in label or "要旨" in label, f"{context} editorial label is unclear")
+    elif mode == "deepl":
+        require(language != "ja", f"{context} must not send a Japanese original to DeepL")
+        require(has_japanese(ja_title + ja_summary), f"{context} DeepL result has no Japanese")
+        require(
+            isinstance(provider, str) and "deepl" in provider.casefold(),
+            f"{context} DeepL provider is not disclosed",
+        )
+        require("DeepL" in label, f"{context} DeepL label is not disclosed")
+    elif mode == "structured-gist":
+        require(
+            has_japanese(ja_title + ja_summary),
+            f"{context} structured-gist has no Japanese text",
+        )
+        require(
+            "構造化" in label or "要旨" in label or "要点" in label,
+            f"{context} structured-gist label is unclear",
+        )
+        require(
+            "翻訳ではありません" in label,
+            f"{context} structured-gist must explicitly say it is not a translation",
+        )
+    else:
+        require("未取得" in label, f"{context} unavailable translation is not disclosed")
+
+    indexed = parse_nullable_utc_timestamp(item["indexedAtUtc"], f"{context}.indexedAtUtc")
+    effective = parse_timestamp(
+        item["effectivePublishedAtUtc"],
+        f"{context}.effectivePublishedAtUtc",
+        expected_offset=timedelta(0),
+    )
+    expected_effective = published or indexed
+    require(
+        expected_effective is not None and same_instant(effective, expected_effective),
+        f"{context}.effectivePublishedAtUtc must use publishedAtUtc, or indexedAtUtc when publication time is unavailable",
+    )
+    if indexed is not None:
+        require(
+            indexed <= retrieved + timedelta(minutes=10),
+            f"{context}.indexedAtUtc is after retrieval",
+        )
+    if published is None:
+        require(indexed is not None, f"{context} lacks both publication and index timestamps")
+        require(
+            item["timestampBasis"] == "index-seen",
+            f"{context}.timestampBasis must disclose index-seen when publishedAtUtc is unavailable",
+        )
+    first_seen = parse_timestamp(
+        item["firstSeenAtUtc"],
+        f"{context}.firstSeenAtUtc",
+        expected_offset=timedelta(0),
+    )
+    require(
+        first_seen <= retrieved + timedelta(minutes=2),
+        f"{context}.firstSeenAtUtc is after retrieval",
+    )
+    require(
+        first_seen >= effective - timedelta(minutes=10),
+        f"{context}.firstSeenAtUtc predates publication",
+    )
+    basis = require_string(item["timestampBasis"], f"{context}.timestampBasis")
+    require(len(basis) <= 120, f"{context}.timestampBasis is unexpectedly long")
+    precision = require_string(item["timestampPrecision"], f"{context}.timestampPrecision")
+    require(
+        precision in TIMESTAMP_PRECISIONS,
+        f"{context}.timestampPrecision is invalid: {precision}",
+    )
+
+    freshness = require_dict(item["freshness"], f"{context}.freshness")
+    require_keys(
+        freshness,
+        {"bucket", "label", "ageMinutes", "firstSeenAtUtc"},
+        f"{context}.freshness",
+    )
+    bucket = require_string(freshness["bucket"], f"{context}.freshness.bucket")
+    require(bucket in FRESHNESS_BUCKETS, f"{context}.freshness.bucket is invalid")
+    freshness_label = require_string(
+        freshness["label"], f"{context}.freshness.label"
+    )
+    require(
+        freshness["firstSeenAtUtc"] == item["firstSeenAtUtc"],
+        f"{context}.freshness.firstSeenAtUtc differs from the item",
+    )
+    expected_age_minutes = max(
+        0, round((retrieved - effective).total_seconds() / 60)
+    )
+    age_minutes = freshness["ageMinutes"]
+    if precision == "unknown":
+        require(age_minutes is None, f"{context} unknown timestamp must have null age")
+        require((bucket, freshness_label) == ("unknown", "時刻未確認"), f"{context} unknown freshness mismatch")
+    else:
+        require_int(age_minutes, f"{context}.freshness.ageMinutes", low=0)
+        require(
+            age_minutes == expected_age_minutes,
+            f"{context}.freshness.ageMinutes mismatch",
+        )
+        if precision == "date":
+            expected_bucket, expected_label = "context", "日付のみ"
+        elif expected_age_minutes <= 30:
+            expected_bucket, expected_label = "breaking", "30分以内"
+        elif expected_age_minutes <= 180:
+            expected_bucket, expected_label = "developing", "3時間以内"
+        elif expected_age_minutes <= 1440:
+            expected_bucket, expected_label = "today", "24時間以内"
+        else:
+            expected_bucket, expected_label = "context", "背景情報"
+        require(
+            (bucket, freshness_label) == (expected_bucket, expected_label),
+            f"{context}.freshness bucket/label mismatch",
+        )
+    if carried:
+        require(bucket != "breaking", f"{context} carried item must not appear as breaking")
+
+    effects = require_list(item["effect"], f"{context}.effect")
+    require(effects, f"{context}.effect must not be empty")
+    for effect_index, raw_effect in enumerate(effects):
+        effect_context = f"{context}.effect[{effect_index}]"
+        effect = require_dict(raw_effect, effect_context)
+        require_keys(
+            effect,
+            {"target", "direction", "label", "basis"},
+            effect_context,
+        )
+        target = require_string(effect["target"], f"{effect_context}.target")
+        direction = require_string(effect["direction"], f"{effect_context}.direction")
+        require(direction in STANCE_VALUES, f"{effect_context}.direction is invalid")
+        expected_label = f"{target}に{DIRECTION_LABELS[direction]}"
+        require(effect["label"] == expected_label, f"{effect_context}.label mismatch")
+        require_string(effect["basis"], f"{effect_context}.basis")
+    combined_original = (original_title + " " + original_excerpt).casefold()
+    if item["topicKey"] == "fx-rates" and re.search(r"\byen\b|円", combined_original):
+        if re.search(r"\b(surge|jump|strengthen|gain)(?:s|ed|ing)?\b|円高|急伸", combined_original):
+            require(
+                any(row["target"] == "円" and row["direction"] == "bullish" for row in effects),
+                f"{context} strengthening yen lacks a JPY-bullish effect",
+            )
+        elif re.search(r"\b(weaken|deprecat|fall|drop|plunge)(?:s|ed|ing)?\b|円安", combined_original):
+            require(
+                any(row["target"] == "円" and row["direction"] == "bearish" for row in effects),
+                f"{context} weakening yen lacks a JPY-bearish effect",
+            )
+
+
+def validate_cluster_fields(
+    item: dict[str, Any],
+    context: str,
+    retrieved: datetime,
+) -> None:
+    cluster_id = require_string(item["clusterId"], f"{context}.clusterId")
+    require(
+        re.fullmatch(r"cluster-[0-9a-f]{14}", cluster_id) is not None,
+        f"{context}.clusterId is malformed",
+    )
+    cluster_size = require_int(
+        item["clusterSize"], f"{context}.clusterSize", low=1
+    )
+    independent_count = require_int(
+        item["independentSourceCount"],
+        f"{context}.independentSourceCount",
+        low=1,
+    )
+    require(
+        independent_count <= cluster_size,
+        f"{context}.independentSourceCount exceeds clusterSize",
+    )
+    state = require_string(
+        item["corroborationState"], f"{context}.corroborationState"
+    )
+    require(
+        state in {"single-source", "multi-source", "official-primary"},
+        f"{context}.corroborationState is invalid",
+    )
+    if item["sourceKind"].startswith("official"):
+        require(state == "official-primary", f"{context} official lead state mismatch")
+    elif independent_count >= 2:
+        require(state == "multi-source", f"{context} multi-source state mismatch")
+    else:
+        require(state == "single-source", f"{context} single-source state mismatch")
+
+    origin_group = require_string(item["originGroup"], f"{context}.originGroup")
+    require(len(origin_group) <= 100, f"{context}.originGroup is unexpectedly long")
+    publisher_domain = require_string(
+        item["publisherDomain"], f"{context}.publisherDomain"
+    )
+    require(
+        "." in publisher_domain and not re.search(r"\s", publisher_domain),
+        f"{context}.publisherDomain is malformed",
+    )
+    require_string(
+        item["sourceCountry"], f"{context}.sourceCountry", allow_empty=True
+    )
+    require_string(item["discoveryProvider"], f"{context}.discoveryProvider")
+
+    related = require_list(item["relatedLinks"], f"{context}.relatedLinks")
+    require(len(related) <= 20, f"{context}.relatedLinks exceeds its display cap")
+    require(
+        cluster_size >= 1 + len(related),
+        f"{context}.clusterSize is smaller than visible cluster members",
+    )
+    if cluster_size == 1:
+        require(not related, f"{context} singleton cluster has related links")
+        require(independent_count == 1, f"{context} singleton cluster has multiple origins")
+    visible_origins = {origin_group}
+    related_urls = {normalize_url(item["url"])}
+    for related_index, raw_related in enumerate(related):
+        related_context = f"{context}.relatedLinks[{related_index}]"
+        row = require_dict(raw_related, related_context)
+        require_keys(
+            row,
+            {
+                "title",
+                "url",
+                "source",
+                "sourceKind",
+                "publishedAtUtc",
+                "originGroup",
+                "verification",
+            },
+            related_context,
+        )
+        require_string(row["title"], f"{related_context}.title")
+        related_url = require_https_url(row["url"], f"{related_context}.url")
+        normalized_url = normalize_url(related_url)
+        require(
+            normalized_url not in related_urls,
+            f"{related_context}.url duplicates a cluster member",
+        )
+        related_urls.add(normalized_url)
+        require_string(row["source"], f"{related_context}.source")
+        require(
+            row["sourceKind"] in SOURCE_KINDS,
+            f"{related_context}.sourceKind is invalid",
+        )
+        if row["publishedAtUtc"] is not None:
+            related_published = parse_timestamp(
+                row["publishedAtUtc"],
+                f"{related_context}.publishedAtUtc",
+                expected_offset=timedelta(0),
+            )
+            require(
+                related_published <= retrieved + timedelta(minutes=10),
+                f"{related_context}.publishedAtUtc is after retrieval",
+            )
+        related_origin = require_string(
+            row["originGroup"], f"{related_context}.originGroup"
+        )
+        visible_origins.add(related_origin)
+        require(
+            row["verification"] in VERIFICATION_VALUES,
+            f"{related_context}.verification is invalid",
+        )
+    require(
+        len(visible_origins) <= independent_count,
+        f"{context}.independentSourceCount is below visible independent origins",
+    )
 
 
 def validate_root_times(data: dict[str, Any]) -> tuple[datetime, datetime]:
@@ -423,11 +833,37 @@ def validate_source_status(
             row,
             {"name", "kind", "status", "url", "retrievedAtUtc", "message"},
             context,
+            optional={"receivedCount", "acceptedCount", "newestEffectiveAtUtc"},
+        )
+        metric_keys = {"receivedCount", "acceptedCount", "newestEffectiveAtUtc"}
+        present_metrics = metric_keys.intersection(row)
+        require(
+            not present_metrics or present_metrics == metric_keys,
+            f"{context} discovery counters must be supplied together",
         )
         name = require_string(row["name"], f"{context}.name")
         kind = require_string(row["kind"], f"{context}.kind")
         status = require_string(row["status"], f"{context}.status")
         require(status in SOURCE_STATUS_VALUES, f"{context}.status is invalid: {status}")
+        if present_metrics:
+            received = require_int(row["receivedCount"], f"{context}.receivedCount", low=0)
+            accepted = require_int(row["acceptedCount"], f"{context}.acceptedCount", low=0)
+            require(accepted <= received, f"{context}.acceptedCount exceeds receivedCount")
+            newest = parse_nullable_utc_timestamp(
+                row["newestEffectiveAtUtc"], f"{context}.newestEffectiveAtUtc"
+            )
+            if newest is not None:
+                require(
+                    newest <= generated + timedelta(minutes=10),
+                    f"{context}.newestEffectiveAtUtc is after package generation",
+                )
+            if accepted == 0:
+                require(newest is None, f"{context}.newestEffectiveAtUtc requires an accepted item")
+                require(status == "limited", f"{context} zero accepted items must be limited")
+                require(
+                    row["message"] == "接続成功・該当新着0件",
+                    f"{context} zero-new-item state is not clearly disclosed",
+                )
         identity = (name, kind)
         require(identity not in identities, f"duplicate source status: {identity}")
         identities.add(identity)
@@ -498,6 +934,7 @@ def validate_move(
     minutes: int | None,
     generated: datetime,
     spark_by_time: dict[str, float],
+    extreme_direction: str = "down",
 ) -> None:
     move = require_dict(value, context)
     required = {"points", "pct", "startUtc", "endUtc"}
@@ -540,10 +977,20 @@ def validate_move(
         start_value = spark_by_time[start_text]
         end_value = spark_by_time[end_text]
         expected_points = (
-            start_value - end_value if minutes is None else end_value - start_value
+            (
+                start_value - end_value
+                if extreme_direction == "down"
+                else end_value - start_value
+            )
+            if minutes is None
+            else end_value - start_value
         )
         expected_pct = (
-            (start_value - end_value) / start_value * 100
+            (
+                (start_value - end_value) / start_value * 100
+                if extreme_direction == "down"
+                else (end_value - start_value) / start_value * 100
+            )
             if minutes is None
             else pct_change(end_value, start_value)
         )
@@ -594,6 +1041,7 @@ def validate_quote(
             "move15m",
             "move30m",
             "peakToTrough",
+            "troughToPeak",
             "sparkline",
             "sourceUrl",
         },
@@ -696,6 +1144,14 @@ def validate_quote(
         minutes=None,
         generated=generated,
         spark_by_time=spark_by_time,
+    )
+    validate_move(
+        quote["troughToPeak"],
+        f"{context}.troughToPeak",
+        minutes=None,
+        generated=generated,
+        spark_by_time=spark_by_time,
+        extreme_direction="up",
     )
 
 
@@ -877,8 +1333,20 @@ def validate_premarket(
 def expected_intervention_event_window(
     shock: dict[str, Any],
 ) -> tuple[datetime | None, datetime | None]:
+    direction = shock.get("shockDirection")
     candidates: list[tuple[tuple[float, float], datetime, datetime]] = []
-    for key in ("move5m", "move15m", "move30m"):
+    extreme_key = (
+        "peakToTrough"
+        if direction == "yen-strengthening"
+        else "troughToPeak"
+        if direction == "yen-weakening"
+        else None
+    )
+    for key in tuple(
+        candidate
+        for candidate in (extreme_key, "move5m", "move15m", "move30m")
+        if candidate
+    ):
         move = require_dict(shock[key], f"marketShock.{key}")
         if move.get("startUtc") is None or move.get("endUtc") is None:
             continue
@@ -888,11 +1356,33 @@ def expected_intervention_event_window(
         end = parse_timestamp(
             move["endUtc"], f"marketShock.{key}.endUtc", expected_offset=timedelta(0)
         )
+        signed_pct = number(
+            move.get("pct"), f"marketShock.{key}.pct", nullable=True
+        )
+        if key.startswith("move"):
+            if direction == "yen-strengthening" and (signed_pct or 0.0) >= 0:
+                continue
+            if direction == "yen-weakening" and (signed_pct or 0.0) <= 0:
+                continue
         score = (
-            abs(number(move.get("pct"), f"marketShock.{key}.pct", nullable=True) or 0.0),
+            abs(signed_pct or 0.0),
             abs(number(move.get("points"), f"marketShock.{key}.points", nullable=True) or 0.0),
         )
         candidates.append((score, start, end))
+    reference_text = shock.get("observedAtUtc") or shock.get("checkedAtUtc")
+    reference = (
+        parse_timestamp(reference_text, "marketShock event reference")
+        if reference_text is not None
+        else None
+    )
+    if reference is not None:
+        recent = [
+            candidate
+            for candidate in candidates
+            if -300 <= (reference - candidate[2]).total_seconds() <= 180 * 60
+        ]
+        if recent:
+            candidates = recent
     if candidates:
         _, start, end = max(candidates, key=lambda row: row[0])
         return start, end
@@ -994,6 +1484,10 @@ def validate_market_shock(
             "summary",
             "interventionStatus",
             "interventionLabel",
+            "shockDirection",
+            "directionMetrics",
+            "recentDirectionalShock",
+            "directionalShockEventEndUtc",
             "officiallyConfirmed",
             "assessmentRule",
             "observedAtUtc",
@@ -1009,6 +1503,7 @@ def validate_market_shock(
             "move15m",
             "move30m",
             "peakToTrough",
+            "troughToPeak",
             "sparkline",
             "priceSourceUrl",
             "officialVerificationUrl",
@@ -1040,6 +1535,7 @@ def validate_market_shock(
         "move15m": "move15m",
         "move30m": "move30m",
         "peakToTrough": "peakToTrough",
+        "troughToPeak": "troughToPeak",
         "sparkline": "sparkline",
         "priceSourceUrl": "sourceUrl",
     }
@@ -1072,26 +1568,61 @@ def validate_market_shock(
         "marketShock.peakToTrough.pct",
         nullable=True,
     )
-    move30_pct = number(
-        require_dict(shock["move30m"], "marketShock.move30m").get("pct"),
-        "marketShock.move30m.pct",
+    trough_pct = number(
+        require_dict(shock["troughToPeak"], "marketShock.troughToPeak").get("pct"),
+        "marketShock.troughToPeak.pct",
         nullable=True,
     )
+    move_pcts = [
+        number(
+            require_dict(shock[key], f"marketShock.{key}").get("pct"),
+            f"marketShock.{key}.pct",
+            nullable=True,
+        )
+        for key in ("move5m", "move15m", "move30m")
+    ]
     peak_points = number(
         shock["peakToTrough"].get("points"),
         "marketShock.peakToTrough.points",
         nullable=True,
     )
+    trough_points = number(
+        shock["troughToPeak"].get("points"),
+        "marketShock.troughToPeak.points",
+        nullable=True,
+    )
     move30_points = number(
         shock["move30m"].get("points"), "marketShock.move30m.points", nullable=True
     )
+    signed_moves = [value for value in [day_change, *move_pcts] if value is not None]
+    strengthening_score = max(
+        [max(0.0, peak_pct or 0.0)]
+        + [abs(value) for value in signed_moves if value < 0]
+    )
+    weakening_score = max(
+        [max(0.0, trough_pct or 0.0)]
+        + [value for value in signed_moves if value > 0]
+    )
+    if not fx:
+        expected_direction = "unknown"
+    elif strengthening_score > weakening_score + 1e-9:
+        expected_direction = "yen-strengthening"
+    elif weakening_score > strengthening_score + 1e-9:
+        expected_direction = "yen-weakening"
+    else:
+        expected_direction = "mixed"
     magnitude = max(
         abs(day_change or 0),
         abs(range_pct or 0),
         abs(peak_pct or 0),
-        abs(move30_pct or 0),
+        abs(trough_pct or 0),
+        *(abs(value or 0) for value in move_pcts),
     )
-    if magnitude >= 2 or abs(peak_points or 0) >= 3:
+    directional_points = max(
+        abs(peak_points or 0),
+        abs(trough_points or 0),
+    )
+    if magnitude >= 2 or directional_points >= 3:
         expected_severity = "critical"
     elif magnitude >= 1 or abs(move30_points or 0) >= 1.5:
         expected_severity = "warning"
@@ -1112,7 +1643,73 @@ def validate_market_shock(
     }[expected_severity]
     require(shock["severityLabel"] == expected_label, "marketShock.severityLabel mismatch")
 
+    shock_direction = require_string(
+        shock["shockDirection"], "marketShock.shockDirection"
+    )
+    require(
+        shock_direction
+        in {"yen-strengthening", "yen-weakening", "mixed", "unknown"},
+        "marketShock.shockDirection is invalid",
+    )
+    require(
+        shock_direction == expected_direction,
+        "marketShock.shockDirection formula failed",
+    )
+    metrics = require_dict(shock["directionMetrics"], "marketShock.directionMetrics")
+    require_keys(
+        metrics,
+        {"yenStrengtheningScorePct", "yenWeakeningScorePct"},
+        "marketShock.directionMetrics",
+    )
+    actual_strengthening = number(
+        metrics["yenStrengtheningScorePct"],
+        "marketShock.directionMetrics.yenStrengtheningScorePct",
+    )
+    actual_weakening = number(
+        metrics["yenWeakeningScorePct"],
+        "marketShock.directionMetrics.yenWeakeningScorePct",
+    )
+    require(
+        close_enough(actual_strengthening, round(strengthening_score, 4)),
+        "marketShock yen-strengthening score mismatch",
+    )
+    require(
+        close_enough(actual_weakening, round(weakening_score, 4)),
+        "marketShock yen-weakening score mismatch",
+    )
+
     event_start, event_end = expected_intervention_event_window(shock)
+    require(
+        isinstance(shock["recentDirectionalShock"], bool),
+        "marketShock.recentDirectionalShock must be boolean",
+    )
+    if event_end is None:
+        require(
+            shock["directionalShockEventEndUtc"] is None,
+            "marketShock directional event end exists without an event",
+        )
+        expected_recent_directional = False
+    else:
+        directional_end = parse_timestamp(
+            shock["directionalShockEventEndUtc"],
+            "marketShock.directionalShockEventEndUtc",
+            expected_offset=timedelta(0),
+        )
+        require(
+            same_instant(directional_end, event_end),
+            "marketShock.directionalShockEventEndUtc differs from event window",
+        )
+        reference = (
+            parse_timestamp(shock["observedAtUtc"], "marketShock.observedAtUtc")
+            if shock["observedAtUtc"] is not None
+            else checked
+        )
+        lag_seconds = (reference - event_end).total_seconds()
+        expected_recent_directional = -300 <= lag_seconds <= 180 * 60
+    require(
+        shock["recentDirectionalShock"] is expected_recent_directional,
+        "marketShock.recentDirectionalShock formula failed",
+    )
     evidence_rows, evidence_count = validate_evidence(
         shock["reportedEvidence"],
         shock["reportedEvidenceCount"],
@@ -1121,17 +1718,33 @@ def validate_market_shock(
         briefing_items,
     )
     if expected_severity in {"critical", "warning"}:
-        expected_intervention = (
-            "reported-unconfirmed" if evidence_count else "price-shock-only"
-        )
+        if shock_direction == "yen-strengthening":
+            expected_interventions = {
+                "reported-unconfirmed" if evidence_count else "price-shock-only"
+            }
+        elif shock_direction == "yen-weakening":
+            expected_interventions = {"yen-weakening-shock"}
+        else:
+            expected_interventions = {
+                "direction-unclear-shock",
+                "price-shock-only",
+            }
     elif expected_severity == "normal":
-        expected_intervention = "no-shock-observed"
+        expected_interventions = {"no-shock-observed"}
     else:
-        expected_intervention = "unknown"
+        expected_interventions = {"unknown"}
     require(
-        shock["interventionStatus"] == expected_intervention,
+        shock["interventionStatus"] in expected_interventions,
         "marketShock.interventionStatus does not follow evidence state",
     )
+    expected_intervention = shock["interventionStatus"]
+    if shock_direction != "yen-strengthening":
+        require(not evidence_rows, "non-strengthening USDJPY move retained intervention evidence")
+    if not expected_recent_directional:
+        require(
+            not evidence_rows and expected_intervention != "reported-unconfirmed",
+            "stale directional shock was promoted by current intervention reporting",
+        )
     require(
         shock["officiallyConfirmed"] is False,
         "officiallyConfirmed must remain false without a first-party confirmation state",
@@ -1145,7 +1758,8 @@ def validate_market_shock(
     require_string(shock["interventionLabel"], "marketShock.interventionLabel")
     require_string(shock["assessmentRule"], "marketShock.assessmentRule")
     require(
-        "介入認定条件ではない" in shock["assessmentRule"],
+        "介入認定条件ではない" in shock["assessmentRule"]
+        or "閾値だけでは介入認定しない" in shock["assessmentRule"],
         "marketShock.assessmentRule must separate price thresholds from confirmation",
     )
     if expected_intervention in {"reported-unconfirmed", "price-shock-only"}:
@@ -1183,6 +1797,8 @@ def validate_market_shock(
     july_event_end = datetime(2026, 7, 30, 15, 30, tzinfo=timezone.utc)
     should_have_july_metadata = (
         expected_severity in {"critical", "warning"}
+        and shock_direction == "yen-strengthening"
+        and expected_recent_directional
         and event_start is not None
         and event_end is not None
         and event_start <= july_event_end
@@ -1265,8 +1881,13 @@ def validate_market_shock(
             hosts={"mof.go.jp"},
         )
     require(
-        not evidence_rows or expected_severity in {"critical", "warning"},
-        "intervention evidence must not promote a non-shock state",
+        not evidence_rows
+        or (
+            expected_severity in {"critical", "warning"}
+            and shock_direction == "yen-strengthening"
+            and expected_recent_directional
+        ),
+        "intervention evidence must require a recent yen-strengthening shock",
     )
 
 
@@ -1300,6 +1921,24 @@ def validate_item(
             "talkScore",
             "author",
             "identityNote",
+            "original",
+            "japanese",
+            "effectivePublishedAtUtc",
+            "indexedAtUtc",
+            "firstSeenAtUtc",
+            "timestampBasis",
+            "timestampPrecision",
+            "freshness",
+            "effect",
+            "clusterId",
+            "clusterSize",
+            "independentSourceCount",
+            "relatedLinks",
+            "corroborationState",
+            "originGroup",
+            "publisherDomain",
+            "sourceCountry",
+            "discoveryProvider",
         },
         context,
         optional={"carriedForward", "staleReason"},
@@ -1325,7 +1964,7 @@ def validate_item(
     if source_kind.startswith("official"):
         require(verification == "primary", f"{context} official item must be primary")
         allowed_hosts = (
-            {"federalreserve.gov", "whitehouse.gov", "treasury.gov"}
+            {"federalreserve.gov", "whitehouse.gov", "treasury.gov", "bls.gov", "sec.gov"}
             if source_kind == "official-us"
             else {"boj.or.jp", "mof.go.jp"}
         )
@@ -1368,16 +2007,19 @@ def validate_item(
             f"{context} reported-unconfirmed item lacks the intervention context",
         )
 
-    published = parse_timestamp(
-        item["publishedAtUtc"], f"{context}.publishedAtUtc", expected_offset=timedelta(0)
+    published = parse_nullable_utc_timestamp(
+        item["publishedAtUtc"], f"{context}.publishedAtUtc"
     )
     retrieved = parse_timestamp(
         item["retrievedAtUtc"], f"{context}.retrievedAtUtc", expected_offset=timedelta(0)
     )
-    require(published <= retrieved + timedelta(minutes=10), f"{context} is future-published")
+    indexed = parse_nullable_utc_timestamp(item["indexedAtUtc"], f"{context}.indexedAtUtc")
+    effective_for_age = published or indexed
+    require(effective_for_age is not None, f"{context} lacks an effective timestamp")
+    require(effective_for_age <= retrieved + timedelta(minutes=10), f"{context} is future-published")
     require(retrieved <= generated + timedelta(minutes=2), f"{context} retrieval is after generation")
-    require(generated - published <= timedelta(days=7), f"{context} is older than seven days")
-    expected_age = round(max(0.0, (retrieved - published).total_seconds() / 3600.0), 2)
+    require(generated - effective_for_age <= timedelta(days=7), f"{context} is older than seven days")
+    expected_age = round(max(0.0, (retrieved - effective_for_age).total_seconds() / 3600.0), 2)
     age = number(item["ageHours"], f"{context}.ageHours")
     require(close_enough(age, expected_age, absolute=0.011), f"{context}.ageHours mismatch")
     carried = item.get("carriedForward", False)
@@ -1400,6 +2042,15 @@ def validate_item(
         stance == expected_stance(title, summary),
         f"{context}.stance does not match the documented limited-vocabulary classifier",
     )
+    validate_localized_fields(
+        item,
+        context,
+        generated,
+        published,
+        retrieved,
+        carried,
+    )
+    validate_cluster_fields(item, context, retrieved)
     engagement = require_dict(item["engagement"], f"{context}.engagement")
     engagement_total = 0
     for key, value in engagement.items():
@@ -1415,25 +2066,22 @@ def validate_item(
     require_int(item["priorityScore"], f"{context}.priorityScore", low=0, high=160)
     talk_score = require_int(item["talkScore"], f"{context}.talkScore", low=0, high=100)
     if not carried:
-        recency_component = max(0, 28 - min(72, age) / 3)
-        engagement_component = min(32, math.log10(engagement_total + 1) * 10)
-        minimum_count = selected_topic_counts[topic_key]
-        possible_counts = range(minimum_count, max(minimum_count, 6) + 1)
-        possible_scores = {
-            min(
-                100,
-                round(
-                    18
-                    + min(30, count * 5)
-                    + engagement_component
-                    + recency_component
-                ),
-            )
-            for count in possible_counts
-        }
+        recency_component = max(0, 30 - min(72, age) / 3)
+        independent_sources = item["independentSourceCount"]
+        cluster_size = item["clusterSize"]
+        expected_talk_score = min(
+            100,
+            round(
+                12
+                + min(30, independent_sources * 12)
+                + min(12, math.log2(cluster_size + 1) * 4)
+                + min(20, math.log10(engagement_total + 1) * 8)
+                + recency_component
+            ),
+        )
         require(
-            talk_score in possible_scores,
-            f"{context}.talkScore cannot be produced by the documented formula",
+            talk_score == expected_talk_score,
+            f"{context}.talkScore does not match the documented cluster-aware formula",
         )
     require_string(item["author"], f"{context}.author", allow_empty=True)
     require_string(item["identityNote"], f"{context}.identityNote", allow_empty=True)
@@ -1537,6 +2185,73 @@ def validate_channels(
         )
 
 
+def validate_translation_status(
+    raw: Any,
+    items: list[dict[str, Any]],
+) -> None:
+    context = "briefing.translationStatus"
+    status = require_dict(raw, context)
+    require_keys(
+        status,
+        {"status", "label", "translatedItems", "cachedItems"},
+        context,
+        optional={"message", "rejectedItems", "requestedTexts"},
+    )
+    state = require_string(status["status"], f"{context}.status")
+    require(
+        state
+        in {
+            "not-configured",
+            "cache-only",
+            "no-candidates",
+            "failed",
+            "ok",
+            "limited",
+        },
+        f"{context}.status is invalid: {state}",
+    )
+    label = require_string(status["label"], f"{context}.label")
+    translated = require_int(
+        status["translatedItems"], f"{context}.translatedItems", low=0
+    )
+    cached = require_int(status["cachedItems"], f"{context}.cachedItems", low=0)
+    if "message" in status:
+        require_string(status["message"], f"{context}.message")
+    rejected = (
+        require_int(status["rejectedItems"], f"{context}.rejectedItems", low=0)
+        if "rejectedItems" in status
+        else 0
+    )
+    requested = (
+        require_int(status["requestedTexts"], f"{context}.requestedTexts", low=0)
+        if "requestedTexts" in status
+        else 0
+    )
+    deepl_items = sum(
+        1 for item in items if (item.get("japanese") or {}).get("mode") == "deepl"
+    )
+    require(
+        deepl_items == translated + cached,
+        f"{context} counts do not match published DeepL items",
+    )
+    if state in {"not-configured", "cache-only", "no-candidates", "failed"}:
+        require(translated == 0, f"{context} non-success state translated items")
+    if state == "not-configured":
+        require(cached == 0, f"{context} not-configured state has cached items")
+        require("未設定" in label, f"{context} does not disclose missing configuration")
+    if state == "cache-only":
+        require(cached > 0, f"{context} cache-only state has no cached items")
+    if state in {"ok", "limited"}:
+        require(requested > 0, f"{context} API result lacks requestedTexts")
+    if state == "limited":
+        require(rejected > 0, f"{context} limited state lacks rejectedItems")
+    serialized = json.dumps(status, ensure_ascii=False).casefold()
+    require(
+        not any(token in serialized for token in ("deepl-auth-key", "authorization", ":fx")),
+        f"{context} may expose authentication material",
+    )
+
+
 def validate_briefing(
     data: dict[str, Any],
     generated_utc: datetime,
@@ -1561,6 +2276,7 @@ def validate_briefing(
             "channels",
             "unverifiedCount",
             "readingRule",
+            "translationStatus",
         },
         "briefing",
     )
@@ -1598,6 +2314,51 @@ def validate_briefing(
         validate_item(raw, index, generated_utc, raw_topic_counts)
         for index, raw in enumerate(raw_items)
     ]
+    validate_translation_status(briefing["translationStatus"], items)
+    live_news = [
+        item
+        for item in items
+        if item["sourceKind"]
+        in {"official-us", "official-japan", "news", "news-wire"}
+        and item["freshness"]["bucket"] in {"breaking", "developing", "today"}
+        and not item.get("carriedForward")
+    ]
+    reserve_count = min(LATEST_ITEM_RESERVE, len(live_news))
+    if reserve_count:
+        front = items[:reserve_count]
+        require(
+            all(item in live_news for item in front),
+            "briefing newest-first reserve was displaced by context or social content",
+        )
+        front_times = [
+            parse_timestamp(
+                item["effectivePublishedAtUtc"],
+                f"briefing newest reserve {item['id']}.effectivePublishedAtUtc",
+                expected_offset=timedelta(0),
+            )
+            for item in front
+        ]
+        require(
+            all(
+                front_times[index] >= front_times[index + 1]
+                for index in range(len(front_times) - 1)
+            ),
+            "briefing newest-first reserve is not in descending publication order",
+        )
+        remaining_live_times = [
+            parse_timestamp(
+                item["effectivePublishedAtUtc"],
+                f"briefing remaining live item {item['id']}.effectivePublishedAtUtc",
+                expected_offset=timedelta(0),
+            )
+            for item in live_news
+            if item not in front
+        ]
+        if remaining_live_times:
+            require(
+                min(front_times) >= max(remaining_live_times),
+                "a newer live news item was placed behind the newest-first reserve",
+            )
     ids = [item["id"] for item in items]
     urls = [normalize_url(item["url"]) for item in items]
     title_keys = [
@@ -1676,6 +2437,8 @@ def validate_briefing(
             "summary",
             "verification",
             "interventionStatus",
+            "shockDirection",
+            "recentDirectionalShock",
             "interventionLabel",
             "talkScore",
             "sourceCounts",
@@ -1694,6 +2457,8 @@ def validate_briefing(
         ("title", "headline"),
         ("summary", "summary"),
         ("interventionStatus", "interventionStatus"),
+        ("shockDirection", "shockDirection"),
+        ("recentDirectionalShock", "recentDirectionalShock"),
         ("interventionLabel", "interventionLabel"),
         ("primaryUrl", "priceSourceUrl"),
         ("officialUrl", "officialVerificationUrl"),
@@ -1856,6 +2621,53 @@ def run_price_only_intervention_regression() -> None:
         "news reporting incorrectly became official intervention confirmation",
     )
 
+    weakening_quote = json.loads(json.dumps(quote))
+    weakening_quote.update({
+        "value": 165.0,
+        "previousClose": 161.0,
+        "changePct": pct_change(165.0, 161.0),
+        "sessionHigh": 165.2,
+        "sessionLow": 160.8,
+        "sessionRangePct": pct_change(165.2, 160.8),
+    })
+    for key, points, percent in (
+        ("move5m", 1.8, 1.11),
+        ("move15m", 2.5, 1.54),
+        ("move30m", 4.0, 2.48),
+    ):
+        weakening_quote[key]["points"] = points
+        weakening_quote[key]["pct"] = percent
+    weakening_quote["peakToTrough"].update({
+        "points": 0.0,
+        "pct": 0.0,
+        "startUtc": "2026-07-30T14:00:00+00:00",
+        "endUtc": "2026-07-30T14:00:00+00:00",
+    })
+    weakening_shock = producer.build_market_shock(
+        {"USDJPY": weakening_quote},
+        now,
+    )
+    require(
+        weakening_shock["severity"] == "critical"
+        and weakening_shock["shockDirection"] == "yen-weakening",
+        "yen-weakening regression fixture was not classified as a critical opposite-direction move",
+    )
+    require(
+        weakening_shock["interventionStatus"] == "yen-weakening-shock",
+        "yen weakening was presented as observed yen-buying intervention",
+    )
+    producer.update_intervention_assessment(weakening_shock, [news_item])
+    require(
+        weakening_shock["interventionStatus"] == "yen-weakening-shock"
+        and weakening_shock["reportedEvidenceCount"] == 0
+        and weakening_shock["officiallyConfirmed"] is False,
+        "intervention reporting promoted an opposite-direction yen-weakening shock",
+    )
+    require(
+        "円買い介入判定対象外" in weakening_shock["interventionLabel"],
+        "yen-weakening shock does not explain the intervention-direction boundary",
+    )
+
     later_now = datetime(2026, 8, 5, 14, 30, tzinfo=timezone.utc)
     later_quote = json.loads(json.dumps(quote))
     later_quote["quoteTimeUtc"] = later_now.isoformat()
@@ -1883,6 +2695,282 @@ def run_price_only_intervention_regression() -> None:
         and "eventStartEstimateJst" not in later_shock
         and "officialDisclosureSchedule" not in later_shock,
         "July 30 event metadata leaked into a later USDJPY shock",
+    )
+
+    stale_now = datetime(2026, 8, 5, 14, 30, tzinfo=timezone.utc)
+    stale_extreme_quote = json.loads(json.dumps(quote))
+    stale_extreme_quote.update({
+        "value": 160.0,
+        "previousClose": 160.0,
+        "changePct": 0.0,
+        "sessionHigh": 161.0,
+        "sessionLow": 157.0,
+        "sessionRangePct": pct_change(161.0, 157.0),
+        "quoteTimeUtc": stale_now.isoformat(),
+        "quoteTimeJst": stale_now.astimezone(JST).isoformat(),
+    })
+    for key, minutes in (("move5m", 5), ("move15m", 15), ("move30m", 30)):
+        stale_extreme_quote[key].update({
+            "points": 0.0,
+            "pct": 0.0,
+            "startUtc": (stale_now - timedelta(minutes=minutes)).isoformat(),
+            "endUtc": stale_now.isoformat(),
+        })
+    stale_extreme_quote["peakToTrough"].update({
+        "points": 4.0,
+        "pct": 2.5,
+        "startUtc": "2026-08-04T13:00:00+00:00",
+        "endUtc": "2026-08-04T13:30:00+00:00",
+    })
+    stale_shock = producer.build_market_shock(
+        {"USDJPY": stale_extreme_quote},
+        stale_now,
+    )
+    stale_news = {
+        "id": "live-stale-extreme-news",
+        "title": "Traders suspected intervention during the prior yen move",
+        "summary": "The report concerned the prior session.",
+        "url": "https://example.com/prior-intervention-report",
+        "source": "Example News",
+        "sourceKind": "news",
+        "verification": "reported-unconfirmed",
+        "publishedAtUtc": "2026-08-04T13:35:00+00:00",
+    }
+    producer.update_intervention_assessment(stale_shock, [stale_news])
+    require(
+        stale_shock["severity"] == "critical"
+        and stale_shock["shockDirection"] == "yen-strengthening",
+        "stale-extrema fixture did not retain its historical price direction",
+    )
+    require(
+        stale_shock["recentDirectionalShock"] is False,
+        "more-than-180-minute-old extrema was labelled as a current shock",
+    )
+    require(
+        stale_shock["interventionStatus"] == "price-shock-only"
+        and stale_shock["reportedEvidenceCount"] == 0,
+        "historical extrema was promoted by a matching old intervention report",
+    )
+    require(
+        "eventId" not in stale_shock
+        and "officialDisclosureSchedule" not in stale_shock,
+        "historical extrema received current-event disclosure metadata",
+    )
+
+
+def run_localization_freshness_regressions() -> None:
+    """Exercise bilingual fallbacks and freshness boundaries without network access."""
+
+    try:
+        import live_intelligence as producer
+    except ImportError as exc:
+        raise ValidationError("unable to import scripts/live_intelligence.py") from exc
+
+    require(
+        producer.original_excerpt(
+            "Yen surges on intervention speculation - Reuters",
+            "Yen surges on intervention speculation Reuters",
+        )
+        == "",
+        "duplicate RSS title/description was retained as an excerpt",
+    )
+    now = datetime(2026, 7, 31, 0, 0, tzinfo=timezone.utc)
+    original_title = "Yen surges on intervention speculation - Reuters"
+    item = producer.build_item(
+        title=original_title,
+        summary="",
+        url="https://example.com/yen-story",
+        source="Reuters",
+        source_kind="news-wire",
+        published=(now - timedelta(minutes=12)).isoformat(),
+        retrieved_at=now,
+        topic_hint="fx-rates",
+    )
+    require(
+        item["original"]["title"] == original_title,
+        "English original headline was altered by localization",
+    )
+    require(
+        item["japanese"]["mode"] == "structured-gist"
+        and "翻訳ではありません" in item["japanese"]["label"],
+        "no-key fallback is not honestly labelled as a structured gist",
+    )
+    require(
+        has_japanese(item["japanese"]["title"] + item["japanese"]["summary"]),
+        "no-key fallback did not produce a Japanese reading aid",
+    )
+    require(
+        "これは翻訳ではなく" in item["japanese"]["summary"],
+        "structured gist does not explain that it is not a translation",
+    )
+    require(
+        re.search(
+            r"(?:\b[A-Za-z][A-Za-z0-9&.'/-]*\b[\s:,-]*){4,}",
+            item["japanese"]["title"],
+        ) is None,
+        "structured gist regressed to an English headline with word substitution",
+    )
+    require(
+        item["japanese"]["sourceHash"]
+        == expected_translation_source_hash(
+            item["original"]["title"], item["original"]["excerpt"]
+        ),
+        "localization source hash regression failed",
+    )
+
+    editorial = producer.build_item(
+        title="Federal Reserve issues FOMC statement",
+        summary="FRBは政策金利を据え置きました。",
+        url="https://www.federalreserve.gov/example",
+        source="Federal Reserve",
+        source_kind="official-us",
+        published=(now - timedelta(hours=1)).isoformat(),
+        retrieved_at=now,
+        topic_hint="fx-rates",
+    )
+    require(
+        editorial["japanese"]["mode"] == "editorial-summary",
+        "existing Japanese editorial summary was not preserved",
+    )
+    require(
+        editorial["original"]["excerpt"] == "",
+        "Japanese editorial text leaked into the English original excerpt",
+    )
+
+    boundaries = (
+        (30, "breaking", "30分以内"),
+        (31, "developing", "3時間以内"),
+        (180, "developing", "3時間以内"),
+        (181, "today", "24時間以内"),
+        (1440, "today", "24時間以内"),
+        (1441, "context", "背景情報"),
+    )
+    for minutes, expected_bucket, expected_label in boundaries:
+        freshness = producer.freshness_profile(
+            now - timedelta(minutes=minutes),
+            now,
+            "minute",
+        )
+        require(
+            (freshness["bucket"], freshness["label"], freshness["ageMinutes"])
+            == (expected_bucket, expected_label, minutes),
+            f"freshness boundary regression failed at {minutes} minutes",
+        )
+    date_only = producer.freshness_profile(now - timedelta(minutes=1), now, "date")
+    require(
+        (date_only["bucket"], date_only["label"]) == ("context", "日付のみ"),
+        "date-only source was presented as breaking",
+    )
+    unknown = producer.freshness_profile(None, now, "unknown")
+    require(
+        (unknown["bucket"], unknown["label"], unknown["ageMinutes"])
+        == ("unknown", "時刻未確認", None),
+        "unknown source time received false freshness",
+    )
+
+
+def run_story_cluster_regressions() -> None:
+    """Ensure syndicated copies do not masquerade as independent reporting."""
+
+    try:
+        import live_intelligence as producer
+    except ImportError as exc:
+        raise ValidationError("unable to import scripts/live_intelligence.py") from exc
+
+    now = datetime(2026, 7, 31, 0, 0, tzinfo=timezone.utc)
+
+    def story(source: str, url: str, suffix: str) -> dict[str, Any]:
+        return producer.build_item(
+            title=f"Yen surges on suspected intervention {suffix}".strip(),
+            summary="",
+            url=url,
+            source=source,
+            source_kind="news-wire" if source == "Reuters" else "news",
+            published=(now - timedelta(minutes=10)).isoformat(),
+            retrieved_at=now,
+            topic_hint="fx-rates",
+        )
+
+    syndicated = producer.cluster_story_candidates([
+        story("Reuters", "https://www.reuters.com/example/yen", "- Reuters"),
+        story("Reuters", "https://www.investing.com/news/yen-copy", "Reuters"),
+    ])
+    require(len(syndicated) == 1, "syndicated Reuters copies were not clustered")
+    reuters_cluster = syndicated[0]
+    require(
+        reuters_cluster["clusterSize"] == 2
+        and reuters_cluster["independentSourceCount"] == 1
+        and reuters_cluster["corroborationState"] == "single-source",
+        "syndicated Reuters copies inflated independent-source corroboration",
+    )
+    require(
+        len(reuters_cluster["relatedLinks"]) == 1,
+        "syndicated Reuters related link was lost",
+    )
+
+    independently_reported = producer.cluster_story_candidates([
+        story("Reuters", "https://www.reuters.com/example/yen", "- Reuters"),
+        story("Reuters", "https://www.investing.com/news/yen-copy", "Reuters"),
+        story(
+            "Financial Times",
+            "https://www.ft.com/content/example-yen",
+            "- Financial Times",
+        ),
+    ])
+    require(
+        len(independently_reported) == 1,
+        "closely matching independent report did not join the event cluster",
+    )
+    independent_cluster = independently_reported[0]
+    require(
+        independent_cluster["clusterSize"] == 3
+        and independent_cluster["independentSourceCount"] == 2
+        and independent_cluster["corroborationState"] == "multi-source",
+        "independent outlet did not increase corroboration exactly once",
+    )
+
+    variant_report = producer.build_item(
+        title="Yen Surge Spurs Speculation Japan Intervened in Market Again",
+        summary="",
+        url="https://www.bloomberg.com/example/yen-intervened",
+        source="Bloomberg",
+        source_kind="news",
+        published=(now - timedelta(minutes=8)).isoformat(),
+        retrieved_at=now,
+        topic_hint="fx-rates",
+    )
+    variant_cluster = producer.cluster_story_candidates([
+        story("Reuters", "https://www.reuters.com/example/yen", "- Reuters"),
+        variant_report,
+    ])
+    require(
+        len(variant_cluster) == 1,
+        "materially different wording for the same yen-intervention event was not clustered",
+    )
+    require(
+        variant_cluster[0]["clusterSize"] == 2
+        and variant_cluster[0]["independentSourceCount"] == 2
+        and len(variant_cluster[0]["relatedLinks"]) == 1,
+        "event-key clustering lost source independence or the related original link",
+    )
+
+    different_event = producer.build_item(
+        title="Federal Reserve holds rates after its policy meeting",
+        summary="",
+        url="https://www.federalreserve.gov/example/statement",
+        source="Federal Reserve",
+        source_kind="official-us",
+        published=(now - timedelta(minutes=5)).isoformat(),
+        retrieved_at=now,
+        topic_hint="fx-rates",
+    )
+    require(
+        len(producer.cluster_story_candidates([
+            story("Reuters", "https://www.reuters.com/example/yen", "- Reuters"),
+            different_event,
+        ]))
+        == 2,
+        "unrelated stories were over-clustered",
     )
 
 
@@ -1926,6 +3014,8 @@ def validate(path: Path) -> dict[str, Any]:
         data, generated_utc, quotes, briefing_items
     )
     run_price_only_intervention_regression()
+    run_localization_freshness_regressions()
+    run_story_cluster_regressions()
     return data
 
 

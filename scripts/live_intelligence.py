@@ -16,12 +16,14 @@ import math
 import os
 import re
 import time
+import unicodedata
 import urllib.error
 import urllib.parse
 import urllib.request
 import xml.etree.ElementTree as ET
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timedelta, timezone
+from difflib import SequenceMatcher
 from email.utils import parsedate_to_datetime
 from pathlib import Path
 from typing import Any
@@ -31,7 +33,14 @@ ROOT = Path(__file__).resolve().parents[1]
 OUTPUT = ROOT / "data" / "live-intelligence.json"
 USER_AGENT = "mxe050-ai-bubble-monitor-live/1.0 (https://github.com/mxe050)"
 JST = timezone(timedelta(hours=9))
-BRIEFING_ITEM_LIMIT = 16
+BRIEFING_ITEM_LIMIT = 24
+LATEST_ITEM_RESERVE = 10
+ORIGINAL_EXCERPT_LIMIT = 280
+PUBLIC_SNAPSHOT_URL = (
+    "https://mxe050.github.io/ai-bubble-collapse-monitor/data/live-intelligence.json"
+)
+GDELT_DOC_URL = "https://api.gdeltproject.org/api/v2/doc/doc"
+DEEPL_BATCH_LIMIT = 50
 
 MOF_INTERVENTION_URL = "https://www.mof.go.jp/policy/international_policy/reference/feio/index.html"
 
@@ -150,6 +159,16 @@ OFFICIAL_FEEDS = (
         "url": "https://www.mof.go.jp/news.rss",
         "kind": "official-japan",
     },
+    {
+        "name": "U.S. Bureau of Labor Statistics",
+        "url": "https://www.bls.gov/feed/bls_latest.rss",
+        "kind": "official-us",
+    },
+    {
+        "name": "U.S. Securities and Exchange Commission",
+        "url": "https://www.sec.gov/news/pressreleases.rss",
+        "kind": "official-us",
+    },
 )
 
 NEWS_QUERIES = (
@@ -176,6 +195,30 @@ NEWS_QUERIES = (
     {
         "key": "economists",
         "query": '("Mohamed El-Erian" OR "Jason Furman" OR "Claudia Sahm" OR "Liz Ann Sonders" OR "Jim Bianco") (markets OR economy OR rates)',
+    },
+)
+
+GDELT_QUERIES = (
+    {
+        "key": "markets",
+        "query": (
+            '("Wall Street" OR Nasdaq OR Nikkei OR TOPIX OR USDJPY OR yen OR '
+            '"AI bubble" OR semiconductor OR "Treasury yield") sourcelang:english'
+        ),
+    },
+    {
+        "key": "policy",
+        "query": (
+            '("Federal Reserve" OR FOMC OR "U.S. Treasury" OR "White House" OR '
+            '"Bank of Japan" OR intervention OR tariff) sourcelang:english'
+        ),
+    },
+    {
+        "key": "economists",
+        "query": (
+            '("Mohamed El-Erian" OR "Jason Furman" OR "Claudia Sahm" OR '
+            '"Liz Ann Sonders" OR "Jim Bianco") sourcelang:english'
+        ),
     },
 )
 
@@ -298,6 +341,74 @@ ECONOMIST_WATCH_NAMES = (
 TRUSTED_NEWS_NAMES = (
     "reuters", "associated press", "ap news", "bloomberg", "wall street journal",
     "wsj", "financial times", "nikkei", "axios", "mainichi", "fxstreet",
+)
+
+TRANSLATION_MODES = {
+    "source-japanese",
+    "editorial-summary",
+    "deepl",
+    "structured-gist",
+    "unavailable",
+}
+
+REFERENCE_TRANSLATION_RULES = (
+    (r"\bU\.?S\.?\b", "米国"),
+    (r"\bWall Street\b", "米国株市場"),
+    (r"\bFederal Reserve\b", "FRB"),
+    (r"\bBank of Japan\b", "日本銀行"),
+    (r"\bTreasury yields?\b", "米国債利回り"),
+    (r"\binterest rates?\b", "金利"),
+    (r"\brate cuts?\b", "利下げ"),
+    (r"\brate hikes?\b", "利上げ"),
+    (r"\bartificial intelligence\b", "AI"),
+    (r"\bAI spending\b", "AI投資"),
+    (r"\bAI expenses?\b", "AI関連費用"),
+    (r"\bAI stocks?\b", "AI関連株"),
+    (r"\bstocks?\b", "株式"),
+    (r"\bequities\b", "株式"),
+    (r"\bmarkets?\b", "市場"),
+    (r"\bJapanese Yen\b", "円"),
+    (r"\bJapan(?:'s|’s) yen\b", "円"),
+    (r"\byen\b", "円"),
+    (r"\bU\.?S\.? dollar\b", "米ドル"),
+    (r"\bdollar\b", "ドル"),
+    (r"\bintervention\b", "為替介入"),
+    (r"\bsuspected\b", "疑いのある"),
+    (r"\bspeculation\b", "観測"),
+    (r"\banalysts?\b", "アナリスト"),
+    (r"\btraders?\b", "市場参加者"),
+    (r"\binvestors?\b", "投資家"),
+    (r"\bearnings\b", "決算"),
+    (r"\brevenue\b", "売上高"),
+    (r"\bprofit\b", "利益"),
+    (r"\binflation\b", "インフレ"),
+    (r"\brecession\b", "景気後退"),
+    (r"\btariffs?\b", "関税"),
+    (r"\bvaluation\b", "バリュエーション"),
+    (r"\bcapex\b", "設備投資"),
+    (r"\bdata centers?\b", "データセンター"),
+    (r"\bsemiconductors?\b", "半導体"),
+    (r"\bbubble\b", "バブル"),
+    (r"\brally\b", "上昇"),
+    (r"\bsell[- ]?off\b", "売り"),
+    (r"\bplung(?:e|es|ed|ing)\b", "急落"),
+    (r"\bsurg(?:e|es|ed|ing)\b", "急伸"),
+    (r"\bjumps?\b", "急伸"),
+    (r"\brises?\b", "上昇"),
+    (r"\bgains?\b", "上昇"),
+    (r"\bfalls?\b", "下落"),
+    (r"\bdrops?\b", "下落"),
+    (r"\bslumps?\b", "下落"),
+    (r"\bwarns?\b", "警告"),
+    (r"\bwarning\b", "警戒"),
+    (r"\bconcerns?\b", "懸念"),
+    (r"\bworries\b", "懸念"),
+    (r"\boutlook\b", "見通し"),
+    (r"\bafter\b", "を受け"),
+    (r"\bahead of\b", "を前に"),
+    (r"\bamid\b", "を背景に"),
+    (r"\bwhile\b", "一方で"),
+    (r"\bas\b", "を受け"),
 )
 
 
@@ -524,6 +635,8 @@ def request(
     timeout: int = 18,
     attempts: int = 2,
     headers: dict[str, str] | None = None,
+    data: bytes | None = None,
+    method: str | None = None,
 ) -> tuple[bytes, str]:
     base_headers = {
         "User-Agent": USER_AGENT,
@@ -534,9 +647,30 @@ def request(
     last_error: Exception | None = None
     for attempt in range(attempts):
         try:
-            req = urllib.request.Request(url, headers=base_headers)
+            req = urllib.request.Request(
+                url,
+                headers=base_headers,
+                data=data,
+                method=method,
+            )
             with urllib.request.urlopen(req, timeout=timeout) as response:
                 return response.read(), response.geturl()
+        except urllib.error.HTTPError as exc:
+            last_error = exc
+            if attempt + 1 < attempts:
+                if exc.code == 429:
+                    retry_after = (
+                        exc.headers.get("Retry-After")
+                        if exc.headers is not None
+                        else None
+                    )
+                    try:
+                        delay = float(retry_after) if retry_after else 5.0
+                    except (TypeError, ValueError):
+                        delay = 5.0
+                    time.sleep(max(5.0, min(delay, 30.0)))
+                else:
+                    time.sleep(0.7 * (attempt + 1))
         except (urllib.error.URLError, TimeoutError, ConnectionError) as exc:
             last_error = exc
             if attempt + 1 < attempts:
@@ -563,10 +697,211 @@ def clean_text(value: Any) -> str:
     return re.sub(r"\s+", " ", html.unescape(text)).strip()
 
 
+def has_japanese(value: str) -> bool:
+    return re.search(r"[ぁ-んァ-ン一-龥々〆ヶ]", value or "") is not None
+
+
+def language_of(value: str) -> str:
+    if has_japanese(value):
+        return "ja"
+    if re.search(r"[A-Za-z]", value or ""):
+        return "en"
+    return "und"
+
+
+def normalized_comparison_text(value: str) -> str:
+    return re.sub(
+        r"[^a-z0-9一-龥ぁ-んァ-ン]+",
+        "",
+        unicodedata.normalize("NFKC", clean_text(value)).casefold(),
+    )
+
+
+def source_suffix_removed(value: str) -> str:
+    return re.sub(
+        r"\s+(?:[-–—|]\s*)?(?:Reuters|Bloomberg|Associated Press|AP News|"
+        r"Financial Times|Wall Street Journal|WSJ|CNBC|Axios|Yahoo Finance|"
+        r"Investing\.com|FXStreet)(?:\s*)$",
+        "",
+        clean_text(value),
+        flags=re.I,
+    ).strip(" -–—|")
+
+
+def original_excerpt(title: str, summary: str) -> str:
+    candidate = clean_text(summary)
+    if not candidate:
+        return ""
+    left = normalized_comparison_text(source_suffix_removed(title))
+    right = normalized_comparison_text(source_suffix_removed(candidate))
+    if left and right and (
+        left == right
+        or SequenceMatcher(None, left, right).ratio() >= 0.88
+        or left in right and len(right) <= len(left) + 32
+    ):
+        return ""
+    return candidate[:ORIGINAL_EXCERPT_LIMIT].rstrip()
+
+
+def structured_headline_subject(title: str) -> str:
+    """Extract only a short named subject; never present a word-swapped headline."""
+
+    cleaned = source_suffix_removed(clean_text(title))
+    ticker_match = re.match(
+        r"^(.{1,60}?)\s*\((?:NASDAQ|NYSE|AMEX|OTC|TSE|TYO):[A-Z0-9.:-]+\)",
+        cleaned,
+        re.I,
+    )
+    if ticker_match:
+        subject = ticker_match.group(1).strip(" :,-–—|")
+    else:
+        known_subjects = (
+            (r"\bUSD/?JPY\b", "ドル円"),
+            (r"\bJapanese Yen\b|\bYen\b", "円相場"),
+            (r"\bBank of Japan\b", "日本銀行"),
+            (r"\bFederal Reserve\b|\bFOMC\b", "FRB"),
+            (r"\bU\.?S\.? Treasury\b", "米財務省"),
+            (r"\bWall Street\b", "米国株市場"),
+            (r"\bS&P 500\b", "S&P 500"),
+            (r"\bNasdaq\b", "Nasdaq"),
+            (r"\bMicrosoft\b", "Microsoft"),
+            (r"\bApple\b", "Apple"),
+            (r"\bNvidia\b", "NVIDIA"),
+            (r"\bGold\b", "金相場"),
+            (r"\bMohamed El-Erian\b", "Mohamed El-Erian"),
+        )
+        subject = next(
+            (
+                label
+                for pattern, label in known_subjects
+                if re.search(pattern, cleaned, re.I)
+            ),
+            "",
+        )
+        if not subject:
+            first = re.match(r"^([A-Z][A-Za-z0-9&.'-]{1,30})\b", cleaned)
+            candidate = first.group(1) if first else ""
+            disallowed = {
+                "the", "a", "an", "less", "even", "does", "do", "why", "how",
+                "what", "after", "as", "us", "u.s", "japan", "japanese",
+            }
+            subject = "" if candidate.casefold().rstrip(".") in disallowed else candidate
+    aliases = {
+        "yen": "円相場",
+        "japanese yen": "円相場",
+        "usd/jpy": "ドル円",
+        "usdjpy": "ドル円",
+        "federal reserve": "FRB",
+        "wall street": "米国株市場",
+        "gold": "金相場",
+        "u.s.": "米国市場",
+        "us": "米国市場",
+    }
+    subject = aliases.get(subject.casefold(), subject)
+    if not subject or len(subject) > 44:
+        return ""
+    return subject
+
+
+def structured_event_label(title: str, topic_label: str) -> str:
+    lowered = title.casefold()
+    rules = (
+        (r"\binterven(?:e|ed|es|ing|tion|tions)\b|介入", "為替介入観測と円相場の急変"),
+        (r"\bearnings?\b|\bresults?\b|\boutlook\b|\brevenue\b|\bsales\b|\bestimates?\b|\bq[1-4]\b|\bfull-year\b", "決算・業績見通し"),
+        (r"\bfederal reserve\b|\bfomc\b|\brate\b|\byield\b|\bborrowing cost", "金融政策・金利"),
+        (r"\bai\b|artificial intelligence|semiconductor|nvidia", "AI投資・評価"),
+        (r"\btariffs?\b|trade policy|sanction", "関税・通商政策"),
+        (r"\brally\b|\bsurge\b|\bgain\b|\bjump\b|\bhigher\b|\brebound\b", "相場上昇"),
+        (r"\bselloff\b|\bplunge\b|\bdrop\b|\bslump\b|\blower\b|\bdecline\b", "相場下落"),
+    )
+    for pattern, label in rules:
+        if re.search(pattern, lowered, re.I):
+            return label
+    return f"{topic_label}の新着材料"
+
+
+def structured_japanese_title(title: str, topic_label: str, source: str) -> str:
+    subject = structured_headline_subject(title)
+    event_label = structured_event_label(title, topic_label)
+    prefix = subject or topic_label
+    if not subject and event_label == f"{topic_label}の新着材料":
+        return f"{topic_label}：海外の新着材料"
+    return f"{prefix}：{event_label}に関する海外速報"
+
+
+def freshness_profile(
+    effective_at: datetime | None,
+    retrieved_at: datetime,
+    timestamp_precision: str,
+) -> dict[str, Any]:
+    if effective_at is None or timestamp_precision == "unknown":
+        return {
+            "bucket": "unknown",
+            "label": "時刻未確認",
+            "ageMinutes": None,
+        }
+    age_minutes = max(0, round((retrieved_at - effective_at).total_seconds() / 60))
+    if timestamp_precision == "date":
+        bucket, label = "context", "日付のみ"
+    elif age_minutes <= 30:
+        bucket, label = "breaking", "30分以内"
+    elif age_minutes <= 180:
+        bucket, label = "developing", "3時間以内"
+    elif age_minutes <= 1440:
+        bucket, label = "today", "24時間以内"
+    else:
+        bucket, label = "context", "背景情報"
+    return {
+        "bucket": bucket,
+        "label": label,
+        "ageMinutes": age_minutes,
+    }
+
+
+def effect_profile(topic_key: str, text: str, stance: str) -> dict[str, str]:
+    lowered = text.casefold()
+    if topic_key == "ai-bubble":
+        target = "AI関連株"
+    elif topic_key == "us-stocks":
+        target = "米国株"
+    elif topic_key == "japan-stocks":
+        target = "日本株"
+    elif topic_key == "fx-rates" and re.search(r"\byen\b|円", lowered):
+        target = "円"
+        if any(term in lowered for term in ("surge", "jump", "strengthen", "gain", "急伸", "円高")):
+            stance = "bullish"
+        elif any(term in lowered for term in ("plunge", "weaken", "drop", "下落", "円安")):
+            stance = "bearish"
+    elif topic_key == "fx-rates":
+        target = "為替・金利"
+    else:
+        target = "政策・市場"
+    direction = {
+        "bullish": "強気",
+        "bearish": "弱気",
+        "mixed": "強弱混在",
+        "neutral": "方向なし",
+    }.get(stance, "方向未分類")
+    return {
+        "target": target,
+        "direction": stance,
+        "label": f"{target}に{direction}",
+    }
+
+
+def translation_source_hash(title: str, excerpt: str) -> str:
+    return hashlib.sha256((title + "\n" + excerpt).encode("utf-8")).hexdigest()
+
+
 def parse_datetime(value: Any) -> datetime | None:
     if not value:
         return None
     text = str(value).strip()
+    for pattern in ("%Y%m%dT%H%M%SZ", "%Y%m%d%H%M%S"):
+        try:
+            return datetime.strptime(text, pattern).replace(tzinfo=timezone.utc)
+        except ValueError:
+            pass
     try:
         parsed = datetime.fromisoformat(text.replace("Z", "+00:00"))
         return parsed if parsed.tzinfo else parsed.replace(tzinfo=timezone.utc)
@@ -587,17 +922,33 @@ def iso_or_none(value: Any) -> str | None:
 def normalize_url(value: str) -> str:
     try:
         parsed = urllib.parse.urlparse(value)
-        query = urllib.parse.parse_qs(parsed.query)
+        query = urllib.parse.parse_qs(parsed.query, keep_blank_values=True)
         for key in ("url", "u", "target"):
             candidate = query.get(key, [None])[0]
             if candidate and candidate.startswith(("http://", "https://")):
-                return urllib.parse.unquote(candidate)
+                return normalize_url(urllib.parse.unquote(candidate))
+        tracking_keys = {
+            "fbclid",
+            "gclid",
+            "mc_cid",
+            "mc_eid",
+            "ref",
+            "ref_src",
+            "source",
+        }
+        kept_pairs = [
+            (key, item)
+            for key, values in query.items()
+            if not key.casefold().startswith("utm_")
+            and key.casefold() not in tracking_keys
+            for item in values
+        ]
         return urllib.parse.urlunparse((
             parsed.scheme,
             parsed.netloc.lower(),
             parsed.path,
             "",
-            "",
+            urllib.parse.urlencode(sorted(kept_pairs), doseq=True),
             "",
         ))
     except Exception:
@@ -668,6 +1019,117 @@ def source_weight(kind: str) -> int:
     return 8
 
 
+def timestamp_precision(value: Any) -> str:
+    text = str(value or "").strip()
+    if not text:
+        return "unknown"
+    if re.fullmatch(r"\d{4}-\d{2}-\d{2}", text):
+        return "date"
+    if re.search(r"(?:T|\s)\d{2}:\d{2}:\d{2}", text) or re.search(
+        r"\b\d{2}:\d{2}:\d{2}\b", text
+    ):
+        return "second"
+    if re.search(r"(?:T|\s)\d{2}:\d{2}", text) or re.search(
+        r"\b\d{2}:\d{2}\b", text
+    ):
+        return "minute"
+    return "date" if parse_datetime(text) else "unknown"
+
+
+def publisher_domain(url: str) -> str:
+    try:
+        return (urllib.parse.urlparse(url).hostname or "").lower()
+    except ValueError:
+        return ""
+
+
+def reporting_origin_group(source: str, url: str) -> str:
+    text = f"{source} {publisher_domain(url)}".casefold()
+    aliases = (
+        ("reuters", "reuters"),
+        ("associated press", "associated-press"),
+        ("ap news", "associated-press"),
+        ("bloomberg", "bloomberg"),
+        ("financial times", "financial-times"),
+        ("wall street journal", "wall-street-journal"),
+        ("wsj", "wall-street-journal"),
+        ("federal reserve", "federal-reserve"),
+        ("treasury.gov", "us-treasury"),
+        ("whitehouse.gov", "white-house"),
+        ("boj.or.jp", "bank-of-japan"),
+        ("mof.go.jp", "japan-mof"),
+        ("bls.gov", "us-bls"),
+        ("sec.gov", "us-sec"),
+    )
+    for needle, group in aliases:
+        if needle in text:
+            return group
+    domain = publisher_domain(url)
+    if domain.startswith("www."):
+        domain = domain[4:]
+    return domain or normalized_comparison_text(source)[:80] or "unknown"
+
+
+def story_cluster_id(title: str, topic_key: str) -> str:
+    normalized = normalized_comparison_text(source_suffix_removed(title))
+    digest = hashlib.sha1(f"{topic_key}\n{normalized}".encode("utf-8")).hexdigest()
+    return "cluster-" + digest[:14]
+
+
+def japanese_payload(
+    *,
+    title: str,
+    summary: str,
+    excerpt: str,
+    topic_label: str,
+    source: str,
+    effect: dict[str, str],
+    retrieved_at: datetime,
+) -> dict[str, Any]:
+    source_hash = translation_source_hash(title, excerpt)
+    if has_japanese(title):
+        return {
+            "title": title,
+            "summary": summary,
+            "mode": "source-japanese",
+            "label": "日本語原文",
+            "provider": None,
+            "generatedAtUtc": retrieved_at.isoformat(),
+            "sourceHash": source_hash,
+        }
+    if has_japanese(summary):
+        return {
+            "title": structured_japanese_title(title, topic_label, source),
+            "summary": summary,
+            "mode": "editorial-summary",
+            "label": "編集要約",
+            "provider": None,
+            "generatedAtUtc": retrieved_at.isoformat(),
+            "sourceHash": source_hash,
+        }
+    event_label = structured_event_label(title, topic_label)
+    subject = structured_headline_subject(title)
+    subject_text = f"{subject}について、" if subject else ""
+    direction = {
+        "bullish": "強気材料", "bearish": "弱気材料",
+        "mixed": "強弱が混在する材料",
+        "neutral": "方向性を特定しない材料",
+    }.get(effect.get("direction"), "方向未分類の材料")
+    return {
+        "title": structured_japanese_title(title, topic_label, source),
+        "summary": (
+            f"{source or '海外媒体'}が{subject_text}{event_label}を報じています。"
+            f"見出し分類は「{direction}」です。これは翻訳ではなく、"
+            "数値・固有名詞・文脈は右側の原文で確認してください。"
+        ),
+        "mode": "structured-gist",
+        "label": "構造化要旨（翻訳ではありません）",
+        "provider": None,
+        "generatedAtUtc": retrieved_at.isoformat(),
+        "sourceHash": source_hash,
+    }
+
+
 def build_item(
     *,
     title: str,
@@ -682,15 +1144,35 @@ def build_item(
     engagement: dict[str, int] | None = None,
     author: str = "",
     identity_note: str = "",
+    indexed_at: Any = None,
+    first_seen_at: Any = None,
+    timestamp_basis: str | None = None,
+    timestamp_precision_value: str | None = None,
+    discovery_provider: str = "direct",
+    source_country: str = "",
 ) -> dict[str, Any]:
     clean_title = clean_text(title)
     clean_summary = clean_text(summary)
     topic_key, topic_label = classify_topic(clean_title + " " + clean_summary, topic_hint)
     published_at = iso_or_none(published)
     published_dt = parse_datetime(published_at)
+    indexed_at_utc = iso_or_none(indexed_at)
+    indexed_dt = parse_datetime(indexed_at_utc)
+    effective_dt = published_dt or indexed_dt
+    effective_at = effective_dt.astimezone(timezone.utc).isoformat() if effective_dt else None
+    first_seen_dt = parse_datetime(first_seen_at) or retrieved_at
+    first_seen_utc = first_seen_dt.astimezone(timezone.utc).isoformat()
+    precision = timestamp_precision_value or timestamp_precision(published or indexed_at)
+    basis = timestamp_basis or (
+        "publisher-feed"
+        if published_dt
+        else "index-seen"
+        if indexed_dt
+        else "unknown"
+    )
     age_hours = (
-        max(0.0, (retrieved_at - published_dt).total_seconds() / 3600.0)
-        if published_dt else None
+        max(0.0, (retrieved_at - effective_dt).total_seconds() / 3600.0)
+        if effective_dt else None
     )
     engagement = engagement or {}
     engagement_total = sum(max(0, int(value or 0)) for value in engagement.values())
@@ -710,6 +1192,25 @@ def build_item(
             if source_kind in {"news", "news-wire"}
             else "unverified"
         )
+    stance = classify_stance(clean_title + " " + clean_summary)
+    effect = effect_profile(topic_key, clean_title + " " + clean_summary, stance)
+    excerpt = original_excerpt(clean_title, clean_summary)
+    original_language = language_of(clean_title)
+    if original_language == "en" and has_japanese(excerpt):
+        excerpt = ""
+    japanese = japanese_payload(
+        title=clean_title,
+        summary=clean_summary,
+        excerpt=excerpt,
+        topic_label=topic_label,
+        source=source,
+        effect=effect,
+        retrieved_at=retrieved_at,
+    )
+    freshness = freshness_profile(effective_dt, retrieved_at, precision)
+    freshness["firstSeenAtUtc"] = first_seen_utc
+    origin_group = reporting_origin_group(source, url)
+    cluster_id = story_cluster_id(clean_title, topic_key)
     return {
         "id": item_id(url, clean_title),
         "title": clean_title,
@@ -723,13 +1224,38 @@ def build_item(
         "ageHours": round(age_hours, 2) if age_hours is not None else None,
         "topicKey": topic_key,
         "topic": topic_label,
-        "stance": classify_stance(clean_title + " " + clean_summary),
+        "stance": stance,
         "engagement": engagement,
         "engagementTotal": engagement_total,
         "priorityScore": priority,
         "talkScore": 0,
         "author": author,
         "identityNote": identity_note,
+        "original": {
+            "language": original_language,
+            "title": clean_title,
+            "excerpt": excerpt,
+        },
+        "japanese": japanese,
+        "effectivePublishedAtUtc": effective_at,
+        "indexedAtUtc": indexed_at_utc,
+        "firstSeenAtUtc": first_seen_utc,
+        "timestampBasis": basis,
+        "timestampPrecision": precision,
+        "freshness": freshness,
+        "effect": [{
+            **effect,
+            "basis": "headline-keyword-classifier",
+        }],
+        "clusterId": cluster_id,
+        "clusterSize": 1,
+        "independentSourceCount": 1,
+        "corroborationState": "single-source",
+        "relatedLinks": [],
+        "originGroup": origin_group,
+        "publisherDomain": publisher_domain(url),
+        "sourceCountry": clean_text(source_country),
+        "discoveryProvider": discovery_provider,
     }
 
 
@@ -778,6 +1304,30 @@ def _peak_to_trough(points: list[dict[str, Any]]) -> dict[str, Any]:
             }
         if row["value"] > peak["value"]:
             peak = row
+    return best
+
+
+def _trough_to_peak(points: list[dict[str, Any]]) -> dict[str, Any]:
+    if len(points) < 2:
+        return {"points": None, "pct": None, "startUtc": None, "endUtc": None}
+    trough = points[0]
+    best = {
+        "points": 0.0,
+        "pct": 0.0,
+        "startUtc": datetime.fromtimestamp(trough["timestamp"], timezone.utc).isoformat(),
+        "endUtc": datetime.fromtimestamp(trough["timestamp"], timezone.utc).isoformat(),
+    }
+    for row in points[1:]:
+        advance = row["value"] - trough["value"]
+        if advance > best["points"]:
+            best = {
+                "points": advance,
+                "pct": advance / trough["value"] * 100.0 if trough["value"] else None,
+                "startUtc": datetime.fromtimestamp(trough["timestamp"], timezone.utc).isoformat(),
+                "endUtc": datetime.fromtimestamp(row["timestamp"], timezone.utc).isoformat(),
+            }
+        if row["value"] < trough["value"]:
+            trough = row
     return best
 
 
@@ -848,6 +1398,7 @@ def fetch_intraday_quote(key: str, profile: dict[str, str], now: datetime) -> di
         "move15m": _max_window_move(recent_points, 15),
         "move30m": _max_window_move(recent_points, 30),
         "peakToTrough": _peak_to_trough(recent_points),
+        "troughToPeak": _trough_to_peak(recent_points),
         "sparkline": [
             {
                 "timeUtc": datetime.fromtimestamp(row["timestamp"], timezone.utc).isoformat(),
@@ -901,17 +1452,48 @@ def build_market_shock(quotes: dict[str, Any], now: datetime) -> dict[str, Any]:
     day_change = finite(fx.get("changePct"))
     range_pct = finite(fx.get("sessionRangePct"))
     peak_to_trough = finite((fx.get("peakToTrough") or {}).get("pct"))
-    move30 = finite((fx.get("move30m") or {}).get("pct"))
+    trough_to_peak = finite((fx.get("troughToPeak") or {}).get("pct"))
+    move_pcts = [
+        finite((fx.get(key) or {}).get("pct"))
+        for key in ("move5m", "move15m", "move30m")
+    ]
+    move_points = [
+        finite((fx.get(key) or {}).get("points"))
+        for key in ("move5m", "move15m", "move30m")
+    ]
+    signed_moves = [value for value in [day_change, *move_pcts] if value is not None]
+    down_score = max(
+        [max(0.0, peak_to_trough or 0.0)]
+        + [abs(value) for value in signed_moves if value < 0]
+    )
+    up_score = max(
+        [max(0.0, trough_to_peak or 0.0)]
+        + [value for value in signed_moves if value > 0]
+    )
+    if not fx:
+        shock_direction = "unknown"
+    elif down_score > up_score + 1e-9:
+        shock_direction = "yen-strengthening"
+    elif up_score > down_score + 1e-9:
+        shock_direction = "yen-weakening"
+    else:
+        shock_direction = "mixed"
     magnitude = max(
         abs(day_change or 0.0),
         abs(range_pct or 0.0),
         abs(peak_to_trough or 0.0),
-        abs(move30 or 0.0),
+        abs(trough_to_peak or 0.0),
+        *(abs(value or 0.0) for value in move_pcts),
     )
-    if magnitude >= 2.0 or abs(finite((fx.get("peakToTrough") or {}).get("points")) or 0.0) >= 3.0:
+    directional_points = max(
+        abs(finite((fx.get("peakToTrough") or {}).get("points")) or 0.0),
+        abs(finite((fx.get("troughToPeak") or {}).get("points")) or 0.0),
+    )
+    move30_points = abs(finite((fx.get("move30m") or {}).get("points")) or 0.0)
+    if magnitude >= 2.0 or directional_points >= 3.0:
         severity = "critical"
         severity_label = "重大な急変"
-    elif magnitude >= 1.0 or abs(finite((fx.get("move30m") or {}).get("points")) or 0.0) >= 1.5:
+    elif magnitude >= 1.0 or move30_points >= 1.5:
         severity = "warning"
         severity_label = "急変を監視"
     elif fx:
@@ -920,13 +1502,29 @@ def build_market_shock(quotes: dict[str, Any], now: datetime) -> dict[str, Any]:
     else:
         severity = "unknown"
         severity_label = "取得不能"
-    if severity in {"critical", "warning"}:
+    if severity in {"critical", "warning"} and shock_direction == "yen-strengthening":
         intervention_status = "price-shock-only"
-        intervention_label = "急変を検知・介入は公式未確認"
+        intervention_label = "円高方向の急変・介入は公式未確認"
         headline = "USD/JPYで円高方向の急変を検知。介入実施はまだ確定できません"
         summary = (
             "価格データから大幅な円高方向の動きを即時検知しました。値動きだけでは為替介入、"
             "要人発言、金利材料、ポジション解消を区別できないため、財務省の公表と会見を待って確認します。"
+        )
+    elif severity in {"critical", "warning"} and shock_direction == "yen-weakening":
+        intervention_status = "yen-weakening-shock"
+        intervention_label = "円安方向の急変・円買い介入判定対象外"
+        headline = "USD/JPYで円安方向の急変を検知。実施済み円買い介入の価格証拠ではありません"
+        summary = (
+            "ドル円の上昇は円安方向です。円買い介入が実施された直後に想定する円高方向とは逆なので、"
+            "この値動きだけを介入観測として扱いません。介入警戒や要人発言とは分けて表示します。"
+        )
+    elif severity in {"critical", "warning"}:
+        intervention_status = "price-shock-only"
+        intervention_label = "方向混在の急変・介入判定保留"
+        headline = "USD/JPYで方向の混在する急変を検知。介入判定は保留します"
+        summary = (
+            "複数の観測窓で上昇と下落が混在しています。方向が定まらないため、"
+            "値動きだけから円買い介入を推測せず、一次公表と主要報道を待ちます。"
         )
     elif severity == "normal":
         intervention_status = "no-shock-observed"
@@ -942,14 +1540,21 @@ def build_market_shock(quotes: dict[str, Any], now: datetime) -> dict[str, Any]:
         "instrument": "USD/JPY",
         "severity": severity,
         "severityLabel": severity_label,
+        "shockDirection": shock_direction,
+        "directionMetrics": {
+            "yenStrengtheningScorePct": round(down_score, 4),
+            "yenWeakeningScorePct": round(up_score, 4),
+        },
         "headline": headline,
         "summary": summary,
         "interventionStatus": intervention_status,
         "interventionLabel": intervention_label,
         "officiallyConfirmed": False,
         "assessmentRule": (
-            "前日比・約30時間レンジ・30分変化の絶対値が1%以上、または30分で1.5円以上を監視。"
-            "2%以上または高値から安値まで3円以上を重大とする。閾値は介入認定条件ではない。"
+            "前日比、5・15・30分の符号付き変化、高値→安値、安値→高値を比較して方向を判定。"
+            "変化率1%以上または30分1.5円以上を監視、2%以上または方向別3円以上を重大とする。"
+            "円高方向だけを円買い介入の価格観測候補にし、報道は方向別急変終了後3時間以内で照合。"
+            "閾値だけでは介入認定しない。"
         ),
         "observedAtUtc": fx.get("quoteTimeUtc"),
         "observedAtJst": fx.get("quoteTimeJst"),
@@ -964,6 +1569,7 @@ def build_market_shock(quotes: dict[str, Any], now: datetime) -> dict[str, Any]:
         "move15m": fx.get("move15m"),
         "move30m": fx.get("move30m"),
         "peakToTrough": fx.get("peakToTrough"),
+        "troughToPeak": fx.get("troughToPeak"),
         "sparkline": fx.get("sparkline") or [],
         "priceSourceUrl": fx.get("sourceUrl"),
         "officialVerificationUrl": MOF_INTERVENTION_URL,
@@ -979,18 +1585,51 @@ def intervention_event_window(
 ) -> tuple[datetime | None, datetime | None]:
     """Locate the strongest short USD/JPY move represented in this snapshot."""
 
+    direction = shock.get("shockDirection")
     candidates: list[tuple[tuple[float, float], datetime, datetime]] = []
-    for key in ("move5m", "move15m", "move30m"):
+    extreme_key = (
+        "peakToTrough"
+        if direction == "yen-strengthening"
+        else "troughToPeak"
+        if direction == "yen-weakening"
+        else None
+    )
+    for key in tuple(
+        candidate
+        for candidate in (extreme_key, "move5m", "move15m", "move30m")
+        if candidate
+    ):
         move = shock.get(key) or {}
         start = parse_datetime(move.get("startUtc"))
         end = parse_datetime(move.get("endUtc"))
         if start is None or end is None or end < start:
             continue
+        signed_pct = finite(move.get("pct"))
+        signed_points = finite(move.get("points"))
+        if key.startswith("move"):
+            if direction == "yen-strengthening" and (signed_pct or 0.0) >= 0:
+                continue
+            if direction == "yen-weakening" and (signed_pct or 0.0) <= 0:
+                continue
         score = (
-            abs(finite(move.get("pct")) or 0.0),
-            abs(finite(move.get("points")) or 0.0),
+            abs(signed_pct or 0.0),
+            abs(signed_points or 0.0),
         )
         candidates.append((score, start, end))
+    reference = (
+        parse_datetime(shock.get("observedAtUtc"))
+        or parse_datetime(shock.get("checkedAtUtc"))
+    )
+    if reference is not None:
+        recent_candidates = [
+            candidate
+            for candidate in candidates
+            if -300
+            <= (reference - candidate[2]).total_seconds()
+            <= 180 * 60
+        ]
+        if recent_candidates:
+            candidates = recent_candidates
     if candidates:
         _, start, end = max(candidates, key=lambda row: row[0])
         return start, end
@@ -1007,6 +1646,26 @@ def update_intervention_assessment(
     """Promote price-only status to reported-unconfirmed, never to confirmed."""
 
     event_start, event_end = intervention_event_window(shock)
+    event_reference = (
+        parse_datetime(shock.get("observedAtUtc"))
+        or parse_datetime(shock.get("checkedAtUtc"))
+    )
+    event_lag_seconds = (
+        (event_reference - event_end).total_seconds()
+        if event_reference is not None and event_end is not None
+        else None
+    )
+    recent_directional_shock = (
+        event_lag_seconds is not None
+        and -300 <= event_lag_seconds <= 180 * 60
+    )
+    shock["recentDirectionalShock"] = recent_directional_shock
+    shock["directionalShockEventEndUtc"] = event_end.isoformat() if event_end else None
+    eligible_directional_shock = (
+        shock.get("severity") in {"critical", "warning"}
+        and shock.get("shockDirection") == "yen-strengthening"
+        and recent_directional_shock
+    )
     evidence_start = event_start - timedelta(hours=1) if event_start else None
     evidence_end = event_end + timedelta(hours=24) if event_end else None
     evidence = []
@@ -1031,9 +1690,9 @@ def update_intervention_assessment(
             "publishedAtUtc": item.get("publishedAtUtc"),
             "claimStatus": "intervention-observation",
         })
-    if shock.get("severity") not in {"critical", "warning"}:
+    if not eligible_directional_shock:
         evidence = []
-    if evidence and shock.get("severity") in {"critical", "warning"}:
+    if evidence and eligible_directional_shock:
         shock["interventionStatus"] = "reported-unconfirmed"
         shock["interventionLabel"] = "主要報道が介入観測・公式確認なし"
         shock["headline"] = "USD/JPYの急変で介入観測。主要報道あり、公式確認はまだありません"
@@ -1041,13 +1700,34 @@ def update_intervention_assessment(
             "価格の規模と速度から複数の主要報道・アナリストが介入を疑っています。"
             "ただし財務省・日銀の公式確認はなく、月末フロー、米金利材料、広範なドル安も候補です。"
         )
+    if (
+        shock.get("severity") in {"critical", "warning"}
+        and not recent_directional_shock
+        and event_end is not None
+    ):
+        event_time = event_end.astimezone(JST).strftime("%m月%d日 %H:%M")
+        direction_label = {
+            "yen-strengthening": "円高方向",
+            "yen-weakening": "円安方向",
+            "mixed": "方向混在",
+        }.get(str(shock.get("shockDirection")), "方向未確認")
+        shock["headline"] = (
+            f"USD/JPYは当日{direction_label}の急変を記録。直近3時間の新規急変は未検知"
+        )
+        shock["summary"] = (
+            f"最も大きい確認済みの動きは{event_time}（JST）までの当日履歴です。"
+            "現在値の観測時刻とは分けて表示します。値動きだけでは介入を確定できず、"
+            "財務省の公表と主要報道を継続確認します。"
+        )
+        if shock.get("shockDirection") == "yen-strengthening":
+            shock["interventionLabel"] = "当日の円高急変・介入は公式未確認"
     shock["reportedEvidence"] = evidence[:6]
     shock["reportedEvidenceCount"] = len(evidence)
     shock["officiallyConfirmed"] = False
     july_event_start = datetime(2026, 7, 30, 13, 0, tzinfo=timezone.utc)
     july_event_end = datetime(2026, 7, 30, 15, 30, tzinfo=timezone.utc)
     is_july_event = (
-        shock.get("severity") in {"critical", "warning"}
+        eligible_directional_shock
         and event_start is not None
         and event_end is not None
         and event_start <= july_event_end
@@ -1199,6 +1879,22 @@ def parse_feed_items(raw: bytes) -> list[dict[str, str]]:
     return rows
 
 
+def retrieval_count_fields(
+    received_count: int,
+    accepted: list[dict[str, Any]],
+) -> dict[str, Any]:
+    effective_times = [
+        item.get("effectivePublishedAtUtc")
+        for item in accepted
+        if item.get("effectivePublishedAtUtc")
+    ]
+    return {
+        "receivedCount": max(0, int(received_count)),
+        "acceptedCount": len(accepted),
+        "newestEffectiveAtUtc": max(effective_times) if effective_times else None,
+    }
+
+
 def fetch_official_feed(feed: dict[str, str], now: datetime) -> tuple[list[dict[str, Any]], dict[str, Any]]:
     raw, _ = request(feed["url"])
     if feed.get("format") == "html-links":
@@ -1220,7 +1916,7 @@ def fetch_official_feed(feed: dict[str, str], now: datetime) -> tuple[list[dict[
             feed_rows.append({
                 "title": title,
                 "link": link,
-                "published": dates[-1] + "T12:00:00Z" if dates else "",
+                "published": dates[-1] + "T00:00:00Z" if dates else "",
                 "summary": "",
                 "source": feed["name"],
             })
@@ -1242,16 +1938,25 @@ def fetch_official_feed(feed: dict[str, str], now: datetime) -> tuple[list[dict[
             retrieved_at=now,
             summary=row["summary"],
             verification="primary",
+            timestamp_basis="publisher-feed" if feed.get("format") != "html-links" else "publisher-page-date",
+            timestamp_precision_value="date" if feed.get("format") == "html-links" else None,
+            discovery_provider="official-direct",
         )
         if item["ageHours"] is None or item["ageHours"] <= 336:
             output.append(item)
-    return output[:10], {
+    accepted = output[:10]
+    return accepted, {
         "name": feed["name"],
         "kind": feed["kind"],
-        "status": "ok",
+        "status": "ok" if accepted else "limited",
         "url": feed["url"],
         "retrievedAtUtc": now.isoformat(),
-        "message": f"市場関連 {len(output[:10])}件",
+        "message": (
+            f"市場関連 {len(accepted)}件"
+            if accepted
+            else "接続成功・該当新着0件"
+        ),
+        **retrieval_count_fields(len(feed_rows), accepted),
     }
 
 
@@ -1264,7 +1969,8 @@ def fetch_bing_news(query_def: dict[str, str], now: datetime) -> tuple[list[dict
     url = "https://www.bing.com/news/search?" + params
     raw, _ = request(url)
     output: list[dict[str, Any]] = []
-    for row in parse_feed_items(raw)[:12]:
+    feed_rows = parse_feed_items(raw)[:12]
+    for row in feed_rows:
         if not row["title"] or not row["link"]:
             continue
         source = clean_text(row["source"]) or "Bing News discovery"
@@ -1278,16 +1984,23 @@ def fetch_bing_news(query_def: dict[str, str], now: datetime) -> tuple[list[dict
             retrieved_at=now,
             summary=row["summary"],
             topic_hint=query_def["key"],
+            indexed_at=row["published"],
+            timestamp_basis="discovery-feed",
+            discovery_provider="bing-news",
         )
         if item["ageHours"] is None or item["ageHours"] <= 168:
             output.append(item)
-    return output[:8], {
+    accepted = output[:8]
+    return accepted, {
         "name": f"Bing News / {TOPICS.get(query_def['key'], {'label': query_def['key']})['label']}",
         "kind": "news-discovery",
-        "status": "ok" if output else "limited",
+        "status": "ok" if accepted else "limited",
         "url": url,
         "retrievedAtUtc": now.isoformat(),
-        "message": f"{len(output[:8])}件",
+        "message": (
+            f"{len(accepted)}件" if accepted else "接続成功・該当新着0件"
+        ),
+        **retrieval_count_fields(len(feed_rows), accepted),
     }
 
 
@@ -1303,7 +2016,8 @@ def fetch_google_news(query_def: dict[str, str], now: datetime) -> tuple[list[di
     url = "https://news.google.com/rss/search?" + params
     raw, _ = request(url)
     output: list[dict[str, Any]] = []
-    for row in parse_feed_items(raw)[:16]:
+    feed_rows = parse_feed_items(raw)[:16]
+    for row in feed_rows:
         if not row["title"] or not row["link"]:
             continue
         source = clean_text(row["source"]) or "Google News discovery"
@@ -1323,16 +2037,105 @@ def fetch_google_news(query_def: dict[str, str], now: datetime) -> tuple[list[di
             summary=row["summary"],
             topic_hint=query_def["key"],
             identity_note="Google News公開RSS経由。リンク先の記事本文と掲載時刻を確認します。",
+            indexed_at=row["published"],
+            timestamp_basis="discovery-feed",
+            discovery_provider="google-news",
         )
         if item["ageHours"] is None or item["ageHours"] <= 168:
             output.append(item)
-    return output[:8], {
+    accepted = output[:8]
+    return accepted, {
         "name": f"Google News / {TOPICS.get(query_def['key'], {'label': query_def['key']})['label']}",
         "kind": "news-discovery",
-        "status": "ok",
+        "status": "ok" if accepted else "limited",
         "url": url,
         "retrievedAtUtc": now.isoformat(),
-        "message": f"{len(output[:8])}件",
+        "message": (
+            f"{len(accepted)}件" if accepted else "接続成功・該当新着0件"
+        ),
+        **retrieval_count_fields(len(feed_rows), accepted),
+    }
+
+
+def fetch_gdelt_news(
+    query_def: dict[str, str],
+    now: datetime,
+) -> tuple[list[dict[str, Any]], dict[str, Any]]:
+    """Fetch the newest global article metadata from the keyless GDELT DOC API."""
+
+    params = urllib.parse.urlencode({
+        "query": query_def["query"],
+        "mode": "ArtList",
+        "format": "json",
+        "sort": "DateDesc",
+        "timespan": "2h",
+        "maxrecords": "75",
+    })
+    url = GDELT_DOC_URL + "?" + params
+    raw, _ = request(url)
+    payload = json.loads(raw.decode("utf-8", errors="replace"))
+    rows = payload.get("articles") if isinstance(payload, dict) else None
+    if not isinstance(rows, list):
+        raise RuntimeError("GDELT response did not contain an articles array")
+    output: list[dict[str, Any]] = []
+    for row in rows[:75]:
+        if not isinstance(row, dict):
+            continue
+        title = clean_text(row.get("title"))
+        direct_url = normalize_url(str(row.get("url") or ""))
+        indexed = row.get("seendate")
+        if not title or not direct_url.startswith("https://"):
+            continue
+        domain = clean_text(row.get("domain")) or publisher_domain(direct_url)
+        lowered_domain = domain.casefold()
+        kind = (
+            "news-wire"
+            if any(
+                needle in lowered_domain
+                for needle in ("reuters.", "apnews.", "bloomberg.")
+            )
+            else "news"
+        )
+        hint = query_def["key"] if query_def["key"] in TOPICS else None
+        item = build_item(
+            title=title,
+            url=direct_url,
+            source=domain or "GDELT discovery",
+            source_kind=kind,
+            published=None,
+            indexed_at=indexed,
+            retrieved_at=now,
+            summary="",
+            topic_hint=hint,
+            verification="reported",
+            identity_note=(
+                "GDELT DOC 2.0の公開索引で検知。時刻は索引時刻として扱い、"
+                "詳細と発表時刻はリンク先で確認します。"
+            ),
+            timestamp_basis="index-seen",
+            timestamp_precision_value="minute",
+            discovery_provider="gdelt-doc",
+            source_country=clean_text(row.get("sourcecountry")),
+        )
+        if item["ageHours"] is None or item["ageHours"] <= 6:
+            output.append(item)
+    output = sorted(
+        output,
+        key=lambda item: item.get("effectivePublishedAtUtc") or "",
+        reverse=True,
+    )[:40]
+    return output, {
+        "name": f"GDELT / {query_def['key']}",
+        "kind": "news-discovery",
+        "status": "ok" if output else "limited",
+        "url": url,
+        "retrievedAtUtc": now.isoformat(),
+        "message": (
+            f"直近2時間 {len(output)}件"
+            if output
+            else "接続成功・該当新着0件"
+        ),
+        **retrieval_count_fields(len(rows[:75]), output),
     }
 
 
@@ -1596,51 +2399,305 @@ def fetch_truth_social(now: datetime) -> tuple[list[dict[str, Any]], dict[str, A
     }
 
 
-def deduplicate_items(items: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    output: list[dict[str, Any]] = []
-    seen_urls: set[str] = set()
-    seen_titles: set[str] = set()
-    for item in sorted(items, key=lambda row: (-int(row.get("priorityScore") or 0), row.get("title") or "")):
-        url_key = normalize_url(item.get("url") or "")
-        title_key = re.sub(r"[^a-z0-9一-龥ぁ-んァ-ン]+", "", (item.get("title") or "").lower())[:180]
-        if not url_key or url_key in seen_urls or (title_key and title_key in seen_titles):
+def item_effective_datetime(item: dict[str, Any]) -> datetime | None:
+    return (
+        parse_datetime(item.get("effectivePublishedAtUtc"))
+        or parse_datetime(item.get("publishedAtUtc"))
+        or parse_datetime(item.get("indexedAtUtc"))
+    )
+
+
+def inherit_previous_item_state(
+    items: list[dict[str, Any]],
+    previous: dict[str, Any],
+    now: datetime,
+) -> None:
+    previous_items = ((previous.get("briefing") or {}).get("items") or [])
+    by_id: dict[str, dict[str, Any]] = {}
+    by_url: dict[str, dict[str, Any]] = {}
+    by_hash: dict[str, dict[str, Any]] = {}
+    for previous_item in previous_items:
+        if not isinstance(previous_item, dict):
             continue
-        seen_urls.add(url_key)
-        if title_key:
-            seen_titles.add(title_key)
-        output.append(item)
-    return output
+        if previous_item.get("id"):
+            by_id[str(previous_item["id"])] = previous_item
+        normalized_url = normalize_url(str(previous_item.get("url") or ""))
+        if normalized_url:
+            by_url[normalized_url] = previous_item
+        source_hash = ((previous_item.get("japanese") or {}).get("sourceHash"))
+        if source_hash:
+            by_hash[str(source_hash)] = previous_item
+
+    for item in items:
+        source_hash = ((item.get("japanese") or {}).get("sourceHash"))
+        match = (
+            by_id.get(str(item.get("id") or ""))
+            or by_url.get(normalize_url(str(item.get("url") or "")))
+            or by_hash.get(str(source_hash or ""))
+        )
+        if match:
+            inherited_first_seen = (
+                match.get("firstSeenAtUtc")
+                or ((match.get("freshness") or {}).get("firstSeenAtUtc"))
+            )
+            if parse_datetime(inherited_first_seen):
+                item["firstSeenAtUtc"] = iso_or_none(inherited_first_seen)
+            if match.get("clusterId"):
+                item["clusterId"] = match["clusterId"]
+            previous_japanese = match.get("japanese") or {}
+            current_japanese = item.get("japanese") or {}
+            if (
+                previous_japanese.get("mode") == "deepl"
+                and previous_japanese.get("sourceHash")
+                and previous_japanese.get("sourceHash")
+                == current_japanese.get("sourceHash")
+            ):
+                # A translation is immutable for the same source hash, so reuse
+                # the published result instead of spending another API call.
+                item["japanese"] = dict(previous_japanese)
+        effective = item_effective_datetime(item)
+        profile = freshness_profile(
+            effective,
+            now,
+            str(item.get("timestampPrecision") or "unknown"),
+        )
+        profile["firstSeenAtUtc"] = item.get("firstSeenAtUtc") or now.isoformat()
+        item["freshness"] = profile
 
 
-def rank_briefing_items(items: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    items = deduplicate_items(items)
+def _title_tokens(value: str) -> set[str]:
+    normalized = unicodedata.normalize(
+        "NFKC",
+        source_suffix_removed(clean_text(value)).casefold(),
+    )
+    return set(re.findall(r"[a-z0-9]+|[一-龥ぁ-んァ-ン]{2,}", normalized))
+
+
+def _title_numbers(value: str) -> set[str]:
+    return set(re.findall(r"(?<![A-Za-z])\d+(?:\.\d+)?%?", value or ""))
+
+
+def title_similarity(left: str, right: str) -> float:
+    left_normalized = normalized_comparison_text(source_suffix_removed(left))
+    right_normalized = normalized_comparison_text(source_suffix_removed(right))
+    if not left_normalized or not right_normalized:
+        return 0.0
+    if left_normalized == right_normalized:
+        return 1.0
+    left_tokens = _title_tokens(left)
+    right_tokens = _title_tokens(right)
+    union = left_tokens | right_tokens
+    jaccard = len(left_tokens & right_tokens) / len(union) if union else 0.0
+    sequence = SequenceMatcher(None, left_normalized, right_normalized).ratio()
+    return max(jaccard, sequence)
+
+
+def event_signature(item: dict[str, Any]) -> str:
+    """Return a conservative event key for materially different headlines."""
+
+    if item.get("topicKey") != "fx-rates":
+        return ""
+    text = " ".join(
+        str(item.get(key) or "") for key in ("title", "summary")
+    ).casefold()
+    if (
+        re.search(r"\binterven(?:e|ed|es|ing|tion|tions)\b|介入", text, re.I)
+        and re.search(r"\byen\b|japanese yen|usd/?jpy|円", text, re.I)
+    ):
+        return "fx-yen-intervention"
+    return ""
+
+
+def should_cluster_items(left: dict[str, Any], right: dict[str, Any]) -> bool:
+    left_url = normalize_url(str(left.get("url") or ""))
+    right_url = normalize_url(str(right.get("url") or ""))
+    if left_url and left_url == right_url:
+        return True
+    if left.get("topicKey") != right.get("topicKey"):
+        return False
+    left_social = left.get("sourceKind") in {
+        "x-api", "x-index", "linkedin", "bluesky",
+        "truth-social", "truth-social-archive",
+    }
+    right_social = right.get("sourceKind") in {
+        "x-api", "x-index", "linkedin", "bluesky",
+        "truth-social", "truth-social-archive",
+    }
+    if left_social != right_social:
+        return False
+    left_time = item_effective_datetime(left)
+    right_time = item_effective_datetime(right)
+    if left_time and right_time and abs((left_time - right_time).total_seconds()) > 12 * 3600:
+        return False
+    left_event = event_signature(left)
+    right_event = event_signature(right)
+    if left_event and left_event == right_event:
+        if left_time is None or right_time is None:
+            return False
+        return abs((left_time - right_time).total_seconds()) <= 8 * 3600
+    left_numbers = _title_numbers(str(left.get("title") or ""))
+    right_numbers = _title_numbers(str(right.get("title") or ""))
+    if left_numbers and right_numbers and left_numbers != right_numbers:
+        return False
+    return title_similarity(
+        str(left.get("title") or ""),
+        str(right.get("title") or ""),
+    ) >= 0.86
+
+
+def related_link(item: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "title": item.get("title") or "",
+        "url": item.get("url") or "",
+        "source": item.get("source") or "",
+        "sourceKind": item.get("sourceKind") or "news",
+        "publishedAtUtc": item.get("publishedAtUtc"),
+        "originGroup": item.get("originGroup") or reporting_origin_group(
+            str(item.get("source") or ""),
+            str(item.get("url") or ""),
+        ),
+        "verification": item.get("verification") or "reported",
+    }
+
+
+def cluster_story_candidates(items: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    ordered = sorted(
+        items,
+        key=lambda item: (
+            item_effective_datetime(item) or datetime.min.replace(tzinfo=timezone.utc),
+            int(item.get("priorityScore") or 0),
+        ),
+        reverse=True,
+    )
+    clusters: list[list[dict[str, Any]]] = []
+    for item in ordered:
+        target = next(
+            (
+                cluster
+                for cluster in clusters
+                if any(should_cluster_items(member, item) for member in cluster)
+            ),
+            None,
+        )
+        if target is None:
+            clusters.append([item])
+        else:
+            target.append(item)
+
+    representatives: list[dict[str, Any]] = []
+    for members in clusters:
+        representative = members[0]
+        origin_groups = {
+            str(
+                member.get("originGroup")
+                or reporting_origin_group(
+                    str(member.get("source") or ""),
+                    str(member.get("url") or ""),
+                )
+            )
+            for member in members
+        }
+        related: list[dict[str, Any]] = []
+        seen_related_urls: set[str] = {
+            normalize_url(str(representative.get("url") or ""))
+        }
+        for member in members[1:]:
+            normalized_url = normalize_url(str(member.get("url") or ""))
+            if not normalized_url or normalized_url in seen_related_urls:
+                continue
+            seen_related_urls.add(normalized_url)
+            related.append(related_link(member))
+        representative["clusterSize"] = len(members)
+        representative["independentSourceCount"] = len(origin_groups)
+        representative["corroborationState"] = (
+            "official-primary"
+            if str(representative.get("sourceKind") or "").startswith("official")
+            else "multi-source"
+            if len(origin_groups) >= 2
+            else "single-source"
+        )
+        representative["relatedLinks"] = related[:20]
+        representatives.append(representative)
+    return representatives
+
+
+def deduplicate_items(items: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    return cluster_story_candidates(items)
+
+
+def rank_briefing_items(
+    items: list[dict[str, Any]],
+    *,
+    already_clustered: bool = False,
+) -> list[dict[str, Any]]:
+    items = list(items) if already_clustered else cluster_story_candidates(items)
     topic_counts: dict[str, int] = {}
     for item in items:
         key = item.get("topicKey") or "policy"
         topic_counts[key] = topic_counts.get(key, 0) + 1
     for item in items:
-        count = topic_counts.get(item.get("topicKey") or "policy", 1)
         engagement = int(item.get("engagementTotal") or 0)
+        independent_sources = max(1, int(item.get("independentSourceCount") or 1))
+        cluster_size = max(1, int(item.get("clusterSize") or 1))
         # An unknown publication time must not be ranked as if it were fresh.
-        recency_component = 4 if item.get("ageHours") is None else max(0, 28 - min(72, item["ageHours"]) / 3)
+        recency_component = (
+            4
+            if item.get("ageHours") is None
+            else max(0, 30 - min(72, item["ageHours"]) / 3)
+        )
         item["talkScore"] = min(
             100,
-            round(18 + min(30, count * 5) + min(32, math.log10(engagement + 1) * 10) + recency_component),
+            round(
+                12
+                + min(30, independent_sources * 12)
+                + min(12, math.log2(cluster_size + 1) * 4)
+                + min(20, math.log10(engagement + 1) * 8)
+                + recency_component
+            ),
         )
-        item["priorityScore"] = int(item.get("priorityScore") or 0) + min(15, count * 2)
-    items.sort(
-        key=lambda row: (int(row.get("priorityScore") or 0), row.get("publishedAtUtc") or ""),
+    news_kinds = {"official-us", "official-japan", "news", "news-wire"}
+    news_items = [item for item in items if item.get("sourceKind") in news_kinds]
+    social_items = [item for item in items if item.get("sourceKind") not in news_kinds]
+
+    def newest_key(item: dict[str, Any]) -> tuple[Any, ...]:
+        return (
+            item_effective_datetime(item) or datetime.min.replace(tzinfo=timezone.utc),
+            source_weight(str(item.get("sourceKind") or "")),
+            int(item.get("priorityScore") or 0),
+        )
+
+    live_news = sorted(
+        [
+            item
+            for item in news_items
+            if (item.get("freshness") or {}).get("bucket")
+            in {"breaking", "developing", "today"}
+            and item_effective_datetime(item) is not None
+            and not item.get("carriedForward")
+        ],
+        key=newest_key,
         reverse=True,
     )
+    context_news = sorted(
+        [item for item in news_items if item not in live_news],
+        key=newest_key,
+        reverse=True,
+    )
+    social_items.sort(key=newest_key, reverse=True)
+
     selected: list[dict[str, Any]] = []
     selected_ids: set[str] = set()
-    for key in ("fx-rates", "us-stocks", "japan-stocks", "ai-bubble", "policy"):
-        candidate = next((row for row in items if row.get("topicKey") == key), None)
-        if candidate and candidate["id"] not in selected_ids:
-            selected.append(candidate)
-            selected_ids.add(candidate["id"])
+    for candidate in live_news[:LATEST_ITEM_RESERVE]:
+        selected.append(candidate)
+        selected_ids.add(candidate["id"])
+
+    # Diversity and social context are useful, but never displace the strict
+    # newest-first reserve at the front of the briefing.
     for source_kind in ("official-us", "official-japan"):
-        candidate = next((row for row in items if row.get("sourceKind") == source_kind), None)
+        candidate = next(
+            (row for row in live_news + context_news if row.get("sourceKind") == source_kind),
+            None,
+        )
         if candidate and candidate["id"] not in selected_ids:
             selected.append(candidate)
             selected_ids.add(candidate["id"])
@@ -1666,22 +2723,175 @@ def rank_briefing_items(items: list[dict[str, Any]]) -> list[dict[str, Any]]:
         selected_ids.add(economist_candidate["id"])
     for stance in ("bullish", "bearish"):
         candidate = next((
-            row for row in items
+            row for row in live_news + context_news
             if row.get("stance") == stance
             and row.get("topicKey") in {"us-stocks", "japan-stocks", "ai-bubble"}
         ), None)
         if candidate and candidate["id"] not in selected_ids:
             selected.append(candidate)
             selected_ids.add(candidate["id"])
-    for item in items:
+    for item in live_news + context_news + social_items:
         if len(selected) >= BRIEFING_ITEM_LIMIT:
             break
         if item["id"] not in selected_ids:
             selected.append(item)
             selected_ids.add(item["id"])
-    # Keep the first cards topic-diverse; the lead shock card already carries
-    # the absolute top priority and each topic candidate is ranked internally.
+    selected.sort(key=newest_key, reverse=True)
     return selected[:BRIEFING_ITEM_LIMIT]
+
+
+def _translation_fidelity_tokens(value: str) -> list[str]:
+    normalized = unicodedata.normalize("NFKC", value or "")
+    numeric = [
+        token.replace(",", "")
+        for token in re.findall(r"(?<![A-Za-z])[-+]?\d[\d,.]*%?", normalized)
+    ]
+    protected = [
+        token.upper().replace(" ", "")
+        for token in re.findall(
+            r"USD\s*/\s*JPY|S&P\s*500|(?<![A-Za-z0-9])[A-Z]{2,5}(?![A-Za-z0-9])|[$¥€£]",
+            normalized,
+        )
+    ]
+    return sorted(numeric + protected)
+
+
+def apply_optional_deepl_translations(
+    items: list[dict[str, Any]],
+    now: datetime,
+) -> dict[str, Any]:
+    """Translate a bounded selected batch, while keeping a no-key fallback."""
+
+    cached_count = sum(
+        1
+        for item in items
+        if (item.get("japanese") or {}).get("mode") == "deepl"
+    )
+    api_key = (
+        os.environ.get("DEEPL_AUTH_KEY")
+        or os.environ.get("DEEPL_API_KEY")
+        or ""
+    ).strip()
+    if not api_key:
+        return {
+            "status": "cache-only" if cached_count else "not-configured",
+            "label": (
+                "前回のDeepL翻訳を再利用"
+                if cached_count
+                else "DeepL未設定・構造化要旨を表示"
+            ),
+            "translatedItems": 0,
+            "cachedItems": cached_count,
+        }
+
+    slots: list[tuple[dict[str, Any], str, str]] = []
+    for item in items:
+        original = item.get("original") or {}
+        japanese = item.get("japanese") or {}
+        if (
+            original.get("language") != "en"
+            or japanese.get("mode") != "structured-gist"
+        ):
+            continue
+        for field in ("title", "excerpt"):
+            source_text = clean_text(original.get(field))
+            if not source_text or len(slots) >= DEEPL_BATCH_LIMIT:
+                continue
+            slots.append((item, field, source_text))
+        if len(slots) >= DEEPL_BATCH_LIMIT:
+            break
+    if not slots:
+        return {
+            "status": "no-candidates",
+            "label": "翻訳対象なし",
+            "translatedItems": 0,
+            "cachedItems": cached_count,
+        }
+
+    endpoint = os.environ.get("DEEPL_API_URL", "").strip()
+    if not endpoint:
+        endpoint = (
+            "https://api-free.deepl.com/v2/translate"
+            if api_key.endswith(":fx")
+            else "https://api.deepl.com/v2/translate"
+        )
+    body = json.dumps({
+        "text": [source_text for _, _, source_text in slots],
+        "source_lang": "EN",
+        "target_lang": "JA",
+        "split_sentences": "nonewlines",
+        "preserve_formatting": True,
+    }).encode("utf-8")
+    try:
+        raw, _ = request(
+            endpoint,
+            timeout=15,
+            attempts=1,
+            data=body,
+            method="POST",
+            headers={
+                "Authorization": f"DeepL-Auth-Key {api_key}",
+                "Content-Type": "application/json",
+                "Accept": "application/json",
+            },
+        )
+        translated_rows = json.loads(raw.decode("utf-8")).get("translations") or []
+        if len(translated_rows) != len(slots):
+            raise RuntimeError("DeepL returned an unexpected translation count")
+    except Exception as exc:
+        return {
+            "status": "failed",
+            "label": "DeepL失敗・構造化要旨を表示",
+            "translatedItems": 0,
+            "cachedItems": cached_count,
+            "message": str(exc)[:240],
+        }
+
+    updates: dict[int, dict[str, str]] = {}
+    references: dict[int, dict[str, Any]] = {}
+    rejected_references: set[int] = set()
+    for (item, field, source_text), translated_row in zip(slots, translated_rows):
+        reference = id(item)
+        references[reference] = item
+        translated = clean_text(translated_row.get("text"))
+        if (
+            not translated
+            or not has_japanese(translated)
+            or _translation_fidelity_tokens(source_text)
+            != _translation_fidelity_tokens(translated)
+        ):
+            rejected_references.add(reference)
+            continue
+        updates.setdefault(reference, {})[field] = translated
+
+    translated_count = 0
+    for reference, fields in updates.items():
+        if reference in rejected_references or not fields.get("title"):
+            continue
+        item = references[reference]
+        previous_japanese = item.get("japanese") or {}
+        item["japanese"] = {
+            "title": fields["title"],
+            "summary": fields.get("excerpt") or previous_japanese.get("summary") or "",
+            "mode": "deepl",
+            "label": "自動参考訳（DeepL・未校閲）",
+            "provider": "DeepL",
+            "generatedAtUtc": now.isoformat(),
+            "sourceHash": previous_japanese.get("sourceHash"),
+        }
+        translated_count += 1
+    return {
+        "status": "limited" if rejected_references else "ok",
+        "label": (
+            "DeepL短文バッチ"
+            if not rejected_references
+            else "DeepL結果の一部を品質ゲートで不採用・構造化要旨を表示"
+        ),
+        "translatedItems": translated_count,
+        "cachedItems": cached_count,
+        "rejectedItems": len(rejected_references),
+        "requestedTexts": len(slots),
+    }
 
 
 def channel_statuses(source_status: list[dict[str, Any]], now: datetime) -> list[dict[str, Any]]:
@@ -1766,8 +2976,11 @@ def build_briefing(
     source_status: list[dict[str, Any]],
     shock: dict[str, Any],
     now: datetime,
+    *,
+    items_clustered: bool = False,
 ) -> dict[str, Any]:
-    selected = rank_briefing_items(items)
+    selected = rank_briefing_items(items, already_clustered=items_clustered)
+    translation_status = apply_optional_deepl_translations(selected, now)
     topic_counts: dict[str, int] = {}
     for item in selected:
         topic_counts[item["topicKey"]] = topic_counts.get(item["topicKey"], 0) + 1
@@ -1802,7 +3015,7 @@ def build_briefing(
     focus = "、".join(f"{TOPICS[key]['label']} {count}件" for key, count in leading_topics[:3])
     summary = (
         f"直近の重要候補は{len(selected)}件。{focus or '新着候補なし'}です。"
-        "話題度は反応数・新しさ・同テーマ件数の補助指標で、事実確認度や相場方向とは別です。"
+        "取得範囲の注目度は、鮮度・独立出所数・クラスタ規模・取得できた反応数の補助指標で、事実確認度や相場方向とは別です。"
     )
     suspected = [
         item for item in items
@@ -1821,6 +3034,8 @@ def build_briefing(
             "verification": "price-confirmed-official-unconfirmed",
             "interventionStatus": shock["interventionStatus"],
             "interventionLabel": shock["interventionLabel"],
+            "shockDirection": shock.get("shockDirection") or "unknown",
+            "recentDirectionalShock": bool(shock.get("recentDirectionalShock")),
             "talkScore": max([int(row.get("talkScore") or 0) for row in suspected] or [0]),
             "sourceCounts": {
                 "official": sum(1 for row in suspected if str(row.get("sourceKind", "")).startswith("official")),
@@ -1831,6 +3046,7 @@ def build_briefing(
             "officialUrl": shock.get("officialVerificationUrl"),
         },
         "items": selected,
+        "translationStatus": translation_status,
         "topicCounts": topic_counts,
         "topicLabels": {key: profile["label"] for key, profile in TOPICS.items()},
         "verificationCounts": verification_counts,
@@ -1846,6 +3062,119 @@ def build_briefing(
     }
 
 
+def upgrade_previous_item(
+    row: Any,
+    now: datetime,
+) -> dict[str, Any] | None:
+    """Normalize a previous public item before it can be carried forward."""
+
+    if not isinstance(row, dict):
+        return None
+    title = clean_text(row.get("title"))
+    url = normalize_url(str(row.get("url") or ""))
+    source = clean_text(row.get("source"))
+    if (
+        not title
+        or not source
+        or urllib.parse.urlparse(url).scheme != "https"
+        or not publisher_domain(url)
+    ):
+        return None
+
+    current_required = {
+        "original",
+        "japanese",
+        "effectivePublishedAtUtc",
+        "indexedAtUtc",
+        "firstSeenAtUtc",
+        "timestampBasis",
+        "timestampPrecision",
+        "freshness",
+        "effect",
+        "clusterId",
+        "clusterSize",
+        "independentSourceCount",
+        "corroborationState",
+        "relatedLinks",
+        "originGroup",
+        "publisherDomain",
+        "sourceCountry",
+        "discoveryProvider",
+    }
+    if current_required.issubset(row):
+        upgraded = dict(row)
+        effective = item_effective_datetime(upgraded)
+        first_seen = (
+            parse_datetime(upgraded.get("firstSeenAtUtc"))
+            or effective
+            or now
+        )
+        if effective and first_seen < effective - timedelta(minutes=10):
+            first_seen = effective
+        if first_seen > now + timedelta(minutes=2):
+            first_seen = now
+        upgraded["retrievedAtUtc"] = now.isoformat()
+        upgraded["firstSeenAtUtc"] = first_seen.astimezone(timezone.utc).isoformat()
+        age_hours = (
+            max(0.0, (now - effective).total_seconds() / 3600.0)
+            if effective
+            else None
+        )
+        upgraded["ageHours"] = round(age_hours, 2) if age_hours is not None else None
+        freshness = freshness_profile(
+            effective,
+            now,
+            str(upgraded.get("timestampPrecision") or "unknown"),
+        )
+        freshness["firstSeenAtUtc"] = upgraded["firstSeenAtUtc"]
+        upgraded["freshness"] = freshness
+    else:
+        source_kind = str(row.get("sourceKind") or "news")
+        verification = row.get("verification")
+        engagement = row.get("engagement")
+        upgraded = build_item(
+            title=title,
+            url=url,
+            source=source,
+            source_kind=source_kind,
+            published=row.get("publishedAtUtc"),
+            retrieved_at=now,
+            summary=clean_text(row.get("summary")),
+            topic_hint=row.get("topicKey"),
+            verification=str(verification) if verification else None,
+            engagement=engagement if isinstance(engagement, dict) else None,
+            author=clean_text(row.get("author")),
+            identity_note=clean_text(row.get("identityNote")),
+            indexed_at=row.get("indexedAtUtc"),
+            first_seen_at=(
+                row.get("firstSeenAtUtc")
+                or row.get("retrievedAtUtc")
+                or row.get("publishedAtUtc")
+            ),
+            timestamp_basis=row.get("timestampBasis"),
+            timestamp_precision_value=row.get("timestampPrecision"),
+            discovery_provider=str(
+                row.get("discoveryProvider") or "previous-public-snapshot"
+            ),
+            source_country=clean_text(row.get("sourceCountry")),
+        )
+        previous_japanese = row.get("japanese") or {}
+        if (
+            previous_japanese.get("mode") == "deepl"
+            and previous_japanese.get("sourceHash")
+            == (upgraded.get("japanese") or {}).get("sourceHash")
+        ):
+            upgraded["japanese"] = dict(previous_japanese)
+        previous_talk_score = row.get("talkScore")
+        if isinstance(previous_talk_score, int) and 0 <= previous_talk_score <= 100:
+            upgraded["talkScore"] = previous_talk_score
+
+    if (upgraded.get("freshness") or {}).get("bucket") == "breaking":
+        # A fallback item must never enter the current breaking lane.
+        return None
+    return upgraded
+
+
 def carry_forward_if_needed(
     package: dict[str, Any],
     previous: dict[str, Any],
@@ -1858,15 +3187,20 @@ def carry_forward_if_needed(
     carried = []
     current_ids = {row.get("id") for row in current_items}
     for row in previous_items:
-        if row.get("id") in current_ids:
+        copy = upgrade_previous_item(row, now)
+        if copy is None or copy.get("id") in current_ids:
             continue
-        copy = dict(row)
         copy["carriedForward"] = True
         copy["staleReason"] = "今回の取得件数が不足したため前回候補を保持"
         carried.append(copy)
         if len(current_items) + len(carried) >= BRIEFING_ITEM_LIMIT:
             break
-    package["briefing"]["items"] = current_items + carried
+    package["briefing"]["items"] = sorted(
+        current_items,
+        key=lambda item: item_effective_datetime(item)
+        or datetime.min.replace(tzinfo=timezone.utc),
+        reverse=True,
+    ) + carried
     package["dataHealth"]["carriedForwardItems"] = len(carried)
     package["dataHealth"]["status"] = "partial"
     package["dataHealth"]["message"] = (
@@ -1885,10 +3219,25 @@ def build_live_package(previous: dict[str, Any] | None = None) -> dict[str, Any]
     items: list[dict[str, Any]] = []
     jobs: list[tuple[str, Any, dict[str, str] | None]] = []
     for feed in OFFICIAL_FEEDS:
-        jobs.append(("official", fetch_official_feed, feed))
+        jobs.append((feed["kind"], fetch_official_feed, feed))
     for query_def in NEWS_QUERIES:
         jobs.append(("news", fetch_bing_news, query_def))
         jobs.append(("news", fetch_google_news, query_def))
+    gdelt_terms = [
+        re.sub(
+            r"\s+sourcelang:english\s*$",
+            "",
+            query_def["query"],
+            flags=re.I,
+        )
+        for query_def in GDELT_QUERIES
+    ]
+    jobs.append(("news-discovery", fetch_gdelt_news, {
+        "key": "integrated",
+        "name": "GDELT / integrated",
+        "url": GDELT_DOC_URL,
+        "query": "(" + " OR ".join(f"({term})" for term in gdelt_terms) + ") sourcelang:english",
+    }))
     for search_def in PUBLIC_SOCIAL_SEARCHES:
         jobs.append(("social-index", fetch_public_social_index, search_def))
 
@@ -1923,10 +3272,12 @@ def build_live_package(previous: dict[str, Any] | None = None) -> dict[str, Any]
 
     items.extend(audited_current_event_items(now))
     items.extend(audited_current_market_items(now))
+    inherit_previous_item_state(items, previous, now)
+    items = cluster_story_candidates(items)
     shock = build_market_shock(quotes, now)
     update_intervention_assessment(shock, items)
     premarket = build_premarket(quotes, now)
-    briefing = build_briefing(items, source_status, shock, now)
+    briefing = build_briefing(items, source_status, shock, now, items_clustered=True)
     failed = sum(1 for row in source_status if row.get("status") == "failed")
     successful = sum(1 for row in source_status if row.get("status") in {"ok", "limited"})
     limited = sum(1 for row in source_status if row.get("status") == "limited")
@@ -1968,8 +3319,8 @@ def build_live_package(previous: dict[str, Any] | None = None) -> dict[str, Any]
                 "財務省の一次公表が確認できるまで officiallyConfirmed=false とする。"
             ),
             "talkScore": (
-                "新しさ、同テーマ件数、取得できた公開反応数、出所種別から0–100へ正規化。"
-                "媒体横断の全投稿数でも危険確率でもない。"
+                "取得範囲の注目度として、鮮度、クラスタ内の独立出所数と記事数、"
+                "取得できた公開反応数を0–100に整理。媒体横断の全投稿数でも危険確率でもない。"
             ),
             "stance": (
                 "見出し・投稿中の限定語彙から強気・弱気・混合・中立を分類。"
@@ -1980,13 +3331,62 @@ def build_live_package(previous: dict[str, Any] | None = None) -> dict[str, Any]
     return carry_forward_if_needed(package, previous, now)
 
 
-def write_live_package(path: Path = OUTPUT) -> dict[str, Any]:
-    previous: dict[str, Any] = {}
+def load_previous_snapshot(path: Path = OUTPUT) -> dict[str, Any]:
+    """Choose the newest valid local or last-published public snapshot."""
+
+    now = datetime.now(timezone.utc)
+    candidates: list[dict[str, Any]] = []
+
+    def add_candidate(value: Any) -> None:
+        if not isinstance(value, dict):
+            return
+        generated = parse_datetime(value.get("generatedAtUtc"))
+        if generated is not None and generated > now + timedelta(minutes=2):
+            return
+        candidates.append(value)
+
     if path.exists():
         try:
-            previous = json.loads(path.read_text(encoding="utf-8"))
-        except Exception:
-            previous = {}
+            add_candidate(json.loads(path.read_text(encoding="utf-8")))
+        except (OSError, json.JSONDecodeError):
+            pass
+
+    skip_public = os.environ.get("LIVE_SKIP_PUBLIC_SNAPSHOT", "").strip().casefold()
+    if skip_public not in {"1", "true", "yes", "on"}:
+        public_url = (
+            os.environ.get("LIVE_PREVIOUS_URL", "").strip()
+            or PUBLIC_SNAPSHOT_URL
+        )
+        parsed_public_url = urllib.parse.urlparse(public_url)
+        if parsed_public_url.scheme == "https" and parsed_public_url.hostname:
+            separator = "&" if parsed_public_url.query else "?"
+            cache_busted_url = f"{public_url}{separator}v={int(now.timestamp())}"
+            try:
+                raw, _ = request(
+                    cache_busted_url,
+                    timeout=8,
+                    attempts=1,
+                    headers={
+                        "Accept": "application/json",
+                        "Cache-Control": "no-cache",
+                        "Pragma": "no-cache",
+                    },
+                )
+                add_candidate(json.loads(raw.decode("utf-8")))
+            except (RuntimeError, UnicodeDecodeError, json.JSONDecodeError):
+                pass
+
+    if not candidates:
+        return {}
+    return max(
+        candidates,
+        key=lambda value: parse_datetime(value.get("generatedAtUtc"))
+        or datetime.min.replace(tzinfo=timezone.utc),
+    )
+
+
+def write_live_package(path: Path = OUTPUT) -> dict[str, Any]:
+    previous = load_previous_snapshot(path)
     package = build_live_package(previous)
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(package, ensure_ascii=False, indent=2), encoding="utf-8")

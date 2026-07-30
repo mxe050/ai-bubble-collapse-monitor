@@ -313,9 +313,9 @@
       <div class="content">
         <div class="section-heading heading-row briefing-heading">
           <div>
-            <p class="section-kicker">LIVE MARKET INTELLIGENCE</p>
             <h2 id="liveBriefingHeading">速報・介入・市場の話題</h2>
-            <p>公式機関・企業発表、海外媒体、X、LinkedIn、Truth Social、Blueskyなどを横断し、確認済みの事実と市場の話題を分けて表示します。投稿数や話題度は事実の確度や上昇・下落の確率を示すものではありません。</p>
+            <p class="section-kicker" lang="en">LIVE MARKET INTELLIGENCE</p>
+            <p>公式機関・企業発表、海外媒体、X、LinkedIn、Truth Social、Blueskyなどを横断し、確認済みの事実と市場の話題を分けて表示します。日本語の要旨または取得できた参考訳を先に、原文を隣に置きます。翻訳ではない要旨と自動参考訳は明示します。投稿数や注目度は事実の確度や上昇・下落の確率を示すものではありません。</p>
           </div>
           <div class="briefing-freshness" aria-label="速報データの確認状況">
             <span><small>最終確認</small><strong id="briefingCheckedAt">確認中</strong></span>
@@ -327,36 +327,9 @@
           最新情報を確認しています。未確認の投稿は、公式発表または複数媒体で裏づけられるまで事実として扱いません。
         </p>
 
-        <section class="briefing-channel-panel" aria-labelledby="briefingChannelHeading">
-          <div class="briefing-subheading">
-            <div><p class="label">SOURCE CONNECTIONS</p><h3 id="briefingChannelHeading">媒体別の接続・確認状態</h3></div>
-            <p>「接続済み」は取得経路の状態です。個別情報の確認状態は各カードに表示します。</p>
-          </div>
-          <div id="briefingChannelStatus" class="briefing-channel-status" aria-live="polite">
-            <span class="briefing-channel is-checking"><b>公式機関</b><small>確認中</small></span>
-            <span class="briefing-channel is-checking"><b>企業公式</b><small>確認中</small></span>
-            <span class="briefing-channel is-checking"><b>海外媒体</b><small>確認中</small></span>
-            <span class="briefing-channel is-checking"><b>X</b><small>確認中</small></span>
-            <span class="briefing-channel is-checking"><b>LinkedIn</b><small>確認中</small></span>
-            <span class="briefing-channel is-checking"><b>Truth Social / Bluesky</b><small>確認中</small></span>
-          </div>
-        </section>
-
-        <fieldset class="briefing-topic-filter">
-          <legend>表示するトピック</legend>
-          <div class="briefing-filter-grid">
-            <label><input type="radio" name="briefing-topic" value="all" checked><span>すべて</span></label>
-            <label><input type="radio" name="briefing-topic" value="us"><span>米国株</span></label>
-            <label><input type="radio" name="briefing-topic" value="jp"><span>日本株</span></label>
-            <label><input type="radio" name="briefing-topic" value="ai"><span>AIバブル</span></label>
-            <label><input type="radio" name="briefing-topic" value="fx-rates"><span>為替・金利</span></label>
-          </div>
-        </fieldset>
-        <p id="briefingFilterStatus" class="sr-only" aria-live="polite">すべてのトピックを表示しています。</p>
-
         <section class="briefing-lead-region" aria-labelledby="briefingLeadHeading">
           <div class="briefing-subheading">
-            <div><p class="label">TOP PRIORITY</p><h3 id="briefingLeadHeading">最重要速報</h3></div>
+            <div><h3 id="briefingLeadHeading">最重要速報</h3><p class="label" lang="en">TOP PRIORITY</p></div>
             <p>値動き、確認状態、介入観測、原文を一枚で確認します。</p>
           </div>
           <div id="briefingLead" class="briefing-lead" aria-live="polite">
@@ -367,12 +340,61 @@
               <div class="briefing-lead-body">
                 <div><p class="briefing-eyebrow">USD/JPY 急変監視</p><h4>ドル円の急変、当局発言、介入観測を確認しています。</h4><p>価格変化と公式確認を分離し、確認できた事実から順に掲載します。</p></div>
                 <dl class="briefing-lead-facts">
-                  <div><dt>介入ステータス</dt><dd>確認中</dd></div><div><dt>話題度</dt><dd>集計中</dd></div>
+                  <div><dt>介入ステータス</dt><dd>確認中</dd></div><div><dt>関連報道候補</dt><dd>集計中</dd></div>
                   <div><dt>出所</dt><dd>公式・報道・SNSを確認中</dd></div><div><dt>原文</dt><dd>リンク確認中</dd></div>
                 </dl>
               </div>
             </article>
           </div>
+        </section>
+
+        <div class="briefing-metrics" aria-label="速報の要点メトリクス">
+          <div><small>取得した速報</small><strong id="briefingMetricTotal">0件</strong></div>
+          <div><small>一次資料</small><strong id="briefingMetricPrimary">0件</strong></div>
+          <div><small>最新の公表</small><strong id="briefingMetricLatest">確認中</strong></div>
+          <div><small>取得経路</small><strong id="briefingMetricChannels">確認中</strong></div>
+        </div>
+
+        <section class="briefing-feed" aria-labelledby="briefingFeedHeading">
+          <div class="briefing-subheading briefing-feed-heading">
+            <div><h3 id="briefingFeedHeading">主要速報</h3><p class="label" lang="en">VERIFIED &amp; TRENDING</p></div>
+            <p class="briefing-visible-count"><strong id="briefingVisibleCount">0</strong>件表示</p>
+          </div>
+
+          <div class="briefing-feed-controls">
+            <fieldset class="briefing-topic-filter">
+              <legend>主要速報をトピックで絞り込む</legend>
+              <div class="briefing-filter-grid">
+                <label><input type="radio" name="briefing-topic" value="all" checked><span>すべて</span></label>
+                <label><input type="radio" name="briefing-topic" value="us"><span>米国株</span></label>
+                <label><input type="radio" name="briefing-topic" value="jp"><span>日本株</span></label>
+                <label><input type="radio" name="briefing-topic" value="ai"><span>AIバブル</span></label>
+                <label><input type="radio" name="briefing-topic" value="fx-rates"><span>為替・金利</span></label>
+              </div>
+            </fieldset>
+            <fieldset class="briefing-sort-filter">
+              <legend>並び順</legend>
+              <div class="briefing-sort-grid">
+                <label><input type="radio" name="briefing-sort" value="latest" checked><span>最新順</span></label>
+                <label><input type="radio" name="briefing-sort" value="priority"><span>重要度順</span></label>
+                <label><input type="radio" name="briefing-sort" value="attention"><span>注目度順</span></label>
+              </div>
+            </fieldset>
+          </div>
+          <p id="briefingFilterStatus" class="briefing-filter-status" aria-live="polite">すべてのトピックを最新順で表示します。</p>
+
+          <div id="briefingPrimaryCards" class="briefing-card-grid" aria-label="常時表示する主要速報6件">
+            <article class="briefing-card is-loading"><span>速報を読み込んでいます。</span></article>
+            <article class="briefing-card is-loading"><span>速報を読み込んでいます。</span></article>
+            <article class="briefing-card is-loading"><span>速報を読み込んでいます。</span></article>
+            <article class="briefing-card is-loading"><span>速報を読み込んでいます。</span></article>
+            <article class="briefing-card is-loading"><span>速報を読み込んでいます。</span></article>
+            <article class="briefing-card is-loading"><span>速報を読み込んでいます。</span></article>
+          </div>
+          <details class="briefing-more">
+            <summary><span>続報・追加材料をすべて見る</span><small>常時表示の6件以外も、情報を省略せず掲載します</small></summary>
+            <div id="briefingMoreCards" class="briefing-card-grid briefing-more-grid" aria-label="追加の速報"><p class="briefing-empty">追加情報を確認しています。</p></div>
+          </details>
         </section>
 
         <div class="briefing-balance" aria-label="強気材料と弱気材料">
@@ -386,24 +408,25 @@
           </article>
         </div>
 
-        <section class="briefing-feed" aria-labelledby="briefingFeedHeading">
-          <div class="briefing-subheading">
-            <div><p class="label">VERIFIED &amp; TRENDING</p><h3 id="briefingFeedHeading">主要速報</h3></div>
-            <p class="briefing-visible-count"><strong id="briefingVisibleCount">0</strong>件表示</p>
+        <details class="briefing-channel-panel">
+          <summary>
+            <span><strong>媒体別の接続・確認状態</strong><small id="briefingChannelSummary">取得経路を確認中</small></span>
+            <span class="briefing-channel-disclosure">詳細を開く</span>
+          </summary>
+          <div class="briefing-channel-panel-body">
+            <p>「接続済み」は取得経路の状態です。個別情報の確認状態は各カードに表示します。</p>
+            <div id="briefingChannelStatus" class="briefing-channel-status" aria-live="polite">
+              <span class="briefing-channel is-checking"><b>公式機関</b><small>確認中</small></span>
+              <span class="briefing-channel is-checking"><b>企業公式</b><small>確認中</small></span>
+              <span class="briefing-channel is-checking"><b>海外媒体</b><small>確認中</small></span>
+              <span class="briefing-channel is-checking"><b>X</b><small>確認中</small></span>
+              <span class="briefing-channel is-checking"><b>LinkedIn</b><small>確認中</small></span>
+              <span class="briefing-channel is-checking"><b>Truth Social / Bluesky</b><small>確認中</small></span>
+            </div>
           </div>
-          <div id="briefingPrimaryCards" class="briefing-card-grid" aria-label="常時表示する主要速報4件">
-            <article class="briefing-card is-loading"><span>速報を読み込んでいます。</span></article>
-            <article class="briefing-card is-loading"><span>速報を読み込んでいます。</span></article>
-            <article class="briefing-card is-loading"><span>速報を読み込んでいます。</span></article>
-            <article class="briefing-card is-loading"><span>速報を読み込んでいます。</span></article>
-          </div>
-          <details class="briefing-more">
-            <summary><span>続報・追加材料をすべて見る</span><small>常時表示の4件以外も、情報を省略せず掲載します</small></summary>
-            <div id="briefingMoreCards" class="briefing-card-grid briefing-more-grid" aria-label="追加の速報"><p class="briefing-empty">追加情報を確認しています。</p></div>
-          </details>
-        </section>
+        </details>
 
-        <p class="briefing-method-note">確認順序は、公式機関・企業の原文、一次情報を直接取材した媒体、複数報道、公式アカウント、その他の投稿です。SNSのみの情報には「未確認」を表示し、原文リンクと確認時刻をカード内に残します。</p>
+        <p class="briefing-method-note"><strong>読み方：</strong>確認順序は、公式機関・企業の原文、一次情報を直接取材した媒体、複数報道、公式アカウント、その他の投稿です。参考訳は原文の代わりではありません。SNSのみの情報には「未確認」を表示し、原文リンク、外部日本語表示、確認時刻をカード内に残します。</p>
       </div>
     </section>
     <section id="today" class="band band-strong">
@@ -655,6 +678,17 @@
         </div>
 
         <div class="gc-control-panel" aria-label="統合チャートの操作">
+          <div class="gc-control-group gc-series-preset-group">
+            <span class="gc-control-label">表示する系列</span>
+            <div class="gc-series-presets" role="group" aria-label="長期チャートに表示する系列の組み合わせ">
+              <button type="button" data-gc-series-preset="pair" aria-pressed="false">日米実質2本</button>
+              <button type="button" data-gc-series-preset="us3" aria-pressed="false">米国3本</button>
+              <button type="button" data-gc-series-preset="jp3" aria-pressed="false">日本3本</button>
+              <button type="button" data-gc-series-preset="all6" aria-pressed="true">全6本</button>
+            </div>
+            <span id="gcSeriesPresetStatus" class="gc-series-preset-status" aria-live="polite">全6系列を表示</span>
+          </div>
+          <p class="gc-series-preset-help">「日米実質2本」はS&amp;P 500実質と日経平均実質USDを比較します。狭い画面ではこの2本から開始し、米国3本・日本3本・全6本へいつでも切り替えられます。</p>
           <div class="gc-control-group gc-range-group">
             <span class="gc-control-label">表示期間</span>
             <div class="gc-segmented" role="group" aria-label="表示期間">

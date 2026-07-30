@@ -44,6 +44,8 @@ jobs:
       - name: Refresh live intelligence
         env:
           X_BEARER_TOKEN: ${{ secrets.X_BEARER_TOKEN }}
+          DEEPL_AUTH_KEY: ${{ secrets.DEEPL_AUTH_KEY }}
+          LIVE_PREVIOUS_URL: https://mxe050.github.io/ai-bubble-collapse-monitor/data/live-intelligence.json
         run: python scripts/live_intelligence.py
 
       - name: Validate live data

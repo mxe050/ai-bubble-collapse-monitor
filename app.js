@@ -23,6 +23,7 @@
     globalComparison: null,
     marketSummary: null,
     liveIntelligence: null,
+    briefingSort: "latest",
     moneyStrategistIpoDate: "",
     valuations: [],
     companyFilter: "all",
@@ -3533,7 +3534,175 @@
     return topic === filter;
   }
 
+  function isJapaneseText(value) {
+    return /[ぁ-んァ-ヶ一-龠々ー]/.test(String(value || ""));
+  }
+
+  function firstBriefingText(values) {
+    for (var index = 0; index < values.length; index += 1) {
+      if (typeof values[index] === "string" && values[index].trim()) return values[index].trim();
+    }
+    return "";
+  }
+
+  function briefingCopy(item) {
+    item = item || {};
+    var original = item.original && typeof item.original === "object" ? item.original : {};
+    var structuredJapanese = item.japanese && typeof item.japanese === "object" ? item.japanese : {};
+    var reference = item.referenceTranslation && typeof item.referenceTranslation === "object"
+      ? item.referenceTranslation : {};
+    var translation = item.translation && typeof item.translation === "object" ? item.translation : {};
+    var translatedJapanese = translation.ja && typeof translation.ja === "object" ? translation.ja : {};
+    var originalTitle = firstBriefingText([
+      original.title, item.originalTitle, item.titleOriginal, item.sourceTitle, item.headlineOriginal, item.title,
+    ]);
+    var originalSummaryExplicit = firstBriefingText([
+      original.excerpt, original.summary, item.originalSummary, item.summaryOriginal, item.sourceSummary, item.descriptionOriginal,
+    ]);
+    var japaneseTitle = firstBriefingText([
+      structuredJapanese.title, item.titleJa, item.japaneseTitle, item.translatedTitleJa,
+      reference.title, translatedJapanese.title, isJapaneseText(item.title) ? item.title : "",
+    ]);
+    var japaneseSummary = firstBriefingText([
+      structuredJapanese.summary, item.summaryJa, item.japaneseSummary, item.translatedSummaryJa,
+      reference.summary, translatedJapanese.summary, isJapaneseText(item.summary) ? item.summary : "",
+    ]);
+    var originalSummary = originalSummaryExplicit || (!isJapaneseText(item.summary) ? firstBriefingText([item.summary]) : "");
+    var originalIsJapanese = isJapaneseText(originalTitle) || isJapaneseText(originalSummary);
+    var originalLanguage = firstBriefingText([original.language, item.originalLanguage, item.language]) || (originalIsJapanese ? "ja" : "en");
+    var translationMode = firstBriefingText([
+      structuredJapanese.mode,
+      item.translationType,
+      item.translationStatus,
+      reference.type,
+      reference.status,
+      translatedJapanese.type,
+      translatedJapanese.status,
+      typeof item.translation === "string" ? item.translation : "",
+    ]).toLowerCase();
+    var hasJapaneseReference = Boolean(japaneseTitle || japaneseSummary);
+    var translationLabel = firstBriefingText([structuredJapanese.label]);
+    if (!translationLabel && translationMode === "structured-gist") translationLabel = "構造化要旨（翻訳ではありません）";
+    else if (!translationLabel && translationMode === "editorial-summary") translationLabel = "編集要約";
+    else if (!translationLabel && translationMode === "source-japanese") translationLabel = "日本語原文";
+    else if (!translationLabel && originalIsJapanese) translationLabel = "日本語原文";
+    else if (!translationLabel && hasJapaneseReference && /human|reviewed|verified|checked|editor/.test(translationMode)) translationLabel = "参考訳・確認済み";
+    else if (!translationLabel && hasJapaneseReference && /machine|automatic|auto|ai|deepl/.test(translationMode)) translationLabel = "参考訳・自動";
+    else if (!translationLabel && hasJapaneseReference) translationLabel = "参考訳";
+    else if (!translationLabel) translationLabel = "日本語情報未取得";
+    return {
+      japaneseTitle: japaneseTitle,
+      japaneseSummary: japaneseSummary,
+      originalTitle: originalTitle,
+      originalSummary: originalSummary,
+      originalLanguage: originalLanguage,
+      translationLabel: translationLabel,
+      translationMode: translationMode,
+      translationState: originalIsJapanese ? "original" : hasJapaneseReference ? "available" : "missing",
+    };
+  }
+
+  function externalJapaneseUrl(value) {
+    var safeUrl = safeHttpsUrl(value);
+    return safeUrl ? "https://translate.google.com/translate?sl=auto&tl=ja&u=" + encodeURIComponent(safeUrl) : "";
+  }
+
+  function originalSourceLinkLabel(value) {
+    var safeUrl = safeHttpsUrl(value);
+    if (!safeUrl) return "原文リンク未確認";
+    try {
+      var host = new URL(safeUrl).hostname.toLowerCase();
+      if (host === "news.google.com") return "元記事を開く（Google News経由）";
+      if (host === "www.bing.com" || host === "bing.com") return "元記事を開く（Bing経由）";
+    } catch (_error) {
+      return "原文を開く";
+    }
+    return "原文を直接開く";
+  }
+
+  function briefingTimestampValue(item) {
+    return item && (item.effectivePublishedAtUtc || item.publishedAtUtc || item.indexedAtUtc || item.publishedAt || item.datePublished);
+  }
+
+  function briefingTimestamp(item) {
+    var value = briefingTimestampValue(item);
+    var parsed = value ? new Date(value) : null;
+    return parsed && !Number.isNaN(parsed.valueOf()) ? parsed.valueOf() : null;
+  }
+
+  function briefingPublicationLabel(item) {
+    var value = briefingTimestampValue(item);
+    if (!value || briefingTimestamp(item) === null) return "時刻未確認";
+    var basis = String(item && item.timestampBasis || "").toLowerCase();
+    var precision = String(item && item.timestampPrecision || "").toLowerCase();
+    if (precision === "date" || precision === "day") {
+      var dateOnly = new Intl.DateTimeFormat("ja-JP", {
+        year: "numeric", month: "numeric", day: "numeric", timeZone: "Asia/Tokyo",
+      }).format(new Date(value));
+      return "日付のみ " + dateOnly;
+    }
+    var timeText = formatLiveTime(value, "") + " JST";
+    return basis === "index-seen" ? "海外索引で発見 " + timeText : timeText;
+  }
+
+  function briefingFreshnessTone(value) {
+    var key = String(value || "unknown").toLowerCase().replace(/^is-/, "");
+    if (key === "breaking" || key === "fresh" || key === "realtime") return "is-fresh";
+    if (key === "developing" || key === "recent") return "is-recent";
+    if (key === "today") return "is-today";
+    if (key === "context" || key === "aging" || key === "aged") return "is-context";
+    if (key === "old" || key === "stale") return "is-old";
+    return "is-unknown";
+  }
+
+  function briefingFreshness(item) {
+    var timestamp = briefingTimestamp(item);
+    var precision = String(item && item.timestampPrecision || "").toLowerCase();
+    if (timestamp !== null && (precision === "date" || precision === "day")) {
+      return { label: "日付のみ", tone: "is-context", bucket: "context", ageMinutes: null };
+    }
+    if (timestamp !== null) {
+      var currentAgeMinutes = Math.max(0, (Date.now() - timestamp) / 60000);
+      if (currentAgeMinutes <= 30) return { label: "30分以内", tone: "is-fresh", bucket: "breaking", ageMinutes: currentAgeMinutes };
+      if (currentAgeMinutes <= 180) return { label: "3時間以内", tone: "is-recent", bucket: "developing", ageMinutes: currentAgeMinutes };
+      if (currentAgeMinutes <= 1440) return { label: "24時間以内", tone: "is-today", bucket: "today", ageMinutes: currentAgeMinutes };
+      return { label: "背景情報", tone: "is-context", bucket: "context", ageMinutes: currentAgeMinutes };
+    }
+    var provided = item && item.freshness && typeof item.freshness === "object" ? item.freshness : {};
+    var providedAgeMinutes = finite(provided.ageMinutes);
+    if (provided.label || provided.tone || provided.bucket || providedAgeMinutes !== null) {
+      return {
+        label: firstBriefingText([provided.label]) || (providedAgeMinutes === null ? "鮮度未確認" : Math.round(providedAgeMinutes) + "分前"),
+        tone: briefingFreshnessTone(provided.tone || provided.bucket),
+        bucket: provided.bucket || "unknown",
+        ageMinutes: providedAgeMinutes,
+      };
+    }
+    return { label: "鮮度未確認", tone: "is-unknown", bucket: "unknown", ageMinutes: null };
+  }
+
+  function corroborationLabel(value) {
+    return {
+      "official-primary": "公式一次資料",
+      "multi-source": "複数の独立ソース",
+      "single-source": "単一ソース",
+    }[value] || "確認状態未分類";
+  }
+
+  function briefingRelatedLinksMarkup(item) {
+    var links = Array.isArray(item.relatedLinks) ? item.relatedLinks : [];
+    if (!links.length) return "<p class=\"briefing-related-empty\">同一話題の別原文はありません。</p>";
+    return "<div class=\"briefing-related-links\"><strong>同一話題の関連原文</strong><ul>" + links.map(function (link) {
+      var label = link.title || (link.source ? link.source + "の原文" : "関連原文を直接開く");
+      return "<li>" + liveSourceLink(link.url, label, "briefing-related-link")
+        + "<small>" + escapeHtml(link.source || "情報源不明") + " / "
+        + escapeHtml(verificationLabel(link.verification)) + " / "
+        + escapeHtml(briefingPublicationLabel(link)) + "</small></li>";
+    }).join("") + "</ul></div>";
+  }
+
   function briefingCardMarkup(item) {
+    item = item || {};
     var topic = item.topicKey || "policy";
     var sourceKind = item.sourceKind || "other";
     var verification = item.verification || "unverified";
@@ -3542,22 +3711,48 @@
       : verification === "unverified" || verification === "public-indexed" ? "unverified" : "reported";
     var stanceLabels = { bullish: "強気", bearish: "弱気", mixed: "強弱混在", neutral: "中立・方向なし" };
     var talk = finite(item.talkScore);
-    var summary = item.summary || "要約は取得できませんでした。原文を開いて確認してください。";
-    return "<article class=\"briefing-card\" data-briefing-card=\"true\" data-topic=\"" + escapeHtml(topic)
+    var priority = finite(item.priorityScore);
+    var independentSources = finite(item.independentSourceCount);
+    var clusterSize = finite(item.clusterSize);
+    var copy = briefingCopy(item);
+    var freshness = briefingFreshness(item);
+    var originalTitle = copy.originalTitle || "Original headline unavailable";
+    var japaneseTitle = copy.japaneseTitle || "日本語見出し未取得";
+    var japaneseSummary = copy.japaneseSummary || "外部日本語表示または原文で内容を確認してください。";
+    var originalSummaryMarkup = copy.originalSummary
+      ? "<p class=\"briefing-original-summary\">" + escapeHtml(copy.originalSummary) + "</p>"
+      : "<p class=\"briefing-copy-missing\" lang=\"ja\">原文要約は取得範囲にありません。原文リンクで確認してください。</p>";
+    var authorMarkup = item.author ? "<span>発信者 " + escapeHtml(item.author) + "</span>" : "";
+    return "<article class=\"briefing-card\" data-briefing-card=\"true\" data-briefing-id=\"" + escapeHtml(item.id || "")
+      + "\" data-topic=\"" + escapeHtml(topic)
       + "\" data-source-kind=\"" + escapeHtml(sourceKind) + "\" data-verification=\"" + escapeHtml(verificationState) + "\">"
       + "<div class=\"briefing-card-head\"><span class=\"briefing-topic-badge\">" + escapeHtml(item.topic || topic) + "</span>"
       + "<span class=\"briefing-source-badge\">" + escapeHtml(item.source || "情報源不明") + "</span>"
-      + "<time datetime=\"" + escapeHtml(item.publishedAtUtc || "") + "\">" + escapeHtml(formatLiveTime(item.publishedAtUtc, "公表 ")) + "</time></div>"
-      + "<h4>" + escapeHtml(item.title || "見出し未取得") + "</h4>"
-      + "<p>" + escapeHtml(summary) + "</p>"
-      + "<div class=\"briefing-card-meta\"><span>" + escapeHtml(verificationLabel(verification)) + "</span>"
-      + "<span>方向 " + escapeHtml(stanceLabels[item.stance] || "未分類") + "</span>"
-      + "<span>取得範囲の話題度 " + escapeHtml(talk === null ? "未算出" : nikkeiFormat.format(talk) + "/100") + "</span>"
-      + "<span>" + escapeHtml(formatLiveTime(item.retrievedAtUtc, "取得 ")) + "</span></div>"
-      + "<details class=\"briefing-card-details\"><summary>根拠・制約と原文を見る</summary>"
+      + "<span class=\"briefing-freshness-badge " + freshness.tone + "\" data-briefing-freshness>" + escapeHtml(freshness.label) + "</span></div>"
+      + "<div class=\"briefing-language-grid\">"
+      + "<section class=\"briefing-copy briefing-copy-ja\" lang=\"ja\"><span class=\"briefing-language-label\">"
+      + escapeHtml(copy.translationLabel) + "</span><h4>" + escapeHtml(japaneseTitle) + "</h4><p>" + escapeHtml(japaneseSummary) + "</p></section>"
+      + "<section class=\"briefing-copy briefing-copy-original\" lang=\"" + escapeHtml(copy.originalLanguage) + "\"><span class=\"briefing-language-label\">原文</span>"
+      + "<p class=\"briefing-original-title\">" + escapeHtml(originalTitle) + "</p>" + originalSummaryMarkup + "</section></div>"
+      + "<div class=\"briefing-card-facts\"><span><small>鮮度</small><strong data-briefing-freshness-fact>" + escapeHtml(freshness.label) + "</strong></span>"
+      + "<span><small>公表・発見</small><strong>" + escapeHtml(briefingPublicationLabel(item)) + "</strong></span>"
+      + "<span><small>検証</small><strong>" + escapeHtml(verificationLabel(verification)) + "</strong></span>"
+      + "<span><small>日本語欄</small><strong>" + escapeHtml(copy.translationLabel) + "</strong></span></div>"
+      + "<div class=\"briefing-card-meta\"><span>方向 " + escapeHtml(stanceLabels[item.stance] || "未分類") + "</span>"
+      + "<span>重要度 " + escapeHtml(priority === null ? "未算出" : nikkeiFormat.format(priority)) + "</span>"
+      + "<span>取得範囲の注目度 " + escapeHtml(talk === null ? "未算出" : nikkeiFormat.format(talk) + "/100") + "</span>"
+      + authorMarkup + "<span>" + escapeHtml(formatLiveTime(item.retrievedAtUtc, "取得 ")) + " JST</span></div>"
+      + "<div class=\"briefing-source-links briefing-card-source-links\">"
+      + liveSourceLink(item.url, originalSourceLinkLabel(item.url), "briefing-original-link")
+      + liveSourceLink(externalJapaneseUrl(item.url), "外部日本語表示", "briefing-japanese-link") + "</div>"
+      + "<details class=\"briefing-card-details\"><summary>根拠・制約を確認</summary>"
       + "<p>" + escapeHtml(item.identityNote || "掲載元、時刻、本文をリンク先で確認してください。") + "</p>"
-      + "<div class=\"briefing-source-links\">" + liveSourceLink(item.url, "原文・詳細を直接開く", "briefing-original-link") + "</div>"
-      + "</details></article>";
+      + "<div class=\"briefing-evidence-stats\"><span><small>独立ソース</small><strong>"
+      + escapeHtml(independentSources === null ? "未算出" : nikkeiFormat.format(independentSources) + "件") + "</strong></span>"
+      + "<span><small>同一話題クラスタ</small><strong>" + escapeHtml(clusterSize === null ? "未算出" : nikkeiFormat.format(clusterSize) + "件") + "</strong></span>"
+      + "<span><small>裏付け</small><strong>" + escapeHtml(corroborationLabel(item.corroborationState)) + "</strong></span></div>"
+      + "<p class=\"briefing-evidence-note\">独立ソース数は発信元の異なる報道・一次資料を数え、クラスタ件数は転載や同内容の記事を含み得ます。</p>"
+      + briefingRelatedLinksMarkup(item) + "</details></article>";
   }
 
   function currentBriefingFilter() {
@@ -3565,11 +3760,36 @@
     return selected ? selected.value : "all";
   }
 
-  function briefingItemsForFilter(filter) {
+  function currentBriefingSort() {
+    var selected = document.querySelector("input[name='briefing-sort']:checked");
+    return selected ? selected.value : (state.briefingSort || "latest");
+  }
+
+  function compareBriefingDates(left, right) {
+    var leftTime = briefingTimestamp(left);
+    var rightTime = briefingTimestamp(right);
+    if (leftTime === null && rightTime !== null) return 1;
+    if (leftTime !== null && rightTime === null) return -1;
+    if (leftTime !== rightTime) return (rightTime || 0) - (leftTime || 0);
+    return String(left.id || left.title || "").localeCompare(String(right.id || right.title || ""), "ja");
+  }
+
+  function briefingItemsForFilter(filter, sort) {
     var live = state.liveIntelligence || {};
     var briefing = live.briefing || {};
+    var mode = sort || state.briefingSort || "latest";
     return (briefing.items || []).filter(function (item) {
       return briefingFilterMatches(item.topicKey || "policy", item.sourceKind || "other", filter);
+    }).slice().sort(function (left, right) {
+      if (mode === "priority") {
+        var priorityDelta = (finite(right.priorityScore) || 0) - (finite(left.priorityScore) || 0);
+        if (priorityDelta) return priorityDelta;
+      }
+      if (mode === "attention") {
+        var attentionDelta = (finite(right.talkScore) || 0) - (finite(left.talkScore) || 0);
+        if (attentionDelta) return attentionDelta;
+      }
+      return compareBriefingDates(left, right);
     });
   }
 
@@ -3577,35 +3797,55 @@
     return typeof document.querySelector === "function" ? document.querySelector(".briefing-more") : null;
   }
 
-  function updateBriefingVisibleState(filter, matchingCount) {
+  function updateBriefingVisibleState(filter, matchingCount, sort) {
     var details = briefingMoreDetails();
-    var primaryCount = Math.min(matchingCount, 4);
-    var visibleCount = primaryCount + (details && details.open ? Math.max(0, matchingCount - 4) : 0);
+    var primaryCount = Math.min(matchingCount, 6);
+    var visibleCount = primaryCount + (details && details.open ? Math.max(0, matchingCount - 6) : 0);
     if (byId("briefingVisibleCount")) byId("briefingVisibleCount").textContent = nikkeiFormat.format(visibleCount);
     if (byId("briefingFilterStatus")) {
       var labels = { all: "すべて", us: "米国株", jp: "日本株", ai: "AIバブル", "fx-rates": "為替・金利" };
+      var sortLabels = { latest: "最新順", priority: "重要度順", attention: "注目度順" };
       var remainder = Math.max(0, matchingCount - visibleCount);
-      byId("briefingFilterStatus").textContent = (labels[filter] || "すべて") + "：全" + matchingCount
-        + "件中" + visibleCount + "件を表示しています。"
-        + (remainder ? "残り" + remainder + "件は『続報・追加材料』にあります。" : "");
+      byId("briefingFilterStatus").textContent = (labels[filter] || "すべて") + "・" + (sortLabels[sort] || "最新順") + "：全"
+        + matchingCount + "件中" + visibleCount + "件を表示しています。"
+        + (remainder ? "残り" + remainder + "件は「続報・追加材料」にあります。" : "");
     }
   }
 
-  function applyBriefingFilter(filter) {
+  function applyBriefingFilter(filter, sort) {
     var cardsNode = byId("briefingPrimaryCards");
     var moreNode = byId("briefingMoreCards");
     if (!cardsNode || !moreNode) return;
-    var matchingItems = briefingItemsForFilter(filter);
-    cardsNode.innerHTML = matchingItems.slice(0, 4).map(briefingCardMarkup).join("")
+    state.briefingSort = sort || state.briefingSort || "latest";
+    var matchingItems = briefingItemsForFilter(filter, state.briefingSort);
+    cardsNode.innerHTML = matchingItems.slice(0, 6).map(briefingCardMarkup).join("")
       || "<p class=\"briefing-empty\">このトピックの主要速報はありません。</p>";
-    moreNode.innerHTML = matchingItems.slice(4).map(briefingCardMarkup).join("")
+    moreNode.innerHTML = matchingItems.slice(6).map(briefingCardMarkup).join("")
       || "<p class=\"briefing-empty\">追加情報はありません。</p>";
     var details = briefingMoreDetails();
     if (details) {
       details.open = false;
-      details.hidden = matchingItems.length <= 4;
+      details.hidden = matchingItems.length <= 6;
     }
-    updateBriefingVisibleState(filter, matchingItems.length);
+    updateBriefingVisibleState(filter, matchingItems.length, state.briefingSort);
+  }
+
+  function refreshRenderedBriefingFreshness() {
+    var live = state.liveIntelligence || {};
+    var items = ((live.briefing || {}).items || []);
+    var byItemId = new Map(items.map(function (item) { return [String(item.id || ""), item]; }));
+    document.querySelectorAll("[data-briefing-id]").forEach(function (card) {
+      var item = byItemId.get(String(card.dataset.briefingId || ""));
+      if (!item) return;
+      var freshness = briefingFreshness(item);
+      var badge = card.querySelector("[data-briefing-freshness]");
+      var fact = card.querySelector("[data-briefing-freshness-fact]");
+      if (badge) {
+        badge.className = "briefing-freshness-badge " + freshness.tone;
+        badge.textContent = freshness.label;
+      }
+      if (fact) fact.textContent = freshness.label;
+    });
   }
 
   function renderLiveBriefing() {
@@ -3618,18 +3858,35 @@
     var health = live.dataHealth || {};
     var items = briefing.items || [];
     var channels = Array.isArray(briefing.channels) ? briefing.channels : [];
+    var successfulChannels = channels.filter(function (channel) { return channel.status === "ok"; }).length;
+    var limitedChannels = channels.filter(function (channel) {
+      return channel.status === "limited" || channel.status === "not-configured";
+    }).length;
+    var failedChannels = Math.max(0, channels.length - successfulChannels - limitedChannels);
+    var checkedChannels = Math.max(0, channels.length - failedChannels);
+    var primaryItemCount = items.filter(function (item) {
+      return item.verification === "primary" || item.verification === "primary-statement";
+    }).length;
+    var latestPublishedItem = items.slice().sort(compareBriefingDates)[0] || null;
     var hasLiveSnapshot = Boolean(state.liveIntelligence
       && (live.generatedAtUtc || briefing.checkedAtUtc || items.length || channels.length));
     root.dataset.state = hasLiveSnapshot ? "ready" : "missing";
     if (byId("briefingCheckedAt")) byId("briefingCheckedAt").textContent = hasLiveSnapshot
       ? formatLiveTime(briefing.checkedAtUtc || live.generatedAtUtc, "") : "確認時刻なし";
     if (byId("briefingCoverage")) {
-      var successfulChannels = channels.filter(function (channel) { return channel.status === "ok"; }).length;
-      var limitedChannels = channels.filter(function (channel) { return channel.status === "limited" || channel.status === "not-configured"; }).length;
       byId("briefingCoverage").textContent = hasLiveSnapshot
-        ? successfulChannels + "取得済み・" + limitedChannels + "限定 / 全" + channels.length + "経路・" + items.length + "件"
+        ? checkedChannels + "/" + channels.length + "経路確認（完全" + successfulChannels + "・限定" + limitedChannels + "）・" + items.length + "件"
         : "取得不能・0件";
     }
+    if (byId("briefingMetricTotal")) byId("briefingMetricTotal").textContent = nikkeiFormat.format(items.length) + "件";
+    if (byId("briefingMetricPrimary")) byId("briefingMetricPrimary").textContent = nikkeiFormat.format(primaryItemCount) + "件";
+    if (byId("briefingMetricLatest")) byId("briefingMetricLatest").textContent = latestPublishedItem
+      ? briefingPublicationLabel(latestPublishedItem) : "時刻未確認";
+    if (byId("briefingMetricChannels")) byId("briefingMetricChannels").textContent = channels.length
+      ? checkedChannels + "/" + channels.length + "経路確認・" + limitedChannels + "限定" : "経路未確認";
+    if (byId("briefingChannelSummary")) byId("briefingChannelSummary").textContent = channels.length
+      ? "取得済み" + successfulChannels + "・限定" + limitedChannels + "・失敗" + failedChannels
+      : "取得経路を確認できません";
 
     var xApi = (live.sourceStatus || []).find(function (source) { return source.kind === "x-api"; });
     var generated = live.generatedAtUtc ? new Date(live.generatedAtUtc) : null;
@@ -3639,6 +3896,12 @@
     if (health.status && health.status !== "ok") warnings.push(health.message || "一部取得経路が限定または失敗しています。");
     if (xApi && xApi.status === "not-configured") warnings.push("X APIは未接続です。公開ウェブ索引とXの直接検索リンクを表示し、欠測を中立・弱気とは扱いません。");
     if (ageMinutes !== null && ageMinutes > 35) warnings.push("スナップショットは" + Math.round(ageMinutes) + "分前です。カードの取得時刻を確認してください。");
+    var translationStatus = briefing.translationStatus || {};
+    if (translationStatus.status === "not-configured") {
+      warnings.push("日本語欄はDeepL未接続のため、英単語の置換ではなく日本語の構造化要旨を表示します。翻訳ではない項目はカード内で明記しています。");
+    } else if (translationStatus.label) {
+      warnings.push("日本語欄：" + translationStatus.label + "。自動訳は未校閲として原文を併記します。");
+    }
     if (byId("briefingWarning")) {
       byId("briefingWarning").textContent = warnings.join(" ") || "主要経路を取得済みです。SNSの反応数は事実確認度や相場方向を意味しません。";
     }
@@ -3668,13 +3931,23 @@
           + "<h4>ドル円の急変情報を取得できませんでした。</h4><p>価格、報道、財務省の確認状況を未確認として扱います。</p></div>"
           + "<dl class=\"briefing-lead-facts\"><div><dt>介入ステータス</dt><dd>未確認</dd></div>"
           + "<div><dt>現在値 / 前日比</dt><dd>未確認</dd></div><div><dt>確認レンジ</dt><dd>未確認</dd></div>"
-          + "<div><dt>関連報道候補 / 取得範囲の話題度</dt><dd>未確認</dd></div></dl></div></article>";
+          + "<div><dt>関連報道候補 / 取得範囲の注目度</dt><dd>未確認</dd></div></dl></div></article>";
       } else {
         var reportedCount = finite(shock.reportedEvidenceCount);
         var leadTalkScore = finite(lead.talkScore);
+        var hasRecentShock = shock.recentDirectionalShock === true;
+        var historicalShock = !hasRecentShock && (shock.severity === "critical" || shock.severity === "warning");
+        var shockBadge = historicalShock ? "当日急変の履歴" : (shock.severityLabel || "急変監視");
+        var eventEnd = shock.directionalShockEventEndUtc
+          ? formatLiveTime(shock.directionalShockEventEndUtc, "") + " JST終了" : "時刻未確認";
+        var eventRecency = hasRecentShock
+          ? "直近3時間以内"
+          : historicalShock ? "当日履歴（直近3時間の新規急変なし）" : "直近急変なし";
+        var rangeText = finite(shock.sessionLow) === null || finite(shock.sessionHigh) === null
+          ? "レンジ未確認" : numberThree.format(shock.sessionLow) + "～" + numberThree.format(shock.sessionHigh) + "円";
         byId("briefingLead").innerHTML = "<article class=\"briefing-lead-card\" data-topic=\"fx-rates\" data-verification=\""
           + escapeHtml(shock.officiallyConfirmed ? "confirmed" : "unverified") + "\">"
-          + "<div class=\"briefing-card-head\"><span class=\"briefing-priority-badge\">" + escapeHtml(shock.severityLabel || "急変監視") + "</span>"
+          + "<div class=\"briefing-card-head\"><span class=\"briefing-priority-badge\">" + escapeHtml(shockBadge) + "</span>"
           + "<span class=\"briefing-topic-badge\">為替・金利</span><time datetime=\"" + escapeHtml(shock.observedAtUtc || "") + "\">"
           + escapeHtml(formatLiveTime(shock.observedAtUtc, "値 ")) + "</time></div>"
           + "<div class=\"briefing-lead-body\"><div><p class=\"briefing-eyebrow\">USD/JPY 急変監視</p><h4>"
@@ -3683,8 +3956,8 @@
           + liveSourceLink(shock.officialVerificationUrl, "財務省の公式確認ページ", "briefing-original-link") + "</div></div>"
           + "<dl class=\"briefing-lead-facts\"><div><dt>介入ステータス</dt><dd>" + escapeHtml(shock.interventionLabel || "判定保留") + "</dd></div>"
           + "<div><dt>現在値 / 前日比</dt><dd>" + escapeHtml(finite(shock.current) === null ? "未確認" : numberThree.format(shock.current) + "円 / " + formatPercent(finite(shock.changePct), true)) + "</dd></div>"
-          + "<div><dt>確認レンジ</dt><dd>" + escapeHtml(finite(shock.sessionLow) === null || finite(shock.sessionHigh) === null ? "未確認" : numberThree.format(shock.sessionLow) + "～" + numberThree.format(shock.sessionHigh) + "円") + "</dd></div>"
-          + "<div><dt>関連報道候補 / 取得範囲の話題度</dt><dd>" + escapeHtml((reportedCount === null ? "未確認" : reportedCount + "件")
+          + "<div><dt>急変時刻 / 確認レンジ</dt><dd>" + escapeHtml(eventRecency + "・" + eventEnd + " / " + rangeText) + "</dd></div>"
+          + "<div><dt>関連報道候補 / 取得範囲の注目度</dt><dd>" + escapeHtml((reportedCount === null ? "未確認" : reportedCount + "件")
             + " / " + (leadTalkScore === null ? "未確認" : leadTalkScore + "/100")) + "</dd></div></dl>"
           + "</div></article>";
       }
@@ -3693,18 +3966,27 @@
     function balanceMarkup(rows, emptyText) {
       return (rows || []).slice(0, 3).map(function (row) {
         var rowUrl = safeHttpsUrl(row.url);
-        var rowTitle = "<strong>" + escapeHtml(row.title || "") + "</strong>";
+        var fullRow = items.find(function (item) {
+          return (row.id && item.id === row.id)
+            || (rowUrl && safeHttpsUrl(item.url) === rowUrl);
+        }) || row;
+        var copy = briefingCopy(fullRow);
+        var japaneseTitle = copy.japaneseTitle || "日本語要旨未取得";
+        var originalTitle = copy.originalTitle || "";
+        var rowTitle = "<strong>" + escapeHtml(japaneseTitle) + "</strong>";
         var titleMarkup = rowUrl
-          ? "<a href=\"" + escapeHtml(rowUrl) + "\" target=\"_blank\" rel=\"noopener noreferrer\">" + rowTitle + "</a>"
-          : rowTitle + " <span class=\"live-source-unavailable\" aria-disabled=\"true\">\uFF08\u30EA\u30F3\u30AF\u672A\u78BA\u8A8D\uFF09</span>";
-        return "<li>" + titleMarkup + "<br><small>" + escapeHtml(row.source || "") + " / "
-          + escapeHtml(verificationLabel(row.verification)) + "</small></li>";
+          ? '<a href="' + escapeHtml(rowUrl) + '" target="_blank" rel="noopener noreferrer">' + rowTitle + "</a>"
+          : rowTitle + ' <span class="live-source-unavailable" aria-disabled="true">（リンク未確認）</span>';
+        var originalMarkup = originalTitle && originalTitle !== japaneseTitle
+          ? '<span class="briefing-balance-original" lang="' + escapeHtml(copy.originalLanguage) + '">' + escapeHtml(originalTitle) + "</span>" : "";
+        return "<li>" + titleMarkup + originalMarkup + "<small>" + escapeHtml(fullRow.source || "") + " / "
+          + escapeHtml(verificationLabel(fullRow.verification)) + "</small></li>";
       }).join("") || "<li>" + escapeHtml(emptyText) + "</li>";
     }
     if (byId("briefingBullList")) byId("briefingBullList").innerHTML = balanceMarkup(briefing.bullish, "取得範囲で強気材料を分類できませんでした。");
     if (byId("briefingBearList")) byId("briefingBearList").innerHTML = balanceMarkup(briefing.bearish, "取得範囲で弱気材料を分類できませんでした。");
 
-    applyBriefingFilter(currentBriefingFilter());
+    applyBriefingFilter(currentBriefingFilter(), currentBriefingSort());
   }
 
   function renderAll() {
@@ -3898,14 +4180,20 @@
     byId("refreshButton").addEventListener("click", function () { loadData(true); });
     document.querySelectorAll("input[name='briefing-topic']").forEach(function (radio) {
       radio.addEventListener("change", function () {
-        if (this.checked) applyBriefingFilter(this.value || "all");
+        if (this.checked) applyBriefingFilter(this.value || "all", currentBriefingSort());
+      });
+    });
+    document.querySelectorAll("input[name='briefing-sort']").forEach(function (radio) {
+      radio.addEventListener("change", function () {
+        if (this.checked) applyBriefingFilter(currentBriefingFilter(), this.value || "latest");
       });
     });
     var briefingMore = briefingMoreDetails();
     if (briefingMore) {
       briefingMore.addEventListener("toggle", function () {
         var filter = currentBriefingFilter();
-        updateBriefingVisibleState(filter, briefingItemsForFilter(filter).length);
+        var sort = currentBriefingSort();
+        updateBriefingVisibleState(filter, briefingItemsForFilter(filter, sort).length, sort);
       });
     }
     document.querySelectorAll(".snapshot-compare-button").forEach(function (button) {
@@ -4033,4 +4321,8 @@
   setupSectionNavigation();
   if (window.lucide) window.lucide.createIcons();
   loadData(false);
+  var briefingFreshnessTimer = setInterval(refreshRenderedBriefingFreshness, 60000);
+  if (briefingFreshnessTimer && typeof briefingFreshnessTimer.unref === "function") {
+    briefingFreshnessTimer.unref();
+  }
 }());
