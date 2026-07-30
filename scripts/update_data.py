@@ -434,6 +434,29 @@ PRICE_SYMBOLS = {
 }
 HYPERSCALERS = {"MSFT", "GOOGL", "AMZN", "META"}
 
+KIOXIA_CALM_VALUATION_REPORTS = [
+    {
+        "periodLabel": "2026年3月期 第3四半期累計",
+        "releaseDate": "2026-02-12",
+        "revenueJpyMillions": 1_334_776,
+        "revenueGrowthYoYPct": -1.8,
+        "profitAttributableJpyMillions": 146_756,
+        "sharesOutstanding": 544_468_150,
+        "sourceUrl": "https://ssl4.eir-parts.net/doc/285A/tdnet/2757397/00.pdf",
+    },
+    {
+        "periodLabel": "2026年3月期 通期",
+        "releaseDate": "2026-05-15",
+        "revenueJpyMillions": 2_337_628,
+        "revenueGrowthYoYPct": 37.0,
+        "profitAttributableJpyMillions": 554_490,
+        "sharesOutstanding": 546_086_290,
+        "sourceUrl": "https://ssl4.eir-parts.net/doc/285A/tdnet/2815552/00.pdf",
+    },
+]
+KIOXIA_CALM_REFERENCE_PE = 15.0
+KIOXIA_CALM_PE_RANGE = (12.0, 18.0)
+
 
 BERKSHIRE_BALANCE_SNAPSHOTS = [
     {
@@ -897,6 +920,55 @@ def pct_change(new: float | None, old: float | None) -> float | None:
     if new is None or old in (None, 0):
         return None
     return (new / old - 1.0) * 100.0
+
+
+def build_kioxia_calm_valuation(current_price: float | None) -> dict[str, Any]:
+    reports = [dict(row) for row in KIOXIA_CALM_VALUATION_REPORTS]
+    growth_expectation_pct = statistics.mean(row["revenueGrowthYoYPct"] for row in reports)
+    report_margins = [
+        row["profitAttributableJpyMillions"] / row["revenueJpyMillions"] * 100.0
+        for row in reports
+    ]
+    reference_margin_pct = report_margins[-1]
+    latest = reports[-1]
+    forecast_revenue = latest["revenueJpyMillions"] * (1.0 + growth_expectation_pct / 100.0)
+    forecast_profit = forecast_revenue * reference_margin_pct / 100.0
+    shares = latest["sharesOutstanding"]
+    reference_price = forecast_profit * 1_000_000 * KIOXIA_CALM_REFERENCE_PE / shares
+    low_pe, high_pe = KIOXIA_CALM_PE_RANGE
+    low_price = forecast_profit * 1_000_000 * low_pe / shares
+    high_price = forecast_profit * 1_000_000 * high_pe / shares
+    current = finite(current_price)
+    return {
+        "modelVersion": "reported-growth-current-margin-earnings-v1",
+        "asOfDate": latest["releaseDate"],
+        "reports": reports,
+        "growthExpectationPct": growth_expectation_pct,
+        "growthMethod": "直近2回の決算短信に記載された各報告期間の対前年売上伸び率（-1.8%、+37.0%）を単純平均。",
+        "reportNetMarginsPct": report_margins,
+        "referenceNetMarginPct": reference_margin_pct,
+        "marginMethod": "最新通期の親会社所有者帰属利益÷売上収益を使用し、将来の利益率改善は仮定しない。",
+        "latestRevenueJpyMillions": latest["revenueJpyMillions"],
+        "forecastRevenueJpyMillions": forecast_revenue,
+        "forecastProfitJpyMillions": forecast_profit,
+        "sharesOutstanding": shares,
+        "referencePe": KIOXIA_CALM_REFERENCE_PE,
+        "referencePeBasis": "PER 15倍は将来のAIプレミアムを別加算しない中立的な比較前提。会社公表値や目標株価ではない。",
+        "referencePriceJpy": reference_price,
+        "sensitivityPeLow": low_pe,
+        "sensitivityPeHigh": high_pe,
+        "sensitivityLowPriceJpy": low_price,
+        "sensitivityHighPriceJpy": high_price,
+        "currentPriceJpy": current,
+        "currentPriceMultiple": current / reference_price if current is not None else None,
+        "currentPremiumToReferencePct": pct_change(current, reference_price),
+        "formula": "最新通期売上×(1+2報告の売上成長率平均)×最新通期の親会社帰属利益率×参考PER÷期末発行済株式数",
+        "interpretation": (
+            "中心値は約定価格の予測、目標株価、底値ではありません。第3四半期累計と通期は期間が重なり、"
+            "メモリー価格・為替・出荷量で利益率が大きく変わるため、統計的な適正値でもありません。"
+            "将来仮定は直近2回の公表売上成長率の平均だけとし、利益率は最新通期実績から改善しない比較基準です。"
+        ),
+    }
 
 
 def median(values: Iterable[float | None]) -> float | None:
@@ -1764,6 +1836,7 @@ def build_sakakibara_analysis(
                 if kioxia_article_start and finite(kioxia.get("peak2026")) is not None else None
             ),
             "drawdownFrom2026HighPct": kioxia.get("drawdownFrom2026HighPct"),
+            "calmValuation": build_kioxia_calm_valuation(kioxia.get("close")),
             "sourceUrl": kioxia.get("sourceUrl"),
         },
         "jgb": jgb,
