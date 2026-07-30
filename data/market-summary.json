@@ -1,0 +1,206 @@
+{
+  "schemaVersion": 1,
+  "policyAsOfJst": "2026-07-30T16:11:00+09:00",
+  "headlinePolicy": "米欧の中央銀行は利下げを急がず、日本は7月31日の日銀判断待ちです。",
+  "importantLimit": "株・為替、日本・米国・EUの金利数値はdata/latest.json、中国のLPRは本サマリーの確認済み設定値から表示します。金利欄は国債利回り、政策金利、貸出基準金利が混在するため、水準を単純比較しません。政策・政治の文章は確認日時点の公表資料を要約したもので、値動きの原因を断定するものではありません。",
+  "regions": [
+    {
+      "id": "japan",
+      "name": "日本",
+      "summary": "為替と長期金利に加え、7月31日の日銀会合結果を確認します。",
+      "stock": {
+        "key": "NIKKEI",
+        "label": "日経平均",
+        "digits": 0,
+        "unit": "円"
+      },
+      "fx": {
+        "key": "USDJPY",
+        "label": "米ドル／円",
+        "digits": 2,
+        "unit": "円"
+      },
+      "rate": {
+        "scope": "macro",
+        "key": "jgb10y",
+        "field": "tenYearPct",
+        "label": "日本10年国債",
+        "digits": 3,
+        "unit": "%"
+      },
+      "policy": {
+        "label": "金融政策・政治",
+        "text": "日銀の現行政策金利は1.0%。7月30～31日の金融政策決定会合は進行中で、7月30日16:11時点では結果未発表です。",
+        "sources": [
+          {
+            "label": "日銀・6月16日の決定",
+            "url": "https://www.boj.or.jp/en/mopo/mpmdeci/mpr_2026/k260616a.pdf"
+          },
+          {
+            "label": "日銀・会合日程",
+            "url": "https://www.boj.or.jp/en/mopo/mpmsche_minu/"
+          }
+        ]
+      }
+    },
+    {
+      "id": "united-states",
+      "name": "米国",
+      "summary": "FRB（米連邦準備制度）は金利を据え置きましたが、3人が利上げを主張し、物価警戒が強めです。",
+      "stock": {
+        "key": "SP500",
+        "label": "S&P 500（米国主要500社）",
+        "digits": 2,
+        "unit": "pt"
+      },
+      "fx": {
+        "key": "DXY",
+        "label": "米ドル指数（主要6通貨比）",
+        "digits": 2,
+        "unit": "pt"
+      },
+      "rate": {
+        "scope": "macro",
+        "key": "treasury2y",
+        "field": "value",
+        "label": "米国2年国債",
+        "digits": 2,
+        "unit": "%"
+      },
+      "policy": {
+        "label": "金融政策・政治",
+        "text": "FRB（米連邦準備制度）は7月29日、政策金利を3.50～3.75%に据え置きました。9対3で、反対した3人は0.25ポイントの利上げを主張しました。",
+        "sources": [
+          {
+            "label": "FRB・7月29日声明",
+            "url": "https://www.federalreserve.gov/newsevents/pressreleases/monetary20260729a.htm"
+          }
+        ]
+      }
+    },
+    {
+      "id": "europe",
+      "name": "EU・欧州",
+      "summary": "ECB（欧州中央銀行）は金利を据え置き、中東情勢とエネルギー高による物価再上昇を警戒しています。",
+      "stock": {
+        "key": "STOXX600",
+        "label": "STOXX Europe 600（欧州主要600社）",
+        "digits": 2,
+        "unit": "pt"
+      },
+      "fx": {
+        "key": "EURUSD",
+        "label": "ユーロ／米ドル",
+        "digits": 4,
+        "unit": "ドル"
+      },
+      "rate": {
+        "scope": "macro",
+        "key": "ecbDepositRate",
+        "field": "value",
+        "label": "ECB（欧州中央銀行）預金ファシリティ金利",
+        "digits": 2,
+        "unit": "%"
+      },
+      "policy": {
+        "label": "金融政策・政治",
+        "text": "ECB（欧州中央銀行）は7月23日に政策金利を据え置きました。預金ファシリティ金利は2.25%で、中東情勢後のエネルギー価格と二次的な物価上昇を注視しています。",
+        "sources": [
+          {
+            "label": "ECB・7月23日声明",
+            "url": "https://www.ecb.europa.eu/press/pr/date/2026/html/ecb.mp260723~29f24d99bc.en.html"
+          }
+        ]
+      }
+    },
+    {
+      "id": "china",
+      "name": "中国",
+      "summary": "貸出基準金利は据え置き。成長率は1～3月期の5.0%から4～6月期の4.3%へ鈍化し、政府は追加策を準備する方針です。",
+      "stock": {
+        "key": "CSI300",
+        "label": "CSI 300（中国本土主要300社）",
+        "digits": 2,
+        "unit": "pt"
+      },
+      "fx": {
+        "key": "USDCNY",
+        "label": "米ドル／人民元",
+        "digits": 4,
+        "unit": "元"
+      },
+      "rate": {
+        "label": "1年物LPR（最優遇貸出金利）",
+        "value": 3.0,
+        "date": "2026-07-20",
+        "digits": 1,
+        "unit": "%",
+        "sourceUrl": "https://www.chinamoney.com.cn/chinese/rdgz/20260720/3379021.html"
+      },
+      "policy": {
+        "label": "景気政策・政治",
+        "text": "LPR（最優遇貸出金利）は1年物3.0%、5年超3.5%で据え置き。政府は下期の逆周期調整を強め、追加策を事前に準備する方針です。",
+        "sources": [
+          {
+            "label": "中国外貨交易中心・LPR",
+            "url": "https://www.chinamoney.com.cn/chinese/rdgz/20260720/3379021.html"
+          },
+          {
+            "label": "中国国家統計局・4～6月期GDP",
+            "url": "https://www.stats.gov.cn/english/PressRelease/202607/t20260717_1964160.html"
+          },
+          {
+            "label": "中国政府・下期政策方針",
+            "url": "https://english.www.gov.cn/news/202607/13/content_WS6a54e108c6d00ca5f9a0c293.html"
+          }
+        ]
+      }
+    },
+    {
+      "id": "all-country",
+      "name": "オールカントリー",
+      "summary": "ACWI（全世界株）連動の上場投資信託（ETF）は米国が約6割、情報技術が約3割を占めるため、米国大型テックの値動きが強く反映されます。",
+      "stock": {
+        "key": "ACWI",
+        "label": "ACWI（全世界株）連動ETF",
+        "digits": 2,
+        "prefix": "$"
+      },
+      "fx": {
+        "key": "DXY",
+        "label": "米ドル指数（主要6通貨比）",
+        "digits": 2,
+        "unit": "pt"
+      },
+      "rate": {
+        "scope": "macro",
+        "key": "treasury2y",
+        "field": "value",
+        "label": "世界金融環境の参考：米2年",
+        "digits": 2,
+        "unit": "%"
+      },
+      "extra": {
+        "key": "GOLD",
+        "label": "金先物",
+        "category": "金",
+        "digits": 2,
+        "prefix": "$"
+      },
+      "policy": {
+        "label": "世界の政策・政治",
+        "text": "IMF（国際通貨基金）は2026年の世界成長率を3.0%と見込み、戦争によるエネルギー高、AI需要、世界的な物価低下の停滞を主要な分岐点として挙げています。",
+        "sources": [
+          {
+            "label": "IMF・2026年7月世界経済見通し",
+            "url": "https://www.imf.org/en/publications/weo/issues/2026/07/08/world-economic-outlook-update-july-2026"
+          },
+          {
+            "label": "iShares・ACWI構成",
+            "url": "https://www.ishares.com/us/products/239600/ishares-msci-acwi-etf?periodCd=m"
+          }
+        ]
+      }
+    }
+  ]
+}

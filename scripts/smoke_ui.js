@@ -110,7 +110,8 @@ assert.match(lucideVendorSource, /lucide v0\.468\.0/);
 assert.match(indexSource, /なぜ「Margin Debt \/ GDP」を調べるのか/);
 assert.match(indexSource, /担保が不足すると、待ちたくても売らなければならない/);
 assert.match(indexSource, /返済能力そのものではなく長期比較のための物差し/);
-assert.match(indexSource, /最初に区別する：CAPE RatioとCapExは、まったく別の数字/);
+assert.match(indexSource, /CAPE Ratio.*過去10年の物価調整後利益の平均/);
+assert.match(indexSource, /設備投資額を表すCapExとは別物/);
 assert.match(indexSource, /略語・専門用語ガイド/);
 assert.match(indexSource, /景気循環調整後の株価収益率/);
 assert.match(indexSource, /Capital Expenditure/);
@@ -123,7 +124,10 @@ assert.match(indexSource, /米国IPOの登録届出書/);
 assert.match(indexSource, /CSV \/ JSON \/ XML/);
 assert.match(indexSource, /北米証券の識別コード/);
 assert.match(indexSource, /JST・日本標準時/);
-assert.match(indexSource, /案内・用語/);
+assert.match(indexSource, /本日のマーケットサマリー/);
+assert.match(indexSource, /日本、米国、欧州、中国、世界全体/);
+assert.match(indexSource, /regionalMarketCards/);
+assert.ok(indexSource.indexOf('id="market-summary"') < indexSource.indexOf('id="beginner-guide"'));
 assert.match(indexSource, /どこを見れば、何が分かるか/);
 assert.match(indexSource, /currentSectionLabel/);
 assert.match(indexSource, /暴落前に重なる4条件を、現在のデータへ置き換える/);
@@ -190,16 +194,24 @@ const payload = JSON.parse(fs.readFileSync("data/latest.json", "utf8"));
 const moneyPayload = JSON.parse(fs.readFileSync("data/money-strategist-history.json", "utf8"));
 const marginPayload = JSON.parse(fs.readFileSync("data/margin-debt-history.json", "utf8"));
 const snapshotIndexPayload = JSON.parse(fs.readFileSync("data/history/index.json", "utf8"));
-const priorSnapshotPayload = JSON.parse(fs.readFileSync("data/history/2026-07-21.json", "utf8"));
+const marketSummaryPayload = JSON.parse(fs.readFileSync("data/market-summary.json", "utf8"));
+const snapshotPayloads = Object.fromEntries((snapshotIndexPayload.snapshots || []).map((entry) => [
+  entry.file,
+  JSON.parse(fs.readFileSync("data/history/" + entry.file, "utf8")),
+]));
 global.fetch = async (url) => ({
   ok: true,
   status: 200,
-  json: async () => String(url).includes("data/history/index.json")
-    ? snapshotIndexPayload
-    : String(url).includes("data/history/2026-07-21.json") ? priorSnapshotPayload
-    : String(url).includes("money-strategist-history")
-    ? moneyPayload
-    : String(url).includes("margin-debt-history") ? marginPayload : payload,
+  json: async () => {
+    const requested = String(url);
+    if (requested.includes("data/history/index.json")) return snapshotIndexPayload;
+    if (requested.includes("data/market-summary.json")) return marketSummaryPayload;
+    const snapshotMatch = requested.match(/data\/history\/([^?]+)/);
+    if (snapshotMatch && snapshotPayloads[snapshotMatch[1]]) return snapshotPayloads[snapshotMatch[1]];
+    if (requested.includes("money-strategist-history")) return moneyPayload;
+    if (requested.includes("margin-debt-history")) return marginPayload;
+    return payload;
+  },
 });
 
 vm.runInThisContext(appSource, { filename: "app.js" });
@@ -208,6 +220,9 @@ setTimeout(async () => {
   if (elements.get("dataHealth").textContent === "読込失敗") console.error("UI load error:", elements.get("uncertaintySummary").textContent);
   assert.notStrictEqual(elements.get("dataHealth").textContent, "読込失敗");
   assert.notStrictEqual(elements.get("headlineConclusion").textContent, "");
+  assert.match(elements.get("regionalMarketCards").innerHTML, /日本/);
+  assert.match(elements.get("regionalMarketCards").innerHTML, /EU・欧州/);
+  assert.match(elements.get("regionalMarketCards").innerHTML, /オールカントリー/);
   assert.notStrictEqual(elements.get("japanTransmissionStatus").textContent, "計算中");
   assert.notStrictEqual(elements.get("nikkeiZone").textContent, "―");
   assert.match(elements.get("companyRows").innerHTML, /トヨタ自動車/);
@@ -282,11 +297,11 @@ setTimeout(async () => {
   assert.strictEqual(purchasingPowerRender.data.labels.length, 252);
   assert.strictEqual(purchasingPowerRender.data.datasets.length, 3);
   purchasingPowerRender.data.datasets.forEach((dataset) => assert.strictEqual(dataset.data.length, 252));
-  assert.strictEqual(snapshotButtons[0].disabled, false);
-  assert.strictEqual(snapshotButtons[1].disabled, true);
+  assert.strictEqual(snapshotButtons[0].disabled, true);
+  assert.strictEqual(snapshotButtons[1].disabled, false);
   assert.strictEqual(snapshotButtons[2].disabled, true);
-  await snapshotButtons[0].click();
-  assert.match(elements.get("snapshotComparisonHeading").textContent, /昨日/);
+  await snapshotButtons[1].click();
+  assert.match(elements.get("snapshotComparisonHeading").textContent, /1週間前.*2026-07-22/);
   assert.match(elements.get("snapshotComparisonGrid").innerHTML, /S&amp;P 500|S&P 500/);
   assert.match(elements.get("snapshotComparisonNote").textContent, /当時公表値/);
   console.log(JSON.stringify({

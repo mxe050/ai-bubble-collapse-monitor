@@ -19,6 +19,7 @@ MARGIN_DATA_FILE = ROOT / "data" / "margin-debt-history.json"
 APP_FILE = ROOT / "app.js"
 INDEX_FILE = ROOT / "index.html"
 SNAPSHOT_HISTORY_INDEX = ROOT / "data" / "history" / "index.json"
+MARKET_SUMMARY_FILE = ROOT / "data" / "market-summary.json"
 
 
 def require(condition: bool, message: str) -> None:
@@ -81,6 +82,13 @@ def main() -> None:
         require(finite(row.get("weeksBelowSma200")) and row["weeksBelowSma200"] >= 0, f"invalid SMA duration: {key}")
         calculated_drawdown = (1 - row["close"] / row["peak3y"]) * 100
         require(close_enough(calculated_drawdown, row["drawdown3yPct"]), f"{key}: drawdown identity failed")
+
+    for key in ("STOXX600", "CSI300", "ACWI", "USDJPY", "EURUSD", "USDCNY", "DXY"):
+        row = series.get(key)
+        require(bool(row), f"missing regional market-summary series: {key}")
+        require(finite(row.get("close")) and row["close"] > 0, f"invalid regional close: {key}")
+
+    require(finite((data.get("macro") or {}).get("ecbDepositRate", {}).get("value")), "ECB deposit rate is missing")
 
     purchasing_power = data["market"].get("purchasingPowerStress") or {}
     require(bool(purchasing_power), "purchasing-power monitor is missing")
@@ -598,6 +606,12 @@ def main() -> None:
 
     app_source = APP_FILE.read_text(encoding="utf-8")
     index_source = INDEX_FILE.read_text(encoding="utf-8")
+    require(MARKET_SUMMARY_FILE.exists(), "regional market-summary package is missing")
+    market_summary = json.loads(MARKET_SUMMARY_FILE.read_text(encoding="utf-8"))
+    require(market_summary.get("schemaVersion") == 1, "market-summary schemaVersion must be 1")
+    regions = market_summary.get("regions") or []
+    require([row.get("id") for row in regions] == ["japan", "united-states", "europe", "china", "all-country"], "market-summary regions are incomplete or out of order")
+    require(all((row.get("policy") or {}).get("sources") for row in regions), "market-summary policy sources are missing")
     referenced_ids = set(re.findall(r'byId\("([^"]+)"\)', app_source))
     html_id_list = re.findall(r'\bid="([^"]+)"', index_source)
     html_ids = set(html_id_list)
@@ -633,6 +647,9 @@ def main() -> None:
     require("source.retrieved_at" in app_source, "source retrieval timestamp rendering is missing")
     require("半導体株の反発だけでは" in index_source, "business-bottom explanation is missing")
     require("margin-debt-history.json" in app_source, "margin-debt browser data load is missing")
+    require("market-summary.json" in app_source, "regional market-summary browser data load is missing")
+    require('id="market-summary"' in index_source, "regional market-summary section is missing")
+    require(index_source.index('id="market-summary"') < index_source.index('id="beginner-guide"'), "regional market-summary must be the first main section")
 
     from validate_global_comparison import validate_global_comparison
     validate_global_comparison()

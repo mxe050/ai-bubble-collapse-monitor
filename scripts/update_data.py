@@ -420,6 +420,13 @@ PRICE_SYMBOLS = {
     "NASDAQ": "^IXIC",
     "SP500": "^GSPC",
     "NIKKEI": "^N225",
+    "STOXX600": "^STOXX",
+    "CSI300": "000300.SS",
+    "ACWI": "ACWI",
+    "USDJPY": "JPY=X",
+    "EURUSD": "EURUSD=X",
+    "USDCNY": "CNY=X",
+    "DXY": "DX-Y.NYB",
     "VIX": "^VIX",
     "GOLD": "GC=F",
     "KIOXIA": "285A.T",
@@ -2820,9 +2827,12 @@ def archive_daily_snapshot(payload: dict[str, Any]) -> None:
     SNAPSHOT_HISTORY_DIR.mkdir(parents=True, exist_ok=True)
     snapshot_name = f"{snapshot_date}.json"
     snapshot_path = SNAPSHOT_HISTORY_DIR / snapshot_name
-    snapshot_tmp = SNAPSHOT_HISTORY_DIR / f".{snapshot_name}.tmp"
-    snapshot_tmp.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
-    snapshot_tmp.replace(snapshot_path)
+    if not snapshot_path.exists():
+        try:
+            with snapshot_path.open("x", encoding="utf-8") as snapshot_file:
+                snapshot_file.write(json.dumps(payload, ensure_ascii=False, indent=2))
+        except FileExistsError:
+            pass
 
     entries: list[dict[str, Any]] = []
     for path in sorted(SNAPSHOT_HISTORY_DIR.glob("????-??-??.json")):
@@ -2843,7 +2853,7 @@ def archive_daily_snapshot(payload: dict[str, Any]) -> None:
     index_payload = {
         "schemaVersion": 1,
         "updatedAtJst": NOW.astimezone(JST).isoformat(),
-        "selectionRule": "比較対象日以前で最も近い保存日を使用し、実際の保存日を画面に表示する。",
+        "selectionRule": "比較対象日以前3日以内で最も近い保存日を使用し、実際の保存日を画面に表示する。",
         "revisionPolicy": "各日の当時公表値を固定保存し、後日の系列改定で過去スナップショットを再計算しない。",
         "snapshots": entries,
     }
@@ -3007,6 +3017,7 @@ def main() -> None:
     for key, series_id, name, units, thresholds in (
         ("treasury2y", "DGS2", "2-Year Treasury Constant Maturity Rate", "Percent", [2.0, 3.0, 4.0, 5.0]),
         ("effectiveFedFunds", "DFF", "Effective Federal Funds Rate", "Percent", [2.0, 3.0, 4.0, 5.0]),
+        ("ecbDepositRate", "ECBDFR", "ECB Deposit Facility Rate", "Percent", [0.0, 1.0, 2.0, 3.0]),
         ("personalSavingRate", "PSAVERT", "U.S. Personal Saving Rate", "Percent of disposable personal income", [2.5, 5.0, 8.0, 12.0]),
     ):
         try:

@@ -19,7 +19,9 @@
     snapshotHistoryIndex: null,
     snapshotComparisonDays: null,
     snapshotComparisonPayload: null,
+    snapshotComparisonEntry: null,
     globalComparison: null,
+    marketSummary: null,
     moneyStrategistIpoDate: "",
     valuations: [],
     companyFilter: "all",
@@ -2743,17 +2745,27 @@
     }).join("");
   }
 
-  function snapshotEntryForDays(days) {
-    var entries = ((state.snapshotHistoryIndex || {}).snapshots || []).slice();
+  function snapshotTargetKey(days) {
     var currentStamp = state.data && (state.data.generatedAtJst || state.data.generatedAtUtc);
     var currentDate = currentStamp ? new Date(currentStamp) : null;
     if (!currentDate || Number.isNaN(currentDate.valueOf())) return null;
     var target = new Date(currentDate.valueOf());
     target.setDate(target.getDate() - days);
-    var targetKey = target.toLocaleDateString("sv-SE", { timeZone: "Asia/Tokyo" });
-    return entries
+    return target.toLocaleDateString("sv-SE", { timeZone: "Asia/Tokyo" });
+  }
+
+  function snapshotEntryForDays(days) {
+    var entries = ((state.snapshotHistoryIndex || {}).snapshots || []).slice();
+    var targetKey = snapshotTargetKey(days);
+    if (!targetKey) return null;
+    var candidate = entries
       .filter(function (entry) { return entry.snapshotDate && entry.snapshotDate <= targetKey; })
       .sort(function (a, b) { return b.snapshotDate.localeCompare(a.snapshotDate); })[0] || null;
+    if (!candidate) return null;
+    var targetMs = Date.parse(targetKey + "T00:00:00Z");
+    var candidateMs = Date.parse(candidate.snapshotDate + "T00:00:00Z");
+    var lagDays = Math.round((targetMs - candidateMs) / 86400000);
+    return lagDays >= 0 && lagDays <= 3 ? candidate : null;
   }
 
   function updateSnapshotComparisonButtons() {
@@ -2764,7 +2776,7 @@
       button.disabled = !available;
       button.classList.toggle("is-active", state.snapshotComparisonDays === days);
       button.setAttribute("aria-pressed", state.snapshotComparisonDays === days ? "true" : "false");
-      if (!available) button.title = "この時点の保存データはまだありません";
+      if (!available) button.title = "対象日の前3日以内に保存データがありません";
       else button.title = "";
     });
     if (!entries.length) {
@@ -2772,7 +2784,7 @@
       return;
     }
     var oldest = entries.slice().sort(function (a, b) { return a.snapshotDate.localeCompare(b.snapshotDate); })[0];
-    byId("snapshotAvailability").textContent = "保存開始 " + oldest.snapshotDate + "。休場・未更新日は対象日以前の最寄り保存日を使います。";
+    byId("snapshotAvailability").textContent = "保存開始 " + oldest.snapshotDate + "。休場・未更新日は対象日以前3日以内の最寄り保存日を使い、実際の日付を表示します。";
   }
 
   function snapshotMetric(payload, key) {
@@ -2806,9 +2818,14 @@
     panel.hidden = false;
     var days = state.snapshotComparisonDays;
     var labels = { 1: "昨日", 7: "1週間前", 30: "1か月前" };
-    var previousDate = String(previousPayload.generatedAtJst || previousPayload.generatedAtUtc || "").slice(0, 10);
+    var previousDate = (state.snapshotComparisonEntry || {}).snapshotDate
+      || String(previousPayload.generatedAtJst || previousPayload.generatedAtUtc || "").slice(0, 10);
     var currentDate = String(state.data.generatedAtJst || state.data.generatedAtUtc || "").slice(0, 10);
-    byId("snapshotComparisonHeading").textContent = (labels[days] || "過去") + "の保存状態との比較";
+    var targetKey = snapshotTargetKey(days);
+    var comparisonLabel = previousDate === targetKey
+      ? (labels[days] || "過去")
+      : (labels[days] || "過去") + "に近い保存日（" + previousDate + "）";
+    byId("snapshotComparisonHeading").textContent = comparisonLabel + "との比較";
     byId("snapshotComparisonDates").textContent = previousDate + "（市場 " + (previousPayload.marketDate || "未確認") + "）→ " + currentDate + "（市場 " + (state.data.marketDate || "未確認") + "）";
 
     var definitions = [
@@ -2849,6 +2866,7 @@
     var entry = snapshotEntryForDays(days);
     state.snapshotComparisonDays = days;
     state.snapshotComparisonPayload = null;
+    state.snapshotComparisonEntry = entry;
     updateSnapshotComparisonButtons();
     if (!entry) {
       byId("snapshotComparison").hidden = false;
@@ -2931,6 +2949,130 @@
     byId("generatedAt").textContent = generated && !Number.isNaN(generated.valueOf())
       ? new Intl.DateTimeFormat("ja-JP", { dateStyle: "medium", timeStyle: "short", timeZone: "Asia/Tokyo" }).format(generated)
       : "未確認";
+  }
+
+  function summaryMetric(definition) {
+    var market = state.data && state.data.market ? state.data.market : {};
+    var series = market.series || {};
+    var macro = state.data && state.data.macro ? state.data.macro : {};
+    var row = {};
+    var value = null;
+    if (!definition) return { value: null, date: "", change: null, sourceUrl: "" };
+    if (finite(definition.value) !== null) {
+      value = finite(definition.value);
+      row = definition;
+    } else if (definition.scope === "macro") {
+      row = macro[definition.key] || {};
+      value = finite(row[definition.field || "value"]);
+    } else {
+      row = series[definition.key] || {};
+      value = finite(row[definition.field || "close"]);
+    }
+    return {
+      value: value,
+      date: row.date || definition.date || "",
+      change: finite(row.change1dPct),
+      sourceUrl: row.sourceUrl || definition.sourceUrl || "",
+    };
+  }
+
+  function summaryValue(metric, definition) {
+    if (metric.value === null) return "未確認";
+    var digits = Number.isFinite(Number(definition.digits)) ? Number(definition.digits) : 2;
+    var formatter = new Intl.NumberFormat("ja-JP", {
+      minimumFractionDigits: digits,
+      maximumFractionDigits: digits,
+    });
+    return (definition.prefix || "") + formatter.format(metric.value) + (definition.unit || "");
+  }
+
+  function summaryChange(metric, definition) {
+    if (metric.change === null || definition.scope === "macro" || finite(definition.value) !== null) {
+      return metric.date ? "基準日 " + metric.date : "基準日未確認";
+    }
+    return "前日比 " + formatPercent(metric.change, true) + (metric.date ? " / " + metric.date : "");
+  }
+
+  function summaryDirection(metric) {
+    if (metric.change === null || Math.abs(metric.change) < 0.005) return "flat";
+    return metric.change > 0 ? "up" : "down";
+  }
+
+  function summaryMoveSentence(metric, label) {
+    if (metric.change === null) return label + "の前日比は未確認です。";
+    return label + "は前日比" + formatPercent(metric.change, true) + "です。";
+  }
+
+  function summarySourceLink(url, label) {
+    if (!url) return "<span>" + escapeHtml(label) + "</span>";
+    return '<a href="' + escapeHtml(url) + '" target="_blank" rel="noopener noreferrer">' + escapeHtml(label) + "</a>";
+  }
+
+  function renderMarketSummary() {
+    var container = byId("regionalMarketCards");
+    var config = state.marketSummary;
+    if (!container) return;
+    if (!config || !Array.isArray(config.regions)) {
+      container.innerHTML = '<article class="regional-market-card unavailable"><p>地域別サマリーを読み込めませんでした。</p></article>';
+      byId("marketSummaryStatus").className = "status-dot error";
+      byId("marketSummaryStatus").textContent = "サマリー読込失敗";
+      return;
+    }
+
+    var generated = state.data && state.data.generatedAtJst ? new Date(state.data.generatedAtJst) : null;
+    var policyAsOf = config.policyAsOfJst ? new Date(config.policyAsOfJst) : null;
+    var generatedAgeDays = generated && !Number.isNaN(generated.valueOf()) ? (Date.now() - generated.valueOf()) / 86400000 : null;
+    var policyAgeDays = policyAsOf && !Number.isNaN(policyAsOf.valueOf()) ? (Date.now() - policyAsOf.valueOf()) / 86400000 : null;
+    var isStale = (generatedAgeDays !== null && generatedAgeDays > 3) || (policyAgeDays !== null && policyAgeDays > 3);
+    var dateTimeFormat = new Intl.DateTimeFormat("ja-JP", {
+      dateStyle: "medium",
+      timeStyle: "short",
+      timeZone: "Asia/Tokyo",
+    });
+
+    byId("marketSummaryStatus").className = "status-dot " + (isStale ? "warn" : "ok");
+    byId("marketSummaryStatus").textContent = isStale ? "一部の基準日が古いです" : "最新確認済み";
+    byId("marketSummaryDataAsOf").textContent = generated && !Number.isNaN(generated.valueOf())
+      ? dateTimeFormat.format(generated) : "未確認";
+    byId("marketSummaryPolicyAsOf").textContent = policyAsOf && !Number.isNaN(policyAsOf.valueOf())
+      ? dateTimeFormat.format(policyAsOf) : "未確認";
+    var headlineSp = summaryMetric({ key: "SP500" });
+    var headlineAcwi = summaryMetric({ key: "ACWI" });
+    var headlineGold = summaryMetric({ key: "GOLD" });
+    byId("marketSummaryHeadline").textContent =
+      summaryMoveSentence(headlineSp, "S&P 500") + " "
+      + summaryMoveSentence(headlineAcwi, "オールカントリー代理の上場投資信託（ETF）") + " "
+      + summaryMoveSentence(headlineGold, "金先物") + " "
+      + (config.headlinePolicy || "");
+    byId("marketSummaryNote").textContent = config.importantLimit || "各指標は公表頻度が異なるため、基準日を個別に確認してください。";
+
+    container.innerHTML = config.regions.map(function (region) {
+      var stock = summaryMetric(region.stock);
+      var fx = summaryMetric(region.fx);
+      var rate = summaryMetric(region.rate);
+      var extra = region.extra ? summaryMetric(region.extra) : null;
+      var policy = region.policy || {};
+      var policySources = Array.isArray(policy.sources) ? policy.sources : [];
+      var sourceLinks = policySources.map(function (source) {
+        return summarySourceLink(source.url, source.label);
+      }).join("<span aria-hidden=\"true\"> / </span>");
+      var extraMetric = region.extra ? '<div><span>' + escapeHtml(region.extra.category || "補足") + '</span><small>'
+        + summarySourceLink(extra.sourceUrl, region.extra.label) + '</small><strong>' + escapeHtml(summaryValue(extra, region.extra))
+        + '</strong><em class="' + summaryDirection(extra) + '">' + escapeHtml(summaryChange(extra, region.extra)) + "</em></div>" : "";
+      return '<article class="regional-market-card region-' + escapeHtml(region.id || "other") + '">'
+        + '<div class="regional-market-card-heading"><div><span>REGION</span><h3>' + escapeHtml(region.name || "地域") + '</h3></div>'
+        + '<span class="regional-market-date">' + escapeHtml(stock.date || "日付未確認") + "</span></div>"
+        + '<p class="regional-market-summary">' + escapeHtml(summaryMoveSentence(stock, region.stock.label) + " " + (region.summary || "政策材料を確認中です。")) + "</p>"
+        + '<div class="regional-market-metrics' + (region.extra ? " has-extra" : "") + '">'
+        + '<div><span>株</span><small>' + summarySourceLink(stock.sourceUrl, region.stock.label) + '</small><strong>' + escapeHtml(summaryValue(stock, region.stock)) + '</strong><em class="' + summaryDirection(stock) + '">' + escapeHtml(summaryChange(stock, region.stock)) + "</em></div>"
+        + '<div><span>為替</span><small>' + summarySourceLink(fx.sourceUrl, region.fx.label) + '</small><strong>' + escapeHtml(summaryValue(fx, region.fx)) + '</strong><em class="' + summaryDirection(fx) + '">' + escapeHtml(summaryChange(fx, region.fx)) + "</em></div>"
+        + '<div><span>金利</span><small>' + summarySourceLink(rate.sourceUrl, region.rate.label) + '</small><strong>' + escapeHtml(summaryValue(rate, region.rate)) + '</strong><em class="flat">' + escapeHtml(summaryChange(rate, region.rate)) + "</em></div>"
+        + extraMetric
+        + "</div>"
+        + '<div class="regional-policy"><span>' + escapeHtml(policy.label || "政策・政治") + '</span><p>' + escapeHtml(policy.text || "確認中です。") + "</p>"
+        + (sourceLinks ? '<div class="regional-policy-sources">' + sourceLinks + "</div>" : "")
+        + "</div></article>";
+    }).join("");
   }
 
   function renderDecisionPath() {
@@ -3044,6 +3186,7 @@
     var bubble = assessBubble(evidence);
     var transmission = assessJapanTransmission();
     renderMetadata();
+    renderMarketSummary();
     renderTop(evidence, gates, bubble);
     renderSignals(evidence);
     renderGates(gates);
@@ -3122,6 +3265,9 @@
       var snapshotIndexRequest = fetch("data/history/index.json?ts=" + Date.now(), { cache: "no-store" })
         .then(function (historyResponse) { return historyResponse.ok ? historyResponse.json() : null; })
         .catch(function () { return null; });
+      var marketSummaryRequest = fetch("data/market-summary.json?ts=" + Date.now(), { cache: "no-store" })
+        .then(function (summaryResponse) { return summaryResponse.ok ? summaryResponse.json() : null; })
+        .catch(function () { return null; });
       var response = await fetch("data/latest.json?ts=" + Date.now(), { cache: "no-store" });
       if (!response.ok) throw new Error("HTTP " + response.status);
       var payload = await response.json();
@@ -3131,8 +3277,10 @@
       state.marginDebt = await marginDebtRequest;
       state.globalComparison = await globalComparisonRequest;
       state.snapshotHistoryIndex = await snapshotIndexRequest;
+      state.marketSummary = await marketSummaryRequest;
       state.snapshotComparisonPayload = null;
       state.snapshotComparisonDays = null;
+      state.snapshotComparisonEntry = null;
       renderAll();
       if (typeof window.CustomEvent === "function" && typeof window.dispatchEvent === "function") window.dispatchEvent(new CustomEvent("monitor:data-updated"));
       if (showMessage && refreshMode === "live") {
@@ -3164,10 +3312,11 @@
     if (!links.length || !sections.length || typeof window.addEventListener !== "function") return;
 
     var sectionLabels = {
+      "market-summary": "本日のマーケット",
       "beginner-guide": "案内・用語",
       "today": "今日の判定",
       "purchasing-power": "購買力で比較",
-      "decision-path": "判断の全体像",
+      "decision-path": "価値・過熱の判断手順",
       "global-comparison": "市場の過熱度",
       "us-japan-link": "米国から日本への波及",
       "sakakibara-method": "正常化とパニック",
@@ -3190,7 +3339,7 @@
       sections.forEach(function (section) {
         if (section.offsetTop <= referenceY) active = section;
       });
-      var id = active && active.id ? active.id : "beginner-guide";
+      var id = active && active.id ? active.id : "market-summary";
       currentLabel.textContent = sectionLabels[id] || "ページ内を表示";
       links.forEach(function (link) {
         var tracked = String(link.dataset.track || "").split(",");
