@@ -1711,7 +1711,7 @@
     byId("sakDiv20d").textContent = formatPercent(diversified.medianChange20dPct, true);
     byId("sakBasketSpread20d").textContent = "分散型優位 " + formatPctPoints(analysis.basketAdvantage20dPctPoints, true);
     byId("sakBasketInterpretation").textContent = gates.basketRotation
-      ? "分散型8社の中央値はAI連動8社を、5日で" + formatPctPoints(analysis.basketAdvantage5dPctPoints, false) + "、20日で" + formatPctPoints(analysis.basketAdvantage20dPctPoints, false) + "上回りました。榊原先生のいうEN-AI側への相対回復と整合する価格差です。"
+      ? "分散型8社の中央値はAI連動8社を、5日で" + formatPctPoints(analysis.basketAdvantage5dPctPoints, false) + "、20日で" + formatPctPoints(analysis.basketAdvantage20dPctPoints, false) + "上回りました。このモデルでいうEN-AI側への相対回復と整合する価格差です。"
       : "分散型8社がAI連動8社を十分に上回っていません。指数差だけで揺り戻しと判断せず、企業群でも確認できるまで保留します。";
 
     var breadthCoverage = diversified.positive5dCoverage || diversified.count || 0;

@@ -268,7 +268,7 @@ def main() -> None:
 
 
     sakakibara = data["market"].get("sakakibaraAnalysis") or {}
-    require(sakakibara.get("methodLabel") == "榊原式 proxy v1.1", "Sakakibara method label changed")
+    require(sakakibara.get("methodLabel") == "資金循環モデル proxy v1.1", "Capital-flow model label changed")
     nt = sakakibara.get("ntRatio") or {}
     require(finite(nt.get("latest")) and finite(nt.get("peak252d")), "NT ratio values are missing")
     nt_history = nt.get("history") or []
