@@ -4727,7 +4727,7 @@
     },
     "sakakibaraAnalysis": {
       "asOfDate": "2026-07-29",
-      "methodLabel": "榊原式 proxy v1.1",
+      "methodLabel": "資金循環モデル proxy v1.1",
       "stage": "揺り戻しを強く確認",
       "confirmationCount": 4,
       "confirmationMax": 4,
@@ -6615,7 +6615,7 @@
         "targetPb": 1.6549147807357767,
         "earningsFairValue": 61121.200000000004,
         "bookFairValue": 57688.67434166844,
-        "interpretation": "ユーザー提供の榊原先生『市況展望』（2026年7月18日執筆）に記載された入力を、そのまま再計算した参考シナリオ。"
+        "interpretation": "参考にした『市況展望』（2026年7月18日執筆）に記載された入力を、そのまま再計算した参考シナリオ。"
       },
       "enAiProxy": [
         {
@@ -6782,7 +6782,7 @@
       "methodNotes": {
         "indexCorrection": "日経平均は価格加重指数、TOPIXは浮動株調整時価総額加重指数。原文の『日経平均は時価総額加重』は公式定義に合わせて補正。",
         "flowCaveat": "相対騰落だけでは資金の移動元・移動先を直接証明できないため、『資金移動と整合する値動き』として判定。",
-        "classificationCaveat": "AI連動8社と日本・分散型8社は本サイト独自の固定監視群。榊原先生の正式な投資対象銘柄やEN-AI推奨銘柄ではない。",
+        "classificationCaveat": "AI連動8社と日本・分散型8社は本サイト独自の固定監視群。外部資料の正式な投資対象銘柄やEN-AI推奨銘柄ではない。",
         "scoreCaveat": "EN-AI proxyは品質40、相対割安25、年初来高値からの調整15、直近の相対回復15を、取得できた項目だけで100点換算した研究用スクリーニング。"
       }
     },
