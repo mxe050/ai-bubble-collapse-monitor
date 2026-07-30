@@ -11,10 +11,10 @@
     ntRatioChart: null,
     moneyStrategistChart: null,
     moneyStrategist: null,
-    moneyStrategistRange: "all",
+    moneyStrategistRange: window.matchMedia && window.matchMedia("(max-width: 699px)").matches ? "current" : "all",
     marginDebtChart: null,
     marginDebt: null,
-    marginDebtRange: "all",
+    marginDebtRange: window.matchMedia && window.matchMedia("(max-width: 699px)").matches ? "20y" : "all",
     purchasingPowerChart: null,
     snapshotHistoryIndex: null,
     snapshotComparisonDays: null,
@@ -187,7 +187,7 @@
     document.querySelectorAll(".company-filter-button").forEach(function (button) {
       var active = button.dataset.companyFilter === state.companyFilter;
       button.classList.toggle("is-active", active);
-      button.setAttribute("aria-selected", active ? "true" : "false");
+      button.setAttribute("aria-pressed", active ? "true" : "false");
       if (button.dataset.companyFilter === "all" && state.data) {
         button.textContent = "全" + state.data.companies.length + "社";
       }
@@ -2086,6 +2086,33 @@
     }).join("");
   }
 
+  function formatDotcomQuote(value, unit) {
+    var numeric = finite(value);
+    if (numeric === null) return "未取得";
+    var formatted = Math.abs(numeric) < 1000 && Math.abs(numeric % 1) > 0.001
+      ? numberOne.format(numeric)
+      : nikkeiFormat.format(Math.round(numeric));
+    return formatted + (unit === "円" ? "円" : " pt");
+  }
+
+  function dotcomStressBlock(scenario) {
+    if (!scenario || !scenario.available) {
+      return "<div class='dotcom-stress-unavailable'><strong>直近終値を取得できませんでした</strong><small>歴史比較は表示できます。次回更新時に再取得します。</small></div>";
+    }
+    var unit = scenario.quoteUnit || "指数ポイント";
+    var referenceLabel = scenario.referenceWindow === "japan-extended"
+      ? "日本の延長窓の最大下落"
+      : scenario.referenceWindow === "company-peak-to-post-dotcom-trough" ? "銘柄自身のピーク→谷" : "共通比較窓の最大下落";
+    return "<div class='dotcom-stress-flow'>"
+      + "<div><span>取得できた直近終値</span><strong>" + formatDotcomQuote(scenario.currentClose, unit) + "</strong><small>市場日 " + escapeHtml(scenario.quoteDate || "未確認") + "</small></div>"
+      + "<i aria-hidden='true'>→</i>"
+      + "<div class='is-stress'><span>機械的ストレス換算値</span><strong>" + formatDotcomQuote(scenario.stressPrice, unit) + "</strong><small>" + escapeHtml(referenceLabel) + " " + formatDrawdown(scenario.historicalDrawdownPct) + "</small></div>"
+      + "</div>"
+      + "<div class='dotcom-stress-meta'><span>残存率 <strong>" + formatPercent((scenario.historicalRetentionRatio || 0) * 100, false) + "</strong></span>"
+      + "<span>追加下落額 <strong>−" + formatDotcomQuote(scenario.additionalDownsideValue, unit) + "</strong></span>"
+      + "<span>現在値 ÷ 換算値 <strong>" + numberOne.format(scenario.currentToStressMultiple) + "倍</strong></span></div>";
+  }
+
   function renderDotComComparison() {
     var comparison = state.data && state.data.market ? state.data.market.dotComComparison || {} : {};
     var rows = Array.isArray(comparison.rows) ? comparison.rows : [];
@@ -2098,6 +2125,9 @@
       byId("dotcomWindowBasis").textContent = "歴史比較データを読み込めませんでした。";
       byId("dotcomGroupSummary").innerHTML = "";
       byId("dotcomComparisonRows").innerHTML = "";
+      byId("dotcomComparisonCards").innerHTML = "";
+      byId("dotcomDividendCase").innerHTML = "<p>連続配当ケースを読み込めませんでした。</p>";
+      byId("dotcomDividendCase").classList.remove("is-loading");
       byId("dotcomKeyFinding").innerHTML = "";
       return;
     }
@@ -2115,6 +2145,48 @@
         + "<strong>" + formatDrawdown(summary.medianMaxDrawdownPct) + "</strong>"
         + "<small>期間内最大下落の中央値（" + escapeHtml(summary.count) + "系列）</small>"
         + "<p>同じ窓の騰落率中央値 " + formatPercent(summary.medianWindowReturnPct, true) + "</p>"
+        + "</article>";
+    }).join("");
+
+    var dividendCase = comparison.dividendContinuityCase || {};
+    var evidence = dividendCase.selectionEvidence || {};
+    var caseScenario = dividendCase.stressScenario || {};
+    var caseLinks = [];
+    if (evidence.marketSegmentSourceUrl) caseLinks.push("<a href='" + escapeHtml(evidence.marketSegmentSourceUrl) + "' target='_blank' rel='noopener'>東証プライム区分</a>");
+    if (evidence.dividendSourceUrl) caseLinks.push("<a href='" + escapeHtml(evidence.dividendSourceUrl) + "' target='_blank' rel='noopener'>配当の公式根拠</a>");
+    if (dividendCase.historicalPriceSourceUrl) caseLinks.push("<a href='" + escapeHtml(dividendCase.historicalPriceSourceUrl) + "' target='_blank' rel='noopener'>当時の価格履歴</a>");
+    if (dividendCase.currentPriceSourceUrl) caseLinks.push("<a href='" + escapeHtml(dividendCase.currentPriceSourceUrl) + "' target='_blank' rel='noopener'>現在値の取得元</a>");
+    byId("dotcomDividendCase").classList.remove("is-loading");
+    byId("dotcomDividendCase").innerHTML = dividendCase.id
+      ? "<div class='dotcom-case-topline'><div><span class='dotcom-case-eyebrow'>独立検証例・群中央値には不算入</span><h4>" + escapeHtml(dividendCase.name || "") + " <small>" + escapeHtml(dividendCase.symbol || "") + "</small></h4></div>"
+        + "<div class='dotcom-continuity-badges'><span>" + escapeHtml(evidence.marketSegment || "東証プライム") + "</span><span>直近" + escapeHtml(evidence.dividendFiscalYearCount || "20") + "期で無配なし</span><span>" + escapeHtml(evidence.dividendFiscalYearCount || "20") + "期連続増配</span></div></div>"
+        + "<p class='dotcom-case-thesis'>実需型の小売企業で配当を継続していても、市場・景気・信用の悪化から株価は切り離されません。選定条件は<strong>20年以上、各期の年間配当が0円超</strong>であり、「20年間無配」ではありません。</p>"
+        + "<div class='dotcom-case-history'><div><span>ITバブル期の先行ピーク</span><strong>" + formatDotcomQuote(dividendCase.peakClose, "円") + "</strong><small>" + escapeHtml(dividendCase.peakDate || "") + "</small></div><i aria-hidden='true'>→</i><div><span>その後の最安値</span><strong>" + formatDotcomQuote(dividendCase.troughClose, "円") + "</strong><small>" + escapeHtml(dividendCase.troughDate || "") + " / " + formatDrawdown(dividendCase.historicalDrawdownPct) + "</small></div></div>"
+        + dotcomStressBlock(caseScenario)
+        + "<div class='dotcom-case-evidence'><p><strong>配当条件：</strong>" + escapeHtml(evidence.dividendCondition || "") + "</p><p><strong>価格基準：</strong>" + escapeHtml(dividendCase.historicalPriceBasis || "") + "</p><p><strong>読み方：</strong>" + escapeHtml(dividendCase.note || "") + "</p></div>"
+        + "<div class='dotcom-source-links'>" + caseLinks.join("") + "</div>"
+        + "<p class='dotcom-nonforecast'>上の換算値は企業価値・将来利益・将来配当を織り込まない機械計算です。予測株価、目標株価、適正値、底値ではありません。</p>"
+      : "<p>連続配当ケースを読み込めませんでした。</p>";
+
+    byId("dotcomStressWarning").textContent = (comparison.stressInterpretation || "")
+      + " 歴史12系列は「" + (comparison.priceBasis || "価格履歴") + "」、現在値は「" + (comparison.currentQuoteBasis || "直近終値") + "」です。";
+
+    byId("dotcomComparisonCards").innerHTML = rows.map(function (row) {
+      var summary = summaryByGroup[row.group] || {};
+      var groupClass = "group-" + String(row.group || "").replace(/[^a-z-]/g, "");
+      var scenario = row.stressScenario || {};
+      var extended = finite(row.extendedMaxDrawdownPct);
+      var extendedText = extended === null
+        ? "<div><span>日本の延長窓</span><strong>対象外</strong><small>米国は共通比較窓で完結</small></div>"
+        : "<div><span>日本の延長窓</span><strong>" + formatDrawdown(extended) + "</strong><small>" + escapeHtml(row.extendedPeakDate || "") + " → " + escapeHtml(row.extendedTroughDate || "") + "</small></div>";
+      var links = "<a href='" + escapeHtml(row.sourceUrl || "#") + "' target='_blank' rel='noopener'>価格履歴</a>";
+      if (row.classificationSourceUrl) links += "<a href='" + escapeHtml(row.classificationSourceUrl) + "' target='_blank' rel='noopener'>分類根拠</a>";
+      return "<article class='dotcom-company-card " + groupClass + "'>"
+        + "<div class='dotcom-company-head'><span class='dotcom-group-tag'>" + escapeHtml(summary.label || row.group) + "</span><h5>" + escapeHtml(row.name || "") + "</h5><small>" + escapeHtml(row.region || "") + " / " + escapeHtml(row.symbol || "") + "</small></div>"
+        + "<div class='dotcom-history-metrics'><div><span>共通窓の騰落率</span><strong class='" + cssValueClass(row.windowReturnPct, false) + "'>" + formatPercent(row.windowReturnPct, true) + "</strong><small>" + escapeHtml(row.startDate || "") + " → " + escapeHtml(row.endDate || "") + "</small></div>"
+        + "<div><span>期間内の最大下落</span><strong class='negative'>" + formatDrawdown(row.maxDrawdownPct) + "</strong><small>" + escapeHtml(row.peakDate || "") + " → " + escapeHtml(row.troughDate || "") + "</small></div>" + extendedText + "</div>"
+        + dotcomStressBlock(scenario)
+        + "<p class='dotcom-card-note'>" + escapeHtml(row.note || "") + "</p><div class='dotcom-source-links'>" + links + "</div>"
         + "</article>";
     }).join("");
 
@@ -2147,13 +2219,12 @@
     var honda = rowById.honda || {};
     byId("dotcomKeyFinding").innerHTML =
       "<div><span>01</span><p><strong>直撃群だけでなく市場全体も大きく下落</strong>IT・半導体直撃群の最大下落中央値は" + formatDrawdown(direct.medianMaxDrawdownPct) + "、市場全体でも" + formatDrawdown(broad.medianMaxDrawdownPct) + "でした。同時期には景気・利益見通し・投資家のリスク許容度の悪化も重なり、下落はIT株だけにとどまりませんでした。</p></div>"
-      + "<div><span>02</span><p><strong>非ITは下落が小さい傾向でも無傷ではない</strong>非IT4社の最大下落中央値は" + formatDrawdown(nonTech.medianMaxDrawdownPct) + "。トヨタは最大" + formatDrawdown(toyota.maxDrawdownPct) + "、ソニーは技術感応型として" + formatDrawdown(sony.maxDrawdownPct) + "でした。</p></div>"
+      + "<div><span>02</span><p><strong>非ITは下落が小さい傾向でも無傷ではない</strong>非IT" + escapeHtml(nonTech.count || 0) + "社の最大下落中央値は" + formatDrawdown(nonTech.medianMaxDrawdownPct) + "。トヨタは最大" + formatDrawdown(toyota.maxDrawdownPct) + "、ソニーは技術感応型として" + formatDrawdown(sony.maxDrawdownPct) + "でした。</p></div>"
       + "<div><span>03</span><p><strong>終点だけを見ると途中の痛みを見落とす</strong>ホンダは同じ期間の終点では" + formatPercent(honda.windowReturnPct, true) + "でも、途中の最大下落は" + formatDrawdown(honda.maxDrawdownPct) + "でした。底値で買う計画には、最終リターンより途中の最大下落と反転条件が重要です。</p></div>";
 
     byId("dotcomOverlapWarning").textContent = comparison.overlapWarning || "";
     byId("dotcomSelectionWarning").textContent = comparison.selectionWarning || "";
   }
-
   function renderNikkeiChecklist(confirmation) {
     byId("nikkeiChecklist").innerHTML = confirmation.items.map(function (item) {
       var icon = item.status === "pass" ? "check" : item.status === "watch" ? "clock-3" : item.status === "unknown" ? "circle-help" : "minus";

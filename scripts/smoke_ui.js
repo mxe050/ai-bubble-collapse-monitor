@@ -145,8 +145,16 @@ assert.match(indexSource, /FSB・プライベートクレジット脆弱性報�
 assert.match(indexSource, /最近のAI相場を見てから、突然始めた現金化ではない/);
 assert.match(indexSource, /一次資料で確認できること/);
 assert.doesNotMatch(indexSource, /動画群/);
+const requiredUiIds = [
+  "dotcomDividendCase",
+  "dotcomComparisonCards",
+  "dotcomStressWarning",
+];
+requiredUiIds.forEach((id) => {
+  assert.match(indexSource, new RegExp(`\\bid="${id}"`), `index.html should define #${id}`);
+});
 const ids = [...indexSource.matchAll(/\bid="([^"]+)"/g)].map((match) => match[1]);
-const elements = new Map(ids.map((id) => [id, new FakeElement(id)]));
+const elements = new Map([...new Set([...ids, ...requiredUiIds])].map((id) => [id, new FakeElement(id)]));
 const filters = ["all", "overseas-ai", "japan-ai", "japan-diversified"].map((value) => {
   const element = new FakeElement();
   element.dataset.companyFilter = value;
@@ -249,6 +257,43 @@ setTimeout(async () => {
   assert.match(elements.get("dotcomComparisonRows").innerHTML, /本田技研工業/);
   assert.match(elements.get("dotcomKeyFinding").innerHTML, /最大下落中央値/);
   assert.match(elements.get("dotcomWindowBasis").innerHTML, /2000-03-10/);
+  const dotcomComparisonData = payload.market && payload.market.dotComComparison;
+  assert.ok(dotcomComparisonData, "dotcom comparison data should be present");
+  const dividendContinuityCase = dotcomComparisonData.dividendContinuityCase || {};
+  const dividendEvidence = dividendContinuityCase.selectionEvidence || {};
+  const dividendStress = dividendContinuityCase.stressScenario || {};
+  const expectedPpihName = "\u30d1\u30f3\u30fb\u30d1\u30b7\u30d5\u30a3\u30c3\u30af\u30fb\u30a4\u30f3\u30bf\u30fc\u30ca\u30b7\u30e7\u30ca\u30eb\u30db\u30fc\u30eb\u30c7\u30a3\u30f3\u30b0\u30b9";
+  const expectedPrimeMarket = "\u6771\u8a3c\u30d7\u30e9\u30a4\u30e0";
+  assert.strictEqual(dividendContinuityCase.name, expectedPpihName);
+  assert.strictEqual(Number(dividendEvidence.dividendFiscalYearCount), 22);
+  assert.ok(Number.isFinite(Number(dividendStress.currentClose)), "PPIH current close should be numeric");
+  assert.ok(Number.isFinite(Number(dividendStress.stressPrice)), "PPIH stress price should be numeric");
+  const formatDotcomSmokeQuote = (value, unit) => {
+    const numeric = Number(value);
+    const formatted = Math.abs(numeric) < 1000 && Math.abs(numeric % 1) > 0.001
+      ? new Intl.NumberFormat("ja-JP", { maximumFractionDigits: 1 }).format(numeric)
+      : new Intl.NumberFormat("ja-JP", { maximumFractionDigits: 0 }).format(Math.round(numeric));
+    return formatted + (unit === "\u5186" ? "\u5186" : " pt");
+  };
+  const dividendCaseMarkup = elements.get("dotcomDividendCase").innerHTML + " " + elements.get("dotcomDividendCase").textContent;
+  assert.ok(dividendCaseMarkup.includes(expectedPpihName));
+  assert.ok(dividendCaseMarkup.includes(expectedPrimeMarket));
+  assert.match(dividendCaseMarkup, /22\u671f\u3067\u7121\u914d\u306a\u3057/);
+  assert.match(dividendCaseMarkup, /22\u671f\u9023\u7d9a\u5897\u914d/);
+  assert.match(dividendCaseMarkup, /\u53d6\u5f97\u3067\u304d\u305f\u76f4\u8fd1\u7d42\u5024/);
+  assert.ok(dividendCaseMarkup.includes(formatDotcomSmokeQuote(dividendStress.currentClose, dividendStress.quoteUnit)));
+  assert.match(dividendCaseMarkup, /\u6a5f\u68b0\u7684\u30b9\u30c8\u30ec\u30b9\u63db\u7b97\u5024/);
+  assert.ok(dividendCaseMarkup.includes(formatDotcomSmokeQuote(dividendStress.stressPrice, dividendStress.quoteUnit)));
+  assert.match(dividendCaseMarkup, /dotcom-nonforecast/);
+  const stressWarningMarkup = elements.get("dotcomStressWarning").textContent + " " + elements.get("dotcomStressWarning").innerHTML;
+  assert.match(stressWarningMarkup, /\u4e88\u6e2c\u682a\u4fa1/);
+  assert.match(stressWarningMarkup, /\u76ee\u6a19\u682a\u4fa1/);
+  assert.match(stressWarningMarkup, /\u9069\u6b63\u5024/);
+  assert.match(stressWarningMarkup, /\u5e95\u5024/);
+  assert.match(stressWarningMarkup, /\u5d29\u58ca\u30b9\u30b3\u30a2.*\u52a0\u7b97\u3057\u306a\u3044/);
+  const dotcomCardMarkup = elements.get("dotcomComparisonCards").innerHTML;
+  assert.strictEqual((dotcomCardMarkup.match(/<article class=['"]dotcom-company-card\b/g) || []).length, 12);
+  assert.strictEqual((elements.get("dotcomComparisonRows").innerHTML.match(/<tr\b/g) || []).length, 12);
   assert.notStrictEqual(elements.get("sakakibaraStage").textContent, "計算中");
   assert.match(elements.get("sakakibaraNtLatest").textContent, /倍/);
   assert.match(elements.get("sakFairRange").textContent, /円/);

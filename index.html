@@ -13,6 +13,7 @@
   <script src="global-comparison.js" defer></script>
 </head>
 <body>
+  <a class="skip-link" href="#main-content">本文へ移動</a>
   <header class="site-header">
     <div class="header-inner">
       <div>
@@ -52,7 +53,7 @@
     </div>
   </nav>
 
-  <main>
+  <main id="main-content">
     <section id="market-summary" class="band band-market-summary" aria-labelledby="marketSummaryHeading">
       <div class="content">
         <div class="section-heading heading-row market-summary-heading">
@@ -626,7 +627,7 @@
             <span><i class="gc-line dashed" aria-hidden="true"></i>破線：CPI調整後</span>
             <span><i class="gc-line dashdot" aria-hidden="true"></i>一点鎖線＋ひし形：推計理論価値</span>
           </div>
-          <div class="gc-chart-scroll" tabindex="0" aria-label="統合チャート。狭い画面では横にスクロールできます">
+          <div class="gc-chart-scroll" tabindex="0" aria-label="統合チャート。狭い画面では画面幅に合わせて表示します">
             <div class="gc-canvas-stage">
               <canvas id="globalComparisonChart" aria-label="S&P 500と日経平均の6系列統合チャート" role="img"></canvas>
             </div>
@@ -741,7 +742,7 @@
           <p>推計理論価値は、指数全体の平準化利益を金利・株式リスクプレミアム・長期成長率で還元した独自の参考値です。企業別DCF、目標株価、公式指数ではありません。</p>
           <p>「直近EPS維持参考」は、直近EPSが今後も維持されると仮定した比較値です。利益予想でも中心推計でもなく、平準化によって理論値がどれだけ変わったかを確認する補助線です。</p>
           <p>理論値と市場値は、同じ市場の1985年基準額で割って正規化します。このため同じ月の線の上下差は割高・割安の方向と整合しますが、絶対水準は直上のカードで確認します。</p>
-          <p>日経のPERデータは日本経済新聞社が権利を保有します。本ツールは非公開・個人調査用として、そこから計算した分析値を表示します。</p>
+          <p>日経のPERデータは日本経済新聞社が権利を保有します。本ツールは教育・調査用として、そこから計算した分析値を表示します。</p>
           <p>完全な企業別DCFは、過去構成銘柄と公表時点財務を含むライセンスデータが指数ウェイトの80％以上そろうまで別枠で未算出です。</p>
           <p>危機期間はチャート表示用の代表期間であり、開始日と終了日に唯一の定義があるものではありません。本チャートは情報提供を目的とし、投資助言ではありません。</p>
         </div>
@@ -866,7 +867,7 @@
               <div><h3>NT倍率の歪みと正常化</h3><p>日経平均終値 ÷ TOPIX終値。直近約1年を日次で表示します。</p></div>
               <span class="source-chip">毎日再計算</span>
             </div>
-            <div class="chart-frame chart-nt"><canvas id="ntRatioChart"></canvas></div>
+            <div class="chart-frame chart-nt"><canvas id="ntRatioChart" role="img" aria-label="NT倍率の時系列チャート"></canvas></div>
           </div>
           <aside class="nt-reading">
             <h3>現在の数字が意味すること</h3>
@@ -1982,7 +1983,7 @@
               <div><h3>米国上場AI・半導体相場の価格経路</h3><p>3年前を100としたSOXと海外AI株の等ウェイト指数</p></div>
               <span class="source-chip">週次表示</span>
             </div>
-            <div class="chart-frame"><canvas id="marketChart"></canvas></div>
+            <div class="chart-frame"><canvas id="marketChart" role="img" aria-label="主要市場指数の高値からの下落率比較チャート"></canvas></div>
           </div>
           <aside class="reading-panel">
             <h3>この図で確認すること</h3>
@@ -2168,7 +2169,7 @@
           <div class="bottom-chart-column">
             <div class="chart-panel">
               <div class="panel-heading"><div><h3>3つの方法で出した価格</h3><p>互いに異なる弱点を持つため、平均だけで隠さず個別に表示します。</p></div></div>
-              <div class="chart-frame chart-bottom"><canvas id="nikkeiBottomChart"></canvas></div>
+              <div class="chart-frame chart-bottom"><canvas id="nikkeiBottomChart" role="img" aria-label="日経平均の現在値と3つの底値アンカー比較チャート"></canvas></div>
             </div>
             <div id="nikkeiAnchorList" class="anchor-list"></div>
           </div>
@@ -2273,11 +2274,11 @@
         </div>
 
         <div class="company-filter-bar">
-          <div class="company-filter" role="tablist" aria-label="表示する企業群">
-            <button type="button" class="company-filter-button is-active" role="tab" aria-selected="true" data-company-filter="all">全26社</button>
-            <button type="button" class="company-filter-button" role="tab" aria-selected="false" data-company-filter="overseas-ai">海外・AI関連</button>
-            <button type="button" class="company-filter-button" role="tab" aria-selected="false" data-company-filter="japan-ai">日本・AI連動</button>
-            <button type="button" class="company-filter-button" role="tab" aria-selected="false" data-company-filter="japan-diversified">日本・分散型</button>
+          <div class="company-filter" role="group" aria-label="表示する企業群">
+            <button type="button" class="company-filter-button is-active" aria-pressed="true" data-company-filter="all">全26社</button>
+            <button type="button" class="company-filter-button" aria-pressed="false" data-company-filter="overseas-ai">海外・AI関連</button>
+            <button type="button" class="company-filter-button" aria-pressed="false" data-company-filter="japan-ai">日本・AI連動</button>
+            <button type="button" class="company-filter-button" aria-pressed="false" data-company-filter="japan-diversified">日本・分散型</button>
           </div>
           <div class="company-filter-copy">
             <strong id="companyFilterCount">26社を表示</strong>
@@ -2295,7 +2296,7 @@
             <div class="panel-heading">
               <div><h3 id="valuationChartTitle">全26社の時価総額を3つに分解</h3><p id="valuationChartSubtitle">金額ではなく、各社の時価総額に占める構成比を比較します。</p></div>
             </div>
-            <div id="valuationChartFrame" class="chart-frame chart-tall"><canvas id="valuationChart"></canvas></div>
+            <div id="valuationChartFrame" class="chart-frame chart-tall"><canvas id="valuationChart" role="img" aria-label="企業別時価総額の構成比を3要素に分解した横棒チャート"></canvas></div>
           </div>
           <div class="definition-list">
             <div><span class="definition-mark existing"></span><p><strong>現在FCF横ばいシナリオ</strong>現在の評価用FCFが10年間成長せず、その後も実質ゼロ成長と置いた計算値です。確定した「本体価値」ではありません。</p></div>
@@ -2458,14 +2459,31 @@
           <div class="dotcom-heading">
             <p class="section-kicker">DOT-COM SPILLOVER: SAME WINDOW, DIFFERENT DAMAGE</p>
             <h3>IT株だけでは終わらなかった：市場全体と日本企業への波及</h3>
-            <p>「IT株が何%下がったか」だけでは、AIバブル崩壊時の買い場を考える材料として不十分です。IT企業と同じ期間に、市場全体、技術感応型の複合企業、非ITの実業企業がどこまで巻き込まれたかを同じ物差しで比較します。</p>
+            <p>IT企業と同じ期間に、市場全体、技術感応型、非IT企業がどこまで巻き込まれたかを比較します。さらに、20年以上一度も無配がない東証プライム銘柄を別枠で検証し、更新時の直近終値へ過去の下落率を当てた機械的ストレス換算値まで示します。</p>
           </div>
 
           <div id="dotcomWindowBasis" class="dotcom-window-basis" aria-live="polite">比較条件を読み込んでいます。</div>
           <div id="dotcomGroupSummary" class="dotcom-group-summary" aria-live="polite"></div>
+          <article id="dotcomDividendCase" class="dotcom-dividend-case is-loading" aria-live="polite">
+            <p>20年以上連続配当の検証銘柄と現在値を読み込んでいます。</p>
+          </article>
+          <div class="dotcom-stress-method" aria-labelledby="dotcomStressTitle">
+            <p class="section-kicker">MECHANICAL STRESS REPLAY</p>
+            <h4 id="dotcomStressTitle">過去の下落率を、更新時の直近終値へ機械的に当てる</h4>
+            <div class="dotcom-stress-formula">ストレス換算値 ＝ 直近終値 ×（歴史的な谷の終値 ÷ 先行ピークの終値）</div>
+            <p id="dotcomStressWarning">これは予測株価・目標株価・適正値・底値ではなく、崩壊スコアにも加算しません。</p>
+          </div>
+          <div class="dotcom-comparison-heading">
+            <h4>12系列を同じ窓で比較</h4>
+            <p>各カードに、当時の騰落率、最大下落、現在終値、同じ下落率を再現した換算値をまとめます。</p>
+          </div>
+          <div id="dotcomComparisonCards" class="dotcom-comparison-grid" aria-live="polite"></div>
 
+          <details class="dotcom-audit-ledger">
+            <summary>全12系列を表で照合する</summary>
           <div class="dotcom-table-wrap">
             <table class="dotcom-table">
+              <caption class="sr-only">ITバブル崩壊期の12系列について、共通期間の騰落率、最大下落率、日本の延長窓、解釈を照合する表</caption>
               <thead>
                 <tr>
                   <th>分類・銘柄</th>
@@ -2478,11 +2496,12 @@
               <tbody id="dotcomComparisonRows"></tbody>
             </table>
           </div>
+          </details>
 
           <div id="dotcomKeyFinding" class="dotcom-key-finding" aria-live="polite"></div>
 
           <div class="dotcom-cautions">
-            <h4>この表を将来の下落率へ機械的に当てはめない</h4>
+            <h4>機械的ストレス換算は予測ではない</h4>
             <p id="dotcomOverlapWarning">同時期に重なった景気・信用・地政学要因を確認しています。</p>
             <p id="dotcomSelectionWarning">銘柄選択の限界を確認しています。</p>
             <p><strong>買い場への使い方：</strong>AI直撃銘柄の下落率を非IT株へそのまま移すのではなく、①AI期待の剥落、②市場全体のリスク回避、③景気と企業利益、④日本固有の信用・為替要因を分け、現在の底値モデルと反転確認へ接続します。</p>
@@ -2516,7 +2535,7 @@
               <tr><th>米国AI相場が崩壊したか</th><td><a href="#margin-leverage">信用レバレッジ</a>＋<a href="#signals">米国側の崩壊シグナル</a></td><td>信用買い残÷GDP、SOX（半導体株指数）、海外AI10社の四半期業績、CapEx（設備投資）、供給、米国HY OAS（信用スプレッド）</td><td>燃料・引き金・巻き戻しの3段階＋崩壊確認4群80点＋3ゲート</td><td>高レバレッジと崩壊を分離し、強制売り連鎖の有無を表示</td></tr>
               <tr><th>過去と2026年はどこまで似るか</th><td><a href="#money-strategist">マネーストラテジスト</a></td><td>1900年以降の米国株、主要10局面、CAPE、上位10社比率、NY連銀モデル、動画の時期説明</td><td>実数チャート＋同一規則の最大下落率＋中間選挙年19回の再計算＋主張と事実の照合</td><td>過去の実績は赤、動画の主張と説明用青線は別表示、2028年までは価格目標でなく危険期間</td></tr>
               <tr><th>米国から日本へ波及したか</th><td><a href="#us-japan-link">米国→日本</a></td><td>SOX、日経平均、日本AI・半導体連動8社</td><td>短期波及2項目＋持続的波及4項目</td><td>日本への短期波及・持続的波及</td></tr>
-              <tr><th>IT崩壊で非ITもどこまで下がるか</th><td><a href="#dotcom-spillover">IT崩壊の波及</a></td><td>2000～2003年のIT指数、広範囲指数、日本の技術感応型・非IT企業</td><td>同一期間騰落率＋期間内最大下落＋日本延長期間</td><td>直撃群と非IT群の下落差、含み損の大きさ、単純類推の限界</td></tr>
+              <tr><th>IT崩壊で非ITもどこまで下がるか</th><td><a href="#dotcom-spillover">IT崩壊の波及</a></td><td>2000～2003年の12系列＋20年以上無配なしの東証プライム独立例</td><td>同一期間騰落率＋最大下落＋現在値への機械的ストレス換算</td><td>直撃群と非IT群の差、現在値との距離、予測ではない比較の限界</td></tr>
               <tr><th>日経の底値候補</th><td><a href="#nikkei-bottom">日経底値</a></td><td>現在の日経、PER・PBR参照日の終値と倍率、利益悪化、過去下落率</td><td>EPS法・PBR法・歴史法</td><td>底値ゾーン・残り下落余地・接近度</td></tr>
               <tr><th>底打ちしたか</th><td><a href="#bottom-confirmation">反転確認</a></td><td>120日安値、50日線、HY OAS、市場の広がり</td><td>5項目100点</td><td>底打ち確認度・未充足項目</td></tr>
               <tr><th>残る企業はどれか</th><td><a href="#valuation">企業価値</a></td><td>海外AI10社・日本16社のFCF、成長率、資本コスト、事業構成</td><td>通貨別DCF・逆DCF・感度分析</td><td>本体価値・期待上乗せ・弱気価値・企業別の注意点</td></tr>
@@ -2793,7 +2812,7 @@
   <footer>
     <div class="content footer-inner">
       <p><strong>重要：</strong>本サイトは教育・調査用です。投資助言、価格予測、売買推奨ではありません。取得値には遅延・欠損・定義差があり、重要な判断では企業IRと提出資料を確認してください。</p>
-      <p>Method v4.2 / <a href="https://github.com/mxe050/ai-bubble-collapse-monitor" target="_blank" rel="noopener">GitHub</a></p>
+      <p>Method v4.4 / <a href="https://github.com/mxe050/ai-bubble-collapse-monitor" target="_blank" rel="noopener">GitHub</a></p>
     </div>
   </footer>
 

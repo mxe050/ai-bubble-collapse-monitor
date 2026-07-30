@@ -66,8 +66,8 @@ def check_yoy_dates(company: dict[str, Any], prefix: str) -> None:
 
 def main() -> None:
     data = json.loads(DATA_FILE.read_text(encoding="utf-8"))
-    require(data.get("schemaVersion") == 14, "schemaVersion must be 14")
-    require(data.get("methodVersion") == "4.3.0", "methodVersion must be 4.3.0")
+    require(data.get("schemaVersion") == 15, "schemaVersion must be 15")
+    require(data.get("methodVersion") == "4.4.0", "methodVersion must be 4.4.0")
 
     generated = datetime.fromisoformat(data["generatedAtUtc"]).date()
     market_day = date.fromisoformat(data["marketDate"])
@@ -467,6 +467,37 @@ def main() -> None:
                 <= date.fromisoformat(dotcom["japanExtendedEndDate"]),
                 f"{row_id}: extended dates are invalid",
             )
+        scenario = row.get("stressScenario") or {}
+        require(scenario.get("modelVersion") == "dotcom-drawdown-replay-v1", f"{row_id}: stress model version changed")
+        require(scenario.get("affectsCollapseScore") is False, f"{row_id}: historical replay must not affect collapse score")
+        require(finite(scenario.get("historicalRetentionRatio")), f"{row_id}: invalid historical retention")
+        retention = float(scenario["historicalRetentionRatio"])
+        require(0 < retention <= 1, f"{row_id}: invalid historical retention")
+        use_extended = row.get("region") == "日本" and row.get("extendedMaxDrawdownPct") is not None
+        expected_peak = row["extendedPeakAdjustedClose"] if use_extended else row["peakAdjustedClose"]
+        expected_trough = row["extendedTroughAdjustedClose"] if use_extended else row["troughAdjustedClose"]
+        expected_retention = expected_trough / expected_peak
+        require(close_enough(retention, expected_retention), f"{row_id}: stress retention identity failed")
+        require(
+            close_enough(scenario.get("historicalDrawdownPct"), (1 - retention) * 100),
+            f"{row_id}: stress drawdown identity failed",
+        )
+        if scenario.get("available"):
+            require(finite(scenario.get("currentClose")), f"{row_id}: current close is invalid")
+            require(finite(scenario.get("stressPrice")), f"{row_id}: stress price is invalid")
+            require(finite(scenario.get("additionalDownsideValue")), f"{row_id}: additional downside is invalid")
+            require(finite(scenario.get("currentToStressMultiple")), f"{row_id}: stress multiple is invalid")
+            current_close = float(scenario["currentClose"])
+            stress_price = float(scenario["stressPrice"])
+            additional_downside = float(scenario["additionalDownsideValue"])
+            require(current_close > 0, f"{row_id}: current close is invalid")
+            require(stress_price > 0, f"{row_id}: stress price is invalid")
+            require(close_enough(stress_price, current_close * retention), f"{row_id}: stress-price identity failed")
+            require(close_enough(additional_downside, current_close - stress_price), f"{row_id}: additional-downside identity failed")
+            require(close_enough(scenario.get("currentToStressMultiple"), current_close / stress_price), f"{row_id}: stress multiple identity failed")
+            quote_date = date.fromisoformat(scenario["quoteDate"])
+            require(quote_date <= generated, f"{row_id}: current quote is future-dated")
+            require((generated - quote_date).days <= 10, f"{row_id}: current quote is stale")
 
     summaries = {row["group"]: row for row in dotcom.get("groupSummaries") or []}
     require(set(summaries) == set(dotcom_counts), "dot-com group summaries are incomplete")
@@ -488,6 +519,41 @@ def main() -> None:
                 close_enough(summary["medianExtendedMaxDrawdownPct"], statistics.median(extended)),
                 f"{group}: median extended drawdown failed",
             )
+    require("直近終値" in dotcom.get("stressFormula", ""), "dot-com stress formula is missing")
+    require("予測株価" in dotcom.get("stressInterpretation", ""), "non-forecast stress warning is missing")
+    dividend_case = dotcom.get("dividendContinuityCase") or {}
+    require(dividend_case.get("id") == "ppih", "PPIH dividend-continuity case is missing")
+    require(dividend_case.get("excludedFromGroupMedians") is True, "PPIH must stay outside group medians")
+    evidence = dividend_case.get("selectionEvidence") or {}
+    require(evidence.get("marketSegment") == "東証プライム", "PPIH Prime-market evidence is missing")
+    require(evidence.get("dividendFiscalYearCount", 0) >= 20, "PPIH dividend continuity must cover at least 20 fiscal years")
+    require(evidence.get("dividendStartFiscalYear") and evidence.get("dividendEndFiscalYear"), "PPIH dividend period is incomplete")
+    require(evidence.get("marketSegmentSourceUrl", "").startswith("https://"), "PPIH market source is missing")
+    require(evidence.get("dividendSourceUrl", "").startswith("https://"), "PPIH dividend source is missing")
+    require("0円超" in evidence.get("dividendCondition", ""), "PPIH no-omitted-dividend condition is missing")
+    require(dividend_case.get("historicalPriceSourceUrl", "").startswith("https://"), "PPIH historical price source is missing")
+    require(date.fromisoformat(dividend_case["peakDate"]) <= date.fromisoformat(dividend_case["troughDate"]), "PPIH trough precedes peak")
+    case_retention = dividend_case["troughClose"] / dividend_case["peakClose"]
+    require(close_enough(dividend_case.get("historicalRetentionRatio"), case_retention), "PPIH retention identity failed")
+    require(close_enough(dividend_case.get("historicalDrawdownPct"), (1 - case_retention) * 100), "PPIH drawdown identity failed")
+    case_scenario = dividend_case.get("stressScenario") or {}
+    require(case_scenario.get("modelVersion") == "dotcom-drawdown-replay-v1", "PPIH stress model version changed")
+    require(case_scenario.get("affectsCollapseScore") is False, "PPIH stress must not affect collapse score")
+    require(case_scenario.get("available") is True, "PPIH current quote is unavailable")
+    require(finite(case_scenario.get("currentClose")), "PPIH current close is invalid")
+    require(finite(case_scenario.get("stressPrice")), "PPIH stress price is invalid")
+    require(finite(case_scenario.get("additionalDownsideValue")), "PPIH additional downside is invalid")
+    require(finite(case_scenario.get("currentToStressMultiple")), "PPIH stress multiple is invalid")
+    case_current = float(case_scenario["currentClose"])
+    case_stress = float(case_scenario["stressPrice"])
+    case_additional_downside = float(case_scenario["additionalDownsideValue"])
+    require(case_current > 0, "PPIH current close is invalid")
+    require(case_stress > 0 and close_enough(case_stress, case_current * case_retention), "PPIH stress-price identity failed")
+    require(close_enough(case_additional_downside, case_current - case_stress), "PPIH additional-downside identity failed")
+    require(close_enough(case_scenario.get("currentToStressMultiple"), case_current / case_stress), "PPIH stress multiple identity failed")
+    case_quote_date = date.fromisoformat(case_scenario["quoteDate"])
+    require(case_quote_date <= generated, "PPIH current quote is future-dated")
+    require((generated - case_quote_date).days <= 10, "PPIH current quote is stale")
 
     require(close_enough(dotcom_by_id["nasdaq"]["maxDrawdownPct"], 77.93238628593402), "NASDAQ anchor changed")
     require(close_enough(dotcom_by_id["sox"]["maxDrawdownPct"], 83.93823258107899), "SOX anchor changed")
@@ -653,7 +719,13 @@ def main() -> None:
         require(snapshot_file.exists(), f"snapshot file is missing: {entry['file']}")
         snapshot_payload = json.loads(snapshot_file.read_text(encoding="utf-8"))
         require(snapshot_payload.get("generatedAtJst"), f"snapshot timestamp is missing: {entry['file']}")
-    require("Method v4.2" in index_source, "method label is missing")
+    require("Method v4.4" in index_source, "method label is missing")
+    require('id="dotcomDividendCase"' in index_source, "PPIH dividend-continuity panel is missing")
+    require('id="dotcomComparisonCards"' in index_source, "dot-com comparison card grid is missing")
+    require("20年以上一度も無配がない" in index_source, "no-omitted-dividend wording is missing")
+    require("ストレス換算値" in index_source and "予測ではない" in index_source, "dot-com stress warning is missing")
+    require("dividendContinuityCase" in app_source, "PPIH case renderer is missing")
+    require("dotcomStressBlock" in app_source, "dot-com stress renderer is missing")
     require("評価への脆弱性は別枠20点" in index_source, "valuation/collapse score separation is missing")
     require("Margin Debt / GDP" in index_source, "margin-debt chart title is missing")
     require("燃料、引き金、巻き戻し" in index_source, "margin-debt three-stage explanation is missing")

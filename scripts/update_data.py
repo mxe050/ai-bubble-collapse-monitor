@@ -430,6 +430,11 @@ PRICE_SYMBOLS = {
     "VIX": "^VIX",
     "GOLD": "GC=F",
     "KIOXIA": "285A.T",
+    # Current quotes used only by the fixed dot-com spillover audit.
+    # Keep these outside COMPANIES so the 26-company DCF universe is unchanged.
+    "4452.T": "4452.T",
+    "4502.T": "4502.T",
+    "7532.T": "7532.T",
     **{k: k for k in COMPANIES},
 }
 HYPERSCALERS = {"MSFT", "GOOGL", "AMZN", "META"}
@@ -849,6 +854,36 @@ DOTCOM_COMPARISON_ROWS: list[dict[str, Any]] = [
         "classificationSourceUrl": "https://www.takeda.com/investors/",
     },
 ]
+
+
+DOTCOM_DIVIDEND_CONTINUITY_CASE: dict[str, Any] = {
+    "id": "ppih",
+    "symbol": "7532.T",
+    "name": "パン・パシフィック・インターナショナルホールディングス",
+    "shortName": "PPIH",
+    "region": "日本",
+    "groupLabel": "非IT・20年以上連続配当ケース",
+    "currentPriceKey": "7532.T",
+    "peakDate": "2000-04-26",
+    "peakClose": 18800.0,
+    "troughDate": "2001-09-12",
+    "troughClose": 5600.0,
+    "historicalPriceBasis": "日次終値（ピークから谷までの期間内に株式分割なし）",
+    "historicalPriceSourceUrl": "https://kabu.hayauma.net/kabuka/7532/2000.html",
+    "note": "小売の実需と長期の連続配当があっても、ITバブル崩壊期には株価が大きく下落しました。配当継続は下値を保証しません。",
+    "selectionEvidence": {
+        "marketSegment": "東証プライム",
+        "marketSegmentAsOfDate": "2026-07-30",
+        "marketSegmentSourceUrl": "https://ppih.co.jp/ir/stock/overview/",
+        "dividendCondition": "2025年6月期まで22期連続増配（20年以上、各期の年間配当は0円超）",
+        "dividendStartFiscalYear": "2004年6月期",
+        "dividendEndFiscalYear": "2025年6月期",
+        "dividendFiscalYearCount": 22,
+        "dividendSourceUrl": "https://ppih.co.jp/ir/pdf/ppihreport2025.pdf",
+        "verifiedAt": "2026-07-30",
+    },
+    "excludedFromGroupMedians": True,
+}
 
 FUNDAMENTAL_TYPES = [
     "trailingTotalRevenue",
@@ -2845,20 +2880,74 @@ def build_purchasing_power_stress(
     }
 
 
-def build_dotcom_comparison() -> dict[str, Any]:
+def build_dotcom_comparison(prices: dict[str, dict[str, Any]]) -> dict[str, Any]:
+    price_keys = {"^SOX": "SOX", "^IXIC": "NASDAQ", "^GSPC": "SP500", "^N225": "NIKKEI"}
+    enriched_rows: list[dict[str, Any]] = []
+    for source_row in DOTCOM_COMPARISON_ROWS:
+        row = dict(source_row)
+        row["windowReturnPct"] = (row["endAdjustedClose"] / row["startAdjustedClose"] - 1.0) * 100.0
+        row["maxDrawdownPct"] = (1.0 - row["troughAdjustedClose"] / row["peakAdjustedClose"]) * 100.0
+        if row.get("extendedPeakAdjustedClose") and row.get("extendedTroughAdjustedClose"):
+            row["extendedMaxDrawdownPct"] = (1.0 - row["extendedTroughAdjustedClose"] / row["extendedPeakAdjustedClose"]) * 100.0
+        use_extended = row.get("region") == "日本" and row.get("extendedMaxDrawdownPct") is not None
+        peak = row["extendedPeakAdjustedClose"] if use_extended else row["peakAdjustedClose"]
+        trough = row["extendedTroughAdjustedClose"] if use_extended else row["troughAdjustedClose"]
+        retention = trough / peak
+        quote = prices.get(price_keys.get(row["symbol"], row["symbol"])) or {}
+        current_close = finite(quote.get("close"))
+        stress_price = current_close * retention if current_close is not None else None
+        row["stressScenario"] = {
+            "modelVersion": "dotcom-drawdown-replay-v1",
+            "available": current_close is not None,
+            "referenceWindow": "japan-extended" if use_extended else "same-window",
+            "quoteDate": quote.get("date"),
+            "quoteUnit": "円" if row["symbol"].endswith(".T") else "指数ポイント",
+            "currentClose": current_close,
+            "historicalRetentionRatio": retention,
+            "historicalDrawdownPct": (1.0 - retention) * 100.0,
+            "stressPrice": stress_price,
+            "additionalDownsideValue": current_close - stress_price if stress_price is not None else None,
+            "currentToStressMultiple": current_close / stress_price if stress_price else None,
+            "affectsCollapseScore": False,
+        }
+        enriched_rows.append(row)
     summaries: list[dict[str, Any]] = []
     for group, label in DOTCOM_GROUP_LABELS.items():
-        rows = [row for row in DOTCOM_COMPARISON_ROWS if row["group"] == group]
+        group_rows = [row for row in enriched_rows if row["group"] == group]
         summaries.append({
             "group": group,
             "label": label,
-            "count": len(rows),
-            "medianWindowReturnPct": median(row["windowReturnPct"] for row in rows),
-            "medianMaxDrawdownPct": median(row["maxDrawdownPct"] for row in rows),
+            "count": len(group_rows),
+            "medianWindowReturnPct": median(row["windowReturnPct"] for row in group_rows),
+            "medianMaxDrawdownPct": median(row["maxDrawdownPct"] for row in group_rows),
             "medianExtendedMaxDrawdownPct": median(
-                row.get("extendedMaxDrawdownPct") for row in rows if row.get("extendedMaxDrawdownPct") is not None
+                row.get("extendedMaxDrawdownPct") for row in group_rows if row.get("extendedMaxDrawdownPct") is not None
             ),
         })
+    dividend_case = dict(DOTCOM_DIVIDEND_CONTINUITY_CASE)
+    peak_close = dividend_case["peakClose"]
+    trough_close = dividend_case["troughClose"]
+    case_retention = trough_close / peak_close
+    case_quote = prices.get(dividend_case["currentPriceKey"]) or {}
+    case_current = finite(case_quote.get("close"))
+    case_stress = case_current * case_retention if case_current is not None else None
+    dividend_case["historicalRetentionRatio"] = case_retention
+    dividend_case["historicalDrawdownPct"] = (1.0 - case_retention) * 100.0
+    dividend_case["stressScenario"] = {
+        "modelVersion": "dotcom-drawdown-replay-v1",
+        "available": case_current is not None,
+        "referenceWindow": "company-peak-to-post-dotcom-trough",
+        "quoteDate": case_quote.get("date"),
+        "quoteUnit": "円",
+        "currentClose": case_current,
+        "historicalRetentionRatio": case_retention,
+        "historicalDrawdownPct": (1.0 - case_retention) * 100.0,
+        "stressPrice": case_stress,
+        "additionalDownsideValue": case_current - case_stress if case_stress is not None else None,
+        "currentToStressMultiple": case_current / case_stress if case_stress else None,
+        "affectsCollapseScore": False,
+    }
+    dividend_case["currentPriceSourceUrl"] = case_quote.get("sourceUrl")
     return {
         "window": {
             "startDate": "2000-03-10",
@@ -2866,12 +2955,16 @@ def build_dotcom_comparison() -> dict[str, Any]:
             "definition": "NASDAQ終値の最高値から最安値まで",
         },
         "japanExtendedEndDate": "2003-04-28",
-        "priceBasis": "Yahoo Financeの調整後終値（株式分割・配当調整後）",
-        "auditDate": "2026-07-19",
-        "rows": DOTCOM_COMPARISON_ROWS,
+        "priceBasis": "Yahoo Financeの調整後終値（株式分割・配当調整後）。PPIH独立ケースは期間内分割のない日次終値。",
+        "currentQuoteBasis": "更新処理で取得できた直近取引日の未調整終値",
+        "stressFormula": "直近終値 ×（歴史的な谷の終値 ÷ 先行ピークの終値）",
+        "stressInterpretation": "過去の下落率だけを現在値へ移した機械的ストレス換算。予測株価、目標株価、適正値、底値ではなく、崩壊スコアにも加算しない。",
+        "auditDate": "2026-07-30",
+        "rows": enriched_rows,
         "groupSummaries": summaries,
+        "dividendContinuityCase": dividend_case,
         "overlapWarning": "2000～2003年にはITバブル崩壊だけでなく、米国景気後退、同時多発テロ、日本のデフレ・銀行不安、イラク情勢が重なります。下落率をIT崩壊だけの因果効果とは解釈できません。",
-        "selectionWarning": "現在まで存続する代表企業を選んだ小標本であり、生存者バイアスがあります。個別銘柄の将来下落率を予測する表ではありません。",
+        "selectionWarning": "現在まで存続する代表企業を選んだ小標本であり、生存者バイアスがあります。PPIHは20年以上の連続配当を条件に事後選択した別枠ケースで、群中央値には含めません。個別銘柄の将来下落率を予測する表示ではありません。",
     }
 
 
@@ -3227,7 +3320,7 @@ def main() -> None:
         statuses.append(SourceStatus("Google News English RSS", "https://news.google.com/", False, NOW.isoformat(), str(exc)))
 
     payload = {
-        "schemaVersion": 14,
+        "schemaVersion": 15,
         "generatedAtUtc": NOW.isoformat(),
         "generatedAtJst": NOW.astimezone(JST).isoformat(),
         "marketDate": prices.get("SOX", {}).get("date"),
@@ -3254,7 +3347,7 @@ def main() -> None:
             },
             "normalizedChart": sampled_chart(prices) if "SOX" in prices else [],
             "historicalEpisodes": historical_episodes,
-            "dotComComparison": build_dotcom_comparison(),
+            "dotComComparison": build_dotcom_comparison(prices),
             "sakakibaraAnalysis": sakakibara_analysis,
             "nikkeiValuationReference": {
                 "date": "2026-07-17",
@@ -3283,7 +3376,7 @@ def main() -> None:
             "note": "These fields require a consistent paid consensus series, product-level pricing, or verified project announcements. Missing is not zero.",
         },
         "sourceStatus": [status.__dict__ for status in statuses],
-        "methodVersion": "4.3.0",
+        "methodVersion": "4.4.0",
     }
     OUTPUT.parent.mkdir(parents=True, exist_ok=True)
     OUTPUT.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
