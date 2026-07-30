@@ -383,6 +383,51 @@ FINRA Rule 4210のcustomerは、会員会社が証券を保有・売買し、信
 - [Video 1](https://www.youtube.com/watch?v=mVqqXI9TmCw&t=5s)
 - [Video 2](https://www.youtube.com/watch?v=hy90LdpEUvQ)
 
+## 速報・為替介入・寄り前情報の監査（2026-07-31）
+
+### 2026年7月30日夜のUSD/JPY急変
+
+Yahoo Financeの5分足では、USD/JPYの最大30分下落区間は7月30日22時30分ごろから始まり、取得範囲の高値163.890円から安値158.272円まで約5.618円、約3.43%動きました。30分変化は最大約-3.552円（-2.18%）です。ユーザー提供画像の0時48分ごろの159.339円は、安値を付けた後の反発局面と整合します。
+
+価格の速度と規模は重大ですが、価格だけで政府による介入とは判定できません。Reuters、Financial Times、WSJ、FXStreetなどが介入観測を報じたため、状態は `reported-unconfirmed`（主要報道あり・公式確認なし）としました。財務省の一次確認がない間は `officiallyConfirmed=false` を維持します。
+
+介入観測の報道は、保存された5分・15分・30分変化のうち最も大きい短期変化区間に対し、開始1時間前から終了24時間後までに公開された記事だけを関連証拠として扱います。更新時刻から単純に72時間以内という条件にはせず、後日の別のUSD/JPY急変へ古い介入報道や7月30日固有の公表日程を流用しません。
+
+自動判定は次の状態を分離します。
+
+1. `unknown`：価格を取得できず判定不能
+2. `no-shock-observed`：取得範囲では設定した急変閾値に達していない
+3. `price-shock-only`：価格急変のみ。介入の証拠ではない
+4. `reported-unconfirmed`：信頼度の高い報道が介入観測を報じるが、当局未確認
+
+財務省の「外国為替平衡操作の実施状況」は対象期間終了後に公表されるため、急変直後に月次実績で確認できないのは通常です。価格、報道、当局発言、月次実績を別々の証拠として保存します。現在の自動処理はSNSや報道から `officiallyConfirmed=true` へ昇格させず、一次資料を明示的に検証する実装・監査なしに確認済みとは表示しません。
+
+確認先:
+
+- [Yahoo Finance USD/JPY](https://finance.yahoo.com/quote/JPY%3DX/)
+- [Reuters: yen strengthens sharply](https://www.investing.com/news/forex-news/yen-strengthens-sharply-against-the-us-dollar-4824988)
+- [Reuters Instant View](https://www.investing.com/news/economy-news/instant-view-yen-jumps-against-the-dollar-traders-alert-to-japan-intervention-4825019)
+- [FXStreet: suspected intervention](https://www.fxstreet.com/news/japanese-yen-surges-on-suspected-intervention-eur-jpy-tumbles-400-pips-in-minutes-202607301415)
+- [財務省 外国為替平衡操作の実施状況](https://www.mof.go.jp/policy/international_policy/reference/feio/index.html)
+
+### 朝方の戦略材料
+
+東証が閉まっている時間も使えるよう、CME日経225円建て・ドル建て先物、S&P 500、Nasdaq 100、Dow、Russell 2000先物、USD/JPY、米10年金利、VIXを5分足で取得します。日経先物と直近の現物終値の差、米4指数先物の単純平均、円相場、金利、VIXを「参考材料」として表示します。限月、配当、通貨、取引時間が異なるため、先物差を予想始値や売買指示には変換しません。
+
+### 海外情報とSNSの取得限界
+
+FRB、米財務省、ホワイトハウス、日銀、財務省を一次資料として優先し、Google News、Bing News、主要海外媒体を別経路で探索します。X Recent Searchは `X_BEARER_TOKEN` がある場合だけAPIを利用し、未設定時は公開検索導線と検索エンジンの公開インデックスに限定します。LinkedInもログインを要しない公開索引だけが対象です。取得制限や未接続を「材料なし」や「接続成功」へ読み替えず、媒体ごとの状態を画面に表示します。
+
+媒体グループの「取得済み」は、そのグループに属する全取得経路が成功した場合だけ表示します。たとえばFRBが成功しても財務省が失敗すれば一次機関全体は「限定取得」、ニュースの一部索引だけ失敗した場合も海外媒体全体は「限定取得」とします。
+
+速報の話題度は取得範囲内の掲載頻度・新しさ・情報源の信頼度を合成した相対順位です。世界全体の投稿量、閲覧数、いいね数を完全取得した値ではありません。強気・弱気は論調の整理で、事実確認や売買推奨を意味しません。SNSや報道は発見経路、政府・中央銀行・決算・SEC・会社IRは確認経路として扱います。
+
+### 更新と既存判定への影響
+
+`scripts/live_intelligence.py` が速報JSONを生成し、`scripts/validate_live_data.py` が時刻、HTTPS原文、価格急変、介入証拠、先物差、媒体状態、話題度、強弱を検証します。GitHub Pagesでは原則15分ごとのworkflowが検証済みartifactを配信し、公開画面の更新ボタンはその最新JSONをキャッシュなしで再読込します。GitHub Actionsの開始遅延や取得元の遅延により15分を超える場合があります。
+
+この速報レイヤーは状況認識のための表示で、既存のAIバブル崩壊スコア、企業価値、底値推計、売買判断の計算式へ直接加点しません。
+
 ## データ取得経路の画面表示監査（2026-07-22）
 
 数値が出典名だけで突然表示されないよう、画面に「提供元 → 取得形式 → 利用項目 → 加工 → 限界」の経路を追加しました。
@@ -391,7 +436,7 @@ FINRA Rule 4210のcustomerは、会員会社が証券を保有・売買し、信
 - 信用買い残とGDPの原数値、基準月、単位換算、代入式を最新JSONから画面へ表示します。未来のGDPは使わず、信用買い残月時点で利用可能な直近四半期を対応させます。
 - 株価、企業財務、FRED、財務省・日銀・e-Stat、長期理論価値、過去局面、SEC/Berkshire、海外ニュース・Xについても取得形式と計算上の役割を明記しました。
 - `sourceStatus` の取得記録から、提供元ごとの成功件数、対象系列、最終取得時刻を日本時間で表示します。
-- 更新ボタンの挙動を監査しました。ローカルサーバーでは取得・再計算・検証を実行します。静的画面はコミット済みJSONを再読込します。6時間ごとのGitHub Actionsは読み取り専用の検証であり、生成値をリポジトリへ書き戻しません。
+- 更新ボタンの挙動を監査しました。ローカルサーバーでは長期データと速報の取得・再計算・検証を実行します。静的画面は配信済みJSONを再読込します。6時間ごとの長期監査は読み取り専用で、別の原則15分ごとのworkflowが速報を再生成・検証してGitHub Pages artifactとして配信します。どちらも生成値をリポジトリへ自動コミットしません。
 
 この変更は既存の市場判定、DCF、底値、信用買い残の計算式を変更せず、データ来歴と更新動作を可視化するものです。
 

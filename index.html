@@ -43,6 +43,7 @@
       </div>
       <a href="#market-summary" data-track="market-summary">本日の市場</a>
       <a href="#beginner-guide" data-track="beginner-guide">本日のまとめ</a>
+      <a href="#live-briefing" data-track="live-briefing">速報・介入</a>
       <a href="#today" data-track="today">今日の判定</a>
       <a href="#global-comparison" data-track="purchasing-power,decision-path,global-comparison">価値・過熱</a>
       <a href="#us-japan-link" data-track="us-japan-link,sakakibara-method">日本への波及</a>
@@ -88,6 +89,40 @@
           </article>
         </div>
 
+        <aside id="premarketBriefing" class="premarket-briefing" aria-labelledby="premarketHeading">
+          <div class="premarket-heading">
+            <div>
+              <p class="section-kicker">PRE-MARKET / AFTER-HOURS</p>
+              <h3 id="premarketHeading">東証休場中の先物・翌営業日準備</h3>
+              <p>現物市場が閉じている時間帯は、先物・為替・米国金利・VIXを分けて確認し、翌営業日の寄り付きに備えます。</p>
+            </div>
+            <div class="premarket-stamp" aria-label="先物データの取得状況">
+              <span>取得時刻 <strong id="premarketCheckedAt">確認中</strong></span>
+              <span>市場状態 <strong id="premarketMarketState">判定中</strong></span>
+            </div>
+          </div>
+
+          <div id="premarketLead" class="premarket-lead is-loading" role="status" aria-live="polite">
+            <span>朝方戦略</span>
+            <strong>東証休場中の市場変化を確認しています。</strong>
+            <p>日経225先物、米国株先物、USD/JPY、米国債利回り、VIXを同じ取得時刻で整理します。</p>
+          </div>
+
+          <div id="premarketCards" class="premarket-card-grid" aria-label="先物・為替・金利・VIXの一覧">
+            <article class="premarket-card is-loading"><span>日本株先物</span><strong>日経225先物</strong><small>読込中</small></article>
+            <article class="premarket-card is-loading"><span>CME先物</span><strong>日経225・円建て</strong><small>読込中</small></article>
+            <article class="premarket-card is-loading"><span>CME先物</span><strong>日経225・ドル建て</strong><small>読込中</small></article>
+            <article class="premarket-card is-loading"><span>米国株先物</span><strong>S&amp;P 500先物</strong><small>読込中</small></article>
+            <article class="premarket-card is-loading"><span>米国株先物</span><strong>Nasdaq 100先物</strong><small>読込中</small></article>
+            <article class="premarket-card is-loading"><span>為替</span><strong>USD/JPY</strong><small>読込中</small></article>
+            <article class="premarket-card is-loading"><span>米国金利</span><strong>米10年国債利回り</strong><small>読込中</small></article>
+            <article class="premarket-card is-loading"><span>市場心理</span><strong>VIX</strong><small>読込中</small></article>
+          </div>
+
+          <p id="premarketCaution" class="premarket-caution">
+            先物は現物の翌営業日終値を保証しません。薄商い、限月差、為替換算、休場中のニュースによる一時的な振れを含むため、方向と取得時刻を確認して利用してください。
+          </p>
+        </aside>
         <div class="market-summary-footnote">
           <p id="marketSummaryNote">株・為替は取引日の終値、金利は各公表機関の最新観測値です。休場日や公表頻度により日付がそろわない場合があります。</p>
           <a href="#today">このアプリ独自の「割高・崩壊・底値」判定へ進む</a>
@@ -103,7 +138,7 @@
           <p id="dailySummaryLead">最新データから、評価の上乗せ、崩壊の広がり、信用市場、日本への波及をまとめています。</p>
         </div>
 
-        <ol id="dailySummaryList" class="daily-summary-list" aria-label="本日の解析結果10項目">
+        <ol id="dailySummaryList" class="daily-summary-list" aria-label="本日の解析結果11項目">
           <li><strong>総合判定</strong><span>最新データを読み込んでいます。</span></li>
         </ol>
 
@@ -274,6 +309,103 @@
       </div>
     </section>
 
+    <section id="live-briefing" class="band band-live-briefing" aria-labelledby="liveBriefingHeading">
+      <div class="content">
+        <div class="section-heading heading-row briefing-heading">
+          <div>
+            <p class="section-kicker">LIVE MARKET INTELLIGENCE</p>
+            <h2 id="liveBriefingHeading">速報・介入・市場の話題</h2>
+            <p>公式機関・企業発表、海外媒体、X、LinkedIn、Truth Social、Blueskyなどを横断し、確認済みの事実と市場の話題を分けて表示します。投稿数や話題度は事実の確度や上昇・下落の確率を示すものではありません。</p>
+          </div>
+          <div class="briefing-freshness" aria-label="速報データの確認状況">
+            <span><small>最終確認</small><strong id="briefingCheckedAt">確認中</strong></span>
+            <span><small>確認範囲</small><strong id="briefingCoverage">接続先を確認中</strong></span>
+          </div>
+        </div>
+
+        <p id="briefingWarning" class="briefing-warning" role="status" aria-live="polite">
+          最新情報を確認しています。未確認の投稿は、公式発表または複数媒体で裏づけられるまで事実として扱いません。
+        </p>
+
+        <section class="briefing-channel-panel" aria-labelledby="briefingChannelHeading">
+          <div class="briefing-subheading">
+            <div><p class="label">SOURCE CONNECTIONS</p><h3 id="briefingChannelHeading">媒体別の接続・確認状態</h3></div>
+            <p>「接続済み」は取得経路の状態です。個別情報の確認状態は各カードに表示します。</p>
+          </div>
+          <div id="briefingChannelStatus" class="briefing-channel-status" aria-live="polite">
+            <span class="briefing-channel is-checking"><b>公式機関</b><small>確認中</small></span>
+            <span class="briefing-channel is-checking"><b>企業公式</b><small>確認中</small></span>
+            <span class="briefing-channel is-checking"><b>海外媒体</b><small>確認中</small></span>
+            <span class="briefing-channel is-checking"><b>X</b><small>確認中</small></span>
+            <span class="briefing-channel is-checking"><b>LinkedIn</b><small>確認中</small></span>
+            <span class="briefing-channel is-checking"><b>Truth Social / Bluesky</b><small>確認中</small></span>
+          </div>
+        </section>
+
+        <fieldset class="briefing-topic-filter">
+          <legend>表示するトピック</legend>
+          <div class="briefing-filter-grid">
+            <label><input type="radio" name="briefing-topic" value="all" checked><span>すべて</span></label>
+            <label><input type="radio" name="briefing-topic" value="us"><span>米国株</span></label>
+            <label><input type="radio" name="briefing-topic" value="jp"><span>日本株</span></label>
+            <label><input type="radio" name="briefing-topic" value="ai"><span>AIバブル</span></label>
+            <label><input type="radio" name="briefing-topic" value="fx-rates"><span>為替・金利</span></label>
+          </div>
+        </fieldset>
+        <p id="briefingFilterStatus" class="sr-only" aria-live="polite">すべてのトピックを表示しています。</p>
+
+        <section class="briefing-lead-region" aria-labelledby="briefingLeadHeading">
+          <div class="briefing-subheading">
+            <div><p class="label">TOP PRIORITY</p><h3 id="briefingLeadHeading">最重要速報</h3></div>
+            <p>値動き、確認状態、介入観測、原文を一枚で確認します。</p>
+          </div>
+          <div id="briefingLead" class="briefing-lead" aria-live="polite">
+            <article class="briefing-lead-card is-loading" data-topic="fx-rates" data-verification="pending">
+              <div class="briefing-card-head">
+                <span class="briefing-priority-badge">最重要速報</span><span class="briefing-topic-badge">為替・金利</span><time>確認中</time>
+              </div>
+              <div class="briefing-lead-body">
+                <div><p class="briefing-eyebrow">USD/JPY 急変監視</p><h4>ドル円の急変、当局発言、介入観測を確認しています。</h4><p>価格変化と公式確認を分離し、確認できた事実から順に掲載します。</p></div>
+                <dl class="briefing-lead-facts">
+                  <div><dt>介入ステータス</dt><dd>確認中</dd></div><div><dt>話題度</dt><dd>集計中</dd></div>
+                  <div><dt>出所</dt><dd>公式・報道・SNSを確認中</dd></div><div><dt>原文</dt><dd>リンク確認中</dd></div>
+                </dl>
+              </div>
+            </article>
+          </div>
+        </section>
+
+        <div class="briefing-balance" aria-label="強気材料と弱気材料">
+          <article class="briefing-balance-card is-bullish">
+            <div class="briefing-balance-heading"><span aria-hidden="true">＋</span><h3>強気材料</h3><small>最大3件を表示</small></div>
+            <ul id="briefingBullList"><li>確認済みの強気材料を読み込んでいます。</li></ul>
+          </article>
+          <article class="briefing-balance-card is-bearish">
+            <div class="briefing-balance-heading"><span aria-hidden="true">−</span><h3>弱気材料</h3><small>最大3件を表示</small></div>
+            <ul id="briefingBearList"><li>確認済みの弱気材料を読み込んでいます。</li></ul>
+          </article>
+        </div>
+
+        <section class="briefing-feed" aria-labelledby="briefingFeedHeading">
+          <div class="briefing-subheading">
+            <div><p class="label">VERIFIED &amp; TRENDING</p><h3 id="briefingFeedHeading">主要速報</h3></div>
+            <p class="briefing-visible-count"><strong id="briefingVisibleCount">0</strong>件表示</p>
+          </div>
+          <div id="briefingPrimaryCards" class="briefing-card-grid" aria-label="常時表示する主要速報4件">
+            <article class="briefing-card is-loading"><span>速報を読み込んでいます。</span></article>
+            <article class="briefing-card is-loading"><span>速報を読み込んでいます。</span></article>
+            <article class="briefing-card is-loading"><span>速報を読み込んでいます。</span></article>
+            <article class="briefing-card is-loading"><span>速報を読み込んでいます。</span></article>
+          </div>
+          <details class="briefing-more">
+            <summary><span>続報・追加材料をすべて見る</span><small>常時表示の4件以外も、情報を省略せず掲載します</small></summary>
+            <div id="briefingMoreCards" class="briefing-card-grid briefing-more-grid" aria-label="追加の速報"><p class="briefing-empty">追加情報を確認しています。</p></div>
+          </details>
+        </section>
+
+        <p class="briefing-method-note">確認順序は、公式機関・企業の原文、一次情報を直接取材した媒体、複数報道、公式アカウント、その他の投稿です。SNSのみの情報には「未確認」を表示し、原文リンクと確認時刻をカード内に残します。</p>
+      </div>
+    </section>
     <section id="today" class="band band-strong">
       <div class="content">
         <div class="section-heading heading-row">

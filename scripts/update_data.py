@@ -3313,7 +3313,14 @@ def main() -> None:
     try:
         overseas_intelligence = build_overseas_intelligence()
         statuses.append(SourceStatus("Google News English RSS", "https://news.google.com/", True, NOW.isoformat(), f"{len(overseas_intelligence['newsItems'])} headlines"))
-        statuses.append(SourceStatus("X recent search", "https://developer.x.com/en/docs/x-api", True, NOW.isoformat(), overseas_intelligence["x"]["message"]))
+        x_status = overseas_intelligence["x"].get("status")
+        statuses.append(SourceStatus(
+            "X recent search",
+            "https://developer.x.com/en/docs/x-api",
+            x_status == "connected",
+            NOW.isoformat(),
+            overseas_intelligence["x"]["message"],
+        ))
     except Exception as exc:
         overseas_intelligence = {"checkedAtUtc": NOW.isoformat(), "newsItems": [], "x": {"status": "failed", "items": [], "message": str(exc)}, "topicCounts": {}, "summary": "海外情報を更新できませんでした。", "readingRule": "数値は公式資料で確認する。"}
         errors.append(f"Overseas intelligence: {exc}")

@@ -28,6 +28,7 @@ class FakeElement {
     this.classList = new FakeClassList();
     this.listeners = {};
     this.hidden = false;
+    this.open = false;
   }
   addEventListener(type, listener) {
     if (!this.listeners[type]) this.listeners[type] = [];
@@ -35,6 +36,9 @@ class FakeElement {
   }
   async click() {
     for (const listener of this.listeners.click || []) await listener.call(this, { preventDefault() {} });
+  }
+  async dispatch(type) {
+    for (const listener of this.listeners[type] || []) await listener.call(this, { preventDefault() {} });
   }
   querySelector() { return new FakeElement(); }
   getContext() { return this; }
@@ -44,6 +48,7 @@ class FakeElement {
 
 const indexSource = fs.readFileSync("index.html", "utf8");
 const appSource = fs.readFileSync("app.js", "utf8");
+const stylesSource = fs.readFileSync("styles.css", "utf8");
 const chartVendorSource = fs.readFileSync("vendor/chart.umd.min.js", "utf8");
 const lucideVendorSource = fs.readFileSync("vendor/lucide.min.js", "utf8");
 assert.match(indexSource, /Option-Adjusted Spread/);
@@ -133,6 +138,26 @@ assert.match(indexSource, /本日のマーケットサマリー/);
 assert.match(indexSource, /日本、米国、欧州、中国、世界全体/);
 assert.match(indexSource, /regionalMarketCards/);
 assert.ok(indexSource.indexOf('id="market-summary"') < indexSource.indexOf('id="beginner-guide"'));
+assert.match(indexSource, /id="premarketBriefing"/);
+assert.match(indexSource, /id="premarketCards"/);
+assert.ok(indexSource.includes("\u7c7310\u5e74\u56fd\u50b5\u5229\u56de\u308a"));
+assert.ok(!indexSource.includes("10\u5e74\u30fb2\u5e74\u56fd\u50b5\u5229\u56de\u308a"));
+assert.match(stylesSource, /\.premarket-card \.context \{ color: var\(--blue\); \}/);
+assert.match(stylesSource, /\.briefing-card \.briefing-card-head time \{ color: #53677a; \}/);
+assert.match(stylesSource, /\.briefing-more\[hidden\] \{ display: none; \}/);
+assert.match(appSource, /function formatLiveChange\(key, quote\)/);
+assert.doesNotMatch(appSource, /\?{2,}/);
+assert.match(indexSource, /id="live-briefing"/);
+assert.match(indexSource, /id="briefingLead"/);
+assert.match(indexSource, /name="briefing-topic"/);
+assert.ok(
+  indexSource.indexOf('id="beginner-guide"') < indexSource.indexOf('id="live-briefing"'),
+  "live briefing should follow today's summary",
+);
+assert.ok(
+  indexSource.indexOf('id="live-briefing"') < indexSource.indexOf('id="today"'),
+  "live briefing should precede today's judgement",
+);
 assert.match(indexSource, /どこを見れば、何が分かるか/);
 assert.match(indexSource, /currentSectionLabel/);
 assert.match(indexSource, /暴落前に重なる4条件を、現在のデータへ置き換える/);
@@ -176,6 +201,14 @@ const moneyRangeButtons = ["all", "postwar", "modern", "current", "cycle"].map((
   element.dataset.msRange = value;
   return element;
 });
+const briefingRadios = ["all", "us", "jp", "ai", "fx-rates"].map((value) => {
+  const element = new FakeElement();
+  element.value = value;
+  element.checked = value === "all";
+  return element;
+});
+const briefingMoreElement = new FakeElement("briefingMore");
+let briefingCards = [];
 
 global.document = {
   documentElement: new FakeElement("root"),
@@ -185,7 +218,16 @@ global.document = {
     if (selector === ".snapshot-compare-button") return snapshotButtons;
     if (selector === ".ms-range-button") return moneyRangeButtons;
     if (selector === 'input[name="nikkeiScenario"]') return scenarios;
+    if (selector === "input[name='briefing-topic']" || selector === 'input[name="briefing-topic"]') return briefingRadios;
+    if (selector === "[data-briefing-card='true']" || selector === '[data-briefing-card="true"]') return briefingCards;
     return [];
+  },
+  querySelector(selector) {
+    if (selector === ".briefing-more") return briefingMoreElement;
+    if (selector === "input[name='briefing-topic']:checked" || selector === 'input[name="briefing-topic"]:checked') {
+      return briefingRadios.find((radio) => radio.checked) || null;
+    }
+    return null;
   },
 };
 global.window = global;
@@ -215,10 +257,17 @@ const marginPayload = JSON.parse(fs.readFileSync("data/margin-debt-history.json"
 const globalComparisonPayload = JSON.parse(fs.readFileSync("data/global-market-value-comparison.json", "utf8"));
 const snapshotIndexPayload = JSON.parse(fs.readFileSync("data/history/index.json", "utf8"));
 const marketSummaryPayload = JSON.parse(fs.readFileSync("data/market-summary.json", "utf8"));
+const livePayload = JSON.parse(fs.readFileSync("data/live-intelligence.json", "utf8"));
 const snapshotPayloads = Object.fromEntries((snapshotIndexPayload.snapshots || []).map((entry) => [
   entry.file,
   JSON.parse(fs.readFileSync("data/history/" + entry.file, "utf8")),
 ]));
+briefingCards = (livePayload.briefing.items || []).map((item) => {
+  const element = new FakeElement();
+  element.dataset.topic = item.topicKey || "policy";
+  element.dataset.sourceKind = item.sourceKind || "other";
+  return element;
+});
 global.fetch = async (url) => ({
   ok: true,
   status: 200,
@@ -226,6 +275,7 @@ global.fetch = async (url) => ({
     const requested = String(url);
     if (requested.includes("data/history/index.json")) return snapshotIndexPayload;
     if (requested.includes("data/market-summary.json")) return marketSummaryPayload;
+    if (requested.includes("data/live-intelligence.json")) return livePayload;
     const snapshotMatch = requested.match(/data\/history\/([^?]+)/);
     if (snapshotMatch && snapshotPayloads[snapshotMatch[1]]) return snapshotPayloads[snapshotMatch[1]];
     if (requested.includes("money-strategist-history")) return moneyPayload;
@@ -242,12 +292,70 @@ setTimeout(async () => {
   assert.notStrictEqual(elements.get("dataHealth").textContent, "読込失敗");
   assert.notStrictEqual(elements.get("headlineConclusion").textContent, "");
   assert.match(elements.get("dailySummaryLead").textContent, /パニック崩壊は未確認/);
-  assert.strictEqual((elements.get("dailySummaryList").innerHTML.match(/<li>/g) || []).length, 10);
+  assert.strictEqual((elements.get("dailySummaryList").innerHTML.match(/<li>/g) || []).length, 11);
   assert.match(elements.get("dailySummaryList").innerHTML, /S&amp;P 500|S&P 500/);
   assert.match(elements.get("dailySummaryList").innerHTML, /キオクシア/);
+  assert.match(elements.get("dailySummaryList").innerHTML, /朝方・先物/);
   assert.match(elements.get("regionalMarketCards").innerHTML, /日本/);
   assert.match(elements.get("regionalMarketCards").innerHTML, /EU・欧州/);
   assert.match(elements.get("regionalMarketCards").innerHTML, /オールカントリー/);
+  assert.match(elements.get("premarketLead").innerHTML, /日経|先物/);
+  assert.strictEqual((elements.get("premarketCards").innerHTML.match(/class="premarket-card"/g) || []).length, 9);
+  assert.match(elements.get("premarketCards").innerHTML, /CME日経|日経225/);
+  assert.match(elements.get("premarketCards").innerHTML, /Nasdaq|ナスダック/);
+  const premarketMarkup = elements.get("premarketCards").innerHTML;
+  const premarketCardFor = (key) => {
+    const match = premarketMarkup.match(new RegExp('<article class="premarket-card" data-key="' + key + '">[\\s\\S]*?</article>'));
+    assert.ok(match, key + " premarket card should render");
+    return match[0];
+  };
+  const us10yMarkup = premarketCardFor("US10Y");
+  const us10yQuote = livePayload.premarket.quotes.US10Y;
+  const expectedUs10yValue = new Intl.NumberFormat("ja-JP", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(us10yQuote.value) + "%";
+  const expectedUs10yBp = new Intl.NumberFormat("ja-JP", {
+    maximumFractionDigits: 1,
+  }).format(us10yQuote.changePoints * 100) + "bp";
+  assert.ok(us10yMarkup.includes(expectedUs10yValue), "US10Y should use the live percent value");
+  assert.ok(us10yMarkup.includes(expectedUs10yBp), "US10Y change should convert percentage points to bp");
+  assert.doesNotMatch(us10yMarkup, /0\.47%/);
+  assert.match(us10yMarkup, /premarket-card-change context/);
+  ["USDJPY", "VIX"].forEach((key) => assert.match(premarketCardFor(key), /premarket-card-change context/));
+  assert.doesNotMatch(premarketMarkup, /href="#"/);
+  assert.match(elements.get("briefingLead").innerHTML, /USD\/JPY/);
+  assert.match(elements.get("briefingLead").innerHTML, /briefing-original-link/);
+  assert.match(elements.get("briefingWarning").textContent, /X API/);
+  assert.match(elements.get("briefingPrimaryCards").innerHTML, /briefing-original-link/);
+  assert.doesNotMatch(elements.get("briefingPrimaryCards").innerHTML, /href="#"/);
+
+  const articleCount = (markup) => (markup.match(/<article\b/g) || []).length;
+  const allBriefingCount = (livePayload.briefing.items || []).length;
+  assert.strictEqual(articleCount(elements.get("briefingPrimaryCards").innerHTML), Math.min(4, allBriefingCount));
+  assert.strictEqual(articleCount(elements.get("briefingMoreCards").innerHTML), Math.max(0, allBriefingCount - 4));
+  assert.strictEqual(briefingMoreElement.hidden, allBriefingCount <= 4);
+  assert.strictEqual(Number(elements.get("briefingVisibleCount").textContent.replace(/,/g, "")), Math.min(4, allBriefingCount));
+
+  briefingRadios.forEach((radio) => { radio.checked = radio.value === "ai"; });
+  await briefingRadios.find((radio) => radio.value === "ai").dispatch("change");
+  const expectedAiCards = (livePayload.briefing.items || []).filter((item) => item.topicKey === "ai-bubble").length;
+  assert.strictEqual(articleCount(elements.get("briefingPrimaryCards").innerHTML), Math.min(4, expectedAiCards));
+  assert.strictEqual(articleCount(elements.get("briefingMoreCards").innerHTML), Math.max(0, expectedAiCards - 4));
+  assert.strictEqual(briefingMoreElement.hidden, expectedAiCards <= 4);
+  assert.strictEqual(Number(elements.get("briefingVisibleCount").textContent.replace(/,/g, "")), Math.min(4, expectedAiCards));
+
+  briefingRadios.forEach((radio) => { radio.checked = radio.value === "fx-rates"; });
+  await briefingRadios.find((radio) => radio.value === "fx-rates").dispatch("change");
+  const expectedFxCards = (livePayload.briefing.items || []).filter((item) => item.topicKey === "fx-rates").length;
+  assert.strictEqual(articleCount(elements.get("briefingPrimaryCards").innerHTML), Math.min(4, expectedFxCards));
+  assert.strictEqual(articleCount(elements.get("briefingMoreCards").innerHTML), Math.max(0, expectedFxCards - 4));
+  assert.strictEqual(briefingMoreElement.hidden, expectedFxCards <= 4);
+  assert.strictEqual(Number(elements.get("briefingVisibleCount").textContent.replace(/,/g, "")), Math.min(4, expectedFxCards));
+  briefingMoreElement.open = true;
+  await briefingMoreElement.dispatch("toggle");
+  assert.strictEqual(Number(elements.get("briefingVisibleCount").textContent.replace(/,/g, "")), expectedFxCards);
+  assert.ok(elements.get("briefingFilterStatus").textContent.includes(String(expectedFxCards)));
   assert.notStrictEqual(elements.get("japanTransmissionStatus").textContent, "計算中");
   assert.notStrictEqual(elements.get("nikkeiZone").textContent, "―");
   assert.match(elements.get("companyRows").innerHTML, /トヨタ自動車/);
