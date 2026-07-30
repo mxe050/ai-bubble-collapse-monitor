@@ -658,6 +658,68 @@
     byId("transmissionJapanBreadth").textContent = formatPercent(transmission.japanBreadth, false);
   }
 
+  function renderDailySummary(evidence, gates, bubble, transmission) {
+    var list = byId("dailySummaryList");
+    var lead = byId("dailySummaryLead");
+    if (!list || !lead) return;
+    var market = state.data.market || {};
+    var series = market.series || {};
+    var usRisk = market.usBubbleRisk || {};
+    var sakakibara = market.sakakibaraAnalysis || {};
+    var marketPath = sakakibara.marketPath || {};
+    var kioxia = sakakibara.kioxiaCase || {};
+    var calm = kioxia.calmValuation || {};
+    var macro = state.data.macro || {};
+    var highYield = macro.highYieldOas || {};
+    var financial = macro.financialConditions || {};
+    var marginLatest = (state.marginDebt || {}).latest || {};
+    var globalModels = (state.globalComparison || {}).theoreticalModels || {};
+    var spModel = globalModels.sp500 || {};
+    var nikkeiModel = globalModels.nikkei225 || {};
+    var sp500 = series.SP500 || {};
+    var sox = series.SOX || {};
+    var nikkei = series.NIKKEI || {};
+    var vix = series.VIX || {};
+    var aiBasket = market.aiBasket || {};
+    var revenueGrowth = finite((state.data.derived || {}).medianLatestQuarterRevenueGrowthYoYPct);
+    var fcfDeterioration = finite((state.data.derived || {}).fcfDeteriorationBreadthPct);
+    var vixLevel = finite(vix.close);
+    var oasLevel = finite(highYield.valuePct);
+    var nfciLevel = finite(financial.value);
+    var fundamentalStress = (revenueGrowth !== null && revenueGrowth <= 0) || (fcfDeterioration !== null && fcfDeterioration >= 60);
+    var creditPanic = (vixLevel !== null && vixLevel >= 40) || (oasLevel !== null && oasLevel >= 5) || (nfciLevel !== null && nfciLevel >= 0.5);
+    var systemicPanic = gates.collapseName === "米国AI相場の崩壊を確認" || finite(usRisk.score) >= 60 || creditPanic;
+    var leadConclusion = systemicPanic
+      ? "価格、企業実体、信用市場へ悪化が広がっており、市場全体の崩壊を強く警戒する段階です。"
+      : "AI・半導体の評価上乗せは大きく、同分野の価格調整と日本の集中解消は進んでいます。一方、米国の広範な企業業績と信用市場まで同時に崩れた状態は確認できず、現状は「バブル的な期待は残るが、市場全体のパニック崩壊は未確認」です。";
+    lead.textContent = (state.data.marketDate || "基準日未確認") + "時点。" + leadConclusion;
+
+    var spRiskText = finite(usRisk.score) === null
+      ? "崩壊進行度は未確認です。"
+      : "崩壊進行度は" + numberOne.format(usRisk.score) + "/100で「" + (usRisk.stageLabel || "段階未確認") + "」。S&P 500は3年高値から" + formatPercent(sp500.drawdown3yPct, false) + "下です。";
+    var fairText = (spModel.latest && nikkeiModel.latest)
+      ? "5年平準化利益モデルに対する上乗せは、S&P 500が" + formatPercent(spModel.latest.marketPremiumPct, true) + "、日経平均が" + formatPercent(nikkeiModel.latest.marketPremiumPct, true) + "です。モデル前提で変わる比較値です。"
+      : "理論価値モデルの最新値は未確認です。";
+    var kioxiaText = finite(calm.referencePriceJpy) === null
+      ? "直近2決算による冷静な評価基準は未確認です。"
+      : "キオクシアは最新終値" + formatPrice(kioxia.close, "JPY") + "に対し、直近2決算だけを使う中心値は" + formatPrice(calm.referencePriceJpy, "JPY") + "、感度幅は" + formatPrice(calm.sensitivityLowPriceJpy, "JPY") + "～" + formatPrice(calm.sensitivityHighPriceJpy, "JPY") + "です。売買目標ではありません。";
+    var items = [
+      { label: "総合判定", text: bubble.name + "。" + gates.collapseName + "。高評価と崩壊確認は別々に判定しています。" },
+      { label: "米国市場全体", text: spRiskText },
+      { label: "半導体・AI株", text: "SOXは高値から" + formatPercent(sox.drawdown3yPct, false) + "下落。海外AI 10社の最大下落率中央値は" + formatPercent(aiBasket.medianDrawdown3yPct, false) + "、200日線割れは" + formatPercent(aiBasket.breadthBelowSma200Pct, false) + "です。" },
+      { label: "企業の実体", text: "監視AI企業の売上成長率中央値は" + formatPercent(revenueGrowth, true) + "、FCF悪化企業は" + formatPercent(fcfDeterioration, false) + "です。" + (fundamentalStress ? "企業実体にも悪化が広がっているため、価格だけの調整とはみなしません。" : "現時点では、価格下落が監視企業全体の業績崩壊へ広がったとはまだ言えません。") },
+      { label: "恐怖・信用市場", text: "VIXは" + (vixLevel === null ? "未確認" : numberOne.format(vixLevel)) + "、米国HY OASは" + formatPercent(oasLevel, false) + "、NFCIは" + (nfciLevel === null ? "未確認" : numberTwo.format(nfciLevel)) + "です。" + (creditPanic ? "少なくとも1指標が警戒線に達しており、信用収縮を伴うパニックを警戒します。" : "3指標を合わせると、信用収縮を伴うパニックは未確認です。") },
+      { label: "強制売りの燃料", text: "信用買い残÷GDPは" + formatPercent(marginLatest.marginDebtToGdpPct, false) + "、2010年以降の" + (finite(marginLatest.ratioPercentileSince2010Pct) === null ? "順位未確認" : numberOne.format(marginLatest.ratioPercentileSince2010Pct) + "パーセンタイル") + "です。燃料の多さは警戒材料ですが、暴落開始の証明ではありません。" },
+      { label: "日本への波及", text: "日経平均は2026年高値から" + formatPercent(nikkei.drawdownFrom2026HighPct, false) + "下落。波及判定は「" + transmission.status + "」で、米国AI株だけの調整と日本全体の崩れを分けて見ています。" },
+      { label: "集中相場の揺り戻し", text: "NT倍率は直近ピークから" + formatPercent((sakakibara.ntRatio || {}).declineFromPeakPct, false) + "低下し、確認条件は" + (sakakibara.confirmationCount || 0) + "/" + (sakakibara.confirmationMax || 4) + "。現在の経路判定は「" + (marketPath.label || "未判定") + "」です。" },
+      { label: "市場価格と実体価値", text: fairText },
+      { label: "個別例・キオクシア", text: kioxiaText },
+    ];
+    list.innerHTML = items.map(function (item) {
+      return "<li><strong>" + escapeHtml(item.label) + "</strong><span>" + escapeHtml(item.text) + "</span></li>";
+    }).join("");
+  }
+
   function renderTop(evidence, gates, bubble) {
     byId("bubbleRegime").textContent = bubble.name;
     byId("bubbleReason").textContent = bubble.reason;
@@ -1731,6 +1793,30 @@
     byId("sakKioxiaFall").textContent = "高値から −" + formatPercent(kioxia.drawdownFrom2026HighPct, false);
     byId("sakKioxiaInterpretation").textContent = "3月31日の日中安値" + formatPrice(kioxia.articleStartLow, "JPY") + "から6月22日の日中高値" + formatPrice(kioxia.peak2026, "JPY") + "まで" + formatPercent(kioxia.riseFromArticleStartToPeakPct, true) + "上昇し、その後は最新値まで" + formatPercent(kioxia.drawdownFrom2026HighPct, false) + "下落しました。短期間の急騰と急落は期待の過熱・剥落と整合しますが、1社の事例だけで市場全体のバブル崩壊を証明するものではありません。";
 
+    var calm = kioxia.calmValuation || {};
+    var calmReports = calm.reports || [];
+    var q3Report = calmReports[0] || {};
+    var fyReport = calmReports[1] || {};
+    byId("sakKioxiaQ3Growth").textContent = formatPercent(q3Report.revenueGrowthYoYPct, true);
+    byId("sakKioxiaQ3Period").textContent = q3Report.periodLabel ? q3Report.periodLabel + "・" + (q3Report.releaseDate || "公表日未確認") : "未確認";
+    byId("sakKioxiaFyGrowth").textContent = formatPercent(fyReport.revenueGrowthYoYPct, true);
+    byId("sakKioxiaFyPeriod").textContent = fyReport.periodLabel ? fyReport.periodLabel + "・" + (fyReport.releaseDate || "公表日未確認") : "未確認";
+    byId("sakKioxiaGrowthAssumption").textContent = formatPercent(calm.growthExpectationPct, true);
+    byId("sakKioxiaNormalizedMargin").textContent = formatPercent(calm.referenceNetMarginPct, false);
+    byId("sakKioxiaShares").textContent = finite(calm.sharesOutstanding) === null ? "未確認" : nikkeiFormat.format(calm.sharesOutstanding) + "株";
+    byId("sakKioxiaCalmPrice").textContent = formatPrice(calm.referencePriceJpy, "JPY");
+    byId("sakKioxiaCalmRange").textContent = "PER " + (finite(calm.sensitivityPeLow) === null ? "―" : numberOne.format(calm.sensitivityPeLow)) + "～" + (finite(calm.sensitivityPeHigh) === null ? "―" : numberOne.format(calm.sensitivityPeHigh)) + "倍: " + formatPrice(calm.sensitivityLowPriceJpy, "JPY") + "～" + formatPrice(calm.sensitivityHighPriceJpy, "JPY");
+    byId("sakKioxiaCalmFormula").textContent = finite(calm.referencePriceJpy) === null
+      ? "必要な決算入力を確認できませんでした。"
+      : "計算: 通期売上" + numberTwo.format(calm.latestRevenueJpyMillions / 1000000) + "兆円 × (1 + " + numberOne.format(calm.growthExpectationPct) + "%) × 据え置き利益率" + numberTwo.format(calm.referenceNetMarginPct) + "% × PER " + numberOne.format(calm.referencePe) + "倍 ÷ " + nikkeiFormat.format(calm.sharesOutstanding) + "株 = " + formatPrice(calm.referencePriceJpy, "JPY") + "。予想売上は" + numberTwo.format(calm.forecastRevenueJpyMillions / 1000000) + "兆円、予想利益は" + numberTwo.format(calm.forecastProfitJpyMillions / 100) + "億円です。";
+    var currentMultiple = finite(calm.currentPriceMultiple);
+    byId("sakKioxiaCalmGap").textContent = currentMultiple === null
+      ? "現在値との差は未確認です。"
+      : "最新終値" + formatPrice(kioxia.close, "JPY") + "は中心値の約" + numberTwo.format(currentMultiple) + "倍（中心値比" + formatPercent(calm.currentPremiumToReferencePct, true) + "）。株価がこの差を維持するには、売上成長、利益率、評価倍率のいずれかが本モデルより高く続く必要があります。";
+    byId("sakKioxiaCalmInterpretation").textContent = calm.interpretation || "この中心値は売買推奨、目標株価、底値予測ではありません。";
+    if (q3Report.sourceUrl) byId("sakKioxiaQ3Source").href = q3Report.sourceUrl;
+    if (fyReport.sourceUrl) byId("sakKioxiaFySource").href = fyReport.sourceUrl;
+
     renderNtRatioChart(analysis);
     renderSakakibaraFairValue(analysis);
     renderSakakibaraMarketPath(analysis);
@@ -2185,7 +2271,7 @@
       postwar: { min: 1950, max: 2028.99 },
       modern: { min: 1990, max: 2028.99 },
       current: { min: 2020, max: 2028.99 },
-      cycle: { min: 2026.50, max: 2028.88 },
+      cycle: { min: 2026.00, max: 2028.99 },
     };
     return ranges[state.moneyStrategistRange] || ranges.all;
   }
@@ -2500,8 +2586,15 @@
             ticks: {
               color: "#526876",
               font: { size: 12, weight: "600" },
-              maxTicksLimit: state.moneyStrategistRange === "cycle" ? 12 : state.moneyStrategistRange === "current" ? 10 : 14,
-              callback: function (value) { return Math.round(value); },
+              maxTicksLimit: state.moneyStrategistRange === "cycle" ? 7 : state.moneyStrategistRange === "current" ? 10 : 14,
+              stepSize: state.moneyStrategistRange === "cycle" ? 0.5 : undefined,
+              callback: function (value) {
+                if (state.moneyStrategistRange === "cycle") {
+                  var year = Math.round(value);
+                  return Math.abs(Number(value) - year) < 0.01 ? String(year) : "";
+                }
+                return Math.round(value);
+              },
             },
             title: { display: true, text: "年", color: "#536675", font: { size: 13, weight: "700" } },
           },
@@ -3188,6 +3281,7 @@
     renderMetadata();
     renderMarketSummary();
     renderTop(evidence, gates, bubble);
+    renderDailySummary(evidence, gates, bubble, transmission);
     renderSignals(evidence);
     renderGates(gates);
     renderJapanTransmission(transmission);
@@ -3313,7 +3407,7 @@
 
     var sectionLabels = {
       "market-summary": "本日のマーケット",
-      "beginner-guide": "案内・用語",
+      "beginner-guide": "本日のまとめ",
       "today": "今日の判定",
       "purchasing-power": "購買力で比較",
       "decision-path": "価値・過熱の判断手順",

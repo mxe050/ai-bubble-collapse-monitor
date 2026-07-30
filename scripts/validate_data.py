@@ -304,6 +304,29 @@ def main() -> None:
     expected_kioxia_drawdown = (1 - kioxia["close"] / kioxia["peak2026"]) * 100
     require(close_enough(kioxia["drawdownFrom2026HighPct"], expected_kioxia_drawdown), "Kioxia drawdown identity failed")
 
+    calm = kioxia.get("calmValuation") or {}
+    calm_reports = calm.get("reports") or []
+    require(calm.get("modelVersion") == "reported-growth-current-margin-earnings-v1", "Kioxia calm model version is missing")
+    require(len(calm_reports) == 2, "Kioxia calm model must use two reports")
+    require([row.get("releaseDate") for row in calm_reports] == ["2026-02-12", "2026-05-15"], "Kioxia report dates changed")
+    require(all(str(row.get("sourceUrl", "")).startswith("https://ssl4.eir-parts.net/doc/285A/") for row in calm_reports), "Kioxia official report URLs are missing")
+    expected_calm_growth = statistics.mean(row["revenueGrowthYoYPct"] for row in calm_reports)
+    require(close_enough(calm["growthExpectationPct"], expected_calm_growth), "Kioxia growth assumption identity failed")
+    expected_calm_margins = [
+        row["profitAttributableJpyMillions"] / row["revenueJpyMillions"] * 100
+        for row in calm_reports
+    ]
+    expected_calm_margin = expected_calm_margins[-1]
+    require(close_enough(calm["referenceNetMarginPct"], expected_calm_margin), "Kioxia reference margin identity failed")
+    expected_calm_revenue = calm_reports[-1]["revenueJpyMillions"] * (1 + expected_calm_growth / 100)
+    expected_calm_profit = expected_calm_revenue * expected_calm_margin / 100
+    expected_calm_price = expected_calm_profit * 1_000_000 * calm["referencePe"] / calm["sharesOutstanding"]
+    require(close_enough(calm["forecastRevenueJpyMillions"], expected_calm_revenue), "Kioxia forecast revenue identity failed")
+    require(close_enough(calm["forecastProfitJpyMillions"], expected_calm_profit), "Kioxia forecast profit identity failed")
+    require(close_enough(calm["referencePriceJpy"], expected_calm_price), "Kioxia calm price identity failed")
+    require(close_enough(calm["currentPriceMultiple"], kioxia["close"] / expected_calm_price), "Kioxia current multiple identity failed")
+    require(calm["sensitivityLowPriceJpy"] < calm["referencePriceJpy"] < calm["sensitivityHighPriceJpy"], "Kioxia sensitivity range is invalid")
+
     article = sakakibara.get("articleScenario") or {}
     require(article.get("asOfDate") == "2026-07-17", "article valuation date changed")
     require(close_enough(article["earningsFairValue"], article["eps"] * article["targetPe"]), "article earnings fair-value identity failed")
@@ -650,6 +673,13 @@ def main() -> None:
     require("market-summary.json" in app_source, "regional market-summary browser data load is missing")
     require('id="market-summary"' in index_source, "regional market-summary section is missing")
     require(index_source.index('id="market-summary"') < index_source.index('id="beginner-guide"'), "regional market-summary must be the first main section")
+    require("<h2 id=\"beginnerGuideHeading\">本日のまとめ</h2>" in index_source, "daily summary heading is missing")
+    require("id=\"dailySummaryList\"" in index_source, "daily summary list is missing")
+    require("function renderDailySummary" in app_source, "dynamic daily summary renderer is missing")
+    require("直近2回の決算だけでつくる「冷静な株価」" in index_source, "Kioxia calm valuation panel is missing")
+    require("sakKioxiaCalmFormula" in app_source, "Kioxia calm formula renderer is missing")
+    require("cycle: { min: 2026.00, max: 2028.99 }" in app_source, "2026-2028 chart must start at 2026")
+    require("参考資料の2026年7月18日付「市況展望」の着眼点を、別の日にも再現できるよう定量化しました。" not in index_source, "requested market-outlook sentence remains")
 
     from validate_global_comparison import validate_global_comparison
     validate_global_comparison()

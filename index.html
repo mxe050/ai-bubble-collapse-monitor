@@ -41,7 +41,7 @@
         <strong id="currentSectionLabel">本日のマーケット</strong>
       </div>
       <a href="#market-summary" data-track="market-summary">本日の市場</a>
-      <a href="#beginner-guide" data-track="beginner-guide">案内</a>
+      <a href="#beginner-guide" data-track="beginner-guide">本日のまとめ</a>
       <a href="#today" data-track="today">今日の判定</a>
       <a href="#global-comparison" data-track="purchasing-power,decision-path,global-comparison">価値・過熱</a>
       <a href="#us-japan-link" data-track="us-japan-link,sakakibara-method">日本への波及</a>
@@ -98,9 +98,13 @@
       <div class="content">
         <div class="section-heading">
           <p class="section-kicker">START HERE</p>
-          <h2 id="beginnerGuideHeading">初めての方へ：結論から読み、気になる数字の意味を後から確認する</h2>
-          <p>このアプリは、略語を知っている人だけの画面ではありません。まず今日の結論を読み、次に「なぜそう判断したか」、最後に計算根拠を見る順番にすると理解しやすくなります。略語は最初に日本語を併記し、詳しい意味は下の用語ガイドへまとめました。</p>
+          <h2 id="beginnerGuideHeading">本日のまとめ</h2>
+          <p id="dailySummaryLead">最新データから、評価の上乗せ、崩壊の広がり、信用市場、日本への波及をまとめています。</p>
         </div>
+
+        <ol id="dailySummaryList" class="daily-summary-list" aria-label="本日の解析結果10項目">
+          <li><strong>総合判定</strong><span>最新データを読み込んでいます。</span></li>
+        </ol>
 
         <div class="beginner-reading-path" aria-label="初心者向けの読む順番">
           <a href="#today">
@@ -814,7 +818,7 @@
         <div class="section-heading">
           <p class="section-kicker">SAKAKIBARA-STYLE ROTATION AUDIT</p>
           <h2>「資金循環モデル」：AI一極集中からの揺り戻しを、毎回同じ手順で確かめる</h2>
-          <p>参考資料の2026年7月18日付「市況展望」の着眼点を、別の日にも再現できるよう定量化しました。NT倍率の歪みだけで結論を出さず、日経平均とTOPIX、AI連動株と分散型株、銘柄の広がりを順番に確認します。</p>
+          <p>NT倍率の歪みだけで結論を出さず、日経平均とTOPIX、AI連動株と分散型株、銘柄の広がりを順番に確認します。</p>
           <p class="nt-definition-line"><strong>NT倍率は「日経平均÷TOPIX」です。</strong> 値が上がれば日経平均がTOPIXより強く、下がればTOPIXが日経平均より相対的に強いことを示します。</p>
         </div>
 
@@ -938,6 +942,34 @@
             <div class="current"><span id="sakKioxiaCurrentDate">7/17</span><strong id="sakKioxiaCurrent">―</strong><small id="sakKioxiaFall">高値から ―</small></div>
           </div>
           <p id="sakKioxiaInterpretation" class="case-interpretation">キオクシアの価格経路を計算しています。</p>
+          <div class="kioxia-calm-valuation">
+            <div class="kioxia-calm-heading">
+              <div>
+                <p class="section-kicker">REPORT-BASED CALM REFERENCE</p>
+                <h4>直近2回の決算だけでつくる「冷静な株価」</h4>
+                <p>AIの物語やアナリスト予想を足さず、会社が公表した売上成長、利益、株式数だけを土台にします。</p>
+              </div>
+              <div class="kioxia-calm-price">
+                <span>中心値</span>
+                <strong id="sakKioxiaCalmPrice">―</strong>
+                <small id="sakKioxiaCalmRange">感度幅 ―</small>
+              </div>
+            </div>
+            <div class="kioxia-calm-metrics">
+              <div><span>第3四半期累計の売上前年比</span><strong id="sakKioxiaQ3Growth">―</strong><small id="sakKioxiaQ3Period">―</small></div>
+              <div><span>通期の売上前年比</span><strong id="sakKioxiaFyGrowth">―</strong><small id="sakKioxiaFyPeriod">―</small></div>
+              <div><span>採用した期待成長率</span><strong id="sakKioxiaGrowthAssumption">―</strong><small>2回の公表伸び率の単純平均</small></div>
+              <div><span>据え置く親会社帰属利益率</span><strong id="sakKioxiaNormalizedMargin">―</strong><small>最新通期の実績を改善させない</small></div>
+              <div><span>期末発行済株式数</span><strong id="sakKioxiaShares">―</strong><small>自己株式を含む会社公表値</small></div>
+            </div>
+            <p id="sakKioxiaCalmFormula" class="kioxia-calm-formula">計算式を確認しています。</p>
+            <p id="sakKioxiaCalmGap" class="kioxia-calm-gap">現在値との差を計算しています。</p>
+            <p id="sakKioxiaCalmInterpretation" class="kioxia-calm-interpretation">前提と限界を確認しています。</p>
+            <div class="kioxia-calm-sources">
+              <a id="sakKioxiaQ3Source" href="#" target="_blank" rel="noopener">2026年3月期 第3四半期決算短信</a>
+              <a id="sakKioxiaFySource" href="#" target="_blank" rel="noopener">2026年3月期 決算短信</a>
+            </div>
+          </div>
         </div>
 
         <div class="sakakibara-fair-value">

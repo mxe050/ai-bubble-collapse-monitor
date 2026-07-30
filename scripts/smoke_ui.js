@@ -61,6 +61,11 @@ assert.match(appSource, /type: "linear",\s*beginAtZero: true/);
 assert.match(appSource, /米国株の名目価格指数（実数、配当なし）/);
 assert.match(appSource, /yCpi/);
 assert.match(indexSource, /米国CPI-Uは橙/);
+assert.match(indexSource, /<h2 id="beginnerGuideHeading">本日のまとめ<\/h2>/);
+assert.match(indexSource, /id="dailySummaryList"/);
+assert.match(indexSource, /直近2回の決算だけでつくる「冷静な株価」/);
+assert.doesNotMatch(indexSource, /参考資料の2026年7月18日付「市況展望」の着眼点を、別の日にも再現できるよう定量化しました。/);
+assert.match(appSource, /cycle: \{ min: 2026\.00, max: 2028\.99 \}/);
 assert.match(indexSource, /CPI 333.952は、平均価格333.952ドルという意味ではありません/);
 assert.match(indexSource, /data-ms-range="cycle"/);
 assert.match(indexSource, /次回大統領選までの「値動きを確認する日」/);
@@ -158,6 +163,11 @@ const snapshotButtons = [1, 7, 30].map((value) => {
   element.dataset.compareDays = String(value);
   return element;
 });
+const moneyRangeButtons = ["all", "postwar", "modern", "current", "cycle"].map((value) => {
+  const element = new FakeElement();
+  element.dataset.msRange = value;
+  return element;
+});
 
 global.document = {
   documentElement: new FakeElement("root"),
@@ -165,6 +175,7 @@ global.document = {
   querySelectorAll(selector) {
     if (selector === ".company-filter-button") return filters;
     if (selector === ".snapshot-compare-button") return snapshotButtons;
+    if (selector === ".ms-range-button") return moneyRangeButtons;
     if (selector === 'input[name="nikkeiScenario"]') return scenarios;
     return [];
   },
@@ -193,6 +204,7 @@ global.localStorage = {
 const payload = JSON.parse(fs.readFileSync("data/latest.json", "utf8"));
 const moneyPayload = JSON.parse(fs.readFileSync("data/money-strategist-history.json", "utf8"));
 const marginPayload = JSON.parse(fs.readFileSync("data/margin-debt-history.json", "utf8"));
+const globalComparisonPayload = JSON.parse(fs.readFileSync("data/global-market-value-comparison.json", "utf8"));
 const snapshotIndexPayload = JSON.parse(fs.readFileSync("data/history/index.json", "utf8"));
 const marketSummaryPayload = JSON.parse(fs.readFileSync("data/market-summary.json", "utf8"));
 const snapshotPayloads = Object.fromEntries((snapshotIndexPayload.snapshots || []).map((entry) => [
@@ -210,6 +222,7 @@ global.fetch = async (url) => ({
     if (snapshotMatch && snapshotPayloads[snapshotMatch[1]]) return snapshotPayloads[snapshotMatch[1]];
     if (requested.includes("money-strategist-history")) return moneyPayload;
     if (requested.includes("margin-debt-history")) return marginPayload;
+    if (requested.includes("global-market-value-comparison")) return globalComparisonPayload;
     return payload;
   },
 });
@@ -220,6 +233,10 @@ setTimeout(async () => {
   if (elements.get("dataHealth").textContent === "読込失敗") console.error("UI load error:", elements.get("uncertaintySummary").textContent);
   assert.notStrictEqual(elements.get("dataHealth").textContent, "読込失敗");
   assert.notStrictEqual(elements.get("headlineConclusion").textContent, "");
+  assert.match(elements.get("dailySummaryLead").textContent, /パニック崩壊は未確認/);
+  assert.strictEqual((elements.get("dailySummaryList").innerHTML.match(/<li>/g) || []).length, 10);
+  assert.match(elements.get("dailySummaryList").innerHTML, /S&amp;P 500|S&P 500/);
+  assert.match(elements.get("dailySummaryList").innerHTML, /キオクシア/);
   assert.match(elements.get("regionalMarketCards").innerHTML, /日本/);
   assert.match(elements.get("regionalMarketCards").innerHTML, /EU・欧州/);
   assert.match(elements.get("regionalMarketCards").innerHTML, /オールカントリー/);
@@ -235,6 +252,13 @@ setTimeout(async () => {
   assert.notStrictEqual(elements.get("sakakibaraStage").textContent, "計算中");
   assert.match(elements.get("sakakibaraNtLatest").textContent, /倍/);
   assert.match(elements.get("sakFairRange").textContent, /円/);
+  assert.match(elements.get("sakKioxiaCalmPrice").textContent, /￥17,911/);
+  assert.match(elements.get("sakKioxiaCalmRange").textContent, /￥14,329.*￥21,494/);
+  assert.match(elements.get("sakKioxiaCalmFormula").textContent, /2\.34兆円/);
+  assert.match(elements.get("sakKioxiaCalmGap").textContent, /約2\.21倍/);
+  assert.match(elements.get("sakKioxiaCalmInterpretation").textContent, /目標株価、底値ではありません/);
+  assert.match(elements.get("sakKioxiaQ3Source").href, /2757397/);
+  assert.match(elements.get("sakKioxiaFySource").href, /2815552/);
   assert.match(elements.get("enAiProxyRows").innerHTML, /トヨタ自動車/);
   assert.match(elements.get("enAiProxyInterpretation").textContent, /代理上位/);
   assert.match(elements.get("marketPathLabel").textContent, /正常化|パニック|分岐|歪み/);
@@ -259,6 +283,11 @@ setTimeout(async () => {
   assert.match(elements.get("msRealStockMultiple").textContent, /倍/);
   assert.match(elements.get("msCalendarSummary").innerHTML, /2026年/);
   assert.match(elements.get("msCalendarSummary").innerHTML, /2028年/);
+  await moneyRangeButtons.find((button) => button.dataset.msRange === "cycle").click();
+  const cycleChart = [...renderedCharts].reverse().find((chart) => chart.target.id === "moneyStrategistChart");
+  assert.ok(cycleChart, "cycle chart should be constructed");
+  assert.strictEqual(cycleChart.config.options.scales.x.min, 2026);
+  assert.strictEqual(cycleChart.config.options.scales.x.ticks.callback(2026), "2026");
   assert.match(elements.get("marginDebtLatest").textContent, /兆/);
   assert.match(elements.get("marginDebtRatio").textContent, /%/);
   assert.match(elements.get("crashLensValuationStatus").textContent, /CAPE Ratio 41\.64/);
