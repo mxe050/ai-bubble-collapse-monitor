@@ -38,19 +38,62 @@
     <div class="nav-inner">
       <div class="nav-current-location">
         <span>現在地</span>
-        <strong id="currentSectionLabel">案内・用語</strong>
+        <strong id="currentSectionLabel">本日のマーケット</strong>
       </div>
+      <a href="#market-summary" data-track="market-summary">本日の市場</a>
       <a href="#beginner-guide" data-track="beginner-guide">案内</a>
-      <a href="#today" data-track="today,decision-path">今日の判定</a>
-      <a href="#global-comparison" data-track="purchasing-power,global-comparison,money-strategist,valuation">過熱度</a>
-      <a href="#margin-leverage" data-track="margin-leverage,signals">暴落確認</a>
-      <a href="#us-japan-link" data-track="us-japan-link,sakakibara-method,history">米国から日本</a>
+      <a href="#today" data-track="today">今日の判定</a>
+      <a href="#global-comparison" data-track="purchasing-power,decision-path,global-comparison">価値・過熱</a>
+      <a href="#us-japan-link" data-track="us-japan-link,sakakibara-method">日本への波及</a>
+      <a href="#money-strategist" data-track="money-strategist,margin-leverage,signals">暴落確認</a>
       <a href="#nikkei-bottom" data-track="nikkei-bottom">底値・反転</a>
-      <a href="#methodology" data-track="manual-inputs,methodology,sources">根拠・データ</a>
+      <a href="#valuation" data-track="valuation">企業価値</a>
+      <a href="#methodology" data-track="manual-inputs,history,methodology,sources">根拠・データ</a>
     </div>
   </nav>
 
   <main>
+    <section id="market-summary" class="band band-market-summary" aria-labelledby="marketSummaryHeading">
+      <div class="content">
+        <div class="section-heading heading-row market-summary-heading">
+          <div>
+            <p class="section-kicker">TODAY'S MARKET SUMMARY</p>
+            <h2 id="marketSummaryHeading">本日のマーケットサマリー</h2>
+            <p>日本、米国、欧州、中国、世界全体を、株・為替・金利・政策／政治に分けて見ます。値動きと政策材料を混ぜず、各項目の基準日も個別に表示します。</p>
+          </div>
+          <div class="market-summary-stamp">
+            <span id="marketSummaryStatus" class="status-dot">読込中</span>
+            <span>数値更新 <strong id="marketSummaryDataAsOf">―</strong></span>
+            <span>政策確認 <strong id="marketSummaryPolicyAsOf">―</strong></span>
+          </div>
+        </div>
+
+        <div class="market-summary-overview">
+          <span>全体像</span>
+          <strong id="marketSummaryHeadline">最新の世界市場を確認しています。</strong>
+        </div>
+
+        <div class="market-summary-guide">
+          <strong>読み方</strong>
+          <span><b>株</b> 前日からの市場の方向</span>
+          <span><b>為替</b> 通貨ペアの上下</span>
+          <span><b>金利</b> 資金調達環境</span>
+          <span><b>政策・政治</b> 値動きの背景になり得る確認事項</span>
+        </div>
+
+        <div id="regionalMarketCards" class="regional-market-grid" aria-live="polite">
+          <article class="regional-market-card is-loading">
+            <p>最新の地域別データを読み込んでいます。</p>
+          </article>
+        </div>
+
+        <div class="market-summary-footnote">
+          <p id="marketSummaryNote">株・為替は取引日の終値、金利は各公表機関の最新観測値です。休場日や公表頻度により日付がそろわない場合があります。</p>
+          <a href="#today">このアプリ独自の「割高・崩壊・底値」判定へ進む</a>
+        </div>
+      </div>
+    </section>
+
     <section id="beginner-guide" class="band band-beginner-guide" aria-labelledby="beginnerGuideHeading">
       <div class="content">
         <div class="section-heading">
@@ -82,6 +125,9 @@
           </a>
         </div>
 
+        <details class="beginner-disclosure">
+          <summary><span>ページ全体の案内を見る</span><small>知りたい問いから該当する章へ移動できます</small></summary>
+          <div class="beginner-disclosure-body">
         <div class="site-atlas" aria-labelledby="siteAtlasHeading">
           <div class="site-atlas-heading">
             <div>
@@ -130,29 +176,12 @@
             </article>
           </div>
         </div>
-
-        <div class="cape-capex-primer" aria-labelledby="capeCapexHeading">
-          <div class="cape-capex-primer-heading">
-            <p class="section-kicker">SIMILAR SPELLING, DIFFERENT MEANING</p>
-            <h3 id="capeCapexHeading">最初に区別する：CAPE RatioとCapExは、まったく別の数字</h3>
           </div>
-          <div class="cape-capex-grid">
-            <article>
-              <span>株価が長期利益に比べて高いか</span>
-              <strong><abbr title="Cyclically Adjusted Price-to-Earnings Ratio">CAPE Ratio</abbr></strong>
-              <small>景気循環調整後の株価収益率</small>
-              <p>株価を、過去10年の利益を物価調整して平均した値で割ります。通常のPERより一時的な好況・不況の影響を弱め、長期的な割高・割安を比べるための指標です。高くても、暴落時期までは決まりません。</p>
-            </article>
-            <div class="cape-capex-not-equal" aria-label="同じではない">≠</div>
-            <article>
-              <span>会社が将来の設備へ使ったお金</span>
-              <strong><abbr title="Capital Expenditure">CapEx</abbr></strong>
-              <small>設備投資額</small>
-              <p>工場、製造装置、データセンター、サーバーなど、長く使う資産への支出です。AI需要への自信を示すことがありますが、増えすぎると投資回収やフリーキャッシュフローを圧迫することもあります。</p>
-            </article>
-          </div>
-        </div>
+        </details>
 
+        <details class="beginner-disclosure">
+          <summary><span>略語・専門用語の一覧を見る</span><small>CAPE、CapEx、PER、EPS、VIXなど</small></summary>
+          <div class="beginner-disclosure-body">
         <div id="glossary" class="beginner-glossary" aria-labelledby="glossaryHeading">
           <div class="beginner-glossary-heading">
             <div>
@@ -235,6 +264,8 @@
             </dl>
           </details>
         </div>
+          </div>
+        </details>
       </div>
     </section>
 
@@ -249,29 +280,6 @@
             <span id="dataHealth" class="status-dot">読込中</span>
             <span>市場基準日 <strong id="marketDate">―</strong></span>
             <span>最終更新（JST・日本標準時） <strong id="generatedAt">―</strong></span>
-          </div>
-        </div>
-
-        <div class="snapshot-compare" aria-labelledby="snapshotCompareTitle">
-          <div class="snapshot-compare-heading">
-            <div>
-              <p class="label">更新前の状況を残して比較</p>
-              <h3 id="snapshotCompareTitle">昨日・1週間前・1か月前と何が変わったか</h3>
-              <p id="snapshotAvailability">保存済みの日次スナップショットを確認しています。</p>
-            </div>
-            <div class="snapshot-compare-buttons" role="group" aria-label="過去との比較期間">
-              <button class="snapshot-compare-button" type="button" data-compare-days="1" aria-pressed="false">昨日との比較</button>
-              <button class="snapshot-compare-button" type="button" data-compare-days="7" aria-pressed="false">1週間前との比較</button>
-              <button class="snapshot-compare-button" type="button" data-compare-days="30" aria-pressed="false">1か月前との比較</button>
-            </div>
-          </div>
-          <div id="snapshotComparison" class="snapshot-comparison-panel" hidden>
-            <div class="snapshot-comparison-title">
-              <strong id="snapshotComparisonHeading">比較データを選択してください</strong>
-              <span id="snapshotComparisonDates"></span>
-            </div>
-            <div id="snapshotComparisonGrid" class="snapshot-comparison-grid"></div>
-            <p id="snapshotComparisonNote" class="snapshot-comparison-note"></p>
           </div>
         </div>
 
@@ -323,6 +331,29 @@
 
         <div class="hypothesis-note">
           <strong>このアプリでいうバブル：</strong>株価が将来の成長を織り込むこと自体は正常です。企業が十分に発展しても説明しにくい水準まで期待が上乗せされ、その期待を支える価格・利益・信用の条件が崩れ始めた状態を「バブル崩壊」と考えます。信用買い残は下落を増幅する燃料として別に確認し、高値やレバレッジの多さだけでは崩壊と判定しません。
+        </div>
+
+        <div class="snapshot-compare" aria-labelledby="snapshotCompareTitle">
+          <div class="snapshot-compare-heading">
+            <div>
+              <p class="label">現在の判定を見た後で比較</p>
+              <h3 id="snapshotCompareTitle">昨日・1週間前・1か月前と何が変わったか</h3>
+              <p id="snapshotAvailability">保存済みの日次スナップショットを確認しています。</p>
+            </div>
+            <div class="snapshot-compare-buttons" role="group" aria-label="過去との比較期間">
+              <button class="snapshot-compare-button" type="button" data-compare-days="1" aria-pressed="false">昨日との比較</button>
+              <button class="snapshot-compare-button" type="button" data-compare-days="7" aria-pressed="false">1週間前との比較</button>
+              <button class="snapshot-compare-button" type="button" data-compare-days="30" aria-pressed="false">1か月前との比較</button>
+            </div>
+          </div>
+          <div id="snapshotComparison" class="snapshot-comparison-panel" hidden>
+            <div class="snapshot-comparison-title">
+              <strong id="snapshotComparisonHeading">比較データを選択してください</strong>
+              <span id="snapshotComparisonDates"></span>
+            </div>
+            <div id="snapshotComparisonGrid" class="snapshot-comparison-grid"></div>
+            <p id="snapshotComparisonNote" class="snapshot-comparison-note"></p>
+          </div>
         </div>
       </div>
     </section>
@@ -1197,7 +1228,7 @@
               <span>崩れやすさの背景</span>
               <div><strong id="usCape">―</strong><small>Shiller CAPE（10年実質利益基準）</small></div>
               <div><strong id="usConcentration">―</strong><small>S&amp;P上位10社比率</small></div>
-              <p>評価と集中は「壊れやすさ」を示しますが、日付を決めません。進行度とは分けて読みます。</p>
+              <p><strong>CAPE Ratio（景気循環調整後の株価収益率）</strong>は、株価を過去10年の物価調整後利益の平均で割った長期評価倍率です。高いほど割高とは言えますが、暴落日を示す数字ではありません。設備投資額を表すCapExとは別物です。</p>
             </div>
           </div>
 
@@ -1878,7 +1909,7 @@
               <div class="crash-lens-label"><span>04</span><strong>市場確認</strong></div>
               <h4>期待の剥落が、広い売りと信用不安へ変わる</h4>
               <b id="crashLensConfirmationStatus">3ゲートと80点を計算中</b>
-              <p>SOXの持続的下落、利益・FCF・CapExの悪化、VIXと米国HY OASの上昇、市場の広がりを確認します。ここがそろって初めて「高い」から「崩れた」へ進みます。</p>
+              <p>SOXの持続的下落、利益・FCF・設備投資（CapEx）の悪化、VIXと米国HY OASの上昇、市場の広がりを確認します。CapExは工場・半導体装置・データセンターなど、将来のために使う投資額です。ここがそろって初めて「高い」から「崩れた」へ進みます。</p>
               <a href="#gatePrice">3つの確認ゲートへ</a>
             </article>
           </div>
@@ -1901,7 +1932,7 @@
             <i data-lucide="chevron-right" class="flow-arrow" aria-hidden="true"></i>
             <article id="gateFundamental" class="gate-card">
               <span class="gate-number">B</span>
-              <div><strong>利益仮説の破綻</strong><p>EPS・FCFの下方修正、または複数社による設備投資削減を確認する。</p><span class="gate-result">判定中</span></div>
+              <div><strong>利益仮説の破綻</strong><p>1株利益（EPS）・自由に使える現金（FCF）の下方修正、または複数社による設備投資（CapEx）削減を確認する。</p><span class="gate-result">判定中</span></div>
             </article>
             <i data-lucide="chevron-right" class="flow-arrow" aria-hidden="true"></i>
             <article id="gateTransmission" class="gate-card">

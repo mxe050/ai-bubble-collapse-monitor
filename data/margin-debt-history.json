@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-07-22T07:23:13.200026+00:00",
+  "generatedAt": "2026-07-30T07:27:28.919728+00:00",
   "title": "U.S. Margin Debt / Nominal GDP",
   "definition": "Rule 4521(d)の報告対象となるFINRA会員会社が報告した顧客の証券信用取引口座の借方残高を、米国名目GDPの年率換算値で割った比率。一般個人だけの借入ではありません。",
   "latest": {
@@ -7315,66 +7315,66 @@
     {
       "date": "1968-06-01",
       "label": "ゴーゴー相場（Go-Go Years）の終盤",
-      "marginDebtToGdpPct": 0.716,
-      "marginDebtUsdMillions": 6690,
       "chartLabel": "1968|ゴーゴー相場終盤",
-      "description": "長い景気拡大と株高が続いた1960年代末の観測点。後の下落原因を一つに断定する名称ではありません。"
+      "description": "長い景気拡大と株高が続いた1960年代末の観測点。後の下落原因を一つに断定する名称ではありません。",
+      "marginDebtToGdpPct": 0.716,
+      "marginDebtUsdMillions": 6690
     },
     {
       "date": "1972-12-01",
       "label": "ニフティ・フィフティ相場の終盤",
-      "marginDebtToGdpPct": 0.5945,
-      "marginDebtUsdMillions": 7900,
       "chartLabel": "1972|ニフティ・フィフティ",
-      "description": "大型優良成長株へ人気が集中した相場の終盤。企業の質と、どの価格でも正当化できることは別だという歴史例です。"
+      "description": "大型優良成長株へ人気が集中した相場の終盤。企業の質と、どの価格でも正当化できることは別だという歴史例です。",
+      "marginDebtToGdpPct": 0.5945,
+      "marginDebtUsdMillions": 7900
     },
     {
       "date": "1987-08-01",
       "label": "ブラックマンデー直前の株高",
-      "marginDebtToGdpPct": 0.8525,
-      "marginDebtUsdMillions": 41640,
       "chartLabel": "1987|ブラックマンデー前",
-      "description": "1987年10月19日の急落前。8月までの急速な株高と、その後の市場構造を通じた下落増幅を分けて見ます。"
+      "description": "1987年10月19日の急落前。8月までの急速な株高と、その後の市場構造を通じた下落増幅を分けて見ます。",
+      "marginDebtToGdpPct": 0.8525,
+      "marginDebtUsdMillions": 41640
     },
     {
       "date": "2000-03-01",
       "label": "ITバブルの天井",
-      "marginDebtToGdpPct": 2.9987,
-      "marginDebtUsdMillions": 299933,
       "chartLabel": "2000|ITバブル天井",
-      "description": "インターネット企業への成長期待が極端に高まった局面。信用買い残の高さだけでなく、価格と利益の乖離が重要でした。"
+      "description": "インターネット企業への成長期待が極端に高まった局面。信用買い残の高さだけでなく、価格と利益の乖離が重要でした。",
+      "marginDebtToGdpPct": 2.9987,
+      "marginDebtUsdMillions": 299933
     },
     {
       "date": "2007-07-01",
       "label": "住宅・信用バブルの終盤",
-      "marginDebtToGdpPct": 2.8591,
-      "marginDebtUsdMillions": 416403,
       "chartLabel": "2007|住宅・信用バブル終盤",
-      "description": "住宅金融と証券化を中心とする信用拡大の終盤。株式信用口座以外の金融レバレッジが危機を深くした例です。"
+      "description": "住宅金融と証券化を中心とする信用拡大の終盤。株式信用口座以外の金融レバレッジが危機を深くした例です。",
+      "marginDebtToGdpPct": 2.8591,
+      "marginDebtUsdMillions": 416403
     },
     {
       "date": "2018-01-01",
       "label": "低ボラティリティ相場・VIXショック前",
-      "marginDebtToGdpPct": 3.2748,
-      "marginDebtUsdMillions": 665716,
       "chartLabel": "2018|低ボラ・VIX急騰前",
-      "description": "世界的な低変動相場の後、2018年2月にVIXが急騰し、低ボラティリティ戦略の巻き戻しが値動きを増幅しました。"
+      "description": "世界的な低変動相場の後、2018年2月にVIXが急騰し、低ボラティリティ戦略の巻き戻しが値動きを増幅しました。",
+      "marginDebtToGdpPct": 3.2748,
+      "marginDebtUsdMillions": 665716
     },
     {
       "date": "2021-08-01",
       "label": "コロナ後の流動性・ミーム株相場",
-      "marginDebtToGdpPct": 3.8009,
-      "marginDebtUsdMillions": 911545,
       "chartLabel": "2021|コロナ後流動性相場",
-      "description": "金融・財政支援後の豊富な流動性と個人取引の活発化が重なった局面。SECはミーム株の価格・出来高・空売りを検証しました。"
+      "description": "金融・財政支援後の豊富な流動性と個人取引の活発化が重なった局面。SECはミーム株の価格・出来高・空売りを検証しました。",
+      "marginDebtToGdpPct": 3.8009,
+      "marginDebtUsdMillions": 911545
     },
     {
       "date": "2026-06-01",
       "label": "AI・半導体集中相場（監視中）",
-      "marginDebtToGdpPct": 4.7138,
-      "marginDebtUsdMillions": 1502072,
       "chartLabel": "最新|AI・半導体集中相場",
-      "description": "AI需要と設備投資への期待が大型株・半導体株へ集中する現在の観測点。崩壊済みという名称ではありません。"
+      "description": "AI需要と設備投資への期待が大型株・半導体株へ集中する現在の観測点。崩壊済みという名称ではありません。",
+      "marginDebtToGdpPct": 4.7138,
+      "marginDebtUsdMillions": 1502072
     }
   ],
   "sourceRegimes": [
