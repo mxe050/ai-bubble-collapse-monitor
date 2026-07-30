@@ -4,6 +4,7 @@ const assert = require("assert");
 const payload = JSON.parse(fs.readFileSync("data/global-market-value-comparison.json", "utf8"));
 const html = fs.readFileSync("index.html", "utf8");
 const script = fs.readFileSync("global-comparison.js", "utf8");
+const styles = fs.readFileSync("styles.css", "utf8");
 
 assert.strictEqual(payload.seriesDefinitions.length, 6);
 assert.strictEqual(payload.seriesDefinitions.filter((row) => row.market === "S&P 500").length, 3);
@@ -53,7 +54,15 @@ assert.match(script, /state\.legendVisible\[definition\.id\] !== false/);
 assert.match(script, /normalizationAnchorField/);
 assert.match(script, /hideSp500Nominal/);
 assert.match(script, /showTheoreticalValue/);
-assert.match(script, /duration: 260/);
+assert.match(script, /function compactChartMode/);
+assert.match(script, /function chartAnimationDuration/);
+assert.match(script, /prefers-reduced-motion: reduce/);
+assert.match(script, /duration: chartAnimationDuration\(\)/);
+assert.match(script, /plugins: compact \?/);
+assert.match(script, /right: compact \? 8/);
+assert.match(styles, /2026 editorial refresh/);
+assert.match(styles, /\.gc-premium-chart-stage,[\s\S]*?\.gc-canvas-stage[\s\S]*?min-width: 0;/);
+assert.match(section, /狭い画面では画面幅に合わせて表示します/);
 assert.match(script, /beginAtZero: true/);
 assert.doesNotMatch(script, /logarithmic/);
 

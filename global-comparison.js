@@ -60,6 +60,14 @@
     });
   }
 
+  function compactChartMode() {
+    return window.matchMedia && window.matchMedia("(max-width: 699px)").matches;
+  }
+
+  function chartAnimationDuration() {
+    return window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches ? 0 : 260;
+  }
+
   function decimalYear(value) {
     var parts = String(value).slice(0, 10).split("-").map(Number);
     if (!parts[0] || !parts[1]) return null;
@@ -465,6 +473,7 @@
   function renderValuationChart(rows) {
     var canvas = byId("valuationExcessChart");
     if (!canvas || !rows.length) return;
+    var compact = compactChartMode();
     if (state.valuationChart) state.valuationChart.destroy();
     var proxy = state.payload.theoreticalModels
       && state.payload.theoreticalModels.nikkei225
@@ -503,13 +512,13 @@
     state.valuationChart = new window.Chart(canvas, {
       type: "line",
       data: { datasets: datasets },
-      plugins: [whiteBackgroundPlugin, premiumZonePlugin, crisisPlugin, futureWindowPlugin, premiumEndLabelPlugin],
+      plugins: compact ? [whiteBackgroundPlugin, premiumZonePlugin, crisisPlugin, futureWindowPlugin] : [whiteBackgroundPlugin, premiumZonePlugin, crisisPlugin, futureWindowPlugin, premiumEndLabelPlugin],
       options: {
         responsive: true,
         maintainAspectRatio: false,
-        animation: { duration: 260 },
+        animation: { duration: chartAnimationDuration() },
         interaction: { mode: "nearest", intersect: false, axis: "x" },
-        layout: { padding: { top: 8, right: window.innerWidth < 700 ? 92 : 126, bottom: 4, left: 4 } },
+        layout: { padding: { top: compact ? 2 : 8, right: compact ? 8 : 126, bottom: 4, left: compact ? 0 : 4 } },
         scales: {
           x: {
             type: "linear",
@@ -517,19 +526,19 @@
             max: chartMaxX(rows),
             grid: { display: false },
             ticks: { maxTicksLimit: window.innerWidth < 700 ? 6 : 11, callback: function (value) { return String(Math.round(value)); }, color: "#526476", font: { family: "Meiryo, sans-serif", size: window.innerWidth < 700 ? 11 : 13, weight: "700" } },
-            title: { display: true, text: "年（月次）", color: "#34475c", font: { weight: "700" } },
+            title: { display: !compact, text: "年（月次）", color: "#34475c", font: { weight: "700" } },
           },
           y: {
             type: "linear",
             beginAtZero: true,
             grid: { color: "rgba(71, 85, 105, 0.11)", lineWidth: 1 },
             ticks: { color: "#526476", callback: function (value) { return (value > 0 ? "+" : "") + formatNumber(value, 0) + "%"; }, font: { family: "Meiryo, sans-serif", size: window.innerWidth < 700 ? 11 : 13, weight: "700" } },
-            title: { display: true, text: "市場価格のモデル超過率", color: "#34475c", font: { weight: "800" } },
+            title: { display: !compact, text: "市場価格のモデル超過率", color: "#34475c", font: { weight: "800" } },
           },
         },
         plugins: {
-          title: { display: true, text: "市場価格は、企業利益と持続可能な成長で説明できる水準を何％上回るか", color: "#102033", font: { family: "Meiryo, sans-serif", size: window.innerWidth < 700 ? 14 : 18, weight: "800" }, padding: { bottom: 12 } },
-          legend: { position: "bottom", labels: { boxWidth: 48, boxHeight: 5, padding: 18, color: "#24384c", font: { family: "Meiryo, sans-serif", size: window.innerWidth < 700 ? 11 : 13, weight: "800" } } },
+          title: { display: !compact, text: "市場価格は、企業利益と持続可能な成長で説明できる水準を何％上回るか", color: "#102033", font: { family: "Meiryo, sans-serif", size: 18, weight: "800" }, padding: { bottom: 12 } },
+          legend: { position: "bottom", labels: { boxWidth: compact ? 26 : 48, boxHeight: 5, padding: compact ? 10 : 18, color: "#24384c", font: { family: "Meiryo, sans-serif", size: compact ? 10 : 13, weight: "800" } } },
           tooltip: {
             backgroundColor: "rgba(16, 32, 51, 0.96)",
             titleFont: { family: "Meiryo, sans-serif", weight: "700" },
@@ -624,18 +633,19 @@
     var rows = visibleRows();
     var canvas = byId("globalComparisonChart");
     if (!canvas || !rows.length) return;
+    var compact = compactChartMode();
     renderValuationChart(rows);
     if (state.chart) state.chart.destroy();
     state.chart = new window.Chart(canvas, {
       type: "line",
       data: { datasets: buildDatasets(rows) },
-      plugins: [whiteBackgroundPlugin, crisisPlugin, futureWindowPlugin, endLabelPlugin],
+      plugins: compact ? [whiteBackgroundPlugin, crisisPlugin, futureWindowPlugin] : [whiteBackgroundPlugin, crisisPlugin, futureWindowPlugin, endLabelPlugin],
       options: {
         responsive: true,
         maintainAspectRatio: false,
-        animation: { duration: 260 },
+        animation: { duration: chartAnimationDuration() },
         interaction: { mode: "nearest", intersect: false, axis: "x" },
-        layout: { padding: { top: 8, right: window.innerWidth < 700 ? 86 : 108, bottom: 4, left: 4 } },
+        layout: { padding: { top: compact ? 2 : 8, right: compact ? 8 : 108, bottom: 4, left: compact ? 0 : 4 } },
         scales: {
           x: {
             type: "linear",
@@ -648,7 +658,7 @@
               color: "#526476",
               font: { family: "Meiryo, sans-serif", size: window.innerWidth < 700 ? 11 : 13, weight: "700" },
             },
-            title: { display: true, text: "年（月次）", color: "#34475c", font: { weight: "700" } },
+            title: { display: !compact, text: "年（月次）", color: "#34475c", font: { weight: "700" } },
           },
           y: {
             type: "linear",
@@ -660,12 +670,12 @@
               callback: function (value) { return Number(value).toLocaleString("ja-JP"); },
               font: { family: "Meiryo, sans-serif", size: window.innerWidth < 700 ? 11 : 13, weight: "700" },
             },
-            title: { display: true, text: "基準日＝100（線形軸）", color: "#34475c", font: { weight: "700" } },
+            title: { display: !compact, text: "基準日＝100（線形軸）", color: "#34475c", font: { weight: "700" } },
           },
         },
         plugins: {
           title: {
-            display: true,
+            display: !compact,
             text: "S&P 500・日経平均：市場価格、実質価格、推計理論価値（線形軸）",
             color: "#102033",
             font: { family: "Meiryo, sans-serif", size: window.innerWidth < 700 ? 14 : 18, weight: "800" },
@@ -676,9 +686,9 @@
             position: "bottom",
             labels: {
               usePointStyle: false,
-              boxWidth: 48,
+              boxWidth: compact ? 26 : 48,
               boxHeight: 5,
-              padding: 18,
+              padding: compact ? 10 : 18,
               color: "#24384c",
               font: { family: "Meiryo, sans-serif", size: window.innerWidth < 700 ? 11 : 13, weight: "800" },
             },
