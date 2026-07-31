@@ -40,6 +40,9 @@
   var nikkeiFormat = new Intl.NumberFormat("ja-JP", { maximumFractionDigits: 0 });
   var moneyFormatters = {};
   var priceFormatters = {};
+  var LIVE_SNAPSHOT_REFRESH_INTERVAL_MS = 60000;
+  var fullDataLoadInFlight = false;
+  var liveSnapshotRefreshInFlight = false;
 
   var COMPANY_FILTERS = {
     all: { label: "全社", description: "海外AI10社と日本企業16社を、同じFCFストレステストで見比べます。" },
@@ -3531,7 +3534,9 @@
   function briefingFilterMatches(topic, sourceKind, filter) {
     if (!filter || filter === "all") return true;
     if (filter === "us") return topic === "us-stocks" || sourceKind === "official-us";
-    if (filter === "jp") return topic === "japan-stocks" || sourceKind === "official-japan";
+    if (filter === "jp") {
+      return topic === "japan-stocks" || sourceKind === "official-japan" || sourceKind === "official-company";
+    }
     if (filter === "ai") return topic === "ai-bubble";
     return topic === filter;
   }
@@ -3699,7 +3704,9 @@
       return "<li>" + liveSourceLink(link.url, label, "briefing-related-link")
         + "<small>" + escapeHtml(link.source || "情報源不明") + " / "
         + escapeHtml(verificationLabel(link.verification)) + " / "
-        + escapeHtml(briefingPublicationLabel(link)) + "</small></li>";
+        + escapeHtml(briefingPublicationLabel(link))
+        + (link.rankingEvidence === false ? " / 補助検索（順位証拠には不使用）" : "")
+        + "</small></li>";
     }).join("") + "</ul></div>";
   }
 
@@ -3716,6 +3723,21 @@
     var priority = finite(item.priorityScore);
     var independentSources = finite(item.independentSourceCount);
     var clusterSize = finite(item.clusterSize);
+    var rankingClusterSize = finite(item.rankingClusterSize);
+    var rankingClusterMarkup = rankingClusterSize !== null && clusterSize !== null && rankingClusterSize !== clusterSize
+      ? "<span><small>順位証拠クラスタ</small><strong>" + escapeHtml(nikkeiFormat.format(rankingClusterSize) + "件") + "</strong></span>"
+      : "";
+    var issuerMentions = finite(item.issuerNewsMentionCount);
+    var issuerNewsSources = finite(item.issuerIndependentNewsSourceCount);
+    var issuerBuzz = finite(item.issuerBuzzScore);
+    var issuerBuzzMarkup = sourceKind === "official-company"
+      ? "<span><small>全社共通検索の会社言及</small><strong>" + escapeHtml(issuerMentions === null ? "未算出" : nikkeiFormat.format(issuerMentions) + "件") + "</strong></span>"
+        + "<span><small>会社言及の独立配信元</small><strong>" + escapeHtml(issuerNewsSources === null ? "未算出" : nikkeiFormat.format(issuerNewsSources) + "件") + "</strong></span>"
+        + "<span><small>会社話題度</small><strong>" + escapeHtml(issuerBuzz === null ? "未算出" : nikkeiFormat.format(issuerBuzz) + "/12") + "</strong></span>"
+      : "";
+    var evidenceNote = sourceKind === "official-company"
+      ? "表示クラスタ件数は直接開ける関連記事を含みます。独立ソース数と順位証拠クラスタは、全社共通の一般ニュース・通信社記事だけで比較し、企業別の追加検索とSNS投稿は順位を自己強化しないよう除外しています。会社話題度も同じ原則で算出します。"
+      : "独立ソース数は発信元の異なる報道・一次資料を数え、クラスタ件数は転載や同内容の記事を含み得ます。";
     var copy = briefingCopy(item);
     var freshness = briefingFreshness(item);
     var originalTitle = copy.originalTitle || "Original headline unavailable";
@@ -3752,8 +3774,10 @@
       + "<div class=\"briefing-evidence-stats\"><span><small>独立ソース</small><strong>"
       + escapeHtml(independentSources === null ? "未算出" : nikkeiFormat.format(independentSources) + "件") + "</strong></span>"
       + "<span><small>同一話題クラスタ</small><strong>" + escapeHtml(clusterSize === null ? "未算出" : nikkeiFormat.format(clusterSize) + "件") + "</strong></span>"
+      + rankingClusterMarkup
+      + issuerBuzzMarkup
       + "<span><small>裏付け</small><strong>" + escapeHtml(corroborationLabel(item.corroborationState)) + "</strong></span></div>"
-      + "<p class=\"briefing-evidence-note\">独立ソース数は発信元の異なる報道・一次資料を数え、クラスタ件数は転載や同内容の記事を含み得ます。</p>"
+      + "<p class=\"briefing-evidence-note\">" + escapeHtml(evidenceNote) + "</p>"
       + briefingRelatedLinksMarkup(item) + "</details></article>";
   }
 
@@ -4045,8 +4069,150 @@
     return { executed: true, payload: payload };
   }
 
+  function liveSnapshotGeneratedTime(snapshot) {
+    var value = snapshot && snapshot.generatedAtUtc;
+    var parsed = value ? new Date(value) : null;
+    return parsed && !Number.isNaN(parsed.valueOf()) ? parsed.valueOf() : null;
+  }
+
+  function liveSnapshotCandidateIsValid(candidate) {
+    if (!candidate || typeof candidate !== "object" || Array.isArray(candidate)) return false;
+    if (!candidate.briefing || typeof candidate.briefing !== "object" || Array.isArray(candidate.briefing)) return false;
+    if (!candidate.premarket || typeof candidate.premarket !== "object" || Array.isArray(candidate.premarket)) return false;
+    if (!Array.isArray(candidate.briefing.items)) return false;
+    if (!candidate.briefing.items.every(function (item) {
+      return item && typeof item === "object" && !Array.isArray(item);
+    })) return false;
+    if (candidate.briefing.channels !== undefined && (
+      !Array.isArray(candidate.briefing.channels) || !candidate.briefing.channels.every(function (row) {
+        return row && typeof row === "object" && !Array.isArray(row);
+      })
+    )) return false;
+    if (candidate.sourceStatus !== undefined && (
+      !Array.isArray(candidate.sourceStatus) || !candidate.sourceStatus.every(function (row) {
+        return row && typeof row === "object" && !Array.isArray(row);
+      })
+    )) return false;
+    return true;
+  }
+
+  function captureBriefingViewState() {
+    var details = briefingMoreDetails();
+    var openCardIds = new Set();
+    var cards = typeof document.querySelectorAll === "function"
+      ? document.querySelectorAll("[data-briefing-id]") : [];
+    Array.from(cards || []).forEach(function (card) {
+      var cardDetails = typeof card.querySelector === "function"
+        ? card.querySelector(".briefing-card-details") : null;
+      if (cardDetails && cardDetails.open && card.dataset && card.dataset.briefingId) {
+        openCardIds.add(String(card.dataset.briefingId));
+      }
+    });
+    var active = document.activeElement;
+    var activeCard = active && typeof active.closest === "function"
+      ? active.closest("[data-briefing-id]") : null;
+    return {
+      moreOpen: Boolean(details && details.open),
+      openCardIds: openCardIds,
+      focusedCardId: activeCard && activeCard.dataset
+        ? String(activeCard.dataset.briefingId || "") : "",
+    };
+  }
+
+  function restoreBriefingViewState(viewState) {
+    var saved = viewState || {};
+    var details = briefingMoreDetails();
+    if (details && saved.moreOpen && !details.hidden) details.open = true;
+    var focusTarget = null;
+    var cards = typeof document.querySelectorAll === "function"
+      ? document.querySelectorAll("[data-briefing-id]") : [];
+    Array.from(cards || []).forEach(function (card) {
+      var itemId = String((card.dataset && card.dataset.briefingId) || "");
+      var cardDetails = typeof card.querySelector === "function"
+        ? card.querySelector(".briefing-card-details") : null;
+      if (cardDetails && saved.openCardIds && saved.openCardIds.has(itemId)) {
+        cardDetails.open = true;
+      }
+      if (itemId && itemId === saved.focusedCardId && cardDetails) {
+        focusTarget = typeof cardDetails.querySelector === "function"
+          ? cardDetails.querySelector("summary") : null;
+      }
+    });
+    if (focusTarget && typeof focusTarget.focus === "function") focusTarget.focus();
+  }
+
+  function renderUpdatedLiveSnapshot(viewState) {
+    var savedViewState = viewState || captureBriefingViewState();
+    renderPremarketBriefing();
+    renderLiveBriefing();
+    restoreBriefingViewState(savedViewState);
+    var details = briefingMoreDetails();
+    if (details && details.open && !details.hidden) {
+      var filter = currentBriefingFilter();
+      var sort = currentBriefingSort();
+      updateBriefingVisibleState(filter, briefingItemsForFilter(filter, sort).length, sort);
+    }
+    refreshRenderedBriefingFreshness();
+    if (window.lucide) window.lucide.createIcons();
+  }
+
+  async function refreshLiveSnapshot() {
+    if (fullDataLoadInFlight || liveSnapshotRefreshInFlight) return false;
+    liveSnapshotRefreshInFlight = true;
+    try {
+      var response = await fetch("data/live-intelligence.json?ts=" + Date.now(), {
+        cache: "no-store",
+        headers: { "Accept": "application/json" },
+      });
+      if (!response.ok) return false;
+      var candidate = await response.json();
+      if (!liveSnapshotCandidateIsValid(candidate)) return false;
+      var candidateTime = liveSnapshotGeneratedTime(candidate);
+      var currentTime = liveSnapshotGeneratedTime(state.liveIntelligence);
+      if (candidateTime === null || (currentTime !== null && candidateTime <= currentTime)) return false;
+      var previousLiveIntelligence = state.liveIntelligence;
+      var viewState = captureBriefingViewState();
+      state.liveIntelligence = candidate;
+      try {
+        renderUpdatedLiveSnapshot(viewState);
+      } catch (_renderError) {
+        state.liveIntelligence = previousLiveIntelligence;
+        try {
+          renderUpdatedLiveSnapshot(viewState);
+        } catch (_rollbackError) {
+          // Keep the last valid state even if the current DOM cannot be redrawn.
+        }
+        return false;
+      }
+      if (typeof window.CustomEvent === "function" && typeof window.dispatchEvent === "function") {
+        window.dispatchEvent(new CustomEvent("monitor:live-intelligence-updated", {
+          detail: { generatedAtUtc: candidate.generatedAtUtc },
+        }));
+      }
+      return true;
+    } catch (_error) {
+      return false;
+    } finally {
+      liveSnapshotRefreshInFlight = false;
+    }
+  }
+
+  function setupLiveSnapshotRefresh() {
+    var refreshWhenVisible = function () {
+      if (typeof document.hidden === "boolean" && document.hidden) return;
+      return refreshLiveSnapshot();
+    };
+    var timer = setInterval(refreshWhenVisible, LIVE_SNAPSHOT_REFRESH_INTERVAL_MS);
+    if (timer && typeof timer.unref === "function") timer.unref();
+    if (typeof window.addEventListener === "function") window.addEventListener("focus", refreshWhenVisible);
+    if (typeof document.addEventListener === "function") {
+      document.addEventListener("visibilitychange", refreshWhenVisible);
+    }
+  }
+
 
   async function loadData(showMessage) {
+    fullDataLoadInFlight = true;
     var button = byId("refreshButton");
     button.classList.add("is-loading");
     button.disabled = true;
@@ -4117,6 +4283,7 @@
       byId("headlineConclusion").textContent = "最新データを読み込めませんでした。公開処理の状態またはネットワークを確認してください。";
       byId("uncertaintySummary").textContent = error.message;
     } finally {
+      fullDataLoadInFlight = false;
       button.classList.remove("is-loading");
       button.disabled = false;
       if (window.lucide) window.lucide.createIcons();
@@ -4323,6 +4490,7 @@
   setupSectionNavigation();
   if (window.lucide) window.lucide.createIcons();
   loadData(false);
+  setupLiveSnapshotRefresh();
   var briefingFreshnessTimer = setInterval(refreshRenderedBriefingFreshness, 60000);
   if (briefingFreshnessTimer && typeof briefingFreshnessTimer.unref === "function") {
     briefingFreshnessTimer.unref();

@@ -172,6 +172,20 @@ OFFICIAL_FEEDS = (
     },
 )
 
+COMPANY_DISCLOSURE_FEEDS = (
+    {
+        "name": "TDnet 適時開示（全上場会社）",
+        "url": "https://www.release.tdnet.info/inbs/I_main_00.html",
+        "kind": "official-company",
+        "statusKind": "company-disclosure",
+        "topic": "japan-stocks",
+        "sourceCountry": "JP",
+        # Continue only until the previous watermark is reached.  The cap
+        # prevents unexpected HTML changes from creating unbounded traffic.
+        "maxPages": 20,
+    },
+)
+
 NEWS_QUERIES = (
     {
         "key": "fx-rates",
@@ -184,6 +198,59 @@ NEWS_QUERIES = (
     {
         "key": "japan-stocks",
         "query": '(Nikkei OR TOPIX OR "Japan stocks") (futures OR rally OR selloff OR outlook)',
+    },
+    {
+        "key": "japan-stocks",
+        "name": "日本株・決算サプライズ",
+        "query": (
+            "(決算 OR 業績予想 OR 上方修正 OR 下方修正 OR 自社株買い "
+            "OR 株式分割 OR TOB) "
+            "(急騰 OR 急落 OR 市場予想 OR サプライズ OR 株価 OR 日本株)"
+        ),
+        "providers": ("google", "bing"),
+        "googleLocale": {"hl": "ja", "gl": "JP", "ceid": "JP:ja"},
+        "bingLanguage": "ja-JP",
+        "requiredAnyTerms": (
+            "決算", "業績", "上方修正", "下方修正", "自社株買い",
+            "自己株式", "株式分割", "tob",
+        ),
+        "maxAgeHours": 36,
+        "acceptedLimit": 20,
+    },
+    {
+        "key": "japan-stocks",
+        "name": "日本株・適時開示の市場反応",
+        "query": (
+            "(日本株 OR 東証 OR 日経平均 OR TOPIX) "
+            "(決算 OR ストップ高 OR ストップ安 OR 急騰 OR 急落 OR 売買代金)"
+        ),
+        "providers": ("google", "bing"),
+        "googleLocale": {"hl": "ja", "gl": "JP", "ceid": "JP:ja"},
+        "bingLanguage": "ja-JP",
+        "requiredAnyTerms": (
+            "日本株", "東証", "日経", "topix", "決算", "急騰", "急落",
+            "ストップ高", "ストップ安", "売買代金",
+        ),
+        "maxAgeHours": 24,
+        "acceptedLimit": 16,
+    },
+    {
+        "key": "japan-stocks",
+        "name": "Japan corporate earnings movers",
+        "query": (
+            '(Japan OR Japanese OR Tokyo OR Nikkei) '
+            '(earnings OR results OR guidance OR buyback OR "stock split" OR "tender offer") '
+            '(shares OR stock OR market)'
+        ),
+        "providers": ("google", "bing"),
+        "googleLocale": {"hl": "en-US", "gl": "US", "ceid": "US:en"},
+        "bingLanguage": "en-US",
+        "requiredAnyTerms": (
+            "japan", "japanese", "tokyo", "nikkei", "earnings", "results",
+            "guidance", "buyback", "stock split", "tender offer",
+        ),
+        "maxAgeHours": 36,
+        "acceptedLimit": 16,
     },
     {
         "key": "ai-bubble",
@@ -944,10 +1011,10 @@ def normalize_url(value: str) -> str:
             and key.casefold() not in tracking_keys
             for item in values
         ]
-        scheme = "https" if parsed.scheme == "http" and (
-            parsed.hostname == "boj.or.jp"
-            or (parsed.hostname or "").endswith(".boj.or.jp")
-        ) else parsed.scheme
+        # The public package deliberately accepts only encrypted article links.
+        # Upgrade discovery feeds that still publish an http URL instead of
+        # letting one legacy link invalidate the otherwise complete snapshot.
+        scheme = "https" if parsed.scheme.casefold() == "http" else parsed.scheme
         return urllib.parse.urlunparse((
             scheme,
             parsed.netloc.lower(),
@@ -1063,6 +1130,7 @@ def reporting_origin_group(source: str, url: str) -> str:
         ("whitehouse.gov", "white-house"),
         ("boj.or.jp", "bank-of-japan"),
         ("mof.go.jp", "japan-mof"),
+        ("release.tdnet.info", "tdnet-official"),
         ("bls.gov", "us-bls"),
         ("sec.gov", "us-sec"),
     )
@@ -1070,6 +1138,14 @@ def reporting_origin_group(source: str, url: str) -> str:
         if needle in text:
             return group
     domain = publisher_domain(url)
+    if domain in {
+        "news.google.com",
+        "bing.com",
+        "www.bing.com",
+    }:
+        # RSS aggregators are discovery paths; the feed's source field names
+        # the actual publisher used for independence counts.
+        return normalized_comparison_text(source)[:80] or domain
     if domain.startswith("www."):
         domain = domain[4:]
     return domain or normalized_comparison_text(source)[:80] or "unknown"
@@ -1254,6 +1330,7 @@ def build_item(
         }],
         "clusterId": cluster_id,
         "clusterSize": 1,
+        "rankingClusterSize": 1,
         "independentSourceCount": 1,
         "corroborationState": "single-source",
         "relatedLinks": [],
@@ -2011,18 +2088,857 @@ def fetch_official_feed(feed: dict[str, str], now: datetime) -> tuple[list[dict[
     }
 
 
-def fetch_bing_news(query_def: dict[str, str], now: datetime) -> tuple[list[dict[str, Any]], dict[str, Any]]:
+def _fetch_legacy_company_disclosures(
+    feed: dict[str, Any],
+    now: datetime,
+) -> tuple[list[dict[str, Any]], dict[str, Any]]:
+    """Read a company's TDnet-backed disclosure page with exact release times."""
+
+    raw, resolved_url = request(feed["url"])
+    page = raw.decode("utf-8", errors="replace")
+    blocks = re.findall(r"<article\b[^>]*>.*?</article>", page, flags=re.I | re.S)
+    if not blocks:
+        # Keep a narrow fallback for server-rendered variants that omit article.
+        blocks = re.findall(r"<li\b[^>]*>.*?</li>", page, flags=re.I | re.S)
+
+    rows: list[dict[str, str]] = []
+    seen: set[tuple[str, str]] = set()
+    event_terms = tuple(str(term) for term in feed.get("eventTerms") or ())
+    for block in blocks:
+        title_match = re.search(r"<h3\b[^>]*>(.*?)</h3>", block, flags=re.I | re.S)
+        time_match = re.search(
+            r"<time\b[^>]*\bdatetime=[\"']([^\"']+)[\"'][^>]*>",
+            block,
+            flags=re.I | re.S,
+        )
+        link_matches = re.findall(
+            r"<a\b[^>]*\bhref=[\"']([^\"']+)[\"'][^>]*>",
+            block,
+            flags=re.I | re.S,
+        )
+        if not title_match or not time_match or not link_matches:
+            continue
+        title = clean_text(title_match.group(1))
+        published = clean_text(time_match.group(1))
+        link = next(
+            (
+                candidate
+                for candidate in link_matches
+                if ".pdf" in urllib.parse.urlparse(
+                    html.unescape(candidate)
+                ).path.casefold()
+            ),
+            "",
+        )
+        if not title or not link:
+            continue
+        if event_terms and not any(contains_term(title, term) for term in event_terms):
+            continue
+        direct_url = normalize_url(
+            urllib.parse.urljoin(resolved_url, html.unescape(link))
+        )
+        if not direct_url.startswith("https://"):
+            continue
+        dedupe_key = (direct_url, published)
+        if dedupe_key in seen:
+            continue
+        seen.add(dedupe_key)
+        rows.append({
+            "title": title,
+            "link": direct_url,
+            "published": published,
+        })
+
+    output: list[dict[str, Any]] = []
+    for row in rows:
+        published_dt = parse_datetime(row["published"])
+        if published_dt is None:
+            continue
+        age = now - published_dt.astimezone(timezone.utc)
+        if age < timedelta(minutes=-2) or age > timedelta(days=14):
+            continue
+        output.append(build_item(
+            title=row["title"],
+            url=row["link"],
+            source=feed["name"],
+            source_kind=feed["kind"],
+            published=row["published"],
+            retrieved_at=now,
+            summary="",
+            topic_hint=feed.get("topic"),
+            verification="primary",
+            identity_note=(
+                "TDnet掲載時刻を持つ企業開示ページから検知。"
+                f"企業IR一覧: {feed.get('companyUrl') or ''}"
+            ),
+            timestamp_basis="tdnet-disclosure-time",
+            timestamp_precision_value="minute",
+            discovery_provider="tdnet-direct",
+            source_country=feed.get("sourceCountry") or "JP",
+        ))
+    accepted = sorted(
+        output,
+        key=lambda item: item.get("effectivePublishedAtUtc") or "",
+        reverse=True,
+    )[:12]
+    return accepted, {
+        "name": feed["name"],
+        "kind": feed.get("statusKind") or feed["kind"],
+        "status": "ok" if accepted else "limited",
+        "url": feed["url"],
+        "retrievedAtUtc": now.isoformat(),
+        "message": (
+            f"TDnet時刻付き開示 {len(accepted)}件"
+            if accepted
+            else "接続成功・直近14日の重要開示0件"
+        ),
+        **retrieval_count_fields(len(rows), accepted),
+    }
+
+
+DISCLOSURE_CATEGORY_RULES: tuple[tuple[str, int, str], ...] = (
+    (
+        "delisting-supervision",
+        100,
+        r"監理銘柄|整理銘柄|上場廃止|上場維持基準.*(?:不適合|抵触)",
+    ),
+    (
+        "m-and-a-tob",
+        99,
+        r"公開買付|\bTOB\b|\bMBO\b|経営統合|株式交換|株式移転|合併契約",
+    ),
+    (
+        "accounting-governance",
+        98,
+        r"第三者委員会|特別調査委員会|不適切会計|不正会計|監査意見|"
+        r"内部統制.*重要な不備|有価証券報告書.*提出期限",
+    ),
+    (
+        "guidance-revision",
+        96,
+        r"業績予想.*(?:修正|公表|取下げ|未定)|(?:上方|下方)修正|"
+        r"(?:通期|中間期|第[１２３４1-4]四半期).*業績.*(?:見通し|予想).*修正|"
+        r"guidance|business outlook",
+    ),
+    (
+        "financial-results",
+        93,
+        r"決算短信|決算発表|決算速報|(?:第[１２３４1-4]四半期|通期|中間期)決算(?!説明)|"
+        r"\b(?:earnings|financial results?|quarterly results?)\b",
+    ),
+    (
+        "material-loss-gain",
+        92,
+        r"特別損失|特別利益|減損損失|債務超過|継続企業の前提|"
+        r"訴訟.*(?:判決|評決)|巨額損失",
+    ),
+    (
+        "buyback",
+        89,
+        r"自己株式(?:の)?(?:取得|買付)|自社株買い|"
+        r"\b(?:share repurchase|buyback|acquisition of own shares)\b",
+    ),
+    (
+        "disaster-operational",
+        88,
+        r"(?:地震|災害|台風|豪雨|火災).*影響|操業停止|生産停止|"
+        r"サイバー攻撃|ランサムウェア",
+    ),
+    (
+        "capital-raising",
+        87,
+        r"第三者割当増資|公募増資|新株予約権.*発行|転換社債.*発行|"
+        r"資本増強|資金調達",
+    ),
+    (
+        "stock-split",
+        86,
+        r"株式分割|株式併合|\bstock split\b",
+    ),
+    (
+        "dividend",
+        81,
+        r"配当予想.*(?:修正|増配|減配|無配|取下げ)|剰余金の配当|"
+        r"記念配当|復配|\bdividend\b",
+    ),
+)
+
+DISCLOSURE_CATEGORY_LABELS = {
+    "financial-results": "決算",
+    "guidance-revision": "業績予想・修正",
+    "dividend": "配当",
+    "buyback": "自己株式取得",
+    "stock-split": "株式分割・併合",
+    "m-and-a-tob": "M&A・公開買付け",
+    "capital-raising": "資本調達",
+    "accounting-governance": "会計・ガバナンス",
+    "material-loss-gain": "重要損益・訴訟",
+    "delisting-supervision": "上場維持・監理",
+    "disaster-operational": "災害・操業影響",
+}
+
+
+def company_disclosure_category(value: str) -> tuple[str, int]:
+    """Classify a material company event without relying on an issuer name."""
+
+    text = unicodedata.normalize("NFKC", clean_text(value))
+    # A compensation notice containing 業績連動 is not an earnings release.
+    if re.search(r"業績連動型?(?:株式)?報酬", text) and not re.search(
+        r"決算短信|決算発表|業績予想.*(?:修正|公表|取下げ)",
+        text,
+    ):
+        return "", 0
+    # Presentation-only material follows an already captured result and must
+    # not consume the guaranteed financial-results slot on its own.
+    if re.search(r"決算(?:説明会?|補足)(?:資料|動画)|決算Q[＆&]A", text):
+        return "", 0
+    for category, score, pattern in DISCLOSURE_CATEGORY_RULES:
+        if re.search(pattern, text, re.I):
+            return category, score
+    return "", 0
+
+
+def _tdnet_security_code(raw_code: str) -> str:
+    code = unicodedata.normalize("NFKC", clean_text(raw_code)).upper()
+    if re.fullmatch(r"[0-9A-Z]{5}", code) and code.endswith("0"):
+        return code[:-1]
+    return code
+
+
+def _tdnet_cell(block: str, class_name: str) -> str:
+    match = re.search(
+        rf"<td\b[^>]*\bclass=[\"'][^\"']*\b{re.escape(class_name)}\b[^\"']*[\"'][^>]*>"
+        r"(.*?)</td>",
+        block,
+        flags=re.I | re.S,
+    )
+    return match.group(1) if match else ""
+
+
+def _parse_tdnet_page(
+    page: str,
+    resolved_url: str,
+    disclosure_date: str,
+) -> tuple[list[dict[str, Any]], int, int]:
+    rows: list[dict[str, Any]] = []
+    for block in re.findall(r"<tr\b[^>]*>.*?</tr>", page, flags=re.I | re.S):
+        time_text = clean_text(_tdnet_cell(block, "kjTime"))
+        tdnet_code = clean_text(_tdnet_cell(block, "kjCode"))
+        company_name = clean_text(_tdnet_cell(block, "kjName"))
+        title_cell = _tdnet_cell(block, "kjTitle")
+        link_match = re.search(
+            r"<a\b[^>]*\bhref=[\"']([^\"']+\.pdf(?:\?[^\"']*)?)[\"'][^>]*>(.*?)</a>",
+            title_cell,
+            flags=re.I | re.S,
+        )
+        if (
+            not re.fullmatch(r"\d{2}:\d{2}", time_text)
+            or not tdnet_code
+            or not company_name
+            or not link_match
+        ):
+            continue
+        title = clean_text(link_match.group(2))
+        pdf_url = normalize_url(
+            urllib.parse.urljoin(resolved_url, html.unescape(link_match.group(1)))
+        )
+        disclosure_id = Path(urllib.parse.urlparse(pdf_url).path).stem
+        if not title or not disclosure_id or not pdf_url.startswith("https://"):
+            continue
+        xbrl_cell = _tdnet_cell(block, "kjXbrl")
+        xbrl_match = re.search(
+            r"<a\b[^>]*\bhref=[\"']([^\"']+\.zip(?:\?[^\"']*)?)[\"']",
+            xbrl_cell,
+            flags=re.I | re.S,
+        )
+        published = f"{disclosure_date}T{time_text}:00+09:00"
+        rows.append({
+            "disclosureId": disclosure_id,
+            "tdnetCode": tdnet_code,
+            "issuerCode": _tdnet_security_code(tdnet_code),
+            "issuerName": company_name,
+            "title": title,
+            "published": published,
+            "pdfUrl": pdf_url,
+            "xbrlUrl": (
+                normalize_url(
+                    urllib.parse.urljoin(
+                        resolved_url,
+                        html.unescape(xbrl_match.group(1)),
+                    )
+                )
+                if xbrl_match
+                else ""
+            ),
+            "exchange": clean_text(_tdnet_cell(block, "kjPlace")),
+        })
+    total_match = re.search(r"全\s*([\d,]+)件", page)
+    total_count = int(total_match.group(1).replace(",", "")) if total_match else len(rows)
+    page_numbers = [
+        int(value)
+        for value in re.findall(
+            rf"I_list_(\d{{3}})_{re.escape(disclosure_date.replace('-', ''))}\.html",
+            page,
+            flags=re.I,
+        )
+    ]
+    return rows, total_count, max(page_numbers or [1])
+
+
+def _tdnet_required_page_count(
+    page: str,
+    rows: list[dict[str, Any]],
+    total_count: int,
+    listed_pages: int,
+) -> int:
+    """Calculate every required page even when the pager hides later links."""
+
+    display_text = unicodedata.normalize("NFKC", clean_text(page))
+    range_match = re.search(
+        r"([\d,]+)\s*[~〜～\-–—]\s*([\d,]+)\s*件\s*/?\s*全\s*[\d,]+\s*件",
+        display_text,
+    )
+    page_capacity = len(rows)
+    if range_match:
+        first = int(range_match.group(1).replace(",", ""))
+        last = int(range_match.group(2).replace(",", ""))
+        if last >= first:
+            page_capacity = max(page_capacity, last - first + 1)
+    if total_count <= 0:
+        return max(1, listed_pages)
+    return max(
+        1,
+        listed_pages,
+        math.ceil(total_count / max(1, page_capacity)),
+    )
+
+
+def _tdnet_main_state(
+    page: str,
+    resolved_url: str,
+) -> tuple[str, str, str]:
+    list_match = re.search(
+        r"value=[\"'](I_list_001_(\d{8})\.html)[\"']",
+        page,
+        flags=re.I,
+    )
+    if not list_match:
+        raise RuntimeError("TDnet public viewer did not expose a current list page")
+    yyyymmdd = list_match.group(2)
+    disclosure_date = (
+        f"{yyyymmdd[0:4]}-{yyyymmdd[4:6]}-{yyyymmdd[6:8]}"
+    )
+    update_match = re.search(
+        r"最終更新日時\s*[:：]\s*(\d{4})年(\d{2})月(\d{2})日\s*(\d{2}):(\d{2})",
+        page,
+    )
+    last_update = ""
+    if update_match:
+        last_update = (
+            f"{update_match.group(1)}-{update_match.group(2)}-{update_match.group(3)}"
+            f"T{update_match.group(4)}:{update_match.group(5)}:00+09:00"
+        )
+    return (
+        normalize_url(urllib.parse.urljoin(resolved_url, list_match.group(1))),
+        disclosure_date,
+        last_update,
+    )
+
+
+def fetch_company_disclosures(
+    feed: dict[str, Any],
+    now: datetime,
+) -> tuple[list[dict[str, Any]], dict[str, Any]]:
+    """Incrementally scan the official TDnet list for every listed company."""
+
+    main_raw, main_url = request(feed["url"])
+    list_url, disclosure_date, last_update_jst = _tdnet_main_state(
+        main_raw.decode("utf-8", errors="replace"),
+        main_url,
+    )
+    first_raw, first_url = request(list_url)
+    first_page = first_raw.decode("utf-8", errors="replace")
+    first_rows, total_count, listed_pages = _parse_tdnet_page(
+        first_page,
+        first_url,
+        disclosure_date,
+    )
+    previous_state = feed.get("previousState") or {}
+    previous_id = str(previous_state.get("newestDisclosureId") or "")
+    page_limit = max(1, int(feed.get("maxPages") or 20))
+    required_pages = _tdnet_required_page_count(
+        first_page, first_rows, total_count, listed_pages
+    )
+    max_pages = min(page_limit, required_pages)
+    pagination_truncated = required_pages > max_pages
+    backfill_failed_dates = 0
+    rows = list(first_rows)
+    scanned_pages = 1
+    scanned_dates = 1
+    total_available_count = total_count
+    found_watermark = bool(
+        previous_id
+        and any(row["disclosureId"] == previous_id for row in first_rows)
+    )
+    scan_mode = "head-only" if found_watermark else "incremental" if previous_id else "full"
+    if not found_watermark:
+        for page_number in range(2, max_pages + 1):
+            page_url = re.sub(
+                r"I_list_001_",
+                f"I_list_{page_number:03d}_",
+                list_url,
+            )
+            raw, resolved = request(page_url)
+            page_rows, _, _ = _parse_tdnet_page(
+                raw.decode("utf-8", errors="replace"),
+                resolved,
+                disclosure_date,
+            )
+            rows.extend(page_rows)
+            scanned_pages += 1
+            if previous_id and any(
+                row["disclosureId"] == previous_id for row in page_rows
+            ):
+                found_watermark = True
+                break
+
+    # A missing snapshot or a watermark not present on today's pages must not
+    # make intervening dates disappear.  Scan each calendar date intersecting
+    # the exact trailing 48h; the age filter below enforces the rolling edge.
+    if not previous_id or not found_watermark:
+        current_date = datetime.strptime(disclosure_date, "%Y-%m-%d").date()
+        earliest_date = (now - timedelta(hours=48)).astimezone(JST).date()
+        historical_date = current_date - timedelta(days=1)
+        while historical_date >= earliest_date:
+            yyyymmdd = historical_date.strftime("%Y%m%d")
+            historical_list_url = re.sub(
+                r"I_list_001_\d{8}\.html",
+                f"I_list_001_{yyyymmdd}.html",
+                list_url,
+            )
+            try:
+                raw, resolved = request(historical_list_url)
+            except (OSError, RuntimeError):
+                backfill_failed_dates += 1
+                historical_date -= timedelta(days=1)
+                continue
+            historical_page = raw.decode("utf-8", errors="replace")
+            historical_rows, historical_total, historical_listed = (
+                _parse_tdnet_page(
+                    historical_page,
+                    resolved,
+                    historical_date.isoformat(),
+                )
+            )
+            historical_required = _tdnet_required_page_count(
+                historical_page,
+                historical_rows,
+                historical_total,
+                historical_listed,
+            )
+            historical_max = min(page_limit, historical_required)
+            pagination_truncated = (
+                pagination_truncated
+                or historical_required > historical_max
+            )
+            rows.extend(historical_rows)
+            scanned_pages += 1
+            scanned_dates += 1
+            total_available_count += historical_total
+            if previous_id and any(
+                row["disclosureId"] == previous_id
+                for row in historical_rows
+            ):
+                found_watermark = True
+            for page_number in range(2, historical_max + 1):
+                if found_watermark:
+                    break
+                page_url = re.sub(
+                    r"I_list_001_",
+                    f"I_list_{page_number:03d}_",
+                    historical_list_url,
+                )
+                raw, resolved = request(page_url)
+                page_rows, _, _ = _parse_tdnet_page(
+                    raw.decode("utf-8", errors="replace"),
+                    resolved,
+                    historical_date.isoformat(),
+                )
+                rows.extend(page_rows)
+                scanned_pages += 1
+                if previous_id and any(
+                    row["disclosureId"] == previous_id
+                    for row in page_rows
+                ):
+                    found_watermark = True
+                    break
+            if found_watermark:
+                break
+            historical_date -= timedelta(days=1)
+
+    # Deduplicate page-boundary movement.  A later run will close any race if
+    # new disclosures arrived while multiple pages were being traversed.
+    unique_rows: list[dict[str, Any]] = []
+    seen_ids: set[str] = set()
+    for row in rows:
+        disclosure_id = str(row["disclosureId"])
+        if disclosure_id in seen_ids:
+            continue
+        seen_ids.add(disclosure_id)
+        unique_rows.append(row)
+    rows = unique_rows
+
+    bundle_counts: dict[tuple[str, str], int] = {}
+    for row in rows:
+        bundle_key = (str(row["issuerCode"]), str(row["published"]))
+        bundle_counts[bundle_key] = bundle_counts.get(bundle_key, 0) + 1
+
+    output: list[dict[str, Any]] = []
+    for row in rows:
+        category, base_materiality = company_disclosure_category(row["title"])
+        if not category:
+            continue
+        published_dt = parse_datetime(row["published"])
+        if published_dt is None:
+            continue
+        age = now - published_dt.astimezone(timezone.utc)
+        if age < timedelta(minutes=-2) or age > timedelta(hours=48):
+            continue
+        bundle_size = bundle_counts.get(
+            (str(row["issuerCode"]), str(row["published"])),
+            1,
+        )
+        materiality = min(100, base_materiality + min(9, (bundle_size - 1) * 3))
+        category_label = DISCLOSURE_CATEGORY_LABELS.get(category, category)
+        display_title = (
+            f"{row['issuerName']}（{row['issuerCode']}）｜{row['title']}"
+        )
+        item = build_item(
+            title=display_title,
+            url=row["pdfUrl"],
+            source=f"TDnet / {row['issuerName']}",
+            source_kind=feed["kind"],
+            published=row["published"],
+            retrieved_at=now,
+            summary=(
+                f"{row['issuerName']}（{row['issuerCode']}）がTDnetで"
+                f"「{category_label}」を開示。公式PDFへ直接移動できます。"
+            ),
+            topic_hint=feed.get("topic"),
+            verification="primary",
+            identity_note=(
+                "JPX/TDnetの全上場会社一覧から企業名を指定せず検知。"
+                f"開示種別={category_label}、TDnetコード={row['tdnetCode']}、"
+                f"同時刻の同社開示={bundle_size}件。"
+            ),
+            timestamp_basis="tdnet-official-disclosure-time",
+            timestamp_precision_value="minute",
+            discovery_provider="tdnet-public-viewer",
+            source_country=feed.get("sourceCountry") or "JP",
+        )
+        item.update({
+            "disclosureId": row["disclosureId"],
+            "issuerCode": row["issuerCode"],
+            "issuerName": row["issuerName"],
+            "disclosureCategory": category,
+            "materialityScore": materiality,
+        })
+        output.append(item)
+    accepted = sorted(
+        output,
+        key=lambda item: (
+            int(item.get("materialityScore") or 0),
+            item.get("effectivePublishedAtUtc") or "",
+        ),
+        reverse=True,
+    )
+    newest_id = str(first_rows[0]["disclosureId"]) if first_rows else ""
+    incomplete = bool(
+        pagination_truncated
+        or backfill_failed_dates
+        or (previous_id and not found_watermark)
+    )
+    status = "limited" if incomplete or not accepted else "ok"
+    message = (
+        (
+            f"全上場会社TDnetを{scanned_dates}日・"
+            f"{scanned_pages}ページ走査し、"
+            f"重要開示{len(accepted)}件を抽出"
+            + ("（走査上限・取得失敗または前回位置に未到達）" if incomplete else "")
+        )
+        if accepted
+        else "接続成功・該当新着0件"
+    )
+    return accepted, {
+        "name": feed["name"],
+        "kind": feed.get("statusKind") or feed["kind"],
+        "status": status,
+        "url": feed["url"],
+        "retrievedAtUtc": now.isoformat(),
+        "message": message,
+        **retrieval_count_fields(len(rows), accepted),
+        "newestDisclosureId": newest_id,
+        "lastViewerUpdateJst": last_update_jst,
+        "scannedPages": scanned_pages,
+        "scannedDates": scanned_dates,
+        "coverageVersion": TDNET_SCAN_COVERAGE_VERSION,
+        "coverageComplete": not incomplete,
+        "backfillFailedDates": backfill_failed_dates,
+        "totalAvailableCount": total_available_count,
+        "scanMode": scan_mode,
+    }
+
+
+COMPANY_DISCLOSURE_CACHE_HOURS = 48
+COMPANY_DISCLOSURE_CACHE_LIMIT = 2000
+TDNET_SCAN_COVERAGE_VERSION = 2
+
+
+def build_company_disclosure_cache(
+    items: list[dict[str, Any]],
+    now: datetime,
+) -> list[dict[str, Any]]:
+    """Persist compact TDnet candidates, including those outside the final six."""
+
+    by_id: dict[str, dict[str, Any]] = {}
+    for item in items:
+        if item.get("sourceKind") != "official-company":
+            continue
+        disclosure_id = str(item.get("disclosureId") or "")
+        published = item_effective_datetime(item)
+        if not disclosure_id or published is None:
+            continue
+        age = now - published
+        if age < timedelta(minutes=-2) or age > timedelta(
+            hours=COMPANY_DISCLOSURE_CACHE_HOURS
+        ):
+            continue
+        url = normalize_url(str(item.get("url") or ""))
+        if publisher_domain(url) != "www.release.tdnet.info":
+            continue
+        by_id[disclosure_id] = {
+            "disclosureId": disclosure_id,
+            "issuerCode": str(item.get("issuerCode") or ""),
+            "issuerName": clean_text(item.get("issuerName")),
+            "disclosureCategory": str(
+                item.get("disclosureCategory") or ""
+            ),
+            "materialityScore": int(item.get("materialityScore") or 0),
+            "title": clean_text(item.get("title")),
+            "url": url,
+            "publishedAtUtc": published.astimezone(timezone.utc).isoformat(),
+        }
+    return sorted(
+        by_id.values(),
+        key=lambda row: str(row["publishedAtUtc"]),
+        reverse=True,
+    )[:COMPANY_DISCLOSURE_CACHE_LIMIT]
+
+
+def restore_company_disclosure_cache(
+    rows: Any,
+    now: datetime,
+    existing_ids: set[str] | None = None,
+) -> list[dict[str, Any]]:
+    """Rehydrate recent official candidates for cross-run buzz re-evaluation."""
+
+    existing_ids = set(existing_ids or set())
+    restored: list[dict[str, Any]] = []
+    for row in rows if isinstance(rows, list) else []:
+        if not isinstance(row, dict):
+            continue
+        disclosure_id = str(row.get("disclosureId") or "")
+        if not disclosure_id or disclosure_id in existing_ids:
+            continue
+        published = parse_datetime(row.get("publishedAtUtc"))
+        if published is None:
+            continue
+        age = now - published.astimezone(timezone.utc)
+        if age < timedelta(minutes=-2) or age > timedelta(
+            hours=COMPANY_DISCLOSURE_CACHE_HOURS
+        ):
+            continue
+        url = normalize_url(str(row.get("url") or ""))
+        if publisher_domain(url) != "www.release.tdnet.info":
+            continue
+        category = str(row.get("disclosureCategory") or "")
+        if category not in DISCLOSURE_CATEGORY_LABELS:
+            continue
+        issuer_code = str(row.get("issuerCode") or "")
+        issuer_name = clean_text(row.get("issuerName"))
+        title = clean_text(row.get("title"))
+        if not issuer_code or not issuer_name or not title:
+            continue
+        category_label = DISCLOSURE_CATEGORY_LABELS[category]
+        item = build_item(
+            title=title,
+            url=url,
+            source=f"TDnet / {issuer_name}",
+            source_kind="official-company",
+            published=published.astimezone(timezone.utc).isoformat(),
+            retrieved_at=now,
+            summary=(
+                f"{issuer_name}（{issuer_code}）がTDnetで"
+                f"「{category_label}」を開示。公式PDFへ直接移動できます。"
+            ),
+            topic_hint="japan-stocks",
+            verification="primary",
+            identity_note=(
+                "JPX/TDnet全社走査で取得した直近48時間の公式開示を再評価。"
+                "前回の最終表示枠に入らなかった開示も対象です。"
+            ),
+            timestamp_basis="tdnet-official-disclosure-time",
+            timestamp_precision_value="minute",
+            discovery_provider="tdnet-recent-cache",
+            source_country="JP",
+        )
+        item.update({
+            "disclosureId": disclosure_id,
+            "issuerCode": issuer_code,
+            "issuerName": issuer_name,
+            "disclosureCategory": category,
+            "materialityScore": max(
+                0, min(100, int(row.get("materialityScore") or 0))
+            ),
+        })
+        restored.append(item)
+        existing_ids.add(disclosure_id)
+    return restored
+
+
+def build_dynamic_company_news_queries(
+    items: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    """Seed provider searches from current high-impact disclosures, not a watchlist."""
+
+    annotate_company_news_signals(items)
+    by_issuer: dict[str, dict[str, Any]] = {}
+    for item in items:
+        code = str(item.get("issuerCode") or "")
+        name = clean_text(item.get("issuerName"))
+        if not code or not name:
+            continue
+        row = by_issuer.setdefault(code, {
+            "code": code,
+            "name": name,
+            "score": 0,
+            "categories": set(),
+            "newsMentions": 0,
+            "independentNewsSources": 0,
+            "buzzScore": 0,
+            "latest": None,
+        })
+        row["score"] = max(
+            int(row["score"]),
+            int(item.get("materialityScore") or 0),
+        )
+        row["categories"].add(str(item.get("disclosureCategory") or ""))
+        row["newsMentions"] = max(
+            int(row["newsMentions"]),
+            int(item.get("issuerNewsMentionCount") or 0),
+        )
+        row["independentNewsSources"] = max(
+            int(row["independentNewsSources"]),
+            int(item.get("issuerIndependentNewsSourceCount") or 0),
+        )
+        row["buzzScore"] = max(
+            int(row["buzzScore"]),
+            int(item.get("issuerBuzzScore") or 0),
+        )
+        effective = item_effective_datetime(item)
+        if effective is not None and (
+            row["latest"] is None or effective > row["latest"]
+        ):
+            row["latest"] = effective
+    ranked = sorted(
+        by_issuer.values(),
+        key=lambda row: (
+            int(row["score"])
+            + min(12, (len(row["categories"]) - 1) * 4)
+            + int(row["buzzScore"]),
+            int(row["independentNewsSources"]),
+            int(row["newsMentions"]),
+            row["latest"] or datetime.min.replace(tzinfo=timezone.utc),
+            str(row["code"]),
+        ),
+        reverse=True,
+    )[:6]
+    definitions: list[dict[str, Any]] = []
+    for index in range(0, len(ranked), 3):
+        chunk = ranked[index:index + 3]
+        issuer_terms = [
+            term
+            for row in chunk
+            for term in (
+                str(row["name"]),
+                str(row["code"]) if re.search(r"[A-Za-z]", str(row["code"])) else "",
+            )
+            if term
+        ]
+        quoted = " OR ".join(
+            f'"{term}"' if re.search(r"\s", term) else term
+            for term in issuer_terms
+        )
+        definitions.append({
+            "key": "japan-stocks",
+            "name": "TDnet重要開示・媒体反応 " + " / ".join(
+                str(row["code"]) for row in chunk
+            ),
+            "query": (
+                f"({quoted}) "
+                "(決算 OR 業績 OR 自社株買い OR 株式分割 OR TOB OR 急騰 OR 急落)"
+            ),
+            "googleLocale": {"hl": "ja", "gl": "JP", "ceid": "JP:ja"},
+            "bingLanguage": "ja-JP",
+            "requiredAnyTerms": tuple(issuer_terms),
+            "maxAgeHours": 36,
+            "acceptedLimit": 12,
+            "discoveryProvider": "issuer-dynamic",
+        })
+    return definitions
+
+
+def news_query_label(query_def: dict[str, Any]) -> str:
+    return str(
+        query_def.get("name")
+        or TOPICS.get(
+            str(query_def.get("key") or ""),
+            {"label": query_def.get("key") or "markets"},
+        )["label"]
+    )
+
+
+def news_query_row_allowed(
+    row: dict[str, str],
+    query_def: dict[str, Any],
+) -> bool:
+    required = tuple(
+        str(term)
+        for term in query_def.get("requiredAnyTerms") or ()
+        if str(term).strip()
+    )
+    if not required:
+        return True
+    text = clean_text(f"{row.get('title') or ''} {row.get('summary') or ''}")
+    return any(contains_term(text, term) for term in required)
+
+
+def fetch_bing_news(query_def: dict[str, Any], now: datetime) -> tuple[list[dict[str, Any]], dict[str, Any]]:
     params = urllib.parse.urlencode({
         "q": query_def["query"],
         "format": "rss",
-        "setlang": "en-US",
+        "setlang": str(query_def.get("bingLanguage") or "en-US"),
     })
     url = "https://www.bing.com/news/search?" + params
     raw, _ = request(url)
     output: list[dict[str, Any]] = []
     feed_rows = parse_feed_items(raw)[:12]
     for row in feed_rows:
-        if not row["title"] or not row["link"]:
+        if (
+            not row["title"]
+            or not row["link"]
+            or not news_query_row_allowed(row, query_def)
+        ):
             continue
         source = clean_text(row["source"]) or "Bing News discovery"
         kind = "news-wire" if any(name in source.lower() for name in ("reuters", "associated press", "bloomberg")) else "news"
@@ -2037,13 +2953,16 @@ def fetch_bing_news(query_def: dict[str, str], now: datetime) -> tuple[list[dict
             topic_hint=query_def["key"],
             indexed_at=row["published"],
             timestamp_basis="discovery-feed",
-            discovery_provider="bing-news",
+            discovery_provider=str(
+                query_def.get("discoveryProvider") or "bing-news"
+            ),
         )
-        if item["ageHours"] is None or item["ageHours"] <= 168:
+        max_age_hours = float(query_def.get("maxAgeHours") or 168)
+        if item["ageHours"] is None or item["ageHours"] <= max_age_hours:
             output.append(item)
-    accepted = output[:8]
+    accepted = output[:int(query_def.get("acceptedLimit") or 8)]
     return accepted, {
-        "name": f"Bing News / {TOPICS.get(query_def['key'], {'label': query_def['key']})['label']}",
+        "name": f"Bing News / {news_query_label(query_def)}",
         "kind": "news-discovery",
         "status": "ok" if accepted else "limited",
         "url": url,
@@ -2055,21 +2974,26 @@ def fetch_bing_news(query_def: dict[str, str], now: datetime) -> tuple[list[dict
     }
 
 
-def fetch_google_news(query_def: dict[str, str], now: datetime) -> tuple[list[dict[str, Any]], dict[str, Any]]:
+def fetch_google_news(query_def: dict[str, Any], now: datetime) -> tuple[list[dict[str, Any]], dict[str, Any]]:
     """Use a second public news index so one empty provider does not hide a story."""
 
+    locale = query_def.get("googleLocale") or {}
     params = urllib.parse.urlencode({
         "q": query_def["query"],
-        "hl": "en-US",
-        "gl": "US",
-        "ceid": "US:en",
+        "hl": str(locale.get("hl") or "en-US"),
+        "gl": str(locale.get("gl") or "US"),
+        "ceid": str(locale.get("ceid") or "US:en"),
     })
     url = "https://news.google.com/rss/search?" + params
     raw, _ = request(url)
     output: list[dict[str, Any]] = []
     feed_rows = parse_feed_items(raw)[:16]
     for row in feed_rows:
-        if not row["title"] or not row["link"]:
+        if (
+            not row["title"]
+            or not row["link"]
+            or not news_query_row_allowed(row, query_def)
+        ):
             continue
         source = clean_text(row["source"]) or "Google News discovery"
         lowered_source = source.lower()
@@ -2090,13 +3014,16 @@ def fetch_google_news(query_def: dict[str, str], now: datetime) -> tuple[list[di
             identity_note="Google News公開RSS経由。リンク先の記事本文と掲載時刻を確認します。",
             indexed_at=row["published"],
             timestamp_basis="discovery-feed",
-            discovery_provider="google-news",
+            discovery_provider=str(
+                query_def.get("discoveryProvider") or "google-news"
+            ),
         )
-        if item["ageHours"] is None or item["ageHours"] <= 168:
+        max_age_hours = float(query_def.get("maxAgeHours") or 168)
+        if item["ageHours"] is None or item["ageHours"] <= max_age_hours:
             output.append(item)
-    accepted = output[:8]
+    accepted = output[:int(query_def.get("acceptedLimit") or 8)]
     return accepted, {
-        "name": f"Google News / {TOPICS.get(query_def['key'], {'label': query_def['key']})['label']}",
+        "name": f"Google News / {news_query_label(query_def)}",
         "kind": "news-discovery",
         "status": "ok" if accepted else "limited",
         "url": url,
@@ -2551,14 +3478,220 @@ def title_similarity(left: str, right: str) -> float:
     return max(jaccard, sequence)
 
 
+def _issuer_aliases(item: dict[str, Any]) -> set[str]:
+    aliases: set[str] = set()
+    code = normalized_comparison_text(str(item.get("issuerCode") or ""))
+    if len(code) >= 3:
+        aliases.add(code)
+    name = unicodedata.normalize(
+        "NFKC",
+        clean_text(item.get("issuerName")),
+    ).casefold()
+    name = re.sub(r"^(?:g|r|a|p)[－-]", "", name)
+    name = re.sub(r"(?:株式会社|\(株\)|（株）)", "", name)
+    compact = normalized_comparison_text(name)
+    if len(compact) >= 3:
+        aliases.add(compact)
+    stem = re.sub(
+        r"(?:ホー?ルディングス|holdings|グルー?プ|group|hldgs|hd)$",
+        "",
+        compact,
+        flags=re.I,
+    )
+    if len(stem) >= 3:
+        aliases.add(stem)
+    return aliases
+
+
+def _issuer_is_mentioned(
+    official_item: dict[str, Any],
+    other_item: dict[str, Any],
+) -> bool:
+    raw_text = unicodedata.normalize(
+        "NFKC",
+        " ".join(
+            str(other_item.get(key) or "")
+            for key in ("title", "summary")
+        ),
+    ).casefold()
+    other_text = normalized_comparison_text(raw_text)
+    code = normalized_comparison_text(
+        str(official_item.get("issuerCode") or "")
+    )
+    name_aliases = _issuer_aliases(official_item) - ({code} if code else set())
+    if any(
+        _issuer_alias_is_mentioned(alias, raw_text, other_text)
+        for alias in name_aliases
+    ):
+        return True
+    return _issuer_code_is_mentioned(code, raw_text)
+
+
+def _issuer_alias_is_mentioned(
+    alias: str,
+    raw_text: str,
+    comparison_text: str,
+) -> bool:
+    if not alias or alias not in comparison_text:
+        return False
+    company_context = bool(re.search(
+        r"株|決算|業績|配当|買収|公開買付|銘柄|東証|企業|"
+        r"shares?|stocks?|earnings|results?|guidance|buyback|"
+        r"tender offer|tse|tyo|tokyo-listed",
+        raw_text,
+        re.I,
+    ))
+    if re.fullmatch(r"[a-z0-9]+", alias, re.I):
+        # Short English issuer names frequently equal ordinary words (ACCESS,
+        # NOTE, BASE).  Require an explicit code for aliases under 8 chars.
+        return len(alias) >= 8
+    if len(alias) >= 5:
+        return True
+    return company_context
+
+
+def _issuer_code_is_mentioned(code: str, raw_text: str) -> bool:
+    if not code:
+        return False
+    # Bare four-digit numbers are often years or amounts.  Count a numeric
+    # security code only when the headline gives an explicit market context.
+    escaped_code = re.escape(code)
+    if re.search(rf"[（(\[]\s*{escaped_code}\s*[）)\]]", raw_text, re.I):
+        return True
+    if re.search(
+        rf"(?:証券|銘柄|会社|ティッカー|code|ticker|tse|tyo|東証)"
+        rf"[^0-9a-z]{{0,10}}{escaped_code}(?![0-9a-z])",
+        raw_text,
+        re.I,
+    ):
+        return True
+    return bool(
+        re.search(r"[a-z]", code, re.I)
+        and re.search(
+            rf"(?<![0-9a-z]){escaped_code}(?:\.t)?(?![0-9a-z])",
+            raw_text,
+            re.I,
+        )
+    )
+
+
+def company_news_signals(
+    items: list[dict[str, Any]],
+) -> dict[str, dict[str, int]]:
+    """Count comparable issuer buzz from the same general discovery pool."""
+
+    issuers: dict[str, dict[str, Any]] = {}
+    for item in items:
+        if item.get("sourceKind") != "official-company":
+            continue
+        code = str(item.get("issuerCode") or "")
+        if code and item.get("issuerName"):
+            issuers.setdefault(code, item)
+    alias_owners: dict[str, set[str]] = {}
+    issuer_aliases: dict[str, set[str]] = {}
+    for code, issuer in issuers.items():
+        normalized_code = normalized_comparison_text(code)
+        aliases = _issuer_aliases(issuer) - (
+            {normalized_code} if normalized_code else set()
+        )
+        issuer_aliases[code] = aliases
+        for alias in aliases:
+            alias_owners.setdefault(alias, set()).add(code)
+    reports = [
+        item for item in items
+        if item.get("sourceKind") in {"news", "news-wire"}
+        and item.get("discoveryProvider") != "issuer-dynamic"
+    ]
+    mention_keys: dict[str, set[str]] = {
+        code: set() for code in issuers
+    }
+    origins: dict[str, set[str]] = {
+        code: set() for code in issuers
+    }
+    for report in reports:
+        raw_text = unicodedata.normalize(
+            "NFKC",
+            " ".join(
+                str(report.get(key) or "")
+                for key in ("title", "summary")
+            ),
+        ).casefold()
+        comparison_text = normalized_comparison_text(raw_text)
+        matched_codes: list[str] = []
+        for code in issuers:
+            normalized_code = normalized_comparison_text(code)
+            name_match = any(
+                len(alias_owners.get(alias, set())) == 1
+                and _issuer_alias_is_mentioned(
+                    alias, raw_text, comparison_text
+                )
+                for alias in issuer_aliases.get(code, set())
+            )
+            if name_match or _issuer_code_is_mentioned(
+                normalized_code, raw_text
+            ):
+                matched_codes.append(code)
+        # Market roundups listing many issuers are discovery context, not a
+        # comparable measure of issuer-specific attention.
+        if not matched_codes or len(matched_codes) > 2:
+            continue
+        story_key = normalized_comparison_text(
+            source_suffix_removed(str(report.get("title") or ""))
+        ) or normalize_url(str(report.get("url") or ""))
+        origin = str(
+            report.get("originGroup")
+            or reporting_origin_group(
+                str(report.get("source") or ""),
+                str(report.get("url") or ""),
+            )
+        )
+        for code in matched_codes:
+            if story_key:
+                mention_keys[code].add(story_key)
+            if origin:
+                origins[code].add(origin)
+    signals: dict[str, dict[str, int]] = {}
+    for code in issuers:
+        story_count = len(mention_keys[code])
+        origin_count = len(origins[code])
+        signals[code] = {
+            "mentions": story_count,
+            "independentSources": origin_count,
+            "buzzScore": min(
+                12,
+                origin_count * 3 + max(0, story_count - origin_count),
+            ),
+        }
+    return signals
+
+
+def annotate_company_news_signals(items: list[dict[str, Any]]) -> None:
+    """Attach issuer-wide discussion evidence, separate from event corroboration."""
+
+    signals = company_news_signals(items)
+    for item in items:
+        if item.get("sourceKind") != "official-company":
+            continue
+        signal = signals.get(str(item.get("issuerCode") or ""), {})
+        item["issuerNewsMentionCount"] = int(signal.get("mentions") or 0)
+        item["issuerIndependentNewsSourceCount"] = int(
+            signal.get("independentSources") or 0
+        )
+        item["issuerBuzzScore"] = int(signal.get("buzzScore") or 0)
+
+
 def event_signature(item: dict[str, Any]) -> str:
     """Return a conservative event key for materially different headlines."""
 
+    issuer_code = str(item.get("issuerCode") or "")
+    category = str(item.get("disclosureCategory") or "")
+    if issuer_code and category:
+        return f"company-{issuer_code.casefold()}-{category}"
+    text = " ".join(
+        str(item.get(key) or "") for key in ("title", "summary", "source")
+    ).casefold()
     if item.get("topicKey") != "fx-rates":
         return ""
-    text = " ".join(
-        str(item.get(key) or "") for key in ("title", "summary")
-    ).casefold()
     if (
         re.search(r"\binterven(?:e|ed|es|ing|tion|tions)\b|介入", text, re.I)
         and re.search(r"\byen\b|japanese yen|usd/?jpy|円", text, re.I)
@@ -2588,6 +3721,45 @@ def should_cluster_items(left: dict[str, Any], right: dict[str, Any]) -> bool:
     right_time = item_effective_datetime(right)
     if left_time and right_time and abs((left_time - right_time).total_seconds()) > 12 * 3600:
         return False
+    left_company = (
+        left.get("sourceKind") == "official-company"
+        and bool(left.get("issuerCode"))
+    )
+    right_company = (
+        right.get("sourceKind") == "official-company"
+        and bool(right.get("issuerCode"))
+    )
+    if left_company and right_company:
+        if left.get("issuerCode") != right.get("issuerCode"):
+            return False
+        if left.get("disclosureCategory") != right.get("disclosureCategory"):
+            return False
+        return bool(
+            left_time
+            and right_time
+            and abs((left_time - right_time).total_seconds()) <= 8 * 3600
+        )
+    if left_company != right_company:
+        official = left if left_company else right
+        report = right if left_company else left
+        if _issuer_is_mentioned(official, report):
+            report_category, _ = company_disclosure_category(
+                " ".join(
+                    str(report.get(key) or "")
+                    for key in ("title", "summary")
+                )
+            )
+            official_category = str(
+                official.get("disclosureCategory") or ""
+            )
+            if report_category and report_category != official_category:
+                return False
+            if report_category == official_category:
+                return bool(
+                    left_time
+                    and right_time
+                    and abs((left_time - right_time).total_seconds()) <= 12 * 3600
+                )
     left_event = event_signature(left)
     right_event = event_signature(right)
     if left_event and left_event == right_event:
@@ -2616,10 +3788,121 @@ def related_link(item: dict[str, Any]) -> dict[str, Any]:
             str(item.get("url") or ""),
         ),
         "verification": item.get("verification") or "reported",
+        "rankingEvidence": item.get("discoveryProvider") != "issuer-dynamic",
     }
 
 
 def cluster_story_candidates(items: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    issuer_aliases: dict[str, set[str]] = {}
+    alias_owners: dict[str, set[str]] = {}
+    for company_item in items:
+        if company_item.get("sourceKind") != "official-company":
+            continue
+        code = normalized_comparison_text(
+            str(company_item.get("issuerCode") or "")
+        )
+        if not code:
+            continue
+        aliases = _issuer_aliases(company_item) - {code}
+        issuer_aliases.setdefault(code, set()).update(aliases)
+        for alias in aliases:
+            alias_owners.setdefault(alias, set()).add(code)
+
+    company_match_cache: dict[int, set[str]] = {}
+
+    def company_item_code(item: dict[str, Any]) -> str:
+        if item.get("sourceKind") != "official-company":
+            return ""
+        return normalized_comparison_text(str(item.get("issuerCode") or ""))
+
+    def company_item_category(item: dict[str, Any]) -> str:
+        if item.get("sourceKind") != "official-company":
+            return ""
+        return str(item.get("disclosureCategory") or "")
+
+    def reported_company_category(item: dict[str, Any]) -> str:
+        category, _ = company_disclosure_category(
+            " ".join(str(item.get(key) or "") for key in ("title", "summary"))
+        )
+        return category
+
+    def matched_company_codes(item: dict[str, Any]) -> set[str]:
+        cache_key = id(item)
+        if cache_key in company_match_cache:
+            return company_match_cache[cache_key]
+        item_code = company_item_code(item)
+        if item_code:
+            matched = {item_code}
+            company_match_cache[cache_key] = matched
+            return matched
+        raw_text = unicodedata.normalize(
+            "NFKC",
+            " ".join(
+                str(item.get(key) or "") for key in ("title", "summary")
+            ),
+        ).casefold()
+        comparison_text = normalized_comparison_text(raw_text)
+        matched: set[str] = set()
+        for code, aliases in issuer_aliases.items():
+            name_match = any(
+                len(alias_owners.get(alias, set())) == 1
+                and _issuer_alias_is_mentioned(
+                    alias,
+                    raw_text,
+                    comparison_text,
+                )
+                for alias in aliases
+            )
+            if name_match or _issuer_code_is_mentioned(code, raw_text):
+                matched.add(code)
+        company_match_cache[cache_key] = matched
+        return matched
+
+    def company_safe_cluster(
+        cluster: list[dict[str, Any]],
+        item: dict[str, Any],
+    ) -> bool:
+        cluster_codes = {
+            code
+            for member in cluster
+            if (code := company_item_code(member))
+        }
+        if len(cluster_codes) > 1:
+            return False
+        cluster_categories = {
+            category
+            for member in cluster
+            if (category := company_item_category(member))
+        }
+        if len(cluster_categories) > 1:
+            return False
+        item_code = company_item_code(item)
+        item_category = company_item_category(item)
+        if cluster_codes:
+            fixed_code = next(iter(cluster_codes))
+            fixed_category = next(iter(cluster_categories), "")
+            if item_code:
+                return (
+                    item_code == fixed_code
+                    and bool(fixed_category)
+                    and item_category == fixed_category
+                )
+            return (
+                matched_company_codes(item) == {fixed_code}
+                and bool(fixed_category)
+                and reported_company_category(item) == fixed_category
+            )
+        if item_code:
+            # Every member must independently identify the same issuer and
+            # event category before a news-only cluster becomes a company one.
+            return all(
+                matched_company_codes(member) == {item_code}
+                and bool(item_category)
+                and reported_company_category(member) == item_category
+                for member in cluster
+            )
+        return True
+
     ordered = sorted(
         items,
         key=lambda item: (
@@ -2634,7 +3917,8 @@ def cluster_story_candidates(items: list[dict[str, Any]]) -> list[dict[str, Any]
             (
                 cluster
                 for cluster in clusters
-                if any(should_cluster_items(member, item) for member in cluster)
+                if company_safe_cluster(cluster, item)
+                and any(should_cluster_items(member, item) for member in cluster)
             ),
             None,
         )
@@ -2645,7 +3929,58 @@ def cluster_story_candidates(items: list[dict[str, Any]]) -> list[dict[str, Any]
 
     representatives: list[dict[str, Any]] = []
     for members in clusters:
-        representative = members[0]
+        official_members = [
+            member
+            for member in members
+            if str(member.get("sourceKind") or "").startswith("official")
+        ]
+        representative = (
+            max(
+                official_members,
+                key=lambda member: (
+                    has_japanese(str(member.get("title") or "")),
+                    item_effective_datetime(member)
+                    or datetime.min.replace(tzinfo=timezone.utc),
+                    int(member.get("priorityScore") or 0),
+                ),
+            )
+            if official_members
+            else next(
+                (
+                    member for member in members
+                    if member.get("discoveryProvider") != "issuer-dynamic"
+                ),
+                members[0],
+            )
+        )
+        # Canonicalize every URL before both display-link and ranking-evidence
+        # selection.  Prefer the chosen lead for its URL and prefer a general
+        # discovery result over issuer-dynamic when both resolve to the same
+        # article.  Thus the label shown to readers matches the evidence that
+        # was actually counted.
+        member_by_url: dict[str, dict[str, Any]] = {}
+        url_order: list[str] = []
+        for member in [representative, *members]:
+            member_url = normalize_url(str(member.get("url") or ""))
+            if not member_url:
+                continue
+            current = member_by_url.get(member_url)
+            if current is None:
+                member_by_url[member_url] = member
+                url_order.append(member_url)
+            elif member is representative or (
+                current.get("discoveryProvider") == "issuer-dynamic"
+                and member.get("discoveryProvider") != "issuer-dynamic"
+            ):
+                member_by_url[member_url] = member
+        visible_members = [member_by_url[url] for url in url_order]
+
+        # Issuer-specific follow-up searches remain directly openable links,
+        # but excluding them from rank evidence prevents query self-reward.
+        ranking_members = [
+            member for member in visible_members
+            if member.get("discoveryProvider") != "issuer-dynamic"
+        ] or [representative]
         origin_groups = {
             str(
                 member.get("originGroup")
@@ -2654,19 +3989,15 @@ def cluster_story_candidates(items: list[dict[str, Any]]) -> list[dict[str, Any]
                     str(member.get("url") or ""),
                 )
             )
-            for member in members
+            for member in ranking_members
         }
         related: list[dict[str, Any]] = []
-        seen_related_urls: set[str] = {
-            normalize_url(str(representative.get("url") or ""))
-        }
-        for member in members[1:]:
-            normalized_url = normalize_url(str(member.get("url") or ""))
-            if not normalized_url or normalized_url in seen_related_urls:
+        for member in visible_members:
+            if member is representative:
                 continue
-            seen_related_urls.add(normalized_url)
             related.append(related_link(member))
-        representative["clusterSize"] = len(members)
+        representative["clusterSize"] = max(1, len(visible_members))
+        representative["rankingClusterSize"] = max(1, len(ranking_members))
         representative["independentSourceCount"] = len(origin_groups)
         representative["corroborationState"] = (
             "official-primary"
@@ -2684,6 +4015,47 @@ def deduplicate_items(items: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return cluster_story_candidates(items)
 
 
+RESULT_BUNDLE_ANCILLARY_CATEGORIES = {
+    "buyback",
+    "stock-split",
+    "dividend",
+    "capital-raising",
+}
+
+
+def same_bundle_financial_result(
+    candidate: dict[str, Any],
+    company_items: list[dict[str, Any]],
+) -> dict[str, Any] | None:
+    """Return the issuer's core result released within the same 15-minute bundle."""
+
+    # Preserve M&A, accounting and guidance as independent major events.  The
+    # core-first rule is only for capital actions commonly announced alongside
+    # results and liable to receive more headline pickup than the result itself.
+    if candidate.get("disclosureCategory") not in RESULT_BUNDLE_ANCILLARY_CATEGORIES:
+        return None
+    issuer = str(candidate.get("issuerCode") or "")
+    candidate_time = item_effective_datetime(candidate)
+    if not issuer or candidate_time is None:
+        return None
+    matches = [
+        row for row in company_items
+        if isinstance(row, dict)
+        and row.get("sourceKind") == "official-company"
+        and str(row.get("issuerCode") or "") == issuer
+        and row.get("disclosureCategory") == "financial-results"
+        and (row_time := item_effective_datetime(row)) is not None
+        and abs((row_time - candidate_time).total_seconds()) <= 15 * 60
+    ]
+    return max(
+        matches,
+        key=lambda row: (
+            int(row.get("materialityScore") or 0),
+            item_effective_datetime(row) or datetime.min.replace(tzinfo=timezone.utc),
+        ),
+    ) if matches else None
+
+
 def rank_briefing_items(
     items: list[dict[str, Any]],
     *,
@@ -2697,7 +4069,9 @@ def rank_briefing_items(
     for item in items:
         engagement = int(item.get("engagementTotal") or 0)
         independent_sources = max(1, int(item.get("independentSourceCount") or 1))
-        cluster_size = max(1, int(item.get("clusterSize") or 1))
+        ranking_cluster_size = max(
+            1, int(item.get("rankingClusterSize") or item.get("clusterSize") or 1)
+        )
         # An unknown publication time must not be ranked as if it were fresh.
         recency_component = (
             4
@@ -2709,12 +4083,18 @@ def rank_briefing_items(
             round(
                 12
                 + min(30, independent_sources * 12)
-                + min(12, math.log2(cluster_size + 1) * 4)
+                + min(12, math.log2(ranking_cluster_size + 1) * 4)
                 + min(20, math.log10(engagement + 1) * 8)
                 + recency_component
             ),
         )
-    news_kinds = {"official-us", "official-japan", "news", "news-wire"}
+    news_kinds = {
+        "official-us",
+        "official-japan",
+        "official-company",
+        "news",
+        "news-wire",
+    }
     news_items = [item for item in items if item.get("sourceKind") in news_kinds]
     social_items = [item for item in items if item.get("sourceKind") not in news_kinds]
 
@@ -2742,24 +4122,123 @@ def rank_briefing_items(
         key=newest_key,
         reverse=True,
     )
+    latest_market_news = [
+        item for item in live_news
+        if item.get("sourceKind") != "official-company"
+    ]
+    company_news = [
+        item for item in live_news + context_news
+        if item.get("sourceKind") == "official-company"
+    ]
+
+    def company_impact_key(item: dict[str, Any]) -> tuple[Any, ...]:
+        return (
+            int(item.get("materialityScore") or 0)
+            + min(60, int(item.get("independentSourceCount") or 1) * 16)
+            + min(36, int(item.get("rankingClusterSize") or item.get("clusterSize") or 1) * 3)
+            + int(item.get("talkScore") or 0)
+            + int(item.get("issuerBuzzScore") or 0),
+            int(item.get("issuerBuzzScore") or 0),
+            int(item.get("independentSourceCount") or 1),
+            int(item.get("rankingClusterSize") or item.get("clusterSize") or 1),
+            item_effective_datetime(item)
+            or datetime.min.replace(tzinfo=timezone.utc),
+        )
+
+    company_news.sort(key=company_impact_key, reverse=True)
     social_items.sort(key=newest_key, reverse=True)
+
+    # A same-time disclosure bundle often contains the core earnings release
+    # plus ancillary capital actions.  When an ancillary item would enter the
+    # display, insert that issuer's results first without naming or watching a
+    # particular company.  This prevents stronger media pickup for a split or
+    # buyback from hiding the earnings release that explains the bundle.
+    prioritized_company_news: list[dict[str, Any]] = []
+    for candidate in company_news:
+        core = same_bundle_financial_result(candidate, company_news)
+        if core is not None:
+            prioritized_company_news.append(core)
+        prioritized_company_news.append(candidate)
+    company_news = prioritized_company_news
 
     selected: list[dict[str, Any]] = []
     selected_ids: set[str] = set()
-    for candidate in live_news[:LATEST_ITEM_RESERVE]:
+
+    def select(candidate: dict[str, Any] | None) -> bool:
+        if not candidate or candidate["id"] in selected_ids:
+            return False
         selected.append(candidate)
         selected_ids.add(candidate["id"])
+        return True
 
-    # Diversity and social context are useful, but never displace the strict
-    # newest-first reserve at the front of the briefing.
+    # Keep a strict latest-news lane for macro, policy, market and media
+    # updates.  The separate company lane below prevents an earnings-day flood
+    # from either dominating the briefing or hiding major corporate events.
+    for candidate in latest_market_news[:LATEST_ITEM_RESERVE]:
+        select(candidate)
+
     for source_kind in ("official-us", "official-japan"):
         candidate = next(
-            (row for row in live_news + context_news if row.get("sourceKind") == source_kind),
+            (
+                row for row in live_news + context_news
+                if row.get("sourceKind") == source_kind
+            ),
             None,
         )
-        if candidate and candidate["id"] not in selected_ids:
-            selected.append(candidate)
-            selected_ids.add(candidate["id"])
+        select(candidate)
+
+    # Reserve up to six material company disclosures.  The rules use event
+    # type, independent reporting and same-time disclosure bundles; no issuer
+    # name, code, watchlist or market-cap gate is required.
+    issuer_counts: dict[str, int] = {}
+    for category in (
+        "financial-results",
+        "guidance-revision",
+        "m-and-a-tob",
+        "accounting-governance",
+    ):
+        candidate = next(
+            (
+                row for row in company_news
+                if row.get("disclosureCategory") == category
+                and (
+                    not row.get("issuerCode")
+                    or issuer_counts.get(str(row.get("issuerCode")), 0) < 3
+                )
+            ),
+            None,
+        )
+        if select(candidate):
+            issuer = str(candidate.get("issuerCode") or "")
+            issuer_counts[issuer] = issuer_counts.get(issuer, 0) + 1
+    company_slots = sum(
+        1 for row in selected
+        if row.get("sourceKind") == "official-company"
+    )
+    for candidate in company_news:
+        if company_slots >= 6:
+            break
+        issuer = str(candidate.get("issuerCode") or "")
+        if issuer and issuer_counts.get(issuer, 0) >= 3:
+            continue
+        if select(candidate):
+            company_slots += 1
+            issuer_counts[issuer] = issuer_counts.get(issuer, 0) + 1
+
+    # Enforce the bundle invariant after every selection route: if a selected
+    # capital action has a same-time result but the result is absent, replace
+    # the first such ancillary selection with the core result.
+    for index, candidate in enumerate(list(selected)):
+        if candidate.get("sourceKind") != "official-company":
+            continue
+        core = same_bundle_financial_result(candidate, company_news)
+        if core is None or core.get("id") in selected_ids:
+            continue
+        candidate_id = str(candidate.get("id") or "")
+        if candidate_id:
+            selected_ids.discard(candidate_id)
+        selected[index] = core
+        selected_ids.add(str(core.get("id") or ""))
 
     for kinds in (
         {"x-api", "x-index"},
@@ -2767,34 +4246,38 @@ def rank_briefing_items(
         {"truth-social", "truth-social-archive"},
     ):
         candidate = next((row for row in items if row.get("sourceKind") in kinds), None)
-        if candidate and candidate["id"] not in selected_ids:
-            selected.append(candidate)
-            selected_ids.add(candidate["id"])
+        select(candidate)
     economist_candidate = next((
         row for row in items
-        if any(
+        if row.get("sourceKind") != "official-company"
+        and any(
             name in ((row.get("title") or "") + " " + (row.get("summary") or "")).lower()
             for name in ECONOMIST_WATCH_NAMES
         )
     ), None)
-    if economist_candidate and economist_candidate["id"] not in selected_ids:
-        selected.append(economist_candidate)
-        selected_ids.add(economist_candidate["id"])
+    select(economist_candidate)
     for stance in ("bullish", "bearish"):
         candidate = next((
             row for row in live_news + context_news
             if row.get("stance") == stance
             and row.get("topicKey") in {"us-stocks", "japan-stocks", "ai-bubble"}
+            and row.get("sourceKind") != "official-company"
         ), None)
-        if candidate and candidate["id"] not in selected_ids:
-            selected.append(candidate)
-            selected_ids.add(candidate["id"])
-    for item in live_news + context_news + social_items:
+        select(candidate)
+    for item in latest_market_news + company_news + context_news + social_items:
         if len(selected) >= BRIEFING_ITEM_LIMIT:
             break
-        if item["id"] not in selected_ids:
-            selected.append(item)
-            selected_ids.add(item["id"])
+        if item.get("sourceKind") == "official-company":
+            issuer = str(item.get("issuerCode") or "")
+            if company_slots >= 6:
+                continue
+            if issuer and issuer_counts.get(issuer, 0) >= 3:
+                continue
+            if select(item):
+                company_slots += 1
+                issuer_counts[issuer] = issuer_counts.get(issuer, 0) + 1
+            continue
+        select(item)
     selected.sort(key=newest_key, reverse=True)
     return selected[:BRIEFING_ITEM_LIMIT]
 
@@ -2994,10 +4477,10 @@ def channel_statuses(source_status: list[dict[str, Any]], now: datetime) -> list
     return [
         aggregate(
             "official",
-            "日米の一次機関",
-            ("official-us", "official-japan"),
+            "日米の一次機関・企業開示",
+            ("official-us", "official-japan", "company-disclosure"),
             MOF_INTERVENTION_URL,
-            "公表時刻と市場の値動きには時間差があります。",
+            "政策公表・企業開示の時刻と市場の値動きには時間差があります。",
         ),
         aggregate(
             "news",
@@ -3124,6 +4607,8 @@ def build_briefing(
 def upgrade_previous_item(
     row: Any,
     now: datetime,
+    *,
+    allow_breaking: bool = False,
 ) -> dict[str, Any] | None:
     """Normalize a previous public item before it can be carried forward."""
 
@@ -3152,6 +4637,7 @@ def upgrade_previous_item(
         "effect",
         "clusterId",
         "clusterSize",
+        "rankingClusterSize",
         "independentSourceCount",
         "corroborationState",
         "relatedLinks",
@@ -3228,7 +4714,25 @@ def upgrade_previous_item(
         if isinstance(previous_talk_score, int) and 0 <= previous_talk_score <= 100:
             upgraded["talkScore"] = previous_talk_score
 
-    if (upgraded.get("freshness") or {}).get("bucket") == "breaking":
+        # Preserve generic company metadata when upgrading a pre-schema
+        # snapshot.  No issuer-specific values are introduced here.
+        for key in (
+            "disclosureId",
+            "issuerCode",
+            "issuerName",
+            "disclosureCategory",
+            "materialityScore",
+            "issuerNewsMentionCount",
+            "issuerIndependentNewsSourceCount",
+            "issuerBuzzScore",
+        ):
+            if key in row:
+                upgraded[key] = row[key]
+
+    if (
+        not allow_breaking
+        and (upgraded.get("freshness") or {}).get("bucket") == "breaking"
+    ):
         # A fallback item must never enter the current breaking lane.
         return None
     return upgraded
@@ -3243,29 +4747,101 @@ def carry_forward_if_needed(
     previous_items = ((previous.get("briefing") or {}).get("items") or [])
     if len(current_items) >= 4 or not previous_items:
         return package
+    prioritized_previous_items: list[dict[str, Any]] = []
+    for row in previous_items:
+        if isinstance(row, dict):
+            core = same_bundle_financial_result(row, previous_items)
+            if core is not None:
+                prioritized_previous_items.append(core)
+        prioritized_previous_items.append(row)
+    previous_items = prioritized_previous_items
     carried = []
     current_ids = {row.get("id") for row in current_items}
+    company_slots = sum(
+        row.get("sourceKind") == "official-company"
+        for row in current_items
+    )
+    issuer_counts: dict[str, int] = {}
+    for current in current_items:
+        if current.get("sourceKind") == "official-company":
+            issuer = str(current.get("issuerCode") or "")
+            issuer_counts[issuer] = issuer_counts.get(issuer, 0) + 1
     for row in previous_items:
         copy = upgrade_previous_item(row, now)
         if copy is None or copy.get("id") in current_ids:
             continue
+        if copy.get("sourceKind") == "official-company":
+            issuer = str(copy.get("issuerCode") or "")
+            if company_slots >= 6:
+                continue
+            if issuer and issuer_counts.get(issuer, 0) >= 3:
+                continue
         copy["carriedForward"] = True
         copy["staleReason"] = "今回の取得件数が不足したため前回候補を保持"
         carried.append(copy)
+        current_ids.add(copy.get("id"))
+        if copy.get("sourceKind") == "official-company":
+            company_slots += 1
+            issuer = str(copy.get("issuerCode") or "")
+            issuer_counts[issuer] = issuer_counts.get(issuer, 0) + 1
         if len(current_items) + len(carried) >= BRIEFING_ITEM_LIMIT:
             break
-    package["briefing"]["items"] = sorted(
+    combined_items = sorted(
         current_items,
         key=lambda item: item_effective_datetime(item)
         or datetime.min.replace(tzinfo=timezone.utc),
         reverse=True,
     ) + carried
+    briefing = package["briefing"]
+    briefing["items"] = combined_items
+    topic_counts: dict[str, int] = {}
+    verification_counts: dict[str, int] = {}
+    source_kind_counts: dict[str, int] = {}
+    for item in combined_items:
+        topic_key = str(item["topicKey"])
+        verification = str(item["verification"])
+        source_kind = str(item["sourceKind"])
+        topic_counts[topic_key] = topic_counts.get(topic_key, 0) + 1
+        verification_counts[verification] = verification_counts.get(verification, 0) + 1
+        source_kind_counts[source_kind] = source_kind_counts.get(source_kind, 0) + 1
+
+    def direction_rows(stance: str) -> list[dict[str, str]]:
+        return [
+            {
+                "title": item["title"],
+                "source": item["source"],
+                "url": item["url"],
+                "verification": item["verification"],
+            }
+            for item in combined_items
+            if item["stance"] == stance
+            and item.get("topicKey") in {"us-stocks", "japan-stocks", "ai-bubble"}
+        ][:4]
+
+    briefing["topicCounts"] = topic_counts
+    briefing["verificationCounts"] = verification_counts
+    briefing["sourceKindCounts"] = source_kind_counts
+    briefing["bullish"] = direction_rows("bullish")
+    briefing["bearish"] = direction_rows("bearish")
+    briefing["unverifiedCount"] = sum(
+        item["verification"] == "unverified" for item in combined_items
+    )
+    leading_topics = sorted(topic_counts.items(), key=lambda row: (-row[1], row[0]))
+    focus = "、".join(
+        f"{TOPICS[key]['label']} {count}件"
+        for key, count in leading_topics[:3]
+    )
+    briefing["summary"] = (
+        f"直近の重要候補は{len(combined_items)}件。{focus or '新着候補なし'}です。"
+        "取得範囲の注目度は、鮮度・独立出所数・クラスタ規模・取得できた反応数の補助指標で、"
+        "事実確認度や相場方向とは別です。"
+        f" 取得不足のため前回候補{len(carried)}件を保持しています。"
+    )
     package["dataHealth"]["carriedForwardItems"] = len(carried)
     package["dataHealth"]["status"] = "partial"
     package["dataHealth"]["message"] = (
         f"新規取得{len(current_items)}件。前回候補{len(carried)}件を時刻表示付きで保持しました。"
     )
-    package["briefing"]["summary"] += f" 取得不足のため前回候補{len(carried)}件を保持しています。"
     package["fallbackAppliedAtUtc"] = now.isoformat()
     return package
 
@@ -3276,12 +4852,51 @@ def build_live_package(previous: dict[str, Any] | None = None) -> dict[str, Any]
     quotes, quote_status = fetch_intraday_quotes(now)
     source_status: list[dict[str, Any]] = list(quote_status)
     items: list[dict[str, Any]] = []
-    jobs: list[tuple[str, Any, dict[str, str] | None]] = []
+    previous_cache = previous.get("companyDisclosureCache")
+    cache_available = (
+        "companyDisclosureCache" in previous
+        and isinstance(previous_cache, list)
+        and bool(previous_cache)
+    )
+    previous_tdnet_state = next(
+        (
+            row for row in (previous.get("sourceStatus") or [])
+            if isinstance(row, dict)
+            and row.get("kind") == "company-disclosure"
+        ),
+        {},
+    ) if cache_available else {}
+    # Rebuild once after a coverage algorithm upgrade.  A legacy cache may be
+    # internally valid yet contain only the current TDnet calendar day.
+    incremental_tdnet_state = (
+        previous_tdnet_state
+        if previous_tdnet_state.get("coverageVersion")
+        == TDNET_SCAN_COVERAGE_VERSION
+        and previous_tdnet_state.get("coverageComplete") is True
+        else {}
+    )
+    jobs: list[tuple[str, Any, dict[str, Any] | None]] = []
     for feed in OFFICIAL_FEEDS:
         jobs.append((feed["kind"], fetch_official_feed, feed))
+    for feed in COMPANY_DISCLOSURE_FEEDS:
+        definition = {
+            **feed,
+            "previousState": incremental_tdnet_state,
+        }
+        jobs.append((
+            str(feed.get("statusKind") or feed["kind"]),
+            fetch_company_disclosures,
+            definition,
+        ))
     for query_def in NEWS_QUERIES:
-        jobs.append(("news", fetch_bing_news, query_def))
-        jobs.append(("news", fetch_google_news, query_def))
+        providers = {
+            str(provider).casefold()
+            for provider in query_def.get("providers") or ("bing", "google")
+        }
+        if "bing" in providers:
+            jobs.append(("news", fetch_bing_news, query_def))
+        if "google" in providers:
+            jobs.append(("news", fetch_google_news, query_def))
     gdelt_terms = [
         re.sub(
             r"\s+sourcelang:english\s*$",
@@ -3329,9 +4944,100 @@ def build_live_package(previous: dict[str, Any] | None = None) -> dict[str, Any]
                     "message": str(exc),
                 })
 
+    current_disclosure_ids = {
+        str(item.get("disclosureId") or "")
+        for item in items
+        if item.get("sourceKind") == "official-company"
+        and item.get("disclosureId")
+    }
+    items.extend(restore_company_disclosure_cache(
+        previous_cache,
+        now,
+        current_disclosure_ids,
+    ))
+
+    # The company names are derived from this run's official TDnet candidates.
+    # Provider queries therefore follow whatever is material today instead of
+    # relying on a permanent issuer watchlist.
+    dynamic_queries = build_dynamic_company_news_queries(items)
+    if dynamic_queries:
+        dynamic_jobs: list[tuple[Any, dict[str, Any]]] = []
+        for query_def in dynamic_queries:
+            dynamic_jobs.append((fetch_google_news, query_def))
+            dynamic_jobs.append((fetch_bing_news, query_def))
+        with ThreadPoolExecutor(max_workers=4) as executor:
+            futures = {
+                executor.submit(function, definition, now): (
+                    function,
+                    definition,
+                )
+                for function, definition in dynamic_jobs
+            }
+            for future in as_completed(futures):
+                function, definition = futures[future]
+                try:
+                    fetched_items, status = future.result()
+                    items.extend(fetched_items)
+                    source_status.append(status)
+                except Exception as exc:
+                    provider = (
+                        "Google News"
+                        if function is fetch_google_news
+                        else "Bing News"
+                    )
+                    source_status.append({
+                        "name": f"{provider} / {definition['name']}",
+                        "kind": "news-discovery",
+                        "status": "failed",
+                        "url": "",
+                        "retrievedAtUtc": now.isoformat(),
+                        "message": str(exc),
+                    })
+
+    # The official PDF remains valid after it leaves the first TDnet page.
+    # Re-evaluate previously selected official disclosures for 48 hours so a
+    # story that becomes widely discussed later does not disappear merely
+    # because hundreds of newer routine filings arrived.
+    current_urls = {
+        normalize_url(str(item.get("url") or ""))
+        for item in items
+    }
+    for previous_item in ((previous.get("briefing") or {}).get("items") or []):
+        if (
+            not isinstance(previous_item, dict)
+            or previous_item.get("sourceKind") != "official-company"
+            or publisher_domain(str(previous_item.get("url") or ""))
+            != "www.release.tdnet.info"
+        ):
+            continue
+        effective = item_effective_datetime(previous_item)
+        if effective is None or now - effective > timedelta(hours=48):
+            continue
+        url = normalize_url(str(previous_item.get("url") or ""))
+        if url in current_urls:
+            continue
+        cached = upgrade_previous_item(
+            previous_item,
+            now,
+            allow_breaking=True,
+        )
+        if cached is None:
+            continue
+        cached["identityNote"] = (
+            clean_text(cached.get("identityNote"))
+            + " 直近48時間の公式開示を前回スナップショットから再評価。"
+        ).strip()
+        cached["discoveryProvider"] = "tdnet-recent-cache"
+        cached.pop("carriedForward", None)
+        cached.pop("staleReason", None)
+        items.append(cached)
+        current_urls.add(url)
+
     items.extend(audited_current_event_items(now))
     items.extend(audited_current_market_items(now))
     inherit_previous_item_state(items, previous, now)
+    annotate_company_news_signals(items)
+    company_disclosure_cache = build_company_disclosure_cache(items, now)
     items = cluster_story_candidates(items)
     shock = build_market_shock(quotes, now)
     update_intervention_assessment(shock, items)
@@ -3354,10 +5060,13 @@ def build_live_package(previous: dict[str, Any] | None = None) -> dict[str, Any]
         "generatedAtUtc": now.isoformat(),
         "generatedAtJst": now.astimezone(JST).isoformat(),
         "refreshPolicy": {
-            "targetIntervalMinutes": 15,
+            "targetIntervalMinutes": 5,
             "delivery": "GitHub Actions scheduled snapshot",
             "buttonBehavior": "公開版の更新ボタンは最後に配信済みのスナップショットを再読込",
-            "warning": "GitHub Actionsの混雑・取得元障害で15分を超える場合があります。",
+            "warning": (
+                "5分間隔を目標にしますが、GitHub Actionsの開始時刻と配信時刻は保証されず、"
+                "混雑・取得元障害・CDNキャッシュにより遅延する場合があります。"
+            ),
         },
         "dataHealth": {
             "status": health_status,
@@ -3371,6 +5080,7 @@ def build_live_package(previous: dict[str, Any] | None = None) -> dict[str, Any]
         "marketShock": shock,
         "premarket": premarket,
         "briefing": briefing,
+        "companyDisclosureCache": company_disclosure_cache,
         "sourceStatus": source_status,
         "methodology": {
             "intervention": (
@@ -3378,8 +5088,9 @@ def build_live_package(previous: dict[str, Any] | None = None) -> dict[str, Any]
                 "財務省の一次公表が確認できるまで officiallyConfirmed=false とする。"
             ),
             "talkScore": (
-                "取得範囲の注目度として、鮮度、クラスタ内の独立出所数と記事数、"
-                "取得できた公開反応数を0–100に整理。媒体横断の全投稿数でも危険確率でもない。"
+                "取得範囲の注目度として、鮮度、クラスタ内の独立出所数と記事数、取得できた公開反応数を"
+                "0–100に整理。会社開示は全社共通の一般ニュース検索における企業名・明示的な証券コードの"
+                "言及と独立配信元も別の会社話題度として集計する。媒体横断の全投稿数でも危険確率でもない。"
             ),
             "stance": (
                 "見出し・投稿中の限定語彙から強気・弱気・混合・中立を分類。"
