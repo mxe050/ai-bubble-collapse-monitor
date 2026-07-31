@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "updatedAtJst": "2026-07-30T23:13:20.388952+09:00",
+  "updatedAtJst": "2026-08-01T04:39:51.073160+09:00",
   "selectionRule": "比較対象日以前3日以内で最も近い保存日を使用し、実際の保存日を画面に表示する。",
   "revisionPolicy": "各日の当時公表値を固定保存し、後日の系列改定で過去スナップショットを再計算しない。",
   "snapshots": [
@@ -24,6 +24,13 @@
       "marketDate": "2026-07-29",
       "methodVersion": "4.3.0",
       "file": "2026-07-30.json"
+    },
+    {
+      "snapshotDate": "2026-08-01",
+      "generatedAtJst": "2026-08-01T04:21:39.168880+09:00",
+      "marketDate": "2026-07-30",
+      "methodVersion": "4.4.0",
+      "file": "2026-08-01.json"
     }
   ]
 }

@@ -45,6 +45,14 @@ EXPECTED_INSTRUMENTS = {
         "currency": "JPY",
         "role": "cash-reference",
     },
+    "SP500_CASH": {
+        "symbol": "^GSPC",
+        "label": "S&P 500（現物）",
+        "shortLabel": "S&P現物",
+        "group": "us",
+        "currency": "INDEX",
+        "role": "cash-reference",
+    },
     "NIKKEI_FUTURES_YEN": {
         "symbol": "NIY=F",
         "label": "CME日経225先物（円建て）",
@@ -101,6 +109,30 @@ EXPECTED_INSTRUMENTS = {
         "currency": "JPY",
         "role": "fx",
     },
+    "DXY": {
+        "symbol": "DX-Y.NYB",
+        "label": "米ドル指数",
+        "shortLabel": "DXY",
+        "group": "fx",
+        "currency": "INDEX",
+        "role": "dollar-index",
+    },
+    "ACWI_CASH": {
+        "symbol": "ACWI",
+        "label": "ACWI（全世界株ETF）",
+        "shortLabel": "ACWI",
+        "group": "global",
+        "currency": "USD",
+        "role": "world-equity",
+    },
+    "KIOXIA": {
+        "symbol": "285A.T",
+        "label": "キオクシアHD",
+        "shortLabel": "キオクシア",
+        "group": "japan",
+        "currency": "JPY",
+        "role": "company-price",
+    },
     "VIX": {
         "symbol": "^VIX",
         "label": "VIX",
@@ -118,6 +150,15 @@ EXPECTED_INSTRUMENTS = {
         "role": "rates",
     },
 }
+
+PREMARKET_DISPLAY_KEYS = (
+    "NIKKEI_FUTURES_YEN", "NIKKEI_FUTURES_USD",
+    "SP500_FUTURES", "NASDAQ100_FUTURES", "DOW_FUTURES", "RUSSELL2000_FUTURES",
+    "USDJPY", "US10Y", "VIX",
+)
+MARKET_SUMMARY_OVERLAY_KEYS = (
+    "NIKKEI_CASH", "SP500_CASH", "DXY", "ACWI_CASH", "KIOXIA",
+)
 
 BULL_TERMS = (
     "rally",
@@ -1330,6 +1371,8 @@ def validate_premarket(
             "nikkeiFutureCashGapPoints",
             "nikkeiFutureCashGapPct",
             "usFuturesAverageChangePct",
+            "displayQuoteKeys",
+            "marketSummaryOverlayKeys",
             "quotes",
             "strategyCues",
             "summary",
@@ -1349,6 +1392,13 @@ def validate_premarket(
     require(same_instant(checked_jst, generated_jst), "premarket.checkedAtJst mismatch")
 
     quotes = require_dict(premarket["quotes"], "premarket.quotes")
+    display_quote_keys = require_list(premarket["displayQuoteKeys"], "premarket.displayQuoteKeys")
+    overlay_quote_keys = require_list(premarket["marketSummaryOverlayKeys"], "premarket.marketSummaryOverlayKeys")
+    require(tuple(display_quote_keys) == PREMARKET_DISPLAY_KEYS, "pre-market display keys must remain the nine strategy series")
+    require(tuple(overlay_quote_keys) == MARKET_SUMMARY_OVERLAY_KEYS, "market-summary overlay keys changed")
+    require(not set(display_quote_keys).intersection(overlay_quote_keys), "pre-market display and market-summary overlay keys must remain separate")
+    require(set(display_quote_keys).issubset(EXPECTED_INSTRUMENTS), "pre-market display key is not configured")
+    require(set(overlay_quote_keys).issubset(EXPECTED_INSTRUMENTS), "market-summary overlay key is not configured")
     unknown = sorted(set(quotes) - set(EXPECTED_INSTRUMENTS))
     require(not unknown, f"premarket.quotes has unknown instruments: {unknown}")
     for key, profile in EXPECTED_INSTRUMENTS.items():

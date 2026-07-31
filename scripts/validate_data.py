@@ -83,6 +83,16 @@ def main() -> None:
         calculated_drawdown = (1 - row["close"] / row["peak3y"]) * 100
         require(close_enough(calculated_drawdown, row["drawdown3yPct"]), f"{key}: drawdown identity failed")
 
+    for key, row in series.items():
+        if "dailyCloseStatus" not in row:
+            continue
+        require(row.get("dailyCloseStatus") == "completed-session-close", f"{key}: daily value is not a completed close")
+        require(isinstance(row.get("excludedUnfinishedSessionDates"), list), f"{key}: unfinished-session audit is missing")
+        require(bool(row.get("marketTimeZone")), f"{key}: market timezone is missing")
+        require(bool(row.get("sessionCloseLocal")), f"{key}: market close time is missing")
+        require(row.get("finalizationGraceMinutes") == 20, f"{key}: daily-bar grace rule changed")
+        require(date.fromisoformat(row["date"]) <= generated, f"{key}: saved daily close is after generation date")
+
     for key in ("STOXX600", "CSI300", "ACWI", "USDJPY", "EURUSD", "USDCNY", "DXY"):
         row = series.get(key)
         require(bool(row), f"missing regional market-summary series: {key}")
@@ -209,7 +219,30 @@ def main() -> None:
     require(close_enough(balance["netLiquidReserveBillion"], expected_reserve), "Berkshire net liquidity identity failed")
     expected_pool_ratio = expected_reserve / (expected_reserve + balance["equitySecuritiesBillion"] + balance["fixedMaturityBillion"]) * 100
     require(close_enough(balance["investmentPoolLiquidRatioPct"], expected_pool_ratio), "Berkshire liquidity ratio identity failed")
+    expected_total_asset_ratio = expected_reserve / balance["totalAssetsBillion"] * 100
+    require(close_enough(balance["liquidReserveToTotalAssetsPct"], expected_total_asset_ratio), "Berkshire total-asset liquidity identity failed")
+    require(close_enough(balance["totalAssetLiquidRatioPct"], expected_total_asset_ratio), "Berkshire total-asset liquidity alias failed")
+    require(close_enough(berkshire["totalAssetLiquidRatioPct"], expected_total_asset_ratio), "Berkshire latest total-asset liquidity output failed")
     long_context = berkshire.get("longTermContext") or {}
+    liquidity_history = long_context.get("liquidityHistory") or []
+    expected_liquidity_history = [
+        ("2024-12-31", 318.0, 30.592),
+        ("2025-12-31", 368.986, 45.969),
+        ("2026-03-31", 373.510, None),
+    ]
+    require(len(liquidity_history) == len(expected_liquidity_history), "Berkshire liquidity history is incomplete")
+    for row, (period_end, reserve, operating_cash_flow) in zip(liquidity_history, expected_liquidity_history):
+        require(row.get("periodEnd") == period_end, "Berkshire liquidity-history period changed")
+        require(close_enough(row.get("netLiquidReserveBillion"), reserve), "Berkshire liquidity-history reserve changed")
+        if operating_cash_flow is None:
+            require(row.get("operatingCashFlowBillion") is None, "Berkshire unknown quarter cash flow must remain null")
+        else:
+            require(close_enough(row.get("operatingCashFlowBillion"), operating_cash_flow), "Berkshire operating cash-flow history changed")
+        require(str(row.get("sourceUrl", "")).startswith("https://"), "Berkshire liquidity-history source is missing")
+    require(close_enough(liquidity_history[-1]["netLiquidReserveBillion"], balance["netLiquidReserveBillion"]), "Berkshire latest liquidity history disagrees with balance")
+    require(close_enough(liquidity_history[-2]["netLiquidReserveBillion"], previous_balance["netLiquidReserveBillion"]), "Berkshire prior liquidity history disagrees with balance")
+    require("フロー" in long_context.get("flowVsStockNote", "") and "ストック" in long_context.get("flowVsStockNote", ""), "Berkshire flow/stock boundary is missing")
+    require("フロー" in berkshire.get("narrative", "") and "ストック" in berkshire.get("narrative", ""), "Berkshire beginner narrative lacks flow/stock explanation")
     net_selling = long_context.get("netSelling") or {}
     net_selling_periods = net_selling.get("periods") or []
     require(sum(row["quarterCount"] for row in net_selling_periods) == 14, "Berkshire net-selling quarter count failed")
@@ -293,6 +326,7 @@ def main() -> None:
     require(sakakibara.get("confirmationMax") == 4, "Sakakibara confirmation maximum changed")
 
     kioxia = sakakibara.get("kioxiaCase") or {}
+    require(kioxia.get("issuerCode") == "285A", "Kioxia issuer code is missing")
     require(kioxia.get("articleStartDate") == "2026-03-31", "Kioxia article start date changed")
     require(close_enough(kioxia.get("articleStartLow"), 18540.0), "Kioxia article start price changed")
     require(close_enough(kioxia.get("articleStartClose"), 19080.0), "Kioxia article start close changed")
@@ -306,26 +340,46 @@ def main() -> None:
 
     calm = kioxia.get("calmValuation") or {}
     calm_reports = calm.get("reports") or []
-    require(calm.get("modelVersion") == "reported-growth-current-margin-earnings-v1", "Kioxia calm model version is missing")
+    require(calm.get("modelVersion") == "reported-quarter-signal-conservative-annual-base-v2", "Kioxia calm model version is missing")
     require(len(calm_reports) == 2, "Kioxia calm model must use two reports")
-    require([row.get("releaseDate") for row in calm_reports] == ["2026-02-12", "2026-05-15"], "Kioxia report dates changed")
-    require(all(str(row.get("sourceUrl", "")).startswith("https://ssl4.eir-parts.net/doc/285A/") for row in calm_reports), "Kioxia official report URLs are missing")
-    expected_calm_growth = statistics.mean(row["revenueGrowthYoYPct"] for row in calm_reports)
-    require(close_enough(calm["growthExpectationPct"], expected_calm_growth), "Kioxia growth assumption identity failed")
-    expected_calm_margins = [
-        row["profitAttributableJpyMillions"] / row["revenueJpyMillions"] * 100
-        for row in calm_reports
-    ]
-    expected_calm_margin = expected_calm_margins[-1]
-    require(close_enough(calm["referenceNetMarginPct"], expected_calm_margin), "Kioxia reference margin identity failed")
-    expected_calm_revenue = calm_reports[-1]["revenueJpyMillions"] * (1 + expected_calm_growth / 100)
+    require([row.get("releaseDate") for row in calm_reports] == ["2026-07-31", "2026-05-15"], "Kioxia report dates changed")
+    require([row.get("periodMonths") for row in calm_reports] == [3, 12], "Kioxia report periods changed")
+    quarter, annual = calm_reports
+    require(quarter.get("sourceUrl") == "https://ssl4.eir-parts.net/doc/285A/tdnet/2859905/00.pdf", "Kioxia latest official Q1 source changed")
+    require(quarter.get("revenueJpyMillions") == 1_767_117, "Kioxia Q1 revenue changed")
+    require(close_enough(quarter.get("revenueGrowthYoYPct"), 415.5), "Kioxia Q1 revenue growth changed")
+    require(quarter.get("profitAttributableJpyMillions") == 842_165, "Kioxia Q1 profit changed")
+    require(quarter.get("sharesOutstanding") == 548_015_088, "Kioxia Q1 shares changed")
+    require(annual.get("revenueJpyMillions") == 2_337_628, "Kioxia FY revenue changed")
+    require(annual.get("profitAttributableJpyMillions") == 554_490, "Kioxia FY profit changed")
+    require(annual.get("sharesOutstanding") == 546_086_290, "Kioxia FY shares changed")
+    expected_annualized_revenue = quarter["revenueJpyMillions"] * 12 / quarter["periodMonths"]
+    expected_calm_revenue = (annual["revenueJpyMillions"] + expected_annualized_revenue) / 2
+    expected_calm_growth = (expected_calm_revenue / annual["revenueJpyMillions"] - 1) * 100
+    expected_calm_margin = annual["profitAttributableJpyMillions"] / annual["revenueJpyMillions"] * 100
     expected_calm_profit = expected_calm_revenue * expected_calm_margin / 100
-    expected_calm_price = expected_calm_profit * 1_000_000 * calm["referencePe"] / calm["sharesOutstanding"]
+    expected_calm_price = expected_calm_profit * 1_000_000 * calm["referencePe"] / quarter["sharesOutstanding"]
+    require(close_enough(calm["annualBaseRevenueJpyMillions"], annual["revenueJpyMillions"]), "Kioxia annual revenue base identity failed")
+    require(close_enough(calm["latestQuarterRevenueJpyMillions"], quarter["revenueJpyMillions"]), "Kioxia Q1 revenue identity failed")
+    require(close_enough(calm["latestQuarterAnnualizedRevenueJpyMillions"], expected_annualized_revenue), "Kioxia Q1 annualized comparison identity failed")
     require(close_enough(calm["forecastRevenueJpyMillions"], expected_calm_revenue), "Kioxia forecast revenue identity failed")
+    require(close_enough(calm["growthExpectationPct"], expected_calm_growth), "Kioxia normalized growth identity failed")
+    require(close_enough(calm["latestQuarterGrowthSignalPct"], quarter["revenueGrowthYoYPct"]), "Kioxia Q1 growth signal identity failed")
+    require(close_enough(calm["referenceNetMarginPct"], expected_calm_margin), "Kioxia reference margin identity failed")
+    require(close_enough(calm["latestRevenueJpyMillions"], annual["revenueJpyMillions"]), "Kioxia latest annual base identity failed")
     require(close_enough(calm["forecastProfitJpyMillions"], expected_calm_profit), "Kioxia forecast profit identity failed")
+    require(calm["sharesOutstanding"] == quarter["sharesOutstanding"], "Kioxia latest share count identity failed")
     require(close_enough(calm["referencePriceJpy"], expected_calm_price), "Kioxia calm price identity failed")
     require(close_enough(calm["currentPriceMultiple"], kioxia["close"] / expected_calm_price), "Kioxia current multiple identity failed")
+    require(close_enough(calm["currentPremiumToReferencePct"], (kioxia["close"] / expected_calm_price - 1) * 100), "Kioxia premium identity failed")
+    expected_low_price = expected_calm_profit * 1_000_000 * calm["sensitivityPeLow"] / quarter["sharesOutstanding"]
+    expected_high_price = expected_calm_profit * 1_000_000 * calm["sensitivityPeHigh"] / quarter["sharesOutstanding"]
+    require(close_enough(calm["sensitivityLowPriceJpy"], expected_low_price), "Kioxia low-PER sensitivity identity failed")
+    require(close_enough(calm["sensitivityHighPriceJpy"], expected_high_price), "Kioxia high-PER sensitivity identity failed")
     require(calm["sensitivityLowPriceJpy"] < calm["referencePriceJpy"] < calm["sensitivityHighPriceJpy"], "Kioxia sensitivity range is invalid")
+    require("比較用" in calm.get("revenueMethod", "") and "通期見通し" in calm.get("revenueMethod", ""), "Kioxia revenue annualization limit is missing")
+    require("2026年3月期" in calm.get("marginMethod", ""), "Kioxia conservative annual margin limit is missing")
+    require("中間値" in calm.get("formula", ""), "Kioxia conservative formula label is missing")
 
     article = sakakibara.get("articleScenario") or {}
     require(article.get("asOfDate") == "2026-07-17", "article valuation date changed")
@@ -701,6 +755,18 @@ def main() -> None:
     regions = market_summary.get("regions") or []
     require([row.get("id") for row in regions] == ["japan", "united-states", "europe", "china", "all-country"], "market-summary regions are incomplete or out of order")
     require(all((row.get("policy") or {}).get("sources") for row in regions), "market-summary policy sources are missing")
+    expected_live_keys = {
+        "japan": ("NIKKEI_CASH", "USDJPY"),
+        "united-states": ("SP500_CASH", "DXY"),
+        "all-country": ("ACWI_CASH", "DXY"),
+    }
+    for region in regions:
+        expected = expected_live_keys.get(region.get("id"))
+        if expected is None:
+            continue
+        require((region.get("stock") or {}).get("liveKey") == expected[0], f"{region['id']}: stock live key is missing")
+        require((region.get("fx") or {}).get("liveKey") == expected[1], f"{region['id']}: FX live key is missing")
+    require("日銀判断待ち" not in market_summary.get("headlinePolicy", ""), "market-summary headline still claims an obsolete BOJ wait")
     referenced_ids = set(re.findall(r'byId\("([^"]+)"\)', app_source))
     html_id_list = re.findall(r'\bid="([^"]+)"', index_source)
     html_ids = set(html_id_list)

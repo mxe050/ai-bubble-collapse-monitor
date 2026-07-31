@@ -1,23 +1,23 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-07-30T14:13:51.335479+00:00",
+  "generatedAt": "2026-07-31T19:40:58.372253+00:00",
   "title": "U.S. Margin Debt / Nominal GDP",
   "definition": "Rule 4521(d)の報告対象となるFINRA会員会社が報告した顧客の証券信用取引口座の借方残高を、米国名目GDPの年率換算値で割った比率。一般個人だけの借入ではありません。",
   "latest": {
     "date": "2026-06-01",
     "marginDebtUsdMillions": 1502072,
-    "marginDebtToGdpPct": 4.7138,
+    "marginDebtToGdpPct": 4.6253,
     "marginDebtChange1mPct": 6.112,
     "marginDebtChange3mPct": 23.028,
     "marginDebtChange12mPct": 49.021,
     "ratioPercentileSince2010Pct": 100.0,
-    "previousComparablePeakPct": 4.4423,
-    "nominalGdpDate": "2026-01-01",
-    "nominalGdpUsdBillions": 31865.721,
+    "previousComparablePeakPct": 4.3589,
+    "nominalGdpDate": "2026-04-01",
+    "nominalGdpUsdBillions": 32475.21,
     "sp500Date": "2026-06-30",
     "sp500Change12mPct": 20.861,
     "debtGrowthMinusSp500PctPoints": 28.16,
-    "gdpTimingNote": "信用買い残は2026-06、分母は公表済みの名目GDP 2026-01。GDP未公表の四半期は直前の公表値を使うため暫定比率です。"
+    "gdpTimingNote": "信用買い残は2026-06、分母は公表済みの名目GDP 2026-04。GDP未公表の四半期は直前の公表値を使うため暫定比率です。"
   },
   "series": [
     {
@@ -7287,27 +7287,27 @@
       "date": "2026-04-01",
       "marginDebtUsdMillions": 1304281,
       "sourceRegime": "finra-all-firms",
-      "nominalGdpDate": "2026-01-01",
-      "nominalGdpUsdBillions": 31865.721,
-      "marginDebtToGdpPct": 4.0931,
+      "nominalGdpDate": "2026-04-01",
+      "nominalGdpUsdBillions": 32475.21,
+      "marginDebtToGdpPct": 4.0162,
       "marginDebtChange12mPct": 53.344
     },
     {
       "date": "2026-05-01",
       "marginDebtUsdMillions": 1415557,
       "sourceRegime": "finra-all-firms",
-      "nominalGdpDate": "2026-01-01",
-      "nominalGdpUsdBillions": 31865.721,
-      "marginDebtToGdpPct": 4.4423,
+      "nominalGdpDate": "2026-04-01",
+      "nominalGdpUsdBillions": 32475.21,
+      "marginDebtToGdpPct": 4.3589,
       "marginDebtChange12mPct": 53.705
     },
     {
       "date": "2026-06-01",
       "marginDebtUsdMillions": 1502072,
       "sourceRegime": "finra-all-firms",
-      "nominalGdpDate": "2026-01-01",
-      "nominalGdpUsdBillions": 31865.721,
-      "marginDebtToGdpPct": 4.7138,
+      "nominalGdpDate": "2026-04-01",
+      "nominalGdpUsdBillions": 32475.21,
+      "marginDebtToGdpPct": 4.6253,
       "marginDebtChange12mPct": 49.021
     }
   ],
@@ -7373,7 +7373,7 @@
       "label": "AI・半導体集中相場（監視中）",
       "chartLabel": "最新|AI・半導体集中相場",
       "description": "AI需要と設備投資への期待が大型株・半導体株へ集中する現在の観測点。崩壊済みという名称ではありません。",
-      "marginDebtToGdpPct": 4.7138,
+      "marginDebtToGdpPct": 4.6253,
       "marginDebtUsdMillions": 1502072
     }
   ],

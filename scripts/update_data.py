@@ -8,6 +8,7 @@ more reliable and auditable place to collect the inputs than visitors' browsers.
 
 from __future__ import annotations
 
+import copy
 import csv
 import io
 import json
@@ -21,9 +22,10 @@ import urllib.error
 import urllib.parse
 import urllib.request
 from dataclasses import dataclass
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, time as clock_time, timedelta, timezone
 from pathlib import Path
 from typing import Any, Iterable
+from zoneinfo import ZoneInfo
 
 from margin_debt import FINRA_PAGE_URL, write_margin_debt_history
 
@@ -37,6 +39,36 @@ USER_AGENT = "mxe050-ai-bubble-monitor/1.0 (https://github.com/mxe050)"
 JST = timezone(timedelta(hours=9))
 NOW = datetime.now(timezone.utc)
 
+# FRED's CSV endpoint is a valuable, but non-critical, upstream source. A
+# transient outage must neither hold the refresh for many minutes nor replace a
+# complete monitor snapshot with one missing the rates and credit inputs used by
+# the risk calculations. The previous complete snapshot is retained below when
+# this short request budget is exhausted.
+FRED_CSV_TIMEOUT_SECONDS = 10
+FRED_CSV_ATTEMPTS = 1
+REQUIRED_FRED_MACRO_KEYS = (
+    "highYieldOas",
+    "financialConditions",
+    "treasury2y",
+    "effectiveFedFunds",
+    "ecbDepositRate",
+    "personalSavingRate",
+)
+CORE_SNAPSHOT_SERIES = ("SOX", "NASDAQ", "NIKKEI", "SP500", "GOLD")
+
+# Yahoo Finance exposes the in-progress daily candle before the exchange has
+# completed its session.  The long-form monitor must never store that value as
+# a daily *close*: intraday values belong in live-intelligence.json instead.
+# These rules are deliberately conservative and retain the preceding completed
+# session until a new daily bar has had time to settle at its local market close.
+DAILY_BAR_FINALIZATION_GRACE = timedelta(minutes=20)
+DAILY_SESSION_RULES: dict[str, tuple[str, clock_time]] = {
+    "japan": ("Asia/Tokyo", clock_time(15, 30)),
+    "china": ("Asia/Shanghai", clock_time(15, 0)),
+    "europe": ("Europe/Paris", clock_time(17, 30)),
+    "us": ("America/New_York", clock_time(16, 0)),
+    "ny-continuous": ("America/New_York", clock_time(17, 0)),
+}
 
 COMPANIES: dict[str, dict[str, Any]] = {
     "NVDA": {
@@ -441,17 +473,21 @@ HYPERSCALERS = {"MSFT", "GOOGL", "AMZN", "META"}
 
 KIOXIA_CALM_VALUATION_REPORTS = [
     {
-        "periodLabel": "2026年3月期 第3四半期累計",
-        "releaseDate": "2026-02-12",
-        "revenueJpyMillions": 1_334_776,
-        "revenueGrowthYoYPct": -1.8,
-        "profitAttributableJpyMillions": 146_756,
-        "sharesOutstanding": 544_468_150,
-        "sourceUrl": "https://ssl4.eir-parts.net/doc/285A/tdnet/2757397/00.pdf",
+        "periodLabel": "2027年3月期 第1四半期",
+        "releaseDate": "2026-07-31",
+        "periodMonths": 3,
+        "reportType": "quarter",
+        "revenueJpyMillions": 1_767_117,
+        "revenueGrowthYoYPct": 415.5,
+        "profitAttributableJpyMillions": 842_165,
+        "sharesOutstanding": 548_015_088,
+        "sourceUrl": "https://ssl4.eir-parts.net/doc/285A/tdnet/2859905/00.pdf",
     },
     {
         "periodLabel": "2026年3月期 通期",
         "releaseDate": "2026-05-15",
+        "periodMonths": 12,
+        "reportType": "annual",
         "revenueJpyMillions": 2_337_628,
         "revenueGrowthYoYPct": 37.0,
         "profitAttributableJpyMillions": 554_490,
@@ -496,6 +532,30 @@ BERKSHIRE_LONG_TERM_CONTEXT = {
         "attributionNote": "YouTube公式ページが公表する発信者名。個人のナレーター名は公開ページで確認できないため推測しない。",
         "adoptedView": "最近の相場を見て突然現金化したのではなく、数年前から続く価格規律と待機資金の蓄積として確認する。",
     },
+    "liquidityHistory": [
+        {
+            "label": "2024年末",
+            "periodEnd": "2024-12-31",
+            "netLiquidReserveBillion": 318.0,
+            "operatingCashFlowBillion": 30.592,
+            "sourceUrl": "https://www.berkshirehathaway.com/2024ar/2024ar.pdf",
+        },
+        {
+            "label": "2025年末",
+            "periodEnd": "2025-12-31",
+            "netLiquidReserveBillion": 368.986,
+            "operatingCashFlowBillion": 45.969,
+            "sourceUrl": "https://www.berkshirehathaway.com/2025ar/2025ar.pdf",
+        },
+        {
+            "label": "2026年1–3月期末",
+            "periodEnd": "2026-03-31",
+            "netLiquidReserveBillion": 373.510,
+            "operatingCashFlowBillion": None,
+            "sourceUrl": "https://www.sec.gov/Archives/edgar/data/1067983/000119312526202243/brka-20260331.htm",
+        },
+    ],
+    "flowVsStockNote": "純売却はその期間の売買フロー、純流動性は期末時点に積み上がった残高（ストック）です。2025年の純売却が2024年より小さくても、2024年に積んだ残高、2025年の営業キャッシュフロー、なお続いた売却超過によって期末の流動性は増え得ます。単年の純売却だけから現金比率が下がったとは判断しません。",
     "netSelling": {
         "startLabel": "2022年10–12月期",
         "endLabel": "2026年1–3月期",
@@ -939,6 +999,27 @@ def request(
     raise RuntimeError(f"Unable to retrieve {url}: {last_error}")
 
 
+def request_with_bounded_fred_timeout(url: str, **kwargs: Any) -> bytes:
+    """Use a short, single-attempt budget for FRED CSV downloads only."""
+    parsed = urllib.parse.urlparse(url)
+    if (
+        parsed.scheme == "https"
+        and parsed.netloc == "fred.stlouisfed.org"
+        and parsed.path == "/graph/fredgraph.csv"
+    ):
+        return request(
+            url,
+            timeout=FRED_CSV_TIMEOUT_SECONDS,
+            attempts=FRED_CSV_ATTEMPTS,
+        )
+    return request(url, **kwargs)
+
+
+def request_fred_csv(series_id: str) -> str:
+    url = f"https://fred.stlouisfed.org/graph/fredgraph.csv?id={urllib.parse.quote(series_id)}"
+    return request_with_bounded_fred_timeout(url).decode("utf-8-sig")
+
+
 def get_json(url: str) -> dict[str, Any]:
     return json.loads(request(url).decode("utf-8"))
 
@@ -951,40 +1032,125 @@ def finite(value: Any) -> float | None:
         return None
 
 
+def snapshot_has_required_fred_inputs(payload: dict[str, Any]) -> bool:
+    """Return true only for a prior snapshot safe enough to retain on FRED outage."""
+    market = payload.get("market") if isinstance(payload, dict) else None
+    series = market.get("series") if isinstance(market, dict) else None
+    macro = payload.get("macro") if isinstance(payload, dict) else None
+    if not isinstance(series, dict) or not isinstance(macro, dict):
+        return False
+    if any(finite((series.get(key) or {}).get("close")) is None for key in CORE_SNAPSHOT_SERIES):
+        return False
+    return (
+        finite((macro.get("highYieldOas") or {}).get("valuePct")) is not None
+        and all(finite((macro.get(key) or {}).get("value")) is not None for key in REQUIRED_FRED_MACRO_KEYS if key != "highYieldOas")
+    )
+
+
+def load_last_complete_snapshot() -> dict[str, Any]:
+    """Prefer the current package, otherwise walk history newest-first for a complete one."""
+    candidates = [OUTPUT] + sorted(SNAPSHOT_HISTORY_DIR.glob("????-??-??.json"), reverse=True)
+    for path in candidates:
+        try:
+            candidate = json.loads(path.read_text(encoding="utf-8"))
+        except Exception:
+            continue
+        if isinstance(candidate, dict) and snapshot_has_required_fred_inputs(candidate):
+            return candidate
+    return {}
+
+
+def retain_previous_fred_macro(
+    macro: dict[str, Any],
+    previous_payload: dict[str, Any],
+    key: str,
+) -> str:
+    """Keep the last verified macro row instead of writing a missing required input."""
+    previous_macro = previous_payload.get("macro") if isinstance(previous_payload, dict) else None
+    row = previous_macro.get(key) if isinstance(previous_macro, dict) else None
+    value_field = "valuePct" if key == "highYieldOas" else "value"
+    if not isinstance(row, dict) or finite(row.get(value_field)) is None:
+        raise RuntimeError(f"FRED {key} failed and no complete prior snapshot is available")
+    macro[key] = copy.deepcopy(row)
+    return f"前回の完全スナップショット（{row.get('date', '日付未確認')}）を維持"
+
+
 def pct_change(new: float | None, old: float | None) -> float | None:
     if new is None or old in (None, 0):
         return None
     return (new / old - 1.0) * 100.0
 
 
+def daily_session_rule(symbol: str) -> tuple[str, clock_time]:
+    if symbol == "^N225" or symbol == "TOPIX" or symbol.endswith(".T"):
+        return DAILY_SESSION_RULES["japan"]
+    if symbol == "000300.SS":
+        return DAILY_SESSION_RULES["china"]
+    if symbol == "^STOXX":
+        return DAILY_SESSION_RULES["europe"]
+    if symbol in {"JPY=X", "EURUSD=X", "CNY=X", "DX-Y.NYB", "GC=F"}:
+        return DAILY_SESSION_RULES["ny-continuous"]
+    return DAILY_SESSION_RULES["us"]
+
+
+def daily_bar_is_final(symbol: str, market_date: date, now: datetime | None = None) -> bool:
+    observed_at = (now or NOW).astimezone(timezone.utc)
+    timezone_name, close_time = daily_session_rule(symbol)
+    market_timezone = ZoneInfo(timezone_name)
+    session_close = datetime.combine(market_date, close_time, tzinfo=market_timezone).astimezone(timezone.utc)
+    final_at = session_close + DAILY_BAR_FINALIZATION_GRACE
+    return observed_at >= final_at
+
+
+def completed_close_metadata(symbol: str) -> dict[str, Any]:
+    timezone_name, close_time = daily_session_rule(symbol)
+    return {
+        "marketTimeZone": timezone_name,
+        "sessionCloseLocal": close_time.strftime("%H:%M"),
+        "finalizationGraceMinutes": int(DAILY_BAR_FINALIZATION_GRACE.total_seconds() // 60),
+    }
+
+
 def build_kioxia_calm_valuation(current_price: float | None) -> dict[str, Any]:
     reports = [dict(row) for row in KIOXIA_CALM_VALUATION_REPORTS]
-    growth_expectation_pct = statistics.mean(row["revenueGrowthYoYPct"] for row in reports)
+    latest_quarter = next((row for row in reports if row.get("reportType") == "quarter"), None)
+    annual_report = next((row for row in reports if row.get("reportType") == "annual"), None)
+    if latest_quarter is None or annual_report is None:
+        raise ValueError("Kioxia calm valuation requires one latest quarter and one annual report")
+
+    annual_revenue = float(annual_report["revenueJpyMillions"])
+    latest_quarter_revenue = float(latest_quarter["revenueJpyMillions"])
+    latest_quarter_annualized_revenue = latest_quarter_revenue * (12.0 / latest_quarter["periodMonths"])
+    normalized_annual_revenue = (annual_revenue + latest_quarter_annualized_revenue) / 2.0
+    growth_expectation_pct = pct_change(normalized_annual_revenue, annual_revenue) or 0.0
     report_margins = [
         row["profitAttributableJpyMillions"] / row["revenueJpyMillions"] * 100.0
         for row in reports
     ]
-    reference_margin_pct = report_margins[-1]
-    latest = reports[-1]
-    forecast_revenue = latest["revenueJpyMillions"] * (1.0 + growth_expectation_pct / 100.0)
-    forecast_profit = forecast_revenue * reference_margin_pct / 100.0
-    shares = latest["sharesOutstanding"]
-    reference_price = forecast_profit * 1_000_000 * KIOXIA_CALM_REFERENCE_PE / shares
+    reference_margin_pct = annual_report["profitAttributableJpyMillions"] / annual_revenue * 100.0
+    shares = latest_quarter["sharesOutstanding"]
+    forecast_profit = normalized_annual_revenue * reference_margin_pct / 100.0
     low_pe, high_pe = KIOXIA_CALM_PE_RANGE
+    reference_price = forecast_profit * 1_000_000 * KIOXIA_CALM_REFERENCE_PE / shares
     low_price = forecast_profit * 1_000_000 * low_pe / shares
     high_price = forecast_profit * 1_000_000 * high_pe / shares
     current = finite(current_price)
     return {
-        "modelVersion": "reported-growth-current-margin-earnings-v1",
-        "asOfDate": latest["releaseDate"],
+        "modelVersion": "reported-quarter-signal-conservative-annual-base-v2",
+        "asOfDate": latest_quarter["releaseDate"],
         "reports": reports,
+        "annualBaseRevenueJpyMillions": annual_revenue,
+        "latestQuarterRevenueJpyMillions": latest_quarter_revenue,
+        "latestQuarterAnnualizedRevenueJpyMillions": latest_quarter_annualized_revenue,
+        "revenueMethod": "前期通期実績と、第1四半期実績を4倍した比較値の単純中間値。第1四半期の年換算は会社予想ではなく、3か月の実績を通期見通しとして断定しないための比較用入力です。",
         "growthExpectationPct": growth_expectation_pct,
-        "growthMethod": "直近2回の決算短信に記載された各報告期間の対前年売上伸び率（-1.8%、+37.0%）を単純平均。",
+        "latestQuarterGrowthSignalPct": latest_quarter["revenueGrowthYoYPct"],
+        "growthMethod": "成長率欄は、前期通期実績から保守的な年換算中間値までの差です。第1四半期の前年同期比は別に表示し、通期予想としては使いません。",
         "reportNetMarginsPct": report_margins,
         "referenceNetMarginPct": reference_margin_pct,
-        "marginMethod": "最新通期の親会社所有者帰属利益÷売上収益を使用し、将来の利益率改善は仮定しない。",
-        "latestRevenueJpyMillions": latest["revenueJpyMillions"],
-        "forecastRevenueJpyMillions": forecast_revenue,
+        "marginMethod": "利益率は第1四半期の高い利益率を年率化せず、2026年3月期通期の親会社所有者帰属利益÷売上収益を据え置きます。",
+        "latestRevenueJpyMillions": annual_revenue,
+        "forecastRevenueJpyMillions": normalized_annual_revenue,
         "forecastProfitJpyMillions": forecast_profit,
         "sharesOutstanding": shares,
         "referencePe": KIOXIA_CALM_REFERENCE_PE,
@@ -997,11 +1163,11 @@ def build_kioxia_calm_valuation(current_price: float | None) -> dict[str, Any]:
         "currentPriceJpy": current,
         "currentPriceMultiple": current / reference_price if current is not None else None,
         "currentPremiumToReferencePct": pct_change(current, reference_price),
-        "formula": "最新通期売上×(1+2報告の売上成長率平均)×最新通期の親会社帰属利益率×参考PER÷期末発行済株式数",
+        "formula": "前期通期売上と第1四半期売上の年換算比較値の中間値×前期通期の親会社帰属利益率×参考PER÷第1四半期末発行済株式数",
         "interpretation": (
-            "中心値は約定価格の予測、目標株価、底値ではありません。第3四半期累計と通期は期間が重なり、"
-            "メモリー価格・為替・出荷量で利益率が大きく変わるため、統計的な適正値でもありません。"
-            "将来仮定は直近2回の公表売上成長率の平均だけとし、利益率は最新通期実績から改善しない比較基準です。"
+            "中心値は約定価格の予測、目標株価、底値ではありません。第1四半期の実績は非常に強い一方、"
+            "3か月だけを通期予想へ置き換えず、前期通期実績との中間値にとどめています。"
+            "メモリー価格・為替・出荷量で利益率は大きく変わるため、統計的な適正値でもありません。"
         ),
     }
 
@@ -1035,13 +1201,18 @@ def fetch_price_series(symbol: str) -> dict[str, Any]:
     highs = quote.get("high", [])
     lows = quote.get("low", [])
     points: list[dict[str, Any]] = []
+    excluded_unfinished_session_dates: list[str] = []
     for index, (timestamp, close) in enumerate(zip(timestamps, closes)):
         value = finite(close)
         if value is None:
             continue
         high = finite(highs[index]) if index < len(highs) else None
         low = finite(lows[index]) if index < len(lows) else None
-        date = datetime.fromtimestamp(timestamp, timezone.utc).date().isoformat()
+        market_date = datetime.fromtimestamp(timestamp, timezone.utc).date()
+        if not daily_bar_is_final(symbol, market_date):
+            excluded_unfinished_session_dates.append(market_date.isoformat())
+            continue
+        date = market_date.isoformat()
         points.append({
             "date": date,
             "close": value,
@@ -1082,6 +1253,9 @@ def fetch_price_series(symbol: str) -> dict[str, Any]:
     days_since_low_120 = len(recent_120) - 1 - low_120_index
     return {
         "symbol": symbol,
+        "dailyCloseStatus": "completed-session-close",
+        "excludedUnfinishedSessionDates": sorted(set(excluded_unfinished_session_dates)),
+        **completed_close_metadata(symbol),
         "date": points[-1]["date"],
         "close": last,
         "change1dPct": pct_change(last, values[-2]) if len(values) > 1 else None,
@@ -1115,7 +1289,7 @@ def fetch_price_series(symbol: str) -> dict[str, Any]:
 
 
 
-def fetch_topix_series() -> dict[str, Any]:
+def fetch_topix_series(*, latest_common_date: date | None = None) -> dict[str, Any]:
     """Fetch recent TOPIX closes from Yahoo! Finance Japan's public history table."""
 
     start_day = NOW.date() - timedelta(days=430)
@@ -1129,7 +1303,12 @@ def fetch_topix_series() -> dict[str, Any]:
             "timeFrame": "d",
             "page": page,
         })
-        html = request(f"{base}?{query}").decode("utf-8", errors="replace")
+        try:
+            html = request(f"{base}?{query}").decode("utf-8", errors="replace")
+        except Exception:
+            if len(points_by_date) >= 120:
+                break
+            raise
         page_rows: list[dict[str, Any]] = []
         for date_text, body in re.findall(
             r'<tr[^>]*>\s*<th[^>]*scope="row"[^>]*>(\d{4}/\d{1,2}/\d{1,2})</th>(.*?)</tr>',
@@ -1161,6 +1340,19 @@ def fetch_topix_series() -> dict[str, Any]:
             break
 
     points = sorted(points_by_date.values(), key=lambda row: row["date"])
+    excluded_unfinished_session_dates: list[str] = []
+    excluded_after_alignment_dates: list[str] = []
+    completed_points: list[dict[str, Any]] = []
+    for row in points:
+        row_date = date.fromisoformat(row["date"])
+        if latest_common_date is not None and row_date > latest_common_date:
+            excluded_after_alignment_dates.append(row["date"])
+        elif daily_bar_is_final("TOPIX", row_date):
+            completed_points.append(row)
+        else:
+            excluded_unfinished_session_dates.append(row["date"])
+    points = completed_points
+
     if len(points) < 120:
         raise RuntimeError("Insufficient TOPIX history from Yahoo! Finance Japan")
     values = [row["close"] for row in points]
@@ -1172,6 +1364,10 @@ def fetch_topix_series() -> dict[str, Any]:
     last = values[-1]
     return {
         "symbol": "998405",
+        "dailyCloseStatus": "completed-session-close",
+        "excludedUnfinishedSessionDates": sorted(set(excluded_unfinished_session_dates)),
+        "excludedAfterCommonDateAlignment": sorted(set(excluded_after_alignment_dates)),
+        **completed_close_metadata("TOPIX"),
         "date": points[-1]["date"],
         "close": last,
         "change1dPct": pct_change(last, values[-2]) if len(values) > 1 else None,
@@ -1856,6 +2052,7 @@ def build_sakakibara_analysis(
         "basketAdvantage20dPctPoints": basket_advantage_20d,
         "marketPath": market_path,
         "kioxiaCase": {
+            "issuerCode": "285A",
             "date": kioxia.get("date"),
             "close": kioxia.get("close"),
             "low2026": kioxia.get("low2026"),
@@ -2181,8 +2378,7 @@ def decimal_year_from_iso_date(value: str) -> float:
 
 
 def fetch_cpi_history(series_id: str = "CPIAUCNS") -> dict[str, Any]:
-    url = f"https://fred.stlouisfed.org/graph/fredgraph.csv?id={urllib.parse.quote(series_id)}"
-    text = request(url).decode("utf-8-sig")
+    text = request_fred_csv(series_id)
     history: list[dict[str, Any]] = []
     for row in csv.DictReader(io.StringIO(text)):
         value = finite(row.get(series_id))
@@ -2213,8 +2409,7 @@ def fetch_cpi_history(series_id: str = "CPIAUCNS") -> dict[str, Any]:
 
 
 def fetch_fred(series_id: str) -> dict[str, Any]:
-    url = f"https://fred.stlouisfed.org/graph/fredgraph.csv?id={urllib.parse.quote(series_id)}"
-    text = request(url).decode("utf-8-sig")
+    text = request_fred_csv(series_id)
     rows: list[tuple[str, float]] = []
     for row in csv.DictReader(io.StringIO(text)):
         raw = finite(row.get(series_id))
@@ -2256,8 +2451,7 @@ def fetch_fred_level(
     units: str,
     thresholds: list[float],
 ) -> dict[str, Any]:
-    url = f"https://fred.stlouisfed.org/graph/fredgraph.csv?id={urllib.parse.quote(series_id)}"
-    text = request(url).decode("utf-8-sig")
+    text = request_fred_csv(series_id)
     rows: list[tuple[str, float]] = []
     for row in csv.DictReader(io.StringIO(text)):
         value = finite(row.get(series_id))
@@ -2565,6 +2759,7 @@ def build_berkshire_monitor() -> dict[str, Any]:
         pool = row["netLiquidReserveBillion"] + row["equitySecuritiesBillion"] + row["fixedMaturityBillion"]
         row["investmentPoolLiquidRatioPct"] = row["netLiquidReserveBillion"] / pool * 100
         row["liquidReserveToTotalAssetsPct"] = row["netLiquidReserveBillion"] / row["totalAssetsBillion"] * 100
+        row["totalAssetLiquidRatioPct"] = row["liquidReserveToTotalAssetsPct"]
     latest_balance, previous_balance = snapshots
     filings, discovery_fallback = discover_berkshire_13f_filings()
     direct_13f = False
@@ -2581,6 +2776,7 @@ def build_berkshire_monitor() -> dict[str, Any]:
         }
     reserve_change = latest_balance["netLiquidReserveBillion"] - previous_balance["netLiquidReserveBillion"]
     ratio_change = latest_balance["investmentPoolLiquidRatioPct"] - previous_balance["investmentPoolLiquidRatioPct"]
+    liquidity_history = BERKSHIRE_LONG_TERM_CONTEXT["liquidityHistory"]
     return {
         "checkedAtUtc": NOW.isoformat(),
         "balanceLatest": latest_balance,
@@ -2588,6 +2784,7 @@ def build_berkshire_monitor() -> dict[str, Any]:
         "reserveChangeBillion": reserve_change,
         "reserveChangePct": reserve_change / previous_balance["netLiquidReserveBillion"] * 100,
         "investmentPoolLiquidRatioChangePctPoints": ratio_change,
+        "totalAssetLiquidRatioPct": latest_balance["totalAssetLiquidRatioPct"],
         "equitySecuritiesChangeBillion": latest_balance["equitySecuritiesBillion"] - previous_balance["equitySecuritiesBillion"],
         "longTermContext": BERKSHIRE_LONG_TERM_CONTEXT,
         "thirteenF": {
@@ -2599,10 +2796,12 @@ def build_berkshire_monitor() -> dict[str, Any]:
             "discoveryFallback": discovery_fallback,
         },
         "narrative": (
-            f"保険・その他の純流動性は{previous_balance['netLiquidReserveBillion']:.1f}から"
-            f"{latest_balance['netLiquidReserveBillion']:.1f}十億ドルへ増え、投資プール内の比率は"
-            f"{previous_balance['investmentPoolLiquidRatioPct']:.1f}%から{latest_balance['investmentPoolLiquidRatioPct']:.1f}%へ上昇しました。"
-            "同時に13Fでは買い増しと売却の双方があるため、『現金が多い＝全面弱気』とは読まず、準備資金と個別銘柄選択を分けて確認します。"
+            f"純流動性（期末ストック）は{liquidity_history[0]['label']}の{liquidity_history[0]['netLiquidReserveBillion']:.1f}から"
+            f"{liquidity_history[1]['label']}の{liquidity_history[1]['netLiquidReserveBillion']:.1f}、"
+            f"{liquidity_history[2]['label']}の{liquidity_history[2]['netLiquidReserveBillion']:.1f}十億ドルへ増えました。"
+            f"2025年の純売却は2024年より小さくても、同年の営業キャッシュフローは{liquidity_history[1]['operatingCashFlowBillion']:.1f}十億ドルで、"
+            "純売却は期間フロー、純流動性は残高という違いがあります。13Fでは買い増しと売却の双方があるため、"
+            "『現金が多い＝全面弱気』とは読まず、準備資金と個別銘柄選択を分けて確認します。"
         ),
         "calculationNote": "純流動性＝現金・現金同等物＋米国短期国債－未決済の短期国債購入債務。投資プール内比率＝純流動性÷（純流動性＋株式＋債券）。Berkshire公式指標ではなく比較用の当サイト算式。",
         "thirteenFLimit": "13Fは四半期末から最大45日遅れ、米国上場株中心で、現金・完全子会社・一部海外株を含みません。株数で比較し、時価の増減を売買と誤認しません。",
@@ -3070,12 +3269,7 @@ def sync_money_strategist_latest(
 
 
 def main() -> None:
-    previous_payload: dict[str, Any] = {}
-    if OUTPUT.exists():
-        try:
-            previous_payload = json.loads(OUTPUT.read_text(encoding="utf-8"))
-        except Exception:
-            previous_payload = {}
+    previous_payload = load_last_complete_snapshot()
     archive_daily_snapshot(previous_payload)
     statuses: list[SourceStatus] = []
     errors: list[str] = []
@@ -3093,7 +3287,9 @@ def main() -> None:
             statuses.append(SourceStatus("Yahoo Finance chart", f"https://finance.yahoo.com/quote/{symbol}", False, NOW.isoformat(), str(exc)))
 
     try:
-        prices["TOPIX"] = fetch_topix_series()
+        nikkei_date = (prices.get("NIKKEI") or {}).get("date")
+        common_date_cap = date.fromisoformat(nikkei_date) if isinstance(nikkei_date, str) else None
+        prices["TOPIX"] = fetch_topix_series(latest_common_date=common_date_cap)
         statuses.append(SourceStatus(
             "Yahoo!ファイナンス日本版 TOPIX",
             prices["TOPIX"]["sourceUrl"],
@@ -3102,14 +3298,34 @@ def main() -> None:
             prices["TOPIX"].get("sourceNote", ""),
         ))
     except Exception as exc:
-        errors.append(f"TOPIX: {exc}")
-        statuses.append(SourceStatus(
-            "Yahoo!ファイナンス日本版 TOPIX",
-            "https://finance.yahoo.co.jp/quote/998405/history",
-            False,
-            NOW.isoformat(),
-            str(exc),
-        ))
+        try:
+            restored_japan = restore_japan_series_from_previous_nt_history(
+                previous_payload,
+                latest_allowed_date=common_date_cap,
+            )
+            prices["TOPIX"] = restored_japan["TOPIX"]
+            current_nikkei_date = (prices.get("NIKKEI") or {}).get("date")
+            if not isinstance(current_nikkei_date, str) or current_nikkei_date > prices["TOPIX"]["date"]:
+                prices["NIKKEI"] = restored_japan["NIKKEI"]
+            note = f"{exc}; {prices['TOPIX']['sourceNote']}"
+            errors.append(f"TOPIX: {note}")
+            statuses.append(SourceStatus(
+                "Yahoo!ファイナンス日本版 TOPIX",
+                prices["TOPIX"]["sourceUrl"],
+                False,
+                NOW.isoformat(),
+                note,
+            ))
+        except Exception as fallback_exc:
+            note = f"{exc}; verified TOPIX fallback also failed: {fallback_exc}"
+            errors.append(f"TOPIX: {note}")
+            statuses.append(SourceStatus(
+                "Yahoo!ファイナンス日本版 TOPIX",
+                "https://finance.yahoo.co.jp/quote/998405/history",
+                False,
+                NOW.isoformat(),
+                note,
+            ))
 
     for symbol in COMPANIES:
         if symbol not in prices:
@@ -3165,8 +3381,10 @@ def main() -> None:
             macro[key] = fetch_fred(series)
             statuses.append(SourceStatus("FRED", macro[key]["sourceUrl"], True, NOW.isoformat(), series))
         except Exception as exc:
-            errors.append(f"FRED {series}: {exc}")
-            statuses.append(SourceStatus("FRED", f"https://fred.stlouisfed.org/series/{series}", False, NOW.isoformat(), str(exc)))
+            retained = retain_previous_fred_macro(macro, previous_payload, key)
+            note = f"{exc}; {retained}"
+            errors.append(f"FRED {series}: {note}")
+            statuses.append(SourceStatus("FRED", f"https://fred.stlouisfed.org/series/{series}", False, NOW.isoformat(), note))
 
     try:
         macro["financialConditions"] = fetch_fred_level(
@@ -3177,8 +3395,10 @@ def main() -> None:
         )
         statuses.append(SourceStatus("FRED / Chicago Fed NFCI", macro["financialConditions"]["sourceUrl"], True, NOW.isoformat(), macro["financialConditions"]["date"]))
     except Exception as exc:
-        errors.append(f"FRED NFCI: {exc}")
-        statuses.append(SourceStatus("FRED / Chicago Fed NFCI", "https://fred.stlouisfed.org/series/NFCI", False, NOW.isoformat(), str(exc)))
+        retained = retain_previous_fred_macro(macro, previous_payload, "financialConditions")
+        note = f"{exc}; {retained}"
+        errors.append(f"FRED NFCI: {note}")
+        statuses.append(SourceStatus("FRED / Chicago Fed NFCI", "https://fred.stlouisfed.org/series/NFCI", False, NOW.isoformat(), note))
 
     for key, series_id, name, units, thresholds in (
         ("treasury2y", "DGS2", "2-Year Treasury Constant Maturity Rate", "Percent", [2.0, 3.0, 4.0, 5.0]),
@@ -3195,8 +3415,10 @@ def main() -> None:
             )
             statuses.append(SourceStatus("FRED", macro[key]["sourceUrl"], True, NOW.isoformat(), series_id))
         except Exception as exc:
-            errors.append(f"FRED {series_id}: {exc}")
-            statuses.append(SourceStatus("FRED", f"https://fred.stlouisfed.org/series/{series_id}", False, NOW.isoformat(), str(exc)))
+            retained = retain_previous_fred_macro(macro, previous_payload, key)
+            note = f"{exc}; {retained}"
+            errors.append(f"FRED {series_id}: {note}")
+            statuses.append(SourceStatus("FRED", f"https://fred.stlouisfed.org/series/{series_id}", False, NOW.isoformat(), note))
 
     try:
         cpi_history = fetch_cpi_history()
@@ -3206,7 +3428,7 @@ def main() -> None:
         statuses.append(SourceStatus("FRED CPI-U", "https://fred.stlouisfed.org/series/CPIAUCNS", False, NOW.isoformat(), f"既存のMoney Strategist CPI系列を保持: {exc}"))
 
     try:
-        margin_debt = write_margin_debt_history(request, prices.get("SP500"))
+        margin_debt = write_margin_debt_history(request_with_bounded_fred_timeout, prices.get("SP500"))
         latest_margin = margin_debt.get("latest") or {}
         statuses.append(SourceStatus(
             "FINRA margin debt / FRED nominal GDP",
@@ -3391,11 +3613,150 @@ def main() -> None:
     sync_money_strategist_latest(prices.get("SP500"), cpi_history)
     try:
         from global_comparison import write_global_comparison
-        comparison = write_global_comparison(request)
+        comparison = write_global_comparison(request_with_bounded_fred_timeout)
         print(f"Updated six-series comparison through {comparison['latestCommonMonth']}")
     except Exception as exc:
         print(f"Warning: retained previous six-series comparison package: {exc}")
     print(f"Wrote {OUTPUT} with {len(companies)} companies and {len(errors)} warnings")
+
+
+def restore_japan_series_from_previous_nt_history(
+    previous_payload: dict[str, Any],
+    *,
+    latest_allowed_date: date | None = None,
+) -> dict[str, dict[str, Any]]:
+    """Restore a verified common Japan close if TOPIX's public page is unavailable.
+
+    The prior complete snapshot's NT-ratio history contains paired Nikkei and
+    TOPIX closes. The fallback stops at its last verified common date rather
+    than estimating a new TOPIX value. Live/intraday display remains separate.
+    """
+
+    market = previous_payload.get("market") if isinstance(previous_payload, dict) else None
+    previous_series = market.get("series") if isinstance(market, dict) else None
+    sakakibara = market.get("sakakibaraAnalysis") if isinstance(market, dict) else None
+    nt_ratio = sakakibara.get("ntRatio") if isinstance(sakakibara, dict) else None
+    raw_history = nt_ratio.get("history") if isinstance(nt_ratio, dict) else None
+    if not isinstance(previous_series, dict) or not isinstance(raw_history, list):
+        raise RuntimeError("No verified NT-ratio history is available for the TOPIX fallback")
+
+    maximum = latest_allowed_date.isoformat() if latest_allowed_date else None
+    paired_rows: list[dict[str, Any]] = []
+    for row in raw_history:
+        if not isinstance(row, dict):
+            continue
+        row_date = row.get("date")
+        nikkei = finite(row.get("nikkei"))
+        topix = finite(row.get("topix"))
+        if not isinstance(row_date, str) or nikkei is None or topix is None or nikkei <= 0 or topix <= 0:
+            continue
+        try:
+            date.fromisoformat(row_date)
+        except ValueError:
+            continue
+        if maximum is not None and row_date > maximum:
+            continue
+        paired_rows.append({"date": row_date, "nikkei": nikkei, "topix": topix})
+    paired_rows.sort(key=lambda row: row["date"])
+    if len(paired_rows) < 210:
+        raise RuntimeError("Verified NT-ratio history is shorter than the 200-day requirement")
+
+    snapshot_timestamp = previous_payload.get("generatedAtJst") if isinstance(previous_payload, dict) else None
+    source_note = (
+        "TOPIXの公開履歴が一時的に取得できないため、前回の検証済みNT比率履歴から"
+        "日経平均・TOPIXの共通確定終値を再構成。新しいTOPIX価格は推測していません。"
+        "取引中・直近の表示はライブデータを別途使用します。"
+    )
+
+    def rebuild(
+        series_key: str,
+        value_key: str,
+        symbol: str,
+        default_source_url: str,
+    ) -> dict[str, Any]:
+        base = copy.deepcopy(previous_series.get(series_key) or {})
+        points = [
+            {
+                "date": row["date"],
+                "open": row[value_key],
+                "high": row[value_key],
+                "low": row[value_key],
+                "close": row[value_key],
+            }
+            for row in paired_rows
+        ]
+        values = [row["close"] for row in points]
+        sma50 = moving_average(values, 50)
+        sma200 = moving_average(values, 200)
+        last = values[-1]
+        latest_date = points[-1]["date"]
+        base_matches_latest = base.get("date") == latest_date
+        peak_row = max(points[-756:] if len(points) >= 756 else points, key=lambda row: row["close"])
+        base_peak3y = finite(base.get("peak3y")) if base_matches_latest else None
+        peak3y = base_peak3y if base_peak3y is not None and base_peak3y >= last else peak_row["close"]
+        peak3y_date = base.get("peak3yDate") if peak3y == base_peak3y else peak_row["date"]
+        rows_2026 = [row for row in points if row["date"] >= "2026-01-01"]
+        calculated_peak_2026 = max(rows_2026, key=lambda row: row["high"]) if rows_2026 else None
+        calculated_low_2026 = min(rows_2026, key=lambda row: row["low"]) if rows_2026 else None
+        base_peak2026 = finite(base.get("peak2026")) if base_matches_latest else None
+        peak2026 = base_peak2026 if base_peak2026 is not None else (calculated_peak_2026 or {}).get("high")
+        peak2026_date = base.get("peak2026Date") if peak2026 == base_peak2026 else (calculated_peak_2026 or {}).get("date")
+        base_low2026 = finite(base.get("low2026")) if base_matches_latest else None
+        low2026 = base_low2026 if base_low2026 is not None else (calculated_low_2026 or {}).get("low")
+        low2026_date = base.get("low2026Date") if low2026 == base_low2026 else (calculated_low_2026 or {}).get("date")
+        below_days = 0
+        for value, average in reversed(list(zip(values, sma200))):
+            if average is not None and value < average:
+                below_days += 1
+            else:
+                break
+        recent_120 = points[-120:]
+        low_120_index, low_120_row = min(enumerate(recent_120), key=lambda item: item[1]["close"])
+        prior_sma50 = sma50[-21] if len(sma50) >= 21 else None
+        return {
+            "symbol": symbol,
+            "dailyCloseStatus": "completed-session-close",
+            "dailyCloseFallback": "prior-verified-nt-history",
+            "retainedFromSnapshotAtJst": snapshot_timestamp,
+            "excludedUnfinishedSessionDates": [],
+            "excludedAfterCommonDateAlignment": [],
+            **completed_close_metadata(symbol),
+            "date": latest_date,
+            "close": last,
+            "change1dPct": pct_change(last, values[-2]) if len(values) > 1 else None,
+            "change5dPct": pct_change(last, values[-6]) if len(values) > 5 else None,
+            "change20dPct": pct_change(last, values[-21]) if len(values) > 20 else None,
+            "change60dPct": pct_change(last, values[-61]) if len(values) > 60 else None,
+            "peak3y": peak3y,
+            "peak3yDate": peak3y_date,
+            "drawdown3yPct": (1.0 - last / peak3y) * 100.0,
+            "peak2026": peak2026,
+            "peak2026Date": peak2026_date,
+            "drawdownFrom2026HighPct": (1.0 - last / peak2026) * 100.0 if peak2026 else None,
+            "low2026": low2026,
+            "low2026Date": low2026_date,
+            "riseFrom2026LowToHighPct": pct_change(peak2026, low2026),
+            "trailingDividendPerShare": base.get("trailingDividendPerShare", 0.0),
+            "trailingDividendYieldPct": base.get("trailingDividendYieldPct"),
+            "sma200": sma200[-1],
+            "belowSma200": bool(sma200[-1] is not None and last < sma200[-1]),
+            "weeksBelowSma200": below_days / 5.0,
+            "sma50": sma50[-1],
+            "aboveSma50": bool(sma50[-1] is not None and last > sma50[-1]),
+            "sma50Slope20dPct": pct_change(sma50[-1], prior_sma50),
+            "low120d": low_120_row["close"],
+            "low120dDate": low_120_row["date"],
+            "tradingDaysSince120dLow": len(recent_120) - 1 - low_120_index,
+            "reboundFrom120dLowPct": pct_change(last, low_120_row["close"]),
+            "history": points,
+            "sourceUrl": base.get("sourceUrl") or default_source_url,
+            "sourceNote": source_note,
+        }
+
+    return {
+        "NIKKEI": rebuild("NIKKEI", "nikkei", "^N225", "https://finance.yahoo.com/quote/%5EN225"),
+        "TOPIX": rebuild("TOPIX", "topix", "998405", "https://finance.yahoo.co.jp/quote/998405/history"),
+    }
 
 
 if __name__ == "__main__":

@@ -10945,3 +10945,169 @@ main .band .label { font-size: 0.76rem; line-height: 1.45; }
   .briefing-filter-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .briefing-filter-grid label:first-child { grid-column: 1 / -1; }
 }
+/* Live market dates, plain-language reading aids, and PC copy affordance */
+.monitor-copy-status {
+  display: block;
+  max-width: 230px;
+  color: #c7d9e5;
+  font-size: 0.7rem;
+  font-weight: 700;
+  line-height: 1.35;
+}
+
+.regional-market-card[data-direction="up"] {
+  border-color: #2f7fb9;
+  border-top-color: var(--blue);
+  box-shadow: 0 8px 22px rgb(40 111 174 / 14%);
+}
+
+.regional-market-card[data-direction="down"] {
+  border-color: #c94655;
+  border-top-color: var(--red);
+  box-shadow: 0 8px 22px rgb(181 47 58 / 14%);
+}
+
+.regional-market-card[data-direction="flat"] {
+  border-color: #a9b7c0;
+  border-top-color: #788a98;
+}
+.regional-market-card[data-direction="unknown"] { border-top-color: var(--line-strong); }
+.regional-market-card .regional-market-date { max-width: 168px; line-height: 1.3; text-align: right; }
+.regional-market-state {
+  display: inline-flex;
+  align-items: center;
+  margin-top: 6px;
+  padding: 3px 7px;
+  border-radius: 999px;
+  font-size: 0.66rem;
+  font-weight: 900;
+}
+.regional-market-state.up { color: #135a95; background: #e7f2fb; }
+.regional-market-state.down { color: #9c2531; background: #fcecee; }
+.regional-market-state.flat,
+.regional-market-state.unknown { color: #50636f; background: #edf1f3; }
+.regional-market-metrics > div.is-live { background: #f4f9fd; }
+.regional-market-metrics > div.is-live small::after {
+  content: " ライブ";
+  color: #1d6da8;
+  font-weight: 900;
+}
+
+.kioxia-path .current #sakKioxiaCurrentMeta {
+  display: block;
+  margin-top: 4px;
+  color: #607686;
+  font-size: 0.66rem;
+  line-height: 1.35;
+}
+.kioxia-live-ir {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  margin-top: 12px;
+  padding: 14px 16px;
+  border: 1px solid #8cb8ca;
+  border-left: 5px solid #1b789c;
+  background: #eef8fc;
+}
+.kioxia-live-ir span {
+  display: block;
+  color: #1a6987;
+  font-size: 0.67rem;
+  font-weight: 900;
+  letter-spacing: .08em;
+}
+.kioxia-live-ir h5 { margin: 3px 0; color: #183746; font-size: .95rem; }
+.kioxia-live-ir p { margin: 0; color: #3d5d6c; font-size: .78rem; line-height: 1.5; }
+.kioxia-live-ir a {
+  flex: 0 0 auto;
+  padding: 8px 11px;
+  border: 1px solid #1b789c;
+  color: #075d7e;
+  background: #fff;
+  font-size: .76rem;
+  font-weight: 900;
+  text-decoration: none;
+}
+.kioxia-live-ir a:hover { color: #fff; background: #1b789c; }
+
+.berkshire-cash-story {
+  display: grid;
+  grid-template-columns: minmax(280px, 1.5fr) repeat(2, minmax(180px, 1fr));
+  gap: 1px;
+  margin-top: 14px;
+  border: 1px solid #9bc3b3;
+  background: #9bc3b3;
+}
+.berkshire-cash-story article { min-width: 0; padding: 15px 16px; background: #fff; }
+.berkshire-cash-story span { display: block; color: #54706a; font-size: .7rem; font-weight: 900; }
+.berkshire-cash-story strong { display: block; margin: 5px 0; color: #164c3c; font-size: 1rem; line-height: 1.45; }
+.berkshire-cash-story small,
+.berkshire-cash-story p { margin: 0; color: #4c6661; font-size: .75rem; font-weight: 700; line-height: 1.55; }
+.berkshire-cash-story-hero { border-left: 5px solid #20775c; background: #eff8f4 !important; }
+.berkshire-cash-story-hero strong { font-size: 1.05rem; }
+
+.berkshire-sale-scale { display: block; height: 5px; margin-top: 9px; overflow: hidden; background: #dbeae4; }
+.berkshire-sale-scale i { display: block; height: 100%; min-width: 5px; background: linear-gradient(90deg, #82b4a2, #28735b); }
+
+.overseas-archive-list > div {
+  display: grid;
+  gap: 4px;
+  padding: 12px;
+  color: inherit;
+  background: #fff;
+}
+.overseas-archive-list > div > a { color: #283c46; font-size: .78rem; font-weight: 800; line-height: 1.45; text-decoration: none; }
+
+.overseas-plain-summary {
+  display: grid;
+  grid-template-columns: minmax(240px, .9fr) minmax(0, 1.6fr);
+  gap: 1px;
+  margin: 0 0 14px;
+  border: 1px solid #d8b866;
+  background: #d8b866;
+}
+.overseas-plain-summary > div { min-width: 0; padding: 14px 16px; background: #fffdf7; }
+.overseas-plain-summary span { display: block; color: #7d5700; font-size: .7rem; font-weight: 900; }
+.overseas-plain-summary strong { display: block; margin-top: 4px; color: #3c3322; font-size: .96rem; line-height: 1.55; }
+.overseas-plain-summary p { margin: 4px 0 0; color: #5f5748; font-size: .8rem; font-weight: 650; line-height: 1.65; }
+.overseas-news-list .overseas-live-card {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 9px 14px;
+  padding: 15px;
+  border-left: 5px solid #8a5b00;
+  background: #fff;
+}
+.overseas-live-card[data-verification="official"] { border-left-color: #18705b; }
+.overseas-live-card[data-verification="reported"] { border-left-color: #a56b00; }
+.overseas-live-card[data-verification="observation"] { border-left-color: #687d8b; }
+.overseas-live-card .overseas-live-meta { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 6px; }
+.overseas-live-meta span { padding: 3px 7px; color: #536873; background: #edf2f4; font-size: .66rem; font-weight: 900; }
+.overseas-live-card[data-verification="official"] .overseas-live-meta span:first-child { color: #16624f; background: #e5f4ee; }
+.overseas-live-card h4 { margin: 0; color: #172b38; font-size: .92rem; line-height: 1.48; }
+.overseas-live-card p { grid-column: 1 / -1; margin: 0; color: #4c6370; font-size: .8rem; line-height: 1.6; }
+.overseas-live-card details { grid-column: 1 / -1; color: #526977; font-size: .76rem; }
+.overseas-live-card details summary { color: #315d70; font-weight: 900; cursor: pointer; }
+.overseas-live-card details p { margin-top: 6px; }
+.overseas-live-card a { align-self: start; color: #075d7e; font-size: .76rem; font-weight: 900; text-decoration: none; }
+.overseas-archive { margin-top: 14px; border: 1px solid #d8c89c; background: #fffdf7; }
+.overseas-archive > summary { padding: 12px 14px; color: #604400; font-size: .8rem; font-weight: 900; cursor: pointer; }
+.overseas-archive-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1px; border-top: 1px solid #e4d8b9; background: #e4d8b9; }
+.overseas-archive-list a { display: grid; gap: 4px; padding: 12px; color: inherit; background: #fff; text-decoration: none; }
+.overseas-archive-list strong { color: #283c46; font-size: .78rem; line-height: 1.45; }
+.overseas-archive-list small { color: #6b7e86; font-size: .7rem; }
+
+@media (max-width: 700px) {
+  #copyMonitorButton,
+  .monitor-copy-status { display: none; }
+  .regional-market-card .regional-market-date { max-width: 130px; font-size: .62rem !important; }
+  .kioxia-live-ir { display: grid; }
+  .kioxia-live-ir a { justify-self: start; }
+  .berkshire-cash-story,
+  .overseas-plain-summary,
+  .overseas-archive-list { grid-template-columns: 1fr; }
+  .overseas-news-list .overseas-live-card { grid-template-columns: 1fr; }
+  .overseas-live-card a { justify-self: start; }
+}

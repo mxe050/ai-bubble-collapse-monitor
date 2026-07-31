@@ -24,13 +24,14 @@
       <div class="header-actions">
         <button id="refreshButton" class="command primary" type="button">
           <i data-lucide="refresh-cw" aria-hidden="true"></i>
-          最新データを取得・再計算
+          最新情報を再読込
         </button>
-        <small id="refreshHint" class="refresh-hint">市場・企業・信用買い残・海外情報を更新</small>
-        <a class="command" href="#methodology">
-          <i data-lucide="calculator" aria-hidden="true"></i>
-          計算根拠
-        </a>
+        <small id="refreshHint" class="refresh-hint">取引中価格・先物・公式IR・海外情報を公開済みの最新状態へ更新</small>
+        <button id="copyMonitorButton" class="command" type="button" title="PCで表示中の監視ページ全体をテキストとしてコピー">
+          <i data-lucide="copy" aria-hidden="true"></i>
+          サマリーコピー
+        </button>
+        <small id="copyMonitorStatus" class="monitor-copy-status" role="status">PCで、表示中のページ全体をテキストとしてコピーします</small>
       </div>
     </div>
   </header>
@@ -65,8 +66,8 @@
           </div>
           <div class="market-summary-stamp">
             <span id="marketSummaryStatus" class="status-dot">読込中</span>
-            <span>数値更新 <strong id="marketSummaryDataAsOf">―</strong></span>
-            <span>政策確認 <strong id="marketSummaryPolicyAsOf">―</strong></span>
+            <span>価格更新（ライブ） <strong id="marketSummaryDataAsOf">―</strong></span>
+            <span>分析・政策の確認日時 <strong id="marketSummaryPolicyAsOf">―</strong></span>
           </div>
         </div>
 
@@ -81,6 +82,7 @@
           <span><b>為替</b> 通貨ペアの上下</span>
           <span><b>金利</b> 資金調達環境</span>
           <span><b>政策・政治</b> 値動きの背景になり得る確認事項</span>
+          <span><b>枠の色</b> 各地域の主な株価が上昇なら青、下落なら赤</span>
         </div>
 
         <div id="regionalMarketCards" class="regional-market-grid" aria-live="polite">
@@ -1099,14 +1101,14 @@
           <div>
             <p class="section-kicker">THE ARTICLE'S CONCRETE EXAMPLE</p>
             <h3>キオクシアで「期待の急膨張と剥落」を確認する</h3>
-            <p>参考資料で示された2026年3月31日から6月22日、そして7月17日までの区間を、同じ価格系列で再計算します。全AI株が同じ経路をたどるという意味ではなく、集中相場の極端さを可視化する事例です。</p>
+            <p>参考資料で示された2026年3月31日から6月22日までの経路を同じ価格系列で再計算し、現在値はライブ価格で上書きします。全AI株が同じ経路をたどるという意味ではなく、集中相場の極端さを可視化する一社の事例です。</p>
           </div>
           <div class="kioxia-path">
             <div><span id="sakKioxiaStartDate">3/31</span><strong id="sakKioxiaStart">―</strong><small>原文の起点・日中安値</small></div>
             <i data-lucide="trending-up" aria-hidden="true"></i>
             <div class="peak"><span id="sakKioxiaPeakDate">6/22</span><strong id="sakKioxiaPeak">―</strong><small id="sakKioxiaRise">上昇率 ―</small></div>
             <i data-lucide="trending-down" aria-hidden="true"></i>
-            <div class="current"><span id="sakKioxiaCurrentDate">7/17</span><strong id="sakKioxiaCurrent">―</strong><small id="sakKioxiaFall">高値から ―</small></div>
+            <div class="current"><span id="sakKioxiaCurrentDate">7/17</span><strong id="sakKioxiaCurrent">―</strong><small id="sakKioxiaFall">高値から ―</small><small id="sakKioxiaCurrentMeta">価格時刻を確認中</small></div>
           </div>
           <p id="sakKioxiaInterpretation" class="case-interpretation">キオクシアの価格経路を計算しています。</p>
           <div class="kioxia-calm-valuation">
@@ -1114,7 +1116,7 @@
               <div>
                 <p class="section-kicker">REPORT-BASED CALM REFERENCE</p>
                 <h4>直近2回の決算だけでつくる「冷静な株価」</h4>
-                <p>AIの物語やアナリスト予想を足さず、会社が公表した売上成長、利益、株式数だけを土台にします。</p>
+                <p>AIの物語やアナリスト予想を足さず、会社が公表した直近2回の決算、利益、株式数だけを土台にします。7月31日公表の第1四半期も反映し、単発四半期の勢いをそのまま永続化しない保守的な比較値です。</p>
               </div>
               <div class="kioxia-calm-price">
                 <span>中心値</span>
@@ -1123,15 +1125,23 @@
               </div>
             </div>
             <div class="kioxia-calm-metrics">
-              <div><span>第3四半期累計の売上前年比</span><strong id="sakKioxiaQ3Growth">―</strong><small id="sakKioxiaQ3Period">―</small></div>
-              <div><span>通期の売上前年比</span><strong id="sakKioxiaFyGrowth">―</strong><small id="sakKioxiaFyPeriod">―</small></div>
-              <div><span>採用した期待成長率</span><strong id="sakKioxiaGrowthAssumption">―</strong><small>2回の公表伸び率の単純平均</small></div>
-              <div><span>据え置く親会社帰属利益率</span><strong id="sakKioxiaNormalizedMargin">―</strong><small>最新通期の実績を改善させない</small></div>
+              <div><span id="sakKioxiaReportOneLabel">最新決算の売上前年比</span><strong id="sakKioxiaQ3Growth">―</strong><small id="sakKioxiaQ3Period">―</small></div>
+              <div><span id="sakKioxiaReportTwoLabel">前回決算の売上前年比</span><strong id="sakKioxiaFyGrowth">―</strong><small id="sakKioxiaFyPeriod">―</small></div>
+              <div><span id="sakKioxiaGrowthAssumptionLabel">採用する売上水準</span><strong id="sakKioxiaGrowthAssumption">―</strong><small id="sakKioxiaGrowthAssumptionCaption">直近2回を年換算して中間値</small></div>
+              <div><span>据え置く親会社帰属利益率</span><strong id="sakKioxiaNormalizedMargin">―</strong><small id="sakKioxiaNormalizedMarginCaption">好調な単四半期の利益率を恒久化しない</small></div>
               <div><span>期末発行済株式数</span><strong id="sakKioxiaShares">―</strong><small>自己株式を含む会社公表値</small></div>
             </div>
             <p id="sakKioxiaCalmFormula" class="kioxia-calm-formula">計算式を確認しています。</p>
             <p id="sakKioxiaCalmGap" class="kioxia-calm-gap">現在値との差を計算しています。</p>
             <p id="sakKioxiaCalmInterpretation" class="kioxia-calm-interpretation">前提と限界を確認しています。</p>
+            <aside class="kioxia-live-ir" aria-labelledby="sakKioxiaLiveIrHeading">
+              <div>
+                <span>LIVE OFFICIAL IR</span>
+                <h5 id="sakKioxiaLiveIrHeading">最新の公式IRを別枠で照合</h5>
+                <p id="sakKioxiaLiveIrSummary">適時開示の更新を確認しています。</p>
+              </div>
+              <a id="sakKioxiaLiveIrLink" href="https://www.kioxia-holdings.com/ja-jp/ir.html" target="_blank" rel="noopener noreferrer">キオクシアIRを開く</a>
+            </aside>
             <div class="kioxia-calm-sources">
               <a id="sakKioxiaQ3Source" href="#" target="_blank" rel="noopener">2026年3月期 第3四半期決算短信</a>
               <a id="sakKioxiaFySource" href="#" target="_blank" rel="noopener">2026年3月期 決算短信</a>
@@ -1471,6 +1481,24 @@
             <div><span>最新公表期</span><strong id="berkshirePeriod">―</strong><small>10-Q / 年次報告</small></div>
           </div>
 
+          <div class="berkshire-cash-story" aria-label="バークシャーの待機資金を読むための要約">
+            <article class="berkshire-cash-story-hero">
+              <span>先に結論</span>
+              <strong id="berkshireCashFlowConclusion">流動性と売買の関係を確認中</strong>
+              <p id="berkshireCashFlowDetail">年ごとの純売却は資金の動き、期末の現金・短期国債は積み上がった残高です。</p>
+            </article>
+            <article>
+              <span>期末に残った待機資金</span>
+              <strong id="berkshireLiquidityHistory">―</strong>
+              <small id="berkshireLiquidityHistoryCaption">2024末 → 2025末 → 直近</small>
+            </article>
+            <article>
+              <span>この画面の比率の意味</span>
+              <strong id="berkshireRatioClarifier">―</strong>
+              <small id="berkshireRatioClarifierCaption">投資プール内と総資産では分母が異なります</small>
+            </article>
+          </div>
+
           <div class="berkshire-long-context" aria-labelledby="berkshireLongContextHeading">
             <div class="berkshire-long-context-heading">
               <div>
@@ -1549,12 +1577,20 @@
             <h3 id="overseasIntelligenceHeading">海外で新しく出た材料を集め、公式確認へつなぐ</h3>
             <p id="overseasSummary">海外英語報道、X、公式資料から新着材料を確認しています。</p>
           </div>
+          <div class="overseas-plain-summary" aria-label="海外速報の読み方">
+            <div><span>まずここだけ</span><strong id="overseasTakeaway">ライブ速報を整理しています。</strong></div>
+            <div><span>確認の順番</span><p id="overseasVerificationPath">海外報道やSNSは発見の入口です。会社IR、SEC、中央銀行などの公式資料で確かめてから判断します。</p></div>
+          </div>
           <div class="overseas-status-row">
             <span id="overseasCheckedAt">最終確認を取得中</span>
             <span id="overseasXStatus">X接続を確認中</span>
           </div>
           <div id="overseasTopicChips" class="overseas-topic-chips"></div>
           <div id="overseasNewsList" class="overseas-news-list" aria-live="polite"></div>
+          <details class="overseas-archive" id="overseasArchive">
+            <summary>保存済みの背景記事も確認する <span id="overseasArchiveCount">0件</span></summary>
+            <div id="overseasArchiveList" class="overseas-archive-list"></div>
+          </details>
           <p id="overseasReadingRule" class="overseas-reading-rule"></p>
         </section>
 

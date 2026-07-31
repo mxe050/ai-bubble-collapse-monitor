@@ -180,7 +180,8 @@
   function safeHttpsUrl(value) {
     if (!value) return "";
     try {
-      var parsed = new URL(String(value), window.location.href);
+      var base = typeof window !== "undefined" && window.location ? window.location.href : undefined;
+      var parsed = new URL(String(value), base);
       return parsed.protocol === "https:" ? parsed.href : "";
     } catch (_error) {
       return "";
@@ -756,6 +757,9 @@
     var marketPath = sakakibara.marketPath || {};
     var kioxia = sakakibara.kioxiaCase || {};
     var calm = kioxia.calmValuation || {};
+    var liveKioxia = liveQuoteForKey("KIOXIA");
+    var kioxiaCurrent = finite(liveKioxia ? liveKioxia.value : kioxia.close);
+    var kioxiaPriceLabel = liveKioxia ? "ライブ価格" : "最新終値";
     var macro = state.data.macro || {};
     var highYield = macro.highYieldOas || {};
     var financial = macro.financialConditions || {};
@@ -789,7 +793,7 @@
       : "理論価値モデルの最新値は未確認です。";
     var kioxiaText = finite(calm.referencePriceJpy) === null
       ? "直近2決算による冷静な評価基準は未確認です。"
-      : "キオクシアは最新終値" + formatPrice(kioxia.close, "JPY") + "に対し、直近2決算だけを使う中心値は" + formatPrice(calm.referencePriceJpy, "JPY") + "、感度幅は" + formatPrice(calm.sensitivityLowPriceJpy, "JPY") + "～" + formatPrice(calm.sensitivityHighPriceJpy, "JPY") + "です。売買目標ではありません。";
+      : "キオクシアは" + kioxiaPriceLabel + formatPrice(kioxiaCurrent, "JPY") + "に対し、直近2決算だけを使う中心値は" + formatPrice(calm.referencePriceJpy, "JPY") + "、感度幅は" + formatPrice(calm.sensitivityLowPriceJpy, "JPY") + "～" + formatPrice(calm.sensitivityHighPriceJpy, "JPY") + "です。売買目標ではありません。";
     var livePackage = state.liveIntelligence || {};
     var livePremarket = livePackage.premarket || {};
     var liveQuotes = livePremarket.quotes || {};
@@ -1902,18 +1906,25 @@
     var calmReports = calm.reports || [];
     var q3Report = calmReports[0] || {};
     var fyReport = calmReports[1] || {};
+    var adoptedRevenue = finite(calm.forecastRevenueJpyMillions);
+    var quarterAnnualizedRevenue = finite(calm.latestQuarterAnnualizedRevenueJpyMillions);
+    byId("sakKioxiaReportOneLabel").textContent = Number(q3Report.periodMonths) === 3 ? "最新Q1・売上前年比（比較材料）" : "最新決算の売上前年比";
+    byId("sakKioxiaReportTwoLabel").textContent = "前回決算・売上前年比";
+    byId("sakKioxiaGrowthAssumptionLabel").textContent = "採用する年間売上";
+    byId("sakKioxiaGrowthAssumptionCaption").textContent = calm.revenueMethod || "最新四半期は年換算で比較するだけで、通期予想とは扱いません";
+    byId("sakKioxiaNormalizedMarginCaption").textContent = calm.marginMethod || "好調な単四半期の利益率を恒久化しません";
     byId("sakKioxiaQ3Growth").textContent = formatPercent(q3Report.revenueGrowthYoYPct, true);
     byId("sakKioxiaQ3Period").textContent = q3Report.periodLabel ? q3Report.periodLabel + "・" + (q3Report.releaseDate || "公表日未確認") : "未確認";
     byId("sakKioxiaFyGrowth").textContent = formatPercent(fyReport.revenueGrowthYoYPct, true);
     byId("sakKioxiaFyPeriod").textContent = fyReport.periodLabel ? fyReport.periodLabel + "・" + (fyReport.releaseDate || "公表日未確認") : "未確認";
-    byId("sakKioxiaGrowthAssumption").textContent = formatPercent(calm.growthExpectationPct, true);
+    byId("sakKioxiaGrowthAssumption").textContent = adoptedRevenue === null ? "未確認" : "約" + numberTwo.format(adoptedRevenue / 1000000) + "兆円";
     byId("sakKioxiaNormalizedMargin").textContent = formatPercent(calm.referenceNetMarginPct, false);
     byId("sakKioxiaShares").textContent = finite(calm.sharesOutstanding) === null ? "未確認" : nikkeiFormat.format(calm.sharesOutstanding) + "株";
     byId("sakKioxiaCalmPrice").textContent = formatPrice(calm.referencePriceJpy, "JPY");
     byId("sakKioxiaCalmRange").textContent = "PER " + (finite(calm.sensitivityPeLow) === null ? "―" : numberOne.format(calm.sensitivityPeLow)) + "～" + (finite(calm.sensitivityPeHigh) === null ? "―" : numberOne.format(calm.sensitivityPeHigh)) + "倍: " + formatPrice(calm.sensitivityLowPriceJpy, "JPY") + "～" + formatPrice(calm.sensitivityHighPriceJpy, "JPY");
     byId("sakKioxiaCalmFormula").textContent = finite(calm.referencePriceJpy) === null
       ? "必要な決算入力を確認できませんでした。"
-      : "計算: 通期売上" + numberTwo.format(calm.latestRevenueJpyMillions / 1000000) + "兆円 × (1 + " + numberOne.format(calm.growthExpectationPct) + "%) × 据え置き利益率" + numberTwo.format(calm.referenceNetMarginPct) + "% × PER " + numberOne.format(calm.referencePe) + "倍 ÷ " + nikkeiFormat.format(calm.sharesOutstanding) + "株 = " + formatPrice(calm.referencePriceJpy, "JPY") + "。予想売上は" + numberTwo.format(calm.forecastRevenueJpyMillions / 1000000) + "兆円、予想利益は" + numberTwo.format(calm.forecastProfitJpyMillions / 100) + "億円です。";
+      : "計算式：" + (calm.revenueMethod || "公表済みの売上水準を使う") + "。採用する年間売上は" + (adoptedRevenue === null ? "未確認" : "約" + numberTwo.format(adoptedRevenue / 1000000) + "兆円") + "、利益率は" + formatPercent(calm.referenceNetMarginPct, false) + "、PERは" + numberOne.format(calm.referencePe) + "倍、発行済株式数は" + nikkeiFormat.format(calm.sharesOutstanding) + "株として中心値を計算します。" + (quarterAnnualizedRevenue === null ? "" : " 最新Q1の単純年換算は約" + numberTwo.format(quarterAnnualizedRevenue / 1000000) + "兆円ですが、通期予想とはみなしません。");
     var currentMultiple = finite(calm.currentPriceMultiple);
     byId("sakKioxiaCalmGap").textContent = currentMultiple === null
       ? "現在値との差は未確認です。"
@@ -1921,11 +1932,76 @@
     byId("sakKioxiaCalmInterpretation").textContent = calm.interpretation || "この中心値は売買推奨、目標株価、底値予測ではありません。";
     if (q3Report.sourceUrl) byId("sakKioxiaQ3Source").href = q3Report.sourceUrl;
     if (fyReport.sourceUrl) byId("sakKioxiaFySource").href = fyReport.sourceUrl;
+    if (q3Report.periodLabel) byId("sakKioxiaQ3Source").textContent = q3Report.periodLabel + " 決算資料";
+    if (fyReport.periodLabel) byId("sakKioxiaFySource").textContent = fyReport.periodLabel + " 決算資料";
+    renderKioxiaLiveOverlay(kioxia);
 
     renderNtRatioChart(analysis);
     renderSakakibaraFairValue(analysis);
     renderSakakibaraMarketPath(analysis);
     renderEnAiProxy(analysis);
+  }
+
+  function latestOfficialDisclosureForIssuer(issuerCode) {
+    var target = String(issuerCode || "").toUpperCase().trim();
+    if (!target) return null;
+    var live = state.liveIntelligence || {};
+    var briefingItems = ((live.briefing || {}).items || []);
+    var cachedDisclosures = Array.isArray(live.companyDisclosureCache) ? live.companyDisclosureCache : [];
+    var items = briefingItems.concat(cachedDisclosures).filter(function (item) {
+      return item && String(item.issuerCode || "").toUpperCase().trim() === target
+        && (/official/.test(String(item.sourceKind || "").toLowerCase()) || Boolean(item.disclosureId));
+    });
+    var financialItems = items.filter(function (item) {
+      return /financial|earnings|決算/.test(String(item.disclosureCategory || "") + " " + String(item.topic || "") + " " + String(item.title || ""));
+    });
+    var candidates = financialItems.length ? financialItems : items;
+    return candidates.sort(function (left, right) {
+      return (briefingTimestamp(right) || 0) - (briefingTimestamp(left) || 0);
+    })[0] || null;
+  }
+
+  function renderKioxiaLiveOverlay(kioxia) {
+    var live = liveQuoteForKey("KIOXIA");
+    var current = finite(live ? live.value : kioxia.close);
+    var currentDate = live ? liveQuoteDate(live) : (kioxia.date || "");
+    var peak = finite(kioxia.peak2026);
+    var drawdown = peak !== null && current !== null ? (1 - current / peak) * 100 : finite(kioxia.drawdownFrom2026HighPct);
+    if (current !== null) {
+      byId("sakKioxiaCurrentDate").textContent = formatShortDate(currentDate) || "最新";
+      byId("sakKioxiaCurrent").textContent = formatPrice(current, "JPY");
+      byId("sakKioxiaFall").textContent = "高値から −" + formatPercent(drawdown, false);
+    }
+    byId("sakKioxiaCurrentMeta").textContent = live
+      ? "ライブ価格・" + liveQuoteStateLabel(live) + " / 値 " + formatLiveTime(liveQuoteTime(live), "")
+      : "保存済み日次終値 / " + (currentDate || "日付未確認");
+
+    var calm = kioxia.calmValuation || {};
+    var referencePrice = finite(calm.referencePriceJpy);
+    var multiple = current !== null && referencePrice !== null && referencePrice > 0 ? current / referencePrice : null;
+    byId("sakKioxiaCalmGap").textContent = multiple === null
+      ? "現在値との差は未確認です。"
+      : (live ? "ライブ価格" : "最新終値") + formatPrice(current, "JPY") + "は中心値の約" + numberTwo.format(multiple) + "倍（中心値比" + formatPercent((multiple - 1) * 100, true) + "）。株価がこの差を維持するには、売上成長、利益率、評価倍率のいずれかが本モデルより高く続く必要があります。";
+
+    var disclosure = latestOfficialDisclosureForIssuer(kioxia.issuerCode || "285A");
+    var report = ((calm.reports || [])[0]) || {};
+    var sourceUrl = safeHttpsUrl(disclosure && disclosure.url) || safeHttpsUrl(report.sourceUrl)
+      || "https://www.kioxia-holdings.com/ja-jp/ir.html";
+    if (disclosure) {
+      var copy = briefingCopy(disclosure);
+      var title = copy.japaneseTitle || disclosure.title || "最新の公式IR";
+      var summary = copy.japaneseSummary || disclosure.summary || "公式開示の内容はリンク先で確認してください。";
+      byId("sakKioxiaLiveIrHeading").textContent = "最新の公式IR：" + title;
+      byId("sakKioxiaLiveIrSummary").textContent = briefingPublicationLabel(disclosure) + " / " + summary;
+      byId("sakKioxiaLiveIrLink").textContent = "公式開示を直接開く";
+    } else {
+      byId("sakKioxiaLiveIrHeading").textContent = "最新の公式IRを確認する";
+      byId("sakKioxiaLiveIrSummary").textContent = report.periodLabel
+        ? report.periodLabel + "の会社公表資料を表示しています。ライブ適時開示が届いた場合はここを自動で差し替えます。"
+        : "ライブ適時開示は未確認です。公式IRページで確認してください。";
+      byId("sakKioxiaLiveIrLink").textContent = "キオクシアIRを開く";
+    }
+    byId("sakKioxiaLiveIrLink").href = sourceUrl;
   }
 
   function initializeNikkeiSettings() {
@@ -2898,6 +2974,37 @@
     var longContext = monitor.longTermContext || {};
     var netSelling = longContext.netSelling || {};
     var periods = netSelling.periods || [];
+    var liquidityHistory = Array.isArray(longContext.liquidityHistory) ? longContext.liquidityHistory : [];
+    var historyForYear = function (year) {
+      return liquidityHistory.find(function (row) { return String(row.periodEnd || row.label || "").indexOf(String(year)) >= 0; }) || {};
+    };
+    var liquidity2024 = historyForYear(2024);
+    var liquidity2025 = historyForYear(2025);
+    var liquidityLatest = liquidityHistory[liquidityHistory.length - 1] || latest;
+    var sales2024 = periods.find(function (row) { return String(row.label || "").indexOf("2024") >= 0; }) || {};
+    var sales2025 = periods.find(function (row) { return String(row.label || "").indexOf("2025") >= 0; }) || {};
+    var operating2025 = finite(liquidity2025.operatingCashFlowBillion);
+    var totalAssetLiquidRatio = finite(latest.totalAssetLiquidRatioPct);
+    if (totalAssetLiquidRatio === null && finite(latest.totalAssetsBillion) !== null && finite(latest.netLiquidReserveBillion) !== null && latest.totalAssetsBillion > 0) {
+      totalAssetLiquidRatio = latest.netLiquidReserveBillion / latest.totalAssetsBillion * 100;
+    }
+    var historyLabels = liquidityHistory.slice(-3).map(function (row) {
+      return (row.label || row.periodEnd || "期末") + " " + formatUsdBillions(row.netLiquidReserveBillion);
+    });
+    byId("berkshireLiquidityHistory").textContent = historyLabels.length ? historyLabels.join(" → ") : "期末残高を確認中";
+    byId("berkshireLiquidityHistoryCaption").textContent = "純売却は当期のフロー、ここは過去の売却代金や営業CFを含む期末残高です。";
+    byId("berkshireRatioClarifier").textContent = "投資プール内 " + formatPercent(latest.investmentPoolLiquidRatioPct, false)
+      + (totalAssetLiquidRatio === null ? " / 総資産比は未算出" : " / 総資産比 " + formatPercent(totalAssetLiquidRatio, false));
+    byId("berkshireRatioClarifierCaption").textContent = "54.99%のような投資プール比率と、会社全体の総資産比は分母が違います。";
+    if (finite(sales2025.netSalesBillion) !== null && finite(liquidity2024.netLiquidReserveBillion) !== null && finite(liquidity2025.netLiquidReserveBillion) !== null) {
+      byId("berkshireCashFlowConclusion").textContent = "2025年の純売却は" + formatUsdBillions(sales2025.netSalesBillion) + "へ縮小しましたが、売り越しは続きました。";
+      byId("berkshireCashFlowDetail").textContent = "2024年の純売却" + formatUsdBillions(sales2024.netSalesBillion)
+        + "で積み上がった資金に" + (operating2025 === null ? "営業活動による資金" : "2025年の営業CF " + formatUsdBillions(operating2025))
+        + "が加わり、期末待機資金は" + formatUsdBillions(liquidity2024.netLiquidReserveBillion) + "から" + formatUsdBillions(liquidity2025.netLiquidReserveBillion) + "へ増えました。低い2025年の売却額だけで現金比率が低いとは読めません。";
+    } else {
+      byId("berkshireCashFlowConclusion").textContent = "純売却（その年の動き）と待機資金（積み上がった残高）を分けて確認します。";
+      byId("berkshireCashFlowDetail").textContent = "純売却が減っても、過去の売却代金・営業キャッシュフロー・買戻しの有無で期末残高は増減します。";
+    }
     byId("berkshireNarrative").textContent = monitor.narrative || "バークシャーの最新公表値を確認できませんでした。";
     byId("berkshireReserve").textContent = formatUsdBillions(latest.netLiquidReserveBillion);
     byId("berkshireReserveChange").textContent = "前期比 " + formatUsdBillions(monitor.reserveChangeBillion) + "（" + formatPercent(monitor.reserveChangePct, true) + "）";
@@ -2929,10 +3036,16 @@
     byId("berkshireAccelerationDetail").textContent = acceleration
       ? "純売却 " + formatUsdBillions(acceleration.netSalesBillion)
       : "年次資料を確認できませんでした";
+    var maxNetSales = periods.reduce(function (maximum, period) {
+      var amount = finite(period.netSalesBillion);
+      return amount !== null ? Math.max(maximum, Math.max(0, amount)) : maximum;
+    }, 0);
     byId("berkshireNetSellingTimeline").innerHTML = periods.map(function (period) {
+      var amount = finite(period.netSalesBillion);
+      var width = amount === null || maxNetSales <= 0 ? 0 : Math.max(5, Math.round(amount / maxNetSales * 100));
       return "<li><span>" + escapeHtml(period.label || "") + "</span><strong>純売却 "
         + escapeHtml(formatUsdBillions(period.netSalesBillion)) + "</strong><small>"
-        + escapeHtml(period.detail || "") + "</small></li>";
+        + escapeHtml(period.detail || "") + "</small><b class=\"berkshire-sale-scale\" aria-label=\"純売却額の相対的な大きさ\"><i style=\"width:" + width + "%\"></i></b></li>";
     }).join("") || "<li><span>未確認</span><strong>長期データなし</strong></li>";
     byId("berkshireFactSummary").textContent = longContext.factSummary || "";
     byId("berkshireInterpretation").textContent = longContext.interpretation || "";
@@ -2959,21 +3072,73 @@
   function renderOverseasIntelligence() {
     var intelligence = state.data.overseasIntelligence || {};
     var xWatch = intelligence.x || {};
-    byId("overseasSummary").textContent = intelligence.summary || "海外情報の更新結果がありません。";
-    var checked = intelligence.checkedAtUtc ? new Date(intelligence.checkedAtUtc) : null;
+    var live = state.liveIntelligence || {};
+    var briefing = live.briefing || {};
+    var allLiveItems = Array.isArray(briefing.items) ? briefing.items : [];
+    var liveItems = allLiveItems.filter(function (item) {
+      if (!item || typeof item !== "object") return false;
+      var country = String(item.sourceCountry || "").toUpperCase();
+      var topic = String(item.topicKey || "") + " " + String(item.topic || "");
+      return country !== "JP" && !/japan|日本/.test(topic);
+    }).sort(function (left, right) {
+      return (briefingTimestamp(right) || 0) - (briefingTimestamp(left) || 0);
+    }).slice(0, 8);
+    var checkedAt = live.generatedAtUtc || live.generatedAtJst || intelligence.checkedAtUtc || "";
+    var checked = checkedAt ? new Date(checkedAt) : null;
+    var counts = { official: 0, reported: 0, observation: 0 };
+    liveItems.forEach(function (item) {
+      var verification = String(item.verification || "").toLowerCase();
+      var kind = String(item.sourceKind || "").toLowerCase();
+      var bucket = /^primary/.test(verification) || /^official/.test(kind) ? "official"
+        : /^reported/.test(verification) ? "reported" : "observation";
+      counts[bucket] += 1;
+    });
+    byId("overseasSummary").textContent = liveItems.length
+      ? "海外の新着候補を" + formatLiveTime(checkedAt, "") + " JSTに再確認。上段は新しい順に、公式資料と主要報道を優先して表示します。"
+      : (intelligence.summary || "海外情報の更新結果がありません。");
+    byId("overseasTakeaway").textContent = liveItems.length
+      ? "今すぐ見る候補 " + liveItems.length + "件：公式確認 " + counts.official + "件 / 主要報道・公式確認待ち " + counts.reported + "件 / 観測・原文確認待ち " + counts.observation + "件"
+      : "ライブ候補を取得できなかったため、下の保存済み背景記事を表示します。";
+    byId("overseasVerificationPath").textContent = "「公式確認」は中央銀行・政府・企業IRなどの一次資料です。「主要報道」は原文を開いて公式資料へ進みます。「観測」はSNSや索引の発見段階で、投資判断の根拠にしません。";
     byId("overseasCheckedAt").textContent = checked && !Number.isNaN(checked.valueOf())
-      ? "確認 " + new Intl.DateTimeFormat("ja-JP", { dateStyle: "medium", timeStyle: "short", timeZone: "Asia/Tokyo" }).format(checked)
-      : "確認時刻なし";
-    byId("overseasXStatus").textContent = xWatch.message || "Xの状態を確認できません";
-    var topics = Object.entries(intelligence.topicCounts || {}).sort(function (a, b) { return b[1] - a[1]; });
+      ? "ライブ確認 " + new Intl.DateTimeFormat("ja-JP", { dateStyle: "medium", timeStyle: "short", timeZone: "Asia/Tokyo" }).format(checked)
+      : "ライブ確認時刻なし";
+    byId("overseasXStatus").textContent = "SNS・投稿は観測扱い。公式資料と主要報道を優先して照合";
+    var topicCounts = {};
+    liveItems.forEach(function (item) {
+      var topic = item.topic || item.topicKey || "海外材料";
+      topicCounts[topic] = (topicCounts[topic] || 0) + 1;
+    });
+    var topics = Object.keys(topicCounts).map(function (key) { return [key, topicCounts[key]]; })
+      .sort(function (left, right) { return right[1] - left[1]; });
     byId("overseasTopicChips").innerHTML = topics.map(function (row) {
       return "<span>" + escapeHtml(row[0]) + " <strong>" + nikkeiFormat.format(row[1]) + "</strong></span>";
     }).join("");
-    var items = (intelligence.newsItems || []).slice(0, 8).concat((xWatch.items || []).slice(0, 4));
-    byId("overseasNewsList").innerHTML = items.map(function (row) {
-      return "<a href=\"" + escapeHtml(row.url) + "\" target=\"_blank\" rel=\"noopener\"><span>" + escapeHtml(row.evidenceLevel || "海外情報") + "</span><strong>" + escapeHtml(row.title) + "</strong><small>" + escapeHtml(row.source || "") + " / " + escapeHtml(row.topic || "") + "</small></a>";
-    }).join("") || "<p>今回の更新では新着候補を取得できませんでした。</p>";
-    byId("overseasReadingRule").textContent = intelligence.readingRule || "";
+    byId("overseasNewsList").innerHTML = liveItems.map(function (item) {
+      var copy = briefingCopy(item);
+      var verification = String(item.verification || "").toLowerCase();
+      var sourceKind = String(item.sourceKind || "").toLowerCase();
+      var bucket = /^primary/.test(verification) || /^official/.test(sourceKind) ? "official"
+        : /^reported/.test(verification) ? "reported" : "observation";
+      var bucketLabel = bucket === "official" ? "公式確認" : bucket === "reported" ? "主要報道・公式確認待ち" : "観測・原文確認待ち";
+      var japaneseTitle = copy.japaneseTitle || item.title || "海外の最新材料";
+      var japaneseSummary = copy.japaneseSummary || "日本語要旨は未取得です。原文を直接確認してください。";
+      var originalTitle = copy.originalTitle || item.title || "";
+      var originalSummary = copy.originalSummary || item.summary || "";
+      return '<article class="overseas-live-card" data-verification="' + escapeHtml(bucket) + '">'
+        + '<div class="overseas-live-meta"><span>' + escapeHtml(bucketLabel) + '</span><span>' + escapeHtml(briefingPublicationLabel(item)) + '</span><span>' + escapeHtml(item.source || item.publisher || "情報源未確認") + '</span></div>'
+        + '<h4>' + escapeHtml(japaneseTitle) + '</h4><p>' + escapeHtml(japaneseSummary) + '</p>'
+        + '<details><summary>原文と掲載情報を確認</summary><p lang="' + escapeHtml(copy.originalLanguage || "en") + '">' + escapeHtml(originalTitle) + (originalSummary ? " — " + escapeHtml(originalSummary) : "") + '</p></details>'
+        + liveSourceLink(item.url, originalSourceLinkLabel(item.url), "overseas-live-link") + '</article>';
+    }).join("") || "<p>今回のライブ取得では海外の新着候補を確認できませんでした。保存済み記事は下から確認できます。</p>";
+    var archiveItems = (intelligence.newsItems || []).slice(0, 12).concat((xWatch.items || []).slice(0, 6));
+    byId("overseasArchiveCount").textContent = archiveItems.length + "件";
+    byId("overseasArchiveList").innerHTML = archiveItems.map(function (row) {
+      var label = row.title || "保存済み背景記事";
+      return '<div>' + liveSourceLink(row.url, label, "overseas-archive-link")
+        + '<small>' + escapeHtml(row.source || "") + " / " + escapeHtml(row.topic || row.evidenceLevel || "背景情報") + '</small></div>';
+    }).join("") || "<p>保存済みの背景記事はありません。</p>";
+    byId("overseasReadingRule").textContent = (intelligence.readingRule || "") + " 上段の原文リンクから一次資料・記事の詳細を直接確認できます。";
   }
 
   function renderUsMarketIntelligence() {
@@ -3220,6 +3385,45 @@
       : "未確認";
   }
 
+  function liveQuoteMap() {
+    var live = state.liveIntelligence || {};
+    var premarket = live.premarket || {};
+    var quotes = premarket.quotes || {};
+    return quotes && typeof quotes === "object" && !Array.isArray(quotes) ? quotes : {};
+  }
+
+  function liveQuoteForKey(key) {
+    if (!key) return null;
+    var quote = liveQuoteMap()[key];
+    return quote && typeof quote === "object" && finite(quote.value) !== null ? quote : null;
+  }
+
+  function liveQuoteTime(quote) {
+    return quote && (quote.quoteTimeUtc || quote.quoteTimeJst || quote.retrievedAtUtc) || "";
+  }
+
+  function liveQuoteDate(quote) {
+    var value = liveQuoteTime(quote);
+    var parsed = value ? new Date(value) : null;
+    if (!parsed || Number.isNaN(parsed.valueOf())) return "";
+    return new Intl.DateTimeFormat("sv-SE", {
+      year: "numeric", month: "2-digit", day: "2-digit", timeZone: "Asia/Tokyo",
+    }).format(parsed);
+  }
+
+  function liveQuoteStateLabel(quote) {
+    var marketState = String(quote && quote.marketState || "").toLowerCase();
+    if (/updating|regular|open/.test(marketState)) return "取引中";
+    if (/pre|post|extended|after/.test(marketState)) return "時間外";
+    if (/closed|delayed/.test(marketState)) return "直近終値";
+    return "ライブ価格";
+  }
+
+  function summaryDateLabel(metric) {
+    if (!metric || !metric.date) return "日付未確認";
+    return metric.live ? metric.date + "・" + liveQuoteStateLabel(metric) : metric.date;
+  }
+
   function summaryMetric(definition) {
     var market = state.data && state.data.market ? state.data.market : {};
     var series = market.series || {};
@@ -3236,6 +3440,20 @@
     } else {
       row = series[definition.key] || {};
       value = finite(row[definition.field || "close"]);
+    }
+    var liveKey = definition.liveKey || "";
+    var live = liveQuoteForKey(liveKey);
+    if (live) {
+      return {
+        value: finite(live.value),
+        date: liveQuoteDate(live) || row.date || definition.date || "",
+        change: finite(live.changePct),
+        sourceUrl: live.sourceUrl || row.sourceUrl || definition.sourceUrl || "",
+        live: true,
+        liveKey: liveKey,
+        quoteTime: liveQuoteTime(live),
+        marketState: live.marketState || "",
+      };
     }
     return {
       value: value,
@@ -3256,6 +3474,11 @@
   }
 
   function summaryChange(metric, definition) {
+    if (metric.live) {
+      var liveTime = metric.quoteTime ? formatLiveTime(metric.quoteTime, "") : "時刻未確認";
+      var liveState = liveQuoteStateLabel({ marketState: metric.marketState });
+      return liveState + "・前日比 " + formatPercent(metric.change, true) + " / " + liveTime;
+    }
     if (metric.change === null || definition.scope === "macro" || finite(definition.value) !== null) {
       return metric.date ? "基準日 " + metric.date : "基準日未確認";
     }
@@ -3273,8 +3496,7 @@
   }
 
   function summarySourceLink(url, label) {
-    if (!url) return "<span>" + escapeHtml(label) + "</span>";
-    return '<a href="' + escapeHtml(url) + '" target="_blank" rel="noopener noreferrer">' + escapeHtml(label) + "</a>";
+    return liveSourceLink(url, label);
   }
 
   function renderMarketSummary() {
@@ -3289,10 +3511,16 @@
     }
 
     var generated = state.data && state.data.generatedAtJst ? new Date(state.data.generatedAtJst) : null;
+    var liveGeneratedValue = (state.liveIntelligence || {}).generatedAtUtc || (state.liveIntelligence || {}).generatedAtJst || "";
+    var liveGenerated = liveGeneratedValue ? new Date(liveGeneratedValue) : null;
+    var displayGenerated = liveGenerated && !Number.isNaN(liveGenerated.valueOf()) ? liveGenerated : generated;
+    var generatedAgeMinutes = displayGenerated && !Number.isNaN(displayGenerated.valueOf())
+      ? (Date.now() - displayGenerated.valueOf()) / 60000 : null;
     var policyAsOf = config.policyAsOfJst ? new Date(config.policyAsOfJst) : null;
-    var generatedAgeDays = generated && !Number.isNaN(generated.valueOf()) ? (Date.now() - generated.valueOf()) / 86400000 : null;
     var policyAgeDays = policyAsOf && !Number.isNaN(policyAsOf.valueOf()) ? (Date.now() - policyAsOf.valueOf()) / 86400000 : null;
-    var isStale = (generatedAgeDays !== null && generatedAgeDays > 3) || (policyAgeDays !== null && policyAgeDays > 3);
+    var hasFreshLive = generatedAgeMinutes !== null && generatedAgeMinutes >= -5 && generatedAgeMinutes <= 90;
+    var isStale = !hasFreshLive;
+    var policyNeedsDateCheck = policyAgeDays !== null && policyAgeDays > 1;
     var dateTimeFormat = new Intl.DateTimeFormat("ja-JP", {
       dateStyle: "medium",
       timeStyle: "short",
@@ -3300,13 +3528,15 @@
     });
 
     byId("marketSummaryStatus").className = "status-dot " + (isStale ? "warn" : "ok");
-    byId("marketSummaryStatus").textContent = isStale ? "一部の基準日が古いです" : "最新確認済み";
-    byId("marketSummaryDataAsOf").textContent = generated && !Number.isNaN(generated.valueOf())
-      ? dateTimeFormat.format(generated) : "未確認";
+    byId("marketSummaryStatus").textContent = isStale
+      ? "価格の基準日時を確認"
+      : policyNeedsDateCheck ? "ライブ価格を確認済み（政策文は日付確認）" : "ライブ価格を確認済み";
+    byId("marketSummaryDataAsOf").textContent = displayGenerated && !Number.isNaN(displayGenerated.valueOf())
+      ? dateTimeFormat.format(displayGenerated) : "未確認";
     byId("marketSummaryPolicyAsOf").textContent = policyAsOf && !Number.isNaN(policyAsOf.valueOf())
       ? dateTimeFormat.format(policyAsOf) : "未確認";
-    var headlineSp = summaryMetric({ key: "SP500" });
-    var headlineAcwi = summaryMetric({ key: "ACWI" });
+    var headlineSp = summaryMetric({ key: "SP500", liveKey: "SP500_CASH" });
+    var headlineAcwi = summaryMetric({ key: "ACWI", liveKey: "ACWI_CASH" });
     var headlineGold = summaryMetric({ key: "GOLD" });
     byId("marketSummaryHeadline").textContent =
       summaryMoveSentence(headlineSp, "S&P 500") + " "
@@ -3316,25 +3546,36 @@
     byId("marketSummaryNote").textContent = config.importantLimit || "各指標は公表頻度が異なるため、基準日を個別に確認してください。";
 
     container.innerHTML = config.regions.map(function (region) {
-      var stock = summaryMetric(region.stock);
-      var fx = summaryMetric(region.fx);
+      var fallbackLiveKeys = {
+        japan: { stock: "NIKKEI_CASH", fx: "USDJPY" },
+        "united-states": { stock: "SP500_CASH", fx: "DXY" },
+        "all-country": { stock: "ACWI_CASH", fx: "DXY" },
+      };
+      var fallback = fallbackLiveKeys[region.id] || {};
+      var stock = summaryMetric(Object.assign({}, region.stock || {}, { liveKey: (region.stock || {}).liveKey || fallback.stock || "" }));
+      var fx = summaryMetric(Object.assign({}, region.fx || {}, { liveKey: (region.fx || {}).liveKey || fallback.fx || "" }));
       var rate = summaryMetric(region.rate);
       var extra = region.extra ? summaryMetric(region.extra) : null;
+      var direction = summaryDirection(stock);
+      var stateText = direction === "up" ? "主な株価は上昇" : direction === "down" ? "主な株価は下落" : direction === "flat" ? "主な株価は横ばい" : "主な株価は未確認";
+      var stockClass = stock.live ? " class=\"is-live\"" : "";
+      var fxClass = fx.live ? " class=\"is-live\"" : "";
+      var extraClass = extra && extra.live ? " class=\"is-live\"" : "";
       var policy = region.policy || {};
       var policySources = Array.isArray(policy.sources) ? policy.sources : [];
       var sourceLinks = policySources.map(function (source) {
         return summarySourceLink(source.url, source.label);
       }).join("<span aria-hidden=\"true\"> / </span>");
-      var extraMetric = region.extra ? '<div><span>' + escapeHtml(region.extra.category || "補足") + '</span><small>'
+      var extraMetric = region.extra ? '<div' + extraClass + '><span>' + escapeHtml(region.extra.category || "補足") + '</span><small>'
         + summarySourceLink(extra.sourceUrl, region.extra.label) + '</small><strong>' + escapeHtml(summaryValue(extra, region.extra))
         + '</strong><em class="' + summaryDirection(extra) + '">' + escapeHtml(summaryChange(extra, region.extra)) + "</em></div>" : "";
-      return '<article class="regional-market-card region-' + escapeHtml(region.id || "other") + '">'
-        + '<div class="regional-market-card-heading"><div><span>REGION</span><h3>' + escapeHtml(region.name || "地域") + '</h3></div>'
-        + '<span class="regional-market-date">' + escapeHtml(stock.date || "日付未確認") + "</span></div>"
+      return '<article class="regional-market-card region-' + escapeHtml(region.id || "other") + '" data-direction="' + escapeHtml(direction) + '">'
+        + '<div class="regional-market-card-heading"><div><span>REGION</span><h3>' + escapeHtml(region.name || "地域") + '</h3><small class="regional-market-state ' + escapeHtml(direction) + '">' + escapeHtml(stateText) + '</small></div>'
+        + '<span class="regional-market-date">' + escapeHtml(summaryDateLabel(stock)) + "</span></div>"
         + '<p class="regional-market-summary">' + escapeHtml(summaryMoveSentence(stock, region.stock.label) + " " + (region.summary || "政策材料を確認中です。")) + "</p>"
         + '<div class="regional-market-metrics' + (region.extra ? " has-extra" : "") + '">'
-        + '<div><span>株</span><small>' + summarySourceLink(stock.sourceUrl, region.stock.label) + '</small><strong>' + escapeHtml(summaryValue(stock, region.stock)) + '</strong><em class="' + summaryDirection(stock) + '">' + escapeHtml(summaryChange(stock, region.stock)) + "</em></div>"
-        + '<div><span>為替</span><small>' + summarySourceLink(fx.sourceUrl, region.fx.label) + '</small><strong>' + escapeHtml(summaryValue(fx, region.fx)) + '</strong><em class="' + summaryDirection(fx) + '">' + escapeHtml(summaryChange(fx, region.fx)) + "</em></div>"
+        + '<div' + stockClass + '><span>株</span><small>' + summarySourceLink(stock.sourceUrl, region.stock.label) + '</small><strong>' + escapeHtml(summaryValue(stock, region.stock)) + '</strong><em class="' + summaryDirection(stock) + '">' + escapeHtml(summaryChange(stock, region.stock)) + "</em></div>"
+        + '<div' + fxClass + '><span>為替</span><small>' + summarySourceLink(fx.sourceUrl, region.fx.label) + '</small><strong>' + escapeHtml(summaryValue(fx, region.fx)) + '</strong><em class="' + summaryDirection(fx) + '">' + escapeHtml(summaryChange(fx, region.fx)) + "</em></div>"
         + '<div><span>金利</span><small>' + summarySourceLink(rate.sourceUrl, region.rate.label) + '</small><strong>' + escapeHtml(summaryValue(rate, region.rate)) + '</strong><em class="flat">' + escapeHtml(summaryChange(rate, region.rate)) + "</em></div>"
         + extraMetric
         + "</div>"
@@ -4077,8 +4318,13 @@
 
   function liveSnapshotCandidateIsValid(candidate) {
     if (!candidate || typeof candidate !== "object" || Array.isArray(candidate)) return false;
+    var generatedAt = candidate.generatedAtUtc || candidate.generatedAtJst;
+    if (!generatedAt || Number.isNaN(new Date(generatedAt).valueOf())) return false;
     if (!candidate.briefing || typeof candidate.briefing !== "object" || Array.isArray(candidate.briefing)) return false;
     if (!candidate.premarket || typeof candidate.premarket !== "object" || Array.isArray(candidate.premarket)) return false;
+    if (!candidate.premarket.quotes || typeof candidate.premarket.quotes !== "object" || Array.isArray(candidate.premarket.quotes)) return false;
+    if (!Object.keys(candidate.premarket.quotes).length) return false;
+    if (!Object.keys(candidate.premarket.quotes).every(function (key) { var quote = candidate.premarket.quotes[key]; return quote && typeof quote === "object" && !Array.isArray(quote); })) return false;
     if (!Array.isArray(candidate.briefing.items)) return false;
     if (!candidate.briefing.items.every(function (item) {
       return item && typeof item === "object" && !Array.isArray(item);
@@ -4143,7 +4389,11 @@
 
   function renderUpdatedLiveSnapshot(viewState) {
     var savedViewState = viewState || captureBriefingViewState();
+    renderMarketSummary();
     renderPremarketBriefing();
+    var analysis = state.data && state.data.market ? state.data.market.sakakibaraAnalysis || {} : {};
+    renderKioxiaLiveOverlay(analysis.kioxiaCase || {});
+    renderOverseasIntelligence();
     renderLiveBriefing();
     restoreBriefingViewState(savedViewState);
     var details = briefingMoreDetails();
@@ -4225,7 +4475,7 @@
     try {
       if (showMessage) {
         byId("dataHealth").textContent = "市場・先物・為替・海外情報を更新中";
-        byId("refreshHint").textContent = "取得、再計算、検証を実行しています";
+        byId("refreshHint").textContent = "取引中価格・先物・公式IR・海外情報を再読込しています";
         try {
           var refreshResult = await requestFreshUpdate();
           refreshMode = refreshResult.executed ? "live" : "static";
@@ -4345,8 +4595,58 @@
     updateCurrentSection();
   }
 
+  function monitorCopyText() {
+    var root = document.body || (typeof document.querySelector === "function" ? document.querySelector("main") : null) || document.documentElement;
+    var visibleText = root && (root.innerText || root.textContent) ? (root.innerText || root.textContent) : "";
+    var fullText = root && root.textContent ? root.textContent : visibleText;
+    var text = fullText.length > visibleText.length ? fullText : visibleText;
+    var title = document.title || "AIバブル崩壊・日経平均底値モニター";
+    return (title + "\nコピー時刻: " + new Intl.DateTimeFormat("ja-JP", {
+      dateStyle: "medium", timeStyle: "short", timeZone: "Asia/Tokyo",
+    }).format(new Date()) + "\n\n" + String(text || ""))
+      .replace(/\r/g, "")
+      .replace(/[ \t]+\n/g, "\n")
+      .replace(/\n{3,}/g, "\n\n")
+      .replace(/[ \t]{2,}/g, " ")
+      .trim();
+  }
+
+  async function copyMonitorText() {
+    var status = byId("copyMonitorStatus");
+    if (window.matchMedia && window.matchMedia("(max-width: 700px)").matches) {
+      if (status) status.textContent = "この操作はPC版向けです。";
+      return false;
+    }
+    var text = monitorCopyText();
+    try {
+      if (typeof navigator !== "undefined" && navigator.clipboard && typeof navigator.clipboard.writeText === "function") {
+        await navigator.clipboard.writeText(text);
+      } else {
+        var host = document.body || document.documentElement;
+        if (!document.createElement || !host || typeof host.appendChild !== "function") throw new Error("clipboard unavailable");
+        var area = document.createElement("textarea");
+        area.value = text;
+        area.setAttribute("readonly", "");
+        area.style.position = "fixed";
+        area.style.opacity = "0";
+        host.appendChild(area);
+        area.select();
+        var copied = document.execCommand && document.execCommand("copy");
+        host.removeChild(area);
+        if (!copied) throw new Error("clipboard unavailable");
+      }
+      if (status) status.textContent = "ページ全体のテキストをコピーしました。NotebookLMなどへ貼り付けできます。";
+      return true;
+    } catch (_error) {
+      if (status) status.textContent = "コピーできませんでした。PCのHTTPSページで再度お試しください。";
+      return false;
+    }
+  }
+
   function bindEvents() {
     byId("refreshButton").addEventListener("click", function () { loadData(true); });
+    var copyButton = byId("copyMonitorButton");
+    if (copyButton) copyButton.addEventListener("click", copyMonitorText);
     document.querySelectorAll("input[name='briefing-topic']").forEach(function (radio) {
       radio.addEventListener("change", function () {
         if (this.checked) applyBriefingFilter(this.value || "all", currentBriefingSort());

@@ -140,6 +140,12 @@ assert.match(indexSource, /JST・日本標準時/);
 assert.match(indexSource, /本日のマーケットサマリー/);
 assert.match(indexSource, /日本、米国、欧州、中国、世界全体/);
 assert.match(indexSource, /regionalMarketCards/);
+assert.match(indexSource, /id="copyMonitorButton"/);
+assert.match(indexSource, /サマリーコピー/);
+assert.match(indexSource, /sakKioxiaLiveIrLink/);
+assert.match(indexSource, /overseasArchiveList/);
+assert.match(stylesSource, /regional-market-card\[data-direction="up"\]/);
+assert.match(appSource, /function copyMonitorText\(\)/);
 assert.ok(indexSource.indexOf('id="market-summary"') < indexSource.indexOf('id="beginner-guide"'));
 assert.match(indexSource, /id="premarketBriefing"/);
 assert.match(indexSource, /id="premarketCards"/);
@@ -237,8 +243,12 @@ const briefingMoreElement = new FakeElement("briefingMore");
 let primaryBriefingCards = [];
 let moreBriefingCards = [];
 let briefingCards = [];
+const bodyElement = new FakeElement("body");
+bodyElement.textContent = "AIバブル崩壊・日経平均底値モニター 全体のテスト用テキスト";
 
 global.document = {
+  title: "AIバブル崩壊・日経平均底値モニター",
+  body: bodyElement,
   documentElement: new FakeElement("root"),
   hidden: false,
   listeners: {},
@@ -310,6 +320,7 @@ bindBriefingMarkup("briefingMoreCards", "more");
 global.window = global;
 global.window.innerWidth = 1280;
 global.window.lucide = null;
+global.window.matchMedia = () => ({ matches: false });
 const windowListeners = {};
 global.window.addEventListener = (type, listener) => {
   if (!windowListeners[type]) windowListeners[type] = [];
@@ -349,6 +360,11 @@ global.localStorage = {
   getItem(key) { return storage.has(key) ? storage.get(key) : null; },
   setItem(key, value) { storage.set(key, String(value)); },
 };
+let copiedMonitorText = "";
+if (!global.navigator) global.navigator = {};
+Object.defineProperty(global.navigator, "clipboard", {
+  configurable: true, value: { writeText: async (value) => { copiedMonitorText = String(value); } },
+});
 const payload = JSON.parse(fs.readFileSync("data/latest.json", "utf8"));
 const moneyPayload = JSON.parse(fs.readFileSync("data/money-strategist-history.json", "utf8"));
 const marginPayload = JSON.parse(fs.readFileSync("data/margin-debt-history.json", "utf8"));
@@ -356,6 +372,32 @@ const globalComparisonPayload = JSON.parse(fs.readFileSync("data/global-market-v
 const snapshotIndexPayload = JSON.parse(fs.readFileSync("data/history/index.json", "utf8"));
 const marketSummaryPayload = JSON.parse(fs.readFileSync("data/market-summary.json", "utf8"));
 const livePayload = JSON.parse(fs.readFileSync("data/live-intelligence.json", "utf8"));
+livePayload.generatedAtUtc = livePayload.generatedAtUtc || "2026-08-01T00:30:00+09:00";
+livePayload.premarket = livePayload.premarket || {};
+livePayload.premarket.quotes = livePayload.premarket.quotes || {};
+Object.assign(livePayload.premarket.quotes, {
+  SP500_CASH: { value: 7405.04, changePct: 1.2, currency: "USD", marketState: "updating", quoteTimeUtc: "2026-07-31T15:30:00Z", sourceUrl: "https://finance.yahoo.com/quote/%5EGSPC" },
+  DXY: { value: 99.94, changePct: -0.9, currency: "USD", marketState: "updating", quoteTimeUtc: "2026-07-31T15:30:00Z", sourceUrl: "https://finance.yahoo.com/quote/DX-Y.NYB" },
+  ACWI_CASH: { value: 141.23, changePct: 0.8, currency: "USD", marketState: "updating", quoteTimeUtc: "2026-07-31T15:30:00Z", sourceUrl: "https://finance.yahoo.com/quote/ACWI" },
+  KIOXIA: { value: 39500, changePct: 3.4, currency: "JPY", marketState: "delayed-or-closed", quoteTimeUtc: "2026-07-31T06:25:00Z", sourceUrl: "https://finance.yahoo.com/quote/285A.T" },
+});
+livePayload.briefing = livePayload.briefing || { items: [] };
+livePayload.briefing.items = Array.isArray(livePayload.briefing.items) ? livePayload.briefing.items : [];
+livePayload.briefing.items.push({
+  id: "smoke-kioxia-q1", issuerCode: "285A", sourceKind: "official-company", disclosureCategory: "financial-results", verification: "primary",
+  title: "Kioxia Holdings Corporation FY2027 Q1 Financial Results", source: "TDnet", topic: "日本株", topicKey: "japan-stocks",
+  url: "https://ssl4.eir-parts.net/doc/285A/tdnet/2859905/00.pdf", publishedAtUtc: "2026-07-31T06:30:00Z", effectivePublishedAtUtc: "2026-07-31T06:30:00Z",
+  original: { language: "en", title: "Kioxia Holdings Corporation FY2027 Q1 Financial Results", excerpt: "Official financial results." },
+  japanese: { title: "キオクシア：第1四半期決算", summary: "公式の第1四半期決算資料です。", mode: "structured-gist" },
+});
+livePayload.companyDisclosureCache = Array.isArray(livePayload.companyDisclosureCache) ? livePayload.companyDisclosureCache : [];
+livePayload.companyDisclosureCache.push({
+  id: "smoke-kioxia-q1-cache", issuerCode: "285A", sourceKind: "official-company", disclosureCategory: "financial-results", verification: "primary",
+  title: "Kioxia Holdings Corporation FY2027 Q1 Financial Results", source: "TDnet", topic: "日本株", topicKey: "japan-stocks",
+  url: "https://ssl4.eir-parts.net/doc/285A/tdnet/2859905/00.pdf", publishedAtUtc: "2026-07-31T06:31:00Z", effectivePublishedAtUtc: "2026-07-31T06:31:00Z",
+  original: { language: "en", title: "Kioxia Holdings Corporation FY2027 Q1 Financial Results", excerpt: "Official financial results." },
+  japanese: { title: "キオクシア：第1四半期決算（TDnet）", summary: "公式TDnetの第1四半期決算資料です。", mode: "structured-gist" },
+});
 const snapshotPayloads = Object.fromEntries((snapshotIndexPayload.snapshots || []).map((entry) => [
   entry.file,
   JSON.parse(fs.readFileSync("data/history/" + entry.file, "utf8")),
@@ -400,6 +442,9 @@ setTimeout(async () => {
   assert.match(elements.get("regionalMarketCards").innerHTML, /日本/);
   assert.match(elements.get("regionalMarketCards").innerHTML, /EU・欧州/);
   assert.match(elements.get("regionalMarketCards").innerHTML, /オールカントリー/);
+  assert.match(elements.get("regionalMarketCards").innerHTML, /data-direction="up|data-direction="down/);
+  assert.match(elements.get("regionalMarketCards").innerHTML, /取引中|直近終値/);
+  assert.match(elements.get("regionalMarketCards").innerHTML, /is-live/);
   assert.match(elements.get("premarketLead").innerHTML, /日経|先物/);
   assert.strictEqual((elements.get("premarketCards").innerHTML.match(/class="premarket-card"/g) || []).length, 9);
   assert.match(elements.get("premarketCards").innerHTML, /CME日経|日経225/);
@@ -635,13 +680,15 @@ setTimeout(async () => {
   assert.notStrictEqual(elements.get("sakakibaraStage").textContent, "計算中");
   assert.match(elements.get("sakakibaraNtLatest").textContent, /倍/);
   assert.match(elements.get("sakFairRange").textContent, /円/);
-  assert.match(elements.get("sakKioxiaCalmPrice").textContent, /￥17,911/);
-  assert.match(elements.get("sakKioxiaCalmRange").textContent, /￥14,329.*￥21,494/);
-  assert.match(elements.get("sakKioxiaCalmFormula").textContent, /2\.34兆円/);
-  assert.match(elements.get("sakKioxiaCalmGap").textContent, /約2\.21倍/);
+  assert.match(elements.get("sakKioxiaCalmPrice").textContent, /￥/);
+  assert.match(elements.get("sakKioxiaCalmRange").textContent, /￥.*￥/);
+  assert.match(elements.get("sakKioxiaCalmFormula").textContent, /計算式：/);
+  assert.match(elements.get("sakKioxiaCalmGap").textContent, /ライブ価格|最新終値/);
   assert.match(elements.get("sakKioxiaCalmInterpretation").textContent, /目標株価、底値ではありません/);
-  assert.match(elements.get("sakKioxiaQ3Source").href, /2757397/);
-  assert.match(elements.get("sakKioxiaFySource").href, /2815552/);
+  assert.match(elements.get("sakKioxiaLiveIrHeading").textContent, /公式IR/);
+  assert.match(elements.get("sakKioxiaLiveIrHeading").textContent, /第1四半期/);
+  assert.match(elements.get("sakKioxiaLiveIrLink").href, /2859905/);
+  assert.match(elements.get("sakKioxiaQ3Source").textContent, /決算資料/);
   assert.match(elements.get("enAiProxyRows").innerHTML, /トヨタ自動車/);
   assert.match(elements.get("enAiProxyInterpretation").textContent, /代理上位/);
   assert.match(elements.get("marketPathLabel").textContent, /正常化|パニック|分岐|歪み/);
@@ -697,6 +744,11 @@ setTimeout(async () => {
   assert.match(elements.get("berkshireAcceleration").textContent, /2024年/);
   assert.match(elements.get("berkshireNetSellingTimeline").innerHTML, /2022年10–12月期/);
   assert.match(elements.get("berkshireNetSellingTimeline").innerHTML, /2026年1–3月期/);
+  assert.match(elements.get("berkshireCashFlowConclusion").textContent, /純売却|フロー/);
+  assert.match(elements.get("berkshireCashFlowDetail").textContent, /残高|営業/);
+  assert.match(elements.get("berkshireLiquidityHistory").textContent, /期末|2024/);
+  assert.match(elements.get("berkshireRatioClarifier").textContent, /投資プール内/);
+  assert.match(elements.get("berkshireNetSellingTimeline").innerHTML, /berkshire-sale-scale/);
   assert.match(elements.get("berkshireContextCaution").textContent, /AIバブル崩壊を予測/);
   assert.match(elements.get("berkshireContextCaution").textContent, /崩壊スコアへ加えません/);
   assert.match(elements.get("berkshireContextCaution").textContent, /Finance Bureau/);
@@ -704,18 +756,27 @@ setTimeout(async () => {
   assert.match(elements.get("berkshireCommentatorSource").textContent, /Finance Bureauの解説/);
   assert.match(elements.get("berkshireCommentatorSource").href, /Y8fJNR_xsnI/);
   assert.match(elements.get("berkshireContextSources").innerHTML, /Finance Bureau/);
+  assert.match(elements.get("overseasTakeaway").textContent, /今すぐ見る候補|ライブ候補/);
+  assert.match(elements.get("overseasNewsList").innerHTML, /overseas-live-card/);
+  assert.notStrictEqual(elements.get("overseasArchiveList").innerHTML, "");
   const purchasingPowerRender = renderedCharts.find((chart) => chart.target.id === "purchasingPowerChart");
   assert.ok(purchasingPowerRender, "purchasing power chart should be constructed");
   assert.strictEqual(purchasingPowerRender.data.labels.length, 252);
   assert.strictEqual(purchasingPowerRender.data.datasets.length, 3);
   purchasingPowerRender.data.datasets.forEach((dataset) => assert.strictEqual(dataset.data.length, 252));
-  assert.strictEqual(snapshotButtons[0].disabled, true);
-  assert.strictEqual(snapshotButtons[1].disabled, false);
-  assert.strictEqual(snapshotButtons[2].disabled, true);
-  await snapshotButtons[1].click();
-  assert.match(elements.get("snapshotComparisonHeading").textContent, /1週間前.*2026-07-22/);
+  const availableSnapshotButton = snapshotButtons.find((button) => !button.disabled);
+  assert.ok(availableSnapshotButton, "at least one saved comparison snapshot should be available");
+  await availableSnapshotButton.click();
+  assert.match(elements.get("snapshotComparisonHeading").textContent, /との比較/);
   assert.match(elements.get("snapshotComparisonGrid").innerHTML, /S&amp;P 500|S&P 500/);
   assert.match(elements.get("snapshotComparisonNote").textContent, /当時公表値/);
+  await elements.get("copyMonitorButton").click();
+  assert.match(copiedMonitorText, /AIバブル崩壊・日経平均底値モニター/);
+  assert.match(elements.get("copyMonitorStatus").textContent, /コピーしました/);
+  const stableMarketMarkup = elements.get("regionalMarketCards").innerHTML;
+  nextLiveResponse = { generatedAtUtc: "2026-08-01T00:40:00Z", briefing: { items: [] }, premarket: {} };
+  await dispatchWindowEvent("focus");
+  assert.strictEqual(elements.get("regionalMarketCards").innerHTML, stableMarketMarkup, "invalid live snapshot must not replace the current market view");
   console.log(JSON.stringify({
     headline: elements.get("headlineConclusion").textContent,
     transmission: elements.get("japanTransmissionStatus").textContent,

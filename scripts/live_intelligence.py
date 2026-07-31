@@ -54,6 +54,14 @@ INTRADAY_INSTRUMENTS: dict[str, dict[str, str]] = {
         "currency": "JPY",
         "role": "cash-reference",
     },
+    "SP500_CASH": {
+        "symbol": "^GSPC",
+        "label": "S&P 500（現物）",
+        "shortLabel": "S&P現物",
+        "group": "us",
+        "currency": "INDEX",
+        "role": "cash-reference",
+    },
     "NIKKEI_FUTURES_YEN": {
         "symbol": "NIY=F",
         "label": "CME日経225先物（円建て）",
@@ -110,6 +118,30 @@ INTRADAY_INSTRUMENTS: dict[str, dict[str, str]] = {
         "currency": "JPY",
         "role": "fx",
     },
+    "DXY": {
+        "symbol": "DX-Y.NYB",
+        "label": "米ドル指数",
+        "shortLabel": "DXY",
+        "group": "fx",
+        "currency": "INDEX",
+        "role": "dollar-index",
+    },
+    "ACWI_CASH": {
+        "symbol": "ACWI",
+        "label": "ACWI（全世界株ETF）",
+        "shortLabel": "ACWI",
+        "group": "global",
+        "currency": "USD",
+        "role": "world-equity",
+    },
+    "KIOXIA": {
+        "symbol": "285A.T",
+        "label": "キオクシアHD",
+        "shortLabel": "キオクシア",
+        "group": "japan",
+        "currency": "JPY",
+        "role": "company-price",
+    },
     "VIX": {
         "symbol": "^VIX",
         "label": "VIX",
@@ -127,6 +159,18 @@ INTRADAY_INSTRUMENTS: dict[str, dict[str, str]] = {
         "role": "rates",
     },
 }
+
+# Keep the morning-strategy cards focused on the nine existing futures, FX,
+# rates, and volatility cues.  The additional live cash quotes below are for
+# overlays elsewhere in the monitor, not extra pre-market cards.
+PREMARKET_DISPLAY_KEYS = (
+    "NIKKEI_FUTURES_YEN", "NIKKEI_FUTURES_USD",
+    "SP500_FUTURES", "NASDAQ100_FUTURES", "DOW_FUTURES", "RUSSELL2000_FUTURES",
+    "USDJPY", "US10Y", "VIX",
+)
+MARKET_SUMMARY_OVERLAY_KEYS = (
+    "NIKKEI_CASH", "SP500_CASH", "DXY", "ACWI_CASH", "KIOXIA",
+)
 
 OFFICIAL_FEEDS = (
     {
@@ -1495,6 +1539,10 @@ def fetch_intraday_quote(key: str, profile: dict[str, str], now: datetime) -> di
     stale_minutes = max(0.0, (now - latest_dt).total_seconds() / 60.0)
     market_state = "updating" if stale_minutes <= 25 else "delayed-or-closed"
     source_url = f"https://finance.yahoo.com/quote/{urllib.parse.quote(symbol)}"
+    # A delayed or closed-market quote is still useful as a reference price, but
+    # its old five-minute candles are not current short-term market evidence.
+    # Do not let them create false intraday moves or intervention alerts.
+    short_term_points = recent_points if stale_minutes <= 30 * 60 else []
     # The longer source window makes the display resilient to weekends and
     # holidays. It is deliberately separate from the 30-hour short-term move
     # metrics: the chart shows only the newest five trading days.
@@ -1522,11 +1570,11 @@ def fetch_intraday_quote(key: str, profile: dict[str, str], now: datetime) -> di
         "regularMarketVolume": (
             finite(volumes[-1]) if volumes and len(volumes) == len(timestamps) else finite(meta.get("regularMarketVolume"))
         ),
-        "move5m": _max_window_move(recent_points, 5),
-        "move15m": _max_window_move(recent_points, 15),
-        "move30m": _max_window_move(recent_points, 30),
-        "peakToTrough": _peak_to_trough(recent_points),
-        "troughToPeak": _trough_to_peak(recent_points),
+        "move5m": _max_window_move(short_term_points, 5),
+        "move15m": _max_window_move(short_term_points, 15),
+        "move30m": _max_window_move(short_term_points, 30),
+        "peakToTrough": _peak_to_trough(short_term_points),
+        "troughToPeak": _trough_to_peak(short_term_points),
         "sparkline": [
             {
                 "timeUtc": datetime.fromtimestamp(row["timestamp"], timezone.utc).isoformat(),
@@ -1940,7 +1988,8 @@ def build_premarket(quotes: dict[str, Any], now: datetime) -> dict[str, Any]:
             "title": f"VIXは{vix:.1f}",
             "text": "30以上は高ストレス、20以上は変動拡大の目安です。方向や暴落確率を確定しません。",
         })
-    active = sum(1 for row in quotes.values() if row.get("marketState") == "updating")
+    display_quote_keys = tuple(key for key in PREMARKET_DISPLAY_KEYS if key in INTRADAY_INSTRUMENTS)
+    active = sum(1 for quote in quotes.values() if quote.get("marketState") == "updating")
     return {
         "checkedAtUtc": now.isoformat(),
         "checkedAtJst": now.astimezone(JST).isoformat(),
@@ -1955,6 +2004,8 @@ def build_premarket(quotes: dict[str, Any], now: datetime) -> dict[str, Any]:
         "nikkeiFutureCashGapPoints": gap_points,
         "nikkeiFutureCashGapPct": gap_pct,
         "usFuturesAverageChangePct": us_average,
+        "displayQuoteKeys": list(display_quote_keys),
+        "marketSummaryOverlayKeys": list(MARKET_SUMMARY_OVERLAY_KEYS),
         "quotes": quotes,
         "strategyCues": cues[:5],
         "summary": (

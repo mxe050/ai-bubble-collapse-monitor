@@ -9145,7 +9145,7 @@
       {
         "date": "2026-07-30",
         "x": 2026.575342,
-        "value": 7405.04,
+        "value": 7437.6299,
         "sourceType": "S&P 500 live close appended by the local data update"
       }
     ],
@@ -9155,7 +9155,7 @@
       "1957年3月4日以降が正式なS&P 500。価格指数であり配当を含まない。"
     ],
     "latestDate": "2026-07-30",
-    "latestValue": 7405.04
+    "latestValue": 7437.63
   },
   "crashes": [
     {
