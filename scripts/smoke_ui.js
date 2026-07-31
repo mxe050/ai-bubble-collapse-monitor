@@ -29,6 +29,7 @@ class FakeElement {
     this.listeners = {};
     this.hidden = false;
     this.open = false;
+    this.queryMap = {};
   }
   addEventListener(type, listener) {
     if (!this.listeners[type]) this.listeners[type] = [];
@@ -40,10 +41,12 @@ class FakeElement {
   async dispatch(type) {
     for (const listener of this.listeners[type] || []) await listener.call(this, { preventDefault() {} });
   }
-  querySelector() { return new FakeElement(); }
+  querySelector(selector) { return this.queryMap[selector] || new FakeElement(); }
   getContext() { return this; }
   setAttribute(name, value) { this[name] = value; }
   scrollIntoView() {}
+  focus() { this.focused = true; }
+  closest() { return null; }
 }
 
 const indexSource = fs.readFileSync("index.html", "utf8");
@@ -149,6 +152,12 @@ assert.match(stylesSource, /\.briefing-more\[hidden\] \{ display: none; \}/);
 assert.match(appSource, /function formatLiveChange\(key, quote\)/);
 assert.match(appSource, /直近1週間の価格推移/);
 assert.match(appSource, /1週間の推移（直近5取引日）/);
+assert.match(appSource, /LIVE_SNAPSHOT_REFRESH_INTERVAL_MS = 60000/);
+assert.match(appSource, /data\/live-intelligence\.json\?ts=/);
+assert.match(appSource, /sourceKind === "official-company"/);
+assert.match(appSource, /issuerNewsMentionCount/);
+assert.match(appSource, /issuerIndependentNewsSourceCount/);
+assert.match(appSource, /issuerBuzzScore/);
 assert.doesNotMatch(appSource, /\?{2,}/);
 assert.match(indexSource, /id="live-briefing"/);
 assert.match(indexSource, /id="briefingLead"/);
@@ -225,11 +234,19 @@ const briefingSortRadios = ["latest", "priority", "attention"].map((value) => {
   return element;
 });
 const briefingMoreElement = new FakeElement("briefingMore");
+let primaryBriefingCards = [];
+let moreBriefingCards = [];
 let briefingCards = [];
 
 global.document = {
   documentElement: new FakeElement("root"),
+  hidden: false,
+  listeners: {},
   getElementById(id) { return elements.get(id) || null; },
+  addEventListener(type, listener) {
+    if (!this.listeners[type]) this.listeners[type] = [];
+    this.listeners[type].push(listener);
+  },
   querySelectorAll(selector) {
     if (selector === ".company-filter-button") return filters;
     if (selector === ".snapshot-compare-button") return snapshotButtons;
@@ -237,7 +254,9 @@ global.document = {
     if (selector === 'input[name="nikkeiScenario"]') return scenarios;
     if (selector === "input[name='briefing-topic']" || selector === 'input[name="briefing-topic"]') return briefingRadios;
     if (selector === "input[name='briefing-sort']" || selector === 'input[name="briefing-sort"]') return briefingSortRadios;
-    if (selector === "[data-briefing-card='true']" || selector === '[data-briefing-card="true"]') return briefingCards;
+    if (selector === "[data-briefing-card='true']"
+      || selector === '[data-briefing-card="true"]'
+      || selector === "[data-briefing-id]") return briefingCards;
     return [];
   },
   querySelector(selector) {
@@ -251,9 +270,67 @@ global.document = {
     return null;
   },
 };
+
+const briefingCardsFromMarkup = (markup) => Array.from(String(markup || "").matchAll(
+  /<article\b[^>]*data-briefing-id="([^"]*)"[^>]*data-topic="([^"]*)"[^>]*data-source-kind="([^"]*)"[^>]*>/g,
+)).map((match) => {
+  const card = new FakeElement();
+  card.dataset.briefingId = match[1];
+  card.dataset.topic = match[2];
+  card.dataset.sourceKind = match[3];
+  const details = new FakeElement();
+  const summary = new FakeElement();
+  details.queryMap.summary = summary;
+  card.queryMap[".briefing-card-details"] = details;
+  return card;
+});
+
+const refreshBriefingCardList = () => {
+  briefingCards = primaryBriefingCards.concat(moreBriefingCards);
+};
+
+const bindBriefingMarkup = (id, lane) => {
+  const element = elements.get(id);
+  let markup = element.innerHTML;
+  Object.defineProperty(element, "innerHTML", {
+    configurable: true,
+    get() { return markup; },
+    set(value) {
+      markup = String(value || "");
+      const parsed = briefingCardsFromMarkup(markup);
+      if (lane === "primary") primaryBriefingCards = parsed;
+      else moreBriefingCards = parsed;
+      refreshBriefingCardList();
+    },
+  });
+};
+bindBriefingMarkup("briefingPrimaryCards", "primary");
+bindBriefingMarkup("briefingMoreCards", "more");
+
 global.window = global;
 global.window.innerWidth = 1280;
 global.window.lucide = null;
+const windowListeners = {};
+global.window.addEventListener = (type, listener) => {
+  if (!windowListeners[type]) windowListeners[type] = [];
+  windowListeners[type].push(listener);
+};
+global.window.dispatchEvent = (event) => {
+  (windowListeners[event.type] || []).forEach((listener) => listener(event));
+  return true;
+};
+global.window.CustomEvent = class CustomEvent {
+  constructor(type, options = {}) {
+    this.type = type;
+    this.detail = options.detail;
+  }
+};
+const dispatchWindowEvent = async (type) => {
+  await Promise.all((windowListeners[type] || []).map((listener) => listener({ type })));
+};
+const dispatchDocumentEvent = async (type) => {
+  await Promise.all((global.document.listeners[type] || []).map((listener) => listener({ type })));
+};
 const renderedCharts = [];
 class FakeChart {
   constructor(target, config) {
@@ -283,28 +360,31 @@ const snapshotPayloads = Object.fromEntries((snapshotIndexPayload.snapshots || [
   entry.file,
   JSON.parse(fs.readFileSync("data/history/" + entry.file, "utf8")),
 ]));
-briefingCards = (livePayload.briefing.items || []).map((item) => {
-  const element = new FakeElement();
-  element.dataset.topic = item.topicKey || "policy";
-  element.dataset.sourceKind = item.sourceKind || "other";
-  return element;
-});
-global.fetch = async (url) => ({
-  ok: true,
-  status: 200,
-  json: async () => {
-    const requested = String(url);
-    if (requested.includes("data/history/index.json")) return snapshotIndexPayload;
-    if (requested.includes("data/market-summary.json")) return marketSummaryPayload;
-    if (requested.includes("data/live-intelligence.json")) return livePayload;
-    const snapshotMatch = requested.match(/data\/history\/([^?]+)/);
-    if (snapshotMatch && snapshotPayloads[snapshotMatch[1]]) return snapshotPayloads[snapshotMatch[1]];
-    if (requested.includes("money-strategist-history")) return moneyPayload;
-    if (requested.includes("margin-debt-history")) return marginPayload;
-    if (requested.includes("global-market-value-comparison")) return globalComparisonPayload;
-    return payload;
-  },
-});
+let nextLiveResponse = null;
+let liveFetchCount = 0;
+global.fetch = async (url) => {
+  const requested = String(url);
+  if (requested.includes("data/live-intelligence.json")) {
+    liveFetchCount += 1;
+    const responsePayload = nextLiveResponse || livePayload;
+    nextLiveResponse = null;
+    return { ok: true, status: 200, json: async () => responsePayload };
+  }
+  return {
+    ok: true,
+    status: 200,
+    json: async () => {
+      if (requested.includes("data/history/index.json")) return snapshotIndexPayload;
+      if (requested.includes("data/market-summary.json")) return marketSummaryPayload;
+      const snapshotMatch = requested.match(/data\/history\/([^?]+)/);
+      if (snapshotMatch && snapshotPayloads[snapshotMatch[1]]) return snapshotPayloads[snapshotMatch[1]];
+      if (requested.includes("money-strategist-history")) return moneyPayload;
+      if (requested.includes("margin-debt-history")) return marginPayload;
+      if (requested.includes("global-market-value-comparison")) return globalComparisonPayload;
+      return payload;
+    },
+  };
+};
 
 vm.runInThisContext(appSource, { filename: "app.js" });
 
@@ -355,6 +435,10 @@ setTimeout(async () => {
   assert.match(elements.get("briefingPrimaryCards").innerHTML, /briefing-copy-ja/);
   assert.match(elements.get("briefingPrimaryCards").innerHTML, /briefing-copy-original/);
   assert.match(elements.get("briefingPrimaryCards").innerHTML, /外部日本語表示/);
+  const initialBriefingMarkup = elements.get("briefingPrimaryCards").innerHTML
+    + elements.get("briefingMoreCards").innerHTML;
+  assert.match(initialBriefingMarkup, /順位証拠クラスタ/);
+  assert.match(initialBriefingMarkup, /補助検索（順位証拠には不使用）/);
 
   const articleCount = (markup) => (markup.match(/<article\b/g) || []).length;
   const briefingPrimaryLimit = 6;
@@ -383,6 +467,125 @@ setTimeout(async () => {
   await briefingMoreElement.dispatch("toggle");
   assert.strictEqual(Number(elements.get("briefingVisibleCount").textContent.replace(/,/g, "")), expectedFxCards);
   assert.ok(elements.get("briefingFilterStatus").textContent.includes(String(expectedFxCards)));
+
+  const newerLivePayload = JSON.parse(JSON.stringify(livePayload));
+  const currentGeneratedAt = Date.parse(livePayload.generatedAtUtc);
+  newerLivePayload.generatedAtUtc = new Date(currentGeneratedAt + 60000).toISOString();
+  newerLivePayload.briefing.checkedAtUtc = newerLivePayload.generatedAtUtc;
+  const companyDisclosureItems = Array.from({ length: 7 }, (_, index) => {
+    const item = JSON.parse(JSON.stringify((livePayload.briefing.items || [])[0] || {}));
+    const publishedAtUtc = new Date(currentGeneratedAt + 60000 - index * 1000).toISOString();
+    return Object.assign(item, {
+      id: "smoke-company-disclosure-" + index,
+      title: "未知企業決算の自動更新 " + (index + 1),
+      summary: "企業開示を開いた画面へ自動反映する確認項目です。",
+      source: "TDnet / 未知企業",
+      sourceKind: "official-company",
+      issuerNewsMentionCount: 4,
+      issuerIndependentNewsSourceCount: 3,
+      issuerBuzzScore: 9,
+      topicKey: "policy",
+      publishedAtUtc,
+      effectivePublishedAtUtc: publishedAtUtc,
+      indexedAtUtc: publishedAtUtc,
+      firstSeenAtUtc: publishedAtUtc,
+      original: {
+        title: "未知企業決算の自動更新 " + (index + 1),
+        excerpt: "企業開示を開いた画面へ自動反映する確認項目です。",
+        language: "ja",
+      },
+      japanese: {
+        title: "未知企業決算の自動更新 " + (index + 1),
+        summary: "企業開示を開いた画面へ自動反映する確認項目です。",
+        mode: "source-japanese",
+      },
+    });
+  });
+  newerLivePayload.briefing.items = companyDisclosureItems;
+  briefingRadios.forEach((radio) => { radio.checked = radio.value === "jp"; });
+  briefingSortRadios.forEach((radio) => { radio.checked = radio.value === "latest"; });
+  briefingMoreElement.open = true;
+  const liveFetchesBeforeFocus = liveFetchCount;
+  nextLiveResponse = newerLivePayload;
+  await dispatchWindowEvent("focus");
+  assert.strictEqual(liveFetchCount, liveFetchesBeforeFocus + 1);
+  assert.match(elements.get("briefingPrimaryCards").innerHTML, /未知企業決算の自動更新/);
+  assert.match(elements.get("briefingPrimaryCards").innerHTML, /全社共通検索の会社言及/);
+  assert.match(elements.get("briefingPrimaryCards").innerHTML, /会社話題度/);
+  assert.match(elements.get("briefingPrimaryCards").innerHTML, />4件</);
+  assert.match(elements.get("briefingPrimaryCards").innerHTML, />3件</);
+  assert.match(elements.get("briefingPrimaryCards").innerHTML, />9\/12</);
+  assert.strictEqual(articleCount(elements.get("briefingPrimaryCards").innerHTML), 6);
+  assert.strictEqual(articleCount(elements.get("briefingMoreCards").innerHTML), 1);
+  assert.strictEqual(briefingMoreElement.open, true);
+  assert.strictEqual(Number(elements.get("briefingVisibleCount").textContent.replace(/,/g, "")), 7);
+
+  const openedCardId = companyDisclosureItems[0].id;
+  const openedCard = briefingCards.find((card) => card.dataset.briefingId === openedCardId);
+  assert.ok(openedCard, "rendered company card should be represented in the fake DOM");
+  openedCard.querySelector(".briefing-card-details").open = true;
+  const nextCompanyPayload = JSON.parse(JSON.stringify(newerLivePayload));
+  nextCompanyPayload.generatedAtUtc = new Date(currentGeneratedAt + 120000).toISOString();
+  nextCompanyPayload.briefing.checkedAtUtc = nextCompanyPayload.generatedAtUtc;
+  nextLiveResponse = nextCompanyPayload;
+  await dispatchWindowEvent("focus");
+  const restoredCard = briefingCards.find((card) => card.dataset.briefingId === openedCardId);
+  assert.ok(restoredCard && restoredCard.querySelector(".briefing-card-details").open,
+    "card details should remain open across a valid live refresh");
+
+  const validMarkupBeforeInvalid = elements.get("briefingPrimaryCards").innerHTML;
+  const invalidLivePayload = JSON.parse(JSON.stringify(nextCompanyPayload));
+  invalidLivePayload.generatedAtUtc = new Date(currentGeneratedAt + 180000).toISOString();
+  invalidLivePayload.briefing.items = [null];
+  nextLiveResponse = invalidLivePayload;
+  await dispatchWindowEvent("focus");
+  assert.strictEqual(elements.get("briefingPrimaryCards").innerHTML, validMarkupBeforeInvalid,
+    "invalid live items should not replace the last valid snapshot");
+
+  const nonCompanyPayload = JSON.parse(JSON.stringify(nextCompanyPayload));
+  nonCompanyPayload.generatedAtUtc = new Date(currentGeneratedAt + 240000).toISOString();
+  nonCompanyPayload.briefing.checkedAtUtc = nonCompanyPayload.generatedAtUtc;
+  nonCompanyPayload.briefing.items = [Object.assign({}, companyDisclosureItems[0], {
+    id: "smoke-general-news",
+    source: "Example News",
+    sourceKind: "news",
+  })];
+  briefingRadios.forEach((radio) => { radio.checked = radio.value === "all"; });
+  nextLiveResponse = nonCompanyPayload;
+  await dispatchWindowEvent("focus");
+  assert.doesNotMatch(elements.get("briefingPrimaryCards").innerHTML, /会社話題度/);
+  assert.match(elements.get("briefingPrimaryCards").innerHTML,
+    /独立ソース数は発信元の異なる報道・一次資料を数え/);
+
+  const olderLivePayload = JSON.parse(JSON.stringify(newerLivePayload));
+  olderLivePayload.generatedAtUtc = livePayload.generatedAtUtc;
+  olderLivePayload.briefing.items[0].title = "古いスナップショット";
+  olderLivePayload.briefing.items[0].original.title = "古いスナップショット";
+  olderLivePayload.briefing.items[0].japanese.title = "古いスナップショット";
+  nextLiveResponse = olderLivePayload;
+  await dispatchWindowEvent("focus");
+  assert.doesNotMatch(elements.get("briefingPrimaryCards").innerHTML, /古いスナップショット/);
+
+  global.document.hidden = true;
+  const liveFetchesBeforeHidden = liveFetchCount;
+  nextLiveResponse = olderLivePayload;
+  await dispatchDocumentEvent("visibilitychange");
+  assert.strictEqual(liveFetchCount, liveFetchesBeforeHidden);
+  global.document.hidden = false;
+  await dispatchDocumentEvent("visibilitychange");
+  assert.strictEqual(liveFetchCount, liveFetchesBeforeHidden + 1);
+
+  let releasePendingLiveResponse;
+  nextLiveResponse = new Promise((resolve) => { releasePendingLiveResponse = resolve; });
+  const liveFetchesBeforeOverlapCheck = liveFetchCount;
+  const pendingFocusRefresh = dispatchWindowEvent("focus");
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.strictEqual(liveFetchCount, liveFetchesBeforeOverlapCheck + 1);
+  await dispatchWindowEvent("focus");
+  assert.strictEqual(liveFetchCount, liveFetchesBeforeOverlapCheck + 1);
+  releasePendingLiveResponse(olderLivePayload);
+  await pendingFocusRefresh;
+
   assert.notStrictEqual(elements.get("japanTransmissionStatus").textContent, "計算中");
   assert.notStrictEqual(elements.get("nikkeiZone").textContent, "―");
   assert.match(elements.get("companyRows").innerHTML, /トヨタ自動車/);

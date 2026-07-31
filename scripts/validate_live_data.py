@@ -177,6 +177,7 @@ CHANNEL_STATUS_VALUES = {"ok", "limited", "not-configured", "failed"}
 SOURCE_KINDS = {
     "official-us",
     "official-japan",
+    "official-company",
     "news",
     "news-wire",
     "x-api",
@@ -186,6 +187,36 @@ SOURCE_KINDS = {
     "truth-social",
     "truth-social-archive",
 }
+OFFICIAL_SOURCE_HOSTS = {
+    "official-us": {
+        "federalreserve.gov",
+        "whitehouse.gov",
+        "treasury.gov",
+        "bls.gov",
+        "sec.gov",
+    },
+    "official-japan": {"boj.or.jp", "mof.go.jp"},
+    "official-company": {
+        "kioxia-holdings.com",
+        "ssl4.eir-parts.net",
+        "release.tdnet.info",
+        "finance-frontend-pc-dist.west.edge.storage-yahoo.jp",
+    },
+}
+DISCLOSURE_CATEGORIES = {
+    "financial-results",
+    "guidance-revision",
+    "dividend",
+    "buyback",
+    "stock-split",
+    "m-and-a-tob",
+    "capital-raising",
+    "accounting-governance",
+    "material-loss-gain",
+    "delisting-supervision",
+    "disaster-operational",
+}
+DISCLOSURE_SCAN_MODES = {"full", "incremental", "head-only"}
 VERIFICATION_VALUES = {
     "primary",
     "reported",
@@ -680,14 +711,21 @@ def validate_cluster_fields(
     cluster_size = require_int(
         item["clusterSize"], f"{context}.clusterSize", low=1
     )
+    ranking_cluster_size = require_int(
+        item["rankingClusterSize"], f"{context}.rankingClusterSize", low=1
+    )
+    require(
+        ranking_cluster_size <= cluster_size,
+        f"{context}.rankingClusterSize exceeds visible clusterSize",
+    )
     independent_count = require_int(
         item["independentSourceCount"],
         f"{context}.independentSourceCount",
         low=1,
     )
     require(
-        independent_count <= cluster_size,
-        f"{context}.independentSourceCount exceeds clusterSize",
+        independent_count <= ranking_cluster_size,
+        f"{context}.independentSourceCount exceeds rankingClusterSize",
     )
     state = require_string(
         item["corroborationState"], f"{context}.corroborationState"
@@ -726,7 +764,10 @@ def validate_cluster_fields(
     if cluster_size == 1:
         require(not related, f"{context} singleton cluster has related links")
         require(independent_count == 1, f"{context} singleton cluster has multiple origins")
-    visible_origins = {origin_group}
+    if ranking_cluster_size == 1:
+        require(independent_count == 1, f"{context} singleton ranking cluster has multiple origins")
+    ranking_visible_origins = {origin_group}
+    ranking_related_count = 0
     related_urls = {normalize_url(item["url"])}
     for related_index, raw_related in enumerate(related):
         related_context = f"{context}.relatedLinks[{related_index}]"
@@ -741,6 +782,7 @@ def validate_cluster_fields(
                 "publishedAtUtc",
                 "originGroup",
                 "verification",
+                "rankingEvidence",
             },
             related_context,
         )
@@ -770,13 +812,23 @@ def validate_cluster_fields(
         related_origin = require_string(
             row["originGroup"], f"{related_context}.originGroup"
         )
-        visible_origins.add(related_origin)
+        require(
+            isinstance(row["rankingEvidence"], bool),
+            f"{related_context}.rankingEvidence must be boolean",
+        )
+        if row["rankingEvidence"]:
+            ranking_related_count += 1
+            ranking_visible_origins.add(related_origin)
         require(
             row["verification"] in VERIFICATION_VALUES,
             f"{related_context}.verification is invalid",
         )
     require(
-        len(visible_origins) <= independent_count,
+        ranking_cluster_size >= 1 + ranking_related_count,
+        f"{context}.rankingClusterSize is smaller than visible ranking evidence",
+    )
+    require(
+        len(ranking_visible_origins) <= independent_count,
         f"{context}.independentSourceCount is below visible independent origins",
     )
 
@@ -810,12 +862,26 @@ def validate_refresh_policy(data: dict[str, Any]) -> None:
         {"targetIntervalMinutes", "delivery", "buttonBehavior", "warning"},
         "refreshPolicy",
     )
-    require_int(policy["targetIntervalMinutes"], "refreshPolicy.targetIntervalMinutes", low=1, high=60)
+    target_interval = require_int(
+        policy["targetIntervalMinutes"],
+        "refreshPolicy.targetIntervalMinutes",
+        low=1,
+        high=60,
+    )
+    require(
+        target_interval == 5,
+        "refreshPolicy.targetIntervalMinutes must match the five-minute workflow target",
+    )
     for key in ("delivery", "buttonBehavior", "warning"):
         require_string(policy[key], f"refreshPolicy.{key}")
     require(
         "再読込" in policy["buttonBehavior"],
         "refreshPolicy.buttonBehavior must honestly describe snapshot reload",
+    )
+    require(
+        "保証" in policy["warning"]
+        and re.search(r"遅延|ずれ|超える", policy["warning"]),
+        "refreshPolicy.warning must disclose that the five-minute target is not guaranteed",
     )
 
 
@@ -833,7 +899,20 @@ def validate_source_status(
             row,
             {"name", "kind", "status", "url", "retrievedAtUtc", "message"},
             context,
-            optional={"receivedCount", "acceptedCount", "newestEffectiveAtUtc"},
+            optional={
+                "receivedCount",
+                "acceptedCount",
+                "newestEffectiveAtUtc",
+                "newestDisclosureId",
+                "lastViewerUpdateJst",
+                "scannedPages",
+                "scannedDates",
+                "coverageVersion",
+                "coverageComplete",
+                "backfillFailedDates",
+                "totalAvailableCount",
+                "scanMode",
+            },
         )
         metric_keys = {"receivedCount", "acceptedCount", "newestEffectiveAtUtc"}
         present_metrics = metric_keys.intersection(row)
@@ -864,6 +943,74 @@ def validate_source_status(
                     row["message"] == "接続成功・該当新着0件",
                     f"{context} zero-new-item state is not clearly disclosed",
                 )
+        tdnet_metric_keys = {
+            "newestDisclosureId",
+            "lastViewerUpdateJst",
+            "scannedPages",
+            "scannedDates",
+            "coverageVersion",
+            "coverageComplete",
+            "backfillFailedDates",
+            "totalAvailableCount",
+            "scanMode",
+        }
+        tdnet_metrics = tdnet_metric_keys.intersection(row)
+        require(
+            not tdnet_metrics or tdnet_metrics == tdnet_metric_keys,
+            f"{context} TDnet scan metrics must be supplied together",
+        )
+        if tdnet_metrics:
+            require(
+                kind == "company-disclosure",
+                f"{context} TDnet scan metrics require company-disclosure kind",
+            )
+            require_string(
+                row["newestDisclosureId"],
+                f"{context}.newestDisclosureId",
+                allow_empty=True,
+            )
+            if row["lastViewerUpdateJst"]:
+                parse_timestamp(
+                    row["lastViewerUpdateJst"],
+                    f"{context}.lastViewerUpdateJst",
+                    expected_offset=timedelta(hours=9),
+                )
+            scanned_dates = require_int(
+                row["scannedDates"], f"{context}.scannedDates", low=1, high=3
+            )
+            coverage_version = require_int(
+                row["coverageVersion"], f"{context}.coverageVersion", low=1
+            )
+            require(
+                coverage_version == 2, f"{context}.coverageVersion is unsupported"
+            )
+            coverage_complete = row["coverageComplete"]
+            require(
+                isinstance(coverage_complete, bool),
+                f"{context}.coverageComplete must be boolean",
+            )
+            backfill_failed_dates = require_int(
+                row["backfillFailedDates"],
+                f"{context}.backfillFailedDates", low=0, high=2,
+            )
+            scanned_pages = require_int(
+                row["scannedPages"], f"{context}.scannedPages", low=1, high=60
+            )
+            total_available = require_int(
+                row["totalAvailableCount"],
+                f"{context}.totalAvailableCount",
+                low=0,
+            )
+            require(
+                scanned_dates <= scanned_pages <= scanned_dates * 20
+                and total_available >= 0,
+                f"{context} TDnet metrics invalid",
+            )
+            require(
+                not coverage_complete or backfill_failed_dates == 0,
+                f"{context} complete TDnet coverage cannot include failed dates",
+            )
+            require(row["scanMode"] in DISCLOSURE_SCAN_MODES, f"{context}.scanMode is invalid")
         identity = (name, kind)
         require(identity not in identities, f"duplicate source status: {identity}")
         identities.add(identity)
@@ -1940,6 +2087,7 @@ def validate_item(
             "effect",
             "clusterId",
             "clusterSize",
+            "rankingClusterSize",
             "independentSourceCount",
             "relatedLinks",
             "corroborationState",
@@ -1949,7 +2097,18 @@ def validate_item(
             "discoveryProvider",
         },
         context,
-        optional={"carriedForward", "staleReason"},
+        optional={
+            "carriedForward",
+            "staleReason",
+            "disclosureId",
+            "issuerCode",
+            "issuerName",
+            "disclosureCategory",
+            "materialityScore",
+            "issuerNewsMentionCount",
+            "issuerIndependentNewsSourceCount",
+            "issuerBuzzScore",
+        },
     )
     item_id = require_string(item["id"], f"{context}.id")
     require(re.fullmatch(r"live-[0-9a-f]{14}", item_id), f"{context}.id is malformed")
@@ -1971,12 +2130,71 @@ def validate_item(
     )
     if source_kind.startswith("official"):
         require(verification == "primary", f"{context} official item must be primary")
-        allowed_hosts = (
-            {"federalreserve.gov", "whitehouse.gov", "treasury.gov", "bls.gov", "sec.gov"}
-            if source_kind == "official-us"
-            else {"boj.or.jp", "mof.go.jp"}
+        require_https_url(
+            url,
+            f"{context}.url",
+            hosts=OFFICIAL_SOURCE_HOSTS[source_kind],
         )
-        require_https_url(url, f"{context}.url", hosts=allowed_hosts)
+        disclosure_keys = {
+            "disclosureId",
+            "issuerCode",
+            "issuerName",
+            "disclosureCategory",
+            "materialityScore",
+            "issuerNewsMentionCount",
+            "issuerIndependentNewsSourceCount",
+            "issuerBuzzScore",
+        }
+        present_disclosure_keys = disclosure_keys.intersection(item)
+        require(
+            not present_disclosure_keys
+            or present_disclosure_keys == disclosure_keys,
+            f"{context} disclosure metadata must be supplied together",
+        )
+        if present_disclosure_keys:
+            disclosure_id = require_string(
+                item["disclosureId"], f"{context}.disclosureId"
+            )
+            require(
+                re.fullmatch(r"[0-9A-Za-z_-]{8,80}", disclosure_id) is not None,
+                f"{context}.disclosureId is malformed",
+            )
+            issuer_code = require_string(
+                item["issuerCode"], f"{context}.issuerCode"
+            )
+            require(
+                re.fullmatch(r"[0-9A-Z]{4,6}", issuer_code) is not None,
+                f"{context}.issuerCode is malformed",
+            )
+            require_string(item["issuerName"], f"{context}.issuerName")
+            require(
+                item["disclosureCategory"] in DISCLOSURE_CATEGORIES,
+                f"{context}.disclosureCategory is invalid",
+            )
+            require_int(
+                item["materialityScore"],
+                f"{context}.materialityScore",
+                low=0,
+                high=100,
+            )
+            require_int(
+                item["issuerNewsMentionCount"],
+                f"{context}.issuerNewsMentionCount",
+                low=0,
+                high=10000,
+            )
+            require_int(
+                item["issuerIndependentNewsSourceCount"],
+                f"{context}.issuerIndependentNewsSourceCount",
+                low=0,
+                high=10000,
+            )
+            require_int(
+                item["issuerBuzzScore"],
+                f"{context}.issuerBuzzScore",
+                low=0,
+                high=12,
+            )
     elif source_kind in {"news", "news-wire"}:
         require(
             verification in {"reported", "reported-unconfirmed"},
@@ -2076,13 +2294,13 @@ def validate_item(
     if not carried:
         recency_component = max(0, 30 - min(72, age) / 3)
         independent_sources = item["independentSourceCount"]
-        cluster_size = item["clusterSize"]
+        ranking_cluster_size = item["rankingClusterSize"]
         expected_talk_score = min(
             100,
             round(
                 12
                 + min(30, independent_sources * 12)
-                + min(12, math.log2(cluster_size + 1) * 4)
+                + min(12, math.log2(ranking_cluster_size + 1) * 4)
                 + min(20, math.log10(engagement_total + 1) * 8)
                 + recency_component
             ),
@@ -2104,7 +2322,7 @@ def validate_channels(
 ) -> None:
     channels = require_list(briefing["channels"], "briefing.channels")
     expected_kinds = {
-        "official": ("official-us", "official-japan"),
+        "official": ("official-us", "official-japan", "company-disclosure"),
         "news": ("news-discovery", "news", "news-wire"),
         "x": ("x-api", "x-index"),
         "linkedin": ("linkedin",),
@@ -2327,46 +2545,67 @@ def validate_briefing(
         item
         for item in items
         if item["sourceKind"]
-        in {"official-us", "official-japan", "news", "news-wire"}
+        in {"official-us", "official-japan", "official-company", "news", "news-wire"}
         and item["freshness"]["bucket"] in {"breaking", "developing", "today"}
         and not item.get("carriedForward")
     ]
-    reserve_count = min(LATEST_ITEM_RESERVE, len(live_news))
-    if reserve_count:
-        front = items[:reserve_count]
-        require(
-            all(item in live_news for item in front),
-            "briefing newest-first reserve was displaced by context or social content",
+    latest_market_news = [
+        item for item in live_news
+        if item["sourceKind"] != "official-company"
+    ]
+    market_times = [
+        parse_timestamp(
+            item["effectivePublishedAtUtc"],
+            f"briefing latest-market item {item['id']}.effectivePublishedAtUtc",
+            expected_offset=timedelta(0),
         )
-        front_times = [
-            parse_timestamp(
-                item["effectivePublishedAtUtc"],
-                f"briefing newest reserve {item['id']}.effectivePublishedAtUtc",
-                expected_offset=timedelta(0),
-            )
-            for item in front
-        ]
-        require(
-            all(
-                front_times[index] >= front_times[index + 1]
-                for index in range(len(front_times) - 1)
-            ),
-            "briefing newest-first reserve is not in descending publication order",
-        )
-        remaining_live_times = [
-            parse_timestamp(
-                item["effectivePublishedAtUtc"],
-                f"briefing remaining live item {item['id']}.effectivePublishedAtUtc",
-                expected_offset=timedelta(0),
-            )
-            for item in live_news
-            if item not in front
-        ]
-        if remaining_live_times:
+        for item in latest_market_news
+    ]
+    require(
+        all(
+            market_times[index] >= market_times[index + 1]
+            for index in range(len(market_times) - 1)
+        ),
+        "briefing latest-market lane is not in descending publication order",
+    )
+    company_items = [
+        item for item in items
+        if item["sourceKind"] == "official-company"
+    ]
+    require(
+        len(company_items) <= 6,
+        "briefing company-disclosure reservation exceeds six cards",
+    )
+    company_issuer_counts = Counter(
+        str(item.get("issuerCode") or "") for item in company_items
+    )
+    require(
+        all(issuer_code and count <= 3 for issuer_code, count in company_issuer_counts.items()),
+        "briefing company-disclosure issuer cap exceeds three cards",
+    )
+    for item in company_items:
+        if "materialityScore" in item:
             require(
-                min(front_times) >= max(remaining_live_times),
-                "a newer live news item was placed behind the newest-first reserve",
+                item["disclosureCategory"] in DISCLOSURE_CATEGORIES
+                and item["materialityScore"] >= 0,
+                "briefing company disclosure lacks generic importance metadata",
             )
+    non_carried = [item for item in items if not item.get("carriedForward")]
+    non_carried_times = [
+        parse_timestamp(
+            item["effectivePublishedAtUtc"],
+            f"briefing current item {item['id']}.effectivePublishedAtUtc",
+            expected_offset=timedelta(0),
+        )
+        for item in non_carried
+    ]
+    require(
+        all(
+            non_carried_times[index] >= non_carried_times[index + 1]
+            for index in range(len(non_carried_times) - 1)
+        ),
+        "briefing current items are not in descending publication order",
+    )
     ids = [item["id"] for item in items]
     urls = [normalize_url(item["url"]) for item in items]
     title_keys = [
@@ -2982,6 +3221,1276 @@ def run_story_cluster_regressions() -> None:
     )
 
 
+def _run_legacy_company_disclosure_regressions() -> None:
+    """Keep timely company disclosures inside the primary-source contract."""
+
+    try:
+        import live_intelligence as producer
+    except ImportError as exc:
+        raise ValidationError("unable to import scripts/live_intelligence.py") from exc
+
+    now = datetime(2026, 7, 31, 7, 0, tzinfo=timezone.utc)
+    item = producer.build_item(
+        title="キオクシアホールディングス 2026年3月期 決算短信",
+        summary="会社がTDnetで決算資料を公表しました。",
+        url="https://ssl4.eir-parts.net/doc/285A/tdnet/2859905/00.pdf",
+        source="キオクシアホールディングス / TDnet",
+        source_kind="official-company",
+        published="2026-07-31T15:30:00+09:00",
+        retrieved_at=now,
+        topic_hint="japan-stocks",
+        timestamp_basis="tdnet-disclosure-time",
+        timestamp_precision_value="minute",
+        discovery_provider="tdnet-direct",
+        source_country="JP",
+    )
+    ranked = producer.rank_briefing_items([item])
+    require(
+        len(ranked) == 1 and ranked[0]["sourceKind"] == "official-company",
+        "official company disclosure was lost from briefing ranking",
+    )
+    validate_item(ranked[0], 0, now, Counter({"japan-stocks": 1}))
+
+    company_feed = producer.COMPANY_DISCLOSURE_FEEDS[0]
+    require(
+        company_feed.get("statusKind") == "company-disclosure",
+        "company disclosure source status is not separated from item sourceKind",
+    )
+    japanese_query = next(
+        (
+            query
+            for query in producer.NEWS_QUERIES
+            if query.get("name") == "キオクシア決算・適時開示"
+        ),
+        None,
+    )
+    require(
+        japanese_query is not None
+        and japanese_query.get("googleLocale")
+        == {"hl": "ja", "gl": "JP", "ceid": "JP:ja"},
+        "Kioxia breaking-news query is not using the Japanese news locale",
+    )
+    require(
+        producer.normalize_url("http://example.com/story?utm_source=test")
+        == "https://example.com/story",
+        "legacy HTTP discovery URL was not safely upgraded and normalized",
+    )
+
+    disclosure_html = """
+    <ul>
+      <li><article>
+        <a href="https://finance-frontend-pc-dist.west.edge.storage-yahoo.jp/disclosure/results.pdf">
+          <h3>2026年3月期 第1四半期決算短信〔IFRS〕（連結）</h3>
+          <time dateTime="2026-07-31T15:30:00+09:00">15:30</time>
+        </a>
+      </article></li>
+      <li><article>
+        <a href="https://finance-frontend-pc-dist.west.edge.storage-yahoo.jp/disclosure/split.pdf">
+          <h3>株式分割及び定款の一部変更に関するお知らせ</h3>
+          <time dateTime="2026-07-31T15:30:00+09:00">15:30</time>
+        </a>
+      </article></li>
+      <li><article>
+        <a href="https://finance-frontend-pc-dist.west.edge.storage-yahoo.jp/disclosure/buyback.pdf">
+          <h3>自己株式取得に係る事項の決定に関するお知らせ</h3>
+          <time dateTime="2026-07-31T15:30:00+09:00">15:30</time>
+        </a>
+      </article></li>
+    </ul>
+    """.encode("utf-8")
+    original_request = producer.request
+    producer.request = lambda *_args, **_kwargs: (
+        disclosure_html,
+        company_feed["url"],
+    )
+    try:
+        parsed_items, source_status = producer.fetch_company_disclosures(
+            company_feed,
+            now,
+        )
+    finally:
+        producer.request = original_request
+    require(
+        len(parsed_items) == 3
+        and source_status["kind"] == "company-disclosure"
+        and source_status["acceptedCount"] == 3,
+        "TDnet-backed company disclosure parser lost a timed filing",
+    )
+
+    reported_results = producer.build_item(
+        title="キオクシア、第1四半期決算を発表",
+        summary="決算速報です。",
+        url="https://example.com/kioxia-results",
+        source="Example News",
+        source_kind="news",
+        published="2026-07-31T15:32:00+09:00",
+        retrieved_at=now,
+        topic_hint="japan-stocks",
+    )
+    clustered = producer.cluster_story_candidates(
+        parsed_items + [reported_results]
+    )
+    require(
+        len(clustered) == 3,
+        "Kioxia results, stock split, and buyback were not kept as three events",
+    )
+    result_cluster = next(
+        (
+            row
+            for row in clustered
+            if producer.event_signature(row) == "kioxia-results"
+        ),
+        None,
+    )
+    require(
+        result_cluster is not None
+        and result_cluster["sourceKind"] == "official-company"
+        and result_cluster["clusterSize"] == 2
+        and result_cluster["independentSourceCount"] == 2,
+        "Kioxia result coverage was not clustered with independent-source evidence",
+    )
+    compensation_item = producer.build_item(
+        title="勤務継続型株式報酬制度及び業績連動型株式報酬制度のお知らせ",
+        summary="",
+        url="https://ssl4.eir-parts.net/doc/285A/tdnet/compensation/00.pdf",
+        source="キオクシアホールディングス / TDnet",
+        source_kind="official-company",
+        published="2026-07-31T15:30:00+09:00",
+        retrieved_at=now,
+        topic_hint="japan-stocks",
+    )
+    require(
+        producer.event_signature(compensation_item) == "",
+        "performance-linked compensation was misclassified as financial results",
+    )
+
+    try:
+        require_https_url(
+            "https://example.com/not-an-official-disclosure",
+            "company disclosure regression",
+            hosts=OFFICIAL_SOURCE_HOSTS["official-company"],
+        )
+    except ValidationError:
+        pass
+    else:
+        raise ValidationError(
+            "unapproved host was accepted as an official company disclosure"
+        )
+
+
+def run_company_disclosure_regressions() -> None:
+    """Prove material disclosures are issuer-agnostic and survive selection."""
+
+    try:
+        import live_intelligence as producer
+    except ImportError as exc:
+        raise ValidationError("unable to import scripts/live_intelligence.py") from exc
+
+    production_config = json.dumps(
+        {
+            "feeds": producer.COMPANY_DISCLOSURE_FEEDS,
+            "queries": producer.NEWS_QUERIES,
+        },
+        ensure_ascii=False,
+        default=list,
+    ).casefold()
+    require(
+        all(
+            token not in production_config
+            for token in ("キオクシア", "kioxia", "285a")
+        ),
+        "production disclosure discovery still depends on one issuer",
+    )
+    company_feed = producer.COMPANY_DISCLOSURE_FEEDS[0]
+    require(
+        company_feed["url"]
+        == "https://www.release.tdnet.info/inbs/I_main_00.html"
+        and company_feed.get("statusKind") == "company-disclosure",
+        "company discovery is not rooted in the all-issuer TDnet viewer",
+    )
+    japanese_query = next(
+        (
+            query for query in producer.NEWS_QUERIES
+            if query.get("name") == "日本株・決算サプライズ"
+        ),
+        None,
+    )
+    require(
+        japanese_query is not None
+        and japanese_query.get("googleLocale")
+        == {"hl": "ja", "gl": "JP", "ceid": "JP:ja"}
+        and set(japanese_query.get("providers") or ()) == {"google", "bing"},
+        "generic Japanese earnings discovery lacks dual-provider locale coverage",
+    )
+    require(
+        producer.reporting_origin_group(
+            "Reuters", "https://news.google.com/rss/articles/example"
+        ) == "reuters"
+        and producer.reporting_origin_group(
+            "日本経済新聞", "https://news.google.com/rss/articles/example"
+        ) == producer.normalized_comparison_text("日本経済新聞"),
+        "news aggregator domain replaced the actual publisher identity",
+    )
+
+    now = datetime(2026, 7, 31, 7, 0, tzinfo=timezone.utc)
+    main_html = """
+    <select id="day-selector">
+      <option value="I_list_001_20260731.html">2026/07/31</option>
+    </select>
+    <div>最終更新日時：2026年07月31日 16:00</div>
+    """.encode("utf-8")
+
+    def tdnet_row(
+        time_text: str,
+        code: str,
+        company: str,
+        document_id: str,
+        title: str,
+    ) -> str:
+        return f"""
+        <tr>
+          <td class="oddnew-L kjTime">{time_text}</td>
+          <td class="oddnew-M kjCode">{code}</td>
+          <td class="oddnew-M kjName">{company}</td>
+          <td class="oddnew-M kjTitle">
+            <a href="{document_id}.pdf">{title}</a>
+          </td>
+          <td class="oddnew-M kjXbrl"></td>
+          <td class="oddnew-M kjPlace">東</td>
+          <td class="oddnew-R kjHistroy"></td>
+        </tr>
+        """
+
+    page_one_html = (
+        """
+        <div>1～4件 / 全5件</div>
+        <div onclick="pagerLink('I_list_001_20260731.html')">1</div>
+        """
+        + tdnet_row(
+            "15:30",
+            "99990",
+            "未知テックＨＤ",
+            "140120260731900001",
+            "2027年3月期 第1四半期決算短信〔日本基準〕（連結）",
+        )
+        + tdnet_row(
+            "15:30",
+            "99990",
+            "未知テックＨＤ",
+            "140120260731900002",
+            "自己株式の取得枠設定に関するお知らせ",
+        )
+        + tdnet_row(
+            "15:30",
+            "99990",
+            "未知テックＨＤ",
+            "140120260731900003",
+            "株式分割に関するお知らせ",
+        )
+        + tdnet_row(
+            "15:30",
+            "99990",
+            "未知テックＨＤ",
+            "140120260731900004",
+            "業績連動型株式報酬制度のユニット付与に関するお知らせ",
+        )
+    ).encode("utf-8")
+    page_two_html = (
+        """
+        <div>5～5件 / 全5件</div>
+        <div onclick="pagerLink('I_list_001_20260731.html')">1</div>
+        <div onclick="pagerLink('I_list_002_20260731.html')">2</div>
+        """
+        + tdnet_row(
+            "15:00",
+            "88880",
+            "全国産業",
+            "140120260731900005",
+            "通期業績予想の上方修正に関するお知らせ",
+        )
+    ).encode("utf-8")
+
+    previous_day_html = (
+        """
+        <div>1～1件 / 全1件</div>
+        <div onclick="pagerLink('I_list_001_20260730.html')">1</div>
+        """
+        + tdnet_row(
+            "18:00",
+            "55550",
+            "Backfill Industries",
+            "140120260730800001",
+            "Quarterly financial results",
+        )
+    ).encode("utf-8")
+
+    empty_previous_day_html = """
+        <div>0件 / 全0件</div>
+        <div onclick="pagerLink('I_list_001_20260729.html')">1</div>
+    """.encode("utf-8")
+
+    requested_urls: list[str] = []
+
+    def fixture_request(url: str, *_args: Any, **_kwargs: Any) -> tuple[bytes, str]:
+        requested_urls.append(url)
+        if url.endswith("I_main_00.html"):
+            return main_html, company_feed["url"]
+        if "I_list_001_20260731.html" in url:
+            return (
+                page_one_html,
+                "https://www.release.tdnet.info/inbs/I_list_001_20260731.html",
+            )
+        if "I_list_002_20260731.html" in url:
+            return (
+                page_two_html,
+                "https://www.release.tdnet.info/inbs/I_list_002_20260731.html",
+            )
+        if "I_list_001_20260730.html" in url:
+            return (
+                previous_day_html,
+                "https://www.release.tdnet.info/inbs/I_list_001_20260730.html",
+            )
+        if "I_list_001_20260729.html" in url:
+            return (
+                empty_previous_day_html,
+                "https://www.release.tdnet.info/inbs/I_list_001_20260729.html",
+            )
+        raise RuntimeError(f"unexpected fixture URL: {url}")
+
+    original_request = producer.request
+    producer.request = fixture_request
+    try:
+        parsed_items, source_status = producer.fetch_company_disclosures(
+            company_feed,
+            now,
+        )
+    finally:
+        producer.request = original_request
+    require(
+        len(parsed_items) == 5
+        and source_status["kind"] == "company-disclosure"
+        and source_status["acceptedCount"] == 5
+        and source_status["receivedCount"] == 6
+        and source_status["scannedPages"] == 4
+        and source_status["scannedDates"] == 3
+        and source_status["coverageVersion"] == producer.TDNET_SCAN_COVERAGE_VERSION
+        and source_status["coverageComplete"] is True
+        and source_status["backfillFailedDates"] == 0
+        and source_status["totalAvailableCount"] == 6
+        and source_status["scanMode"] == "full",
+        "TDnet full scan lost a prior-day disclosure or a hidden later page",
+    )
+
+    requested_urls.clear()
+
+    def failing_backfill_request(
+        url: str,
+        *_args: Any,
+        **_kwargs: Any,
+    ) -> tuple[bytes, str]:
+        if "I_list_001_20260730.html" in url:
+            requested_urls.append(url)
+            raise RuntimeError("simulated prior-date failure")
+        return fixture_request(url, *_args, **_kwargs)
+
+    producer.request = failing_backfill_request
+    try:
+        _, failed_backfill_status = producer.fetch_company_disclosures(
+            company_feed,
+            now,
+        )
+    finally:
+        producer.request = original_request
+    require(
+        failed_backfill_status["status"] == "limited"
+        and failed_backfill_status["coverageComplete"] is False
+        and failed_backfill_status["backfillFailedDates"] == 1
+        and any("I_list_001_20260730.html" in url for url in requested_urls),
+        "a failed prior-date fetch was silently reported as complete",
+    )
+
+    requested_urls.clear()
+    recovery_feed = {
+        **company_feed,
+        "previousState": {
+            "newestDisclosureId": "140120260730800001",
+        },
+    }
+    producer.request = fixture_request
+    try:
+        recovered_items, recovered_status = producer.fetch_company_disclosures(
+            recovery_feed,
+            now,
+        )
+    finally:
+        producer.request = original_request
+    require(
+        recovered_status["status"] == "ok"
+        and recovered_status["scanMode"] == "incremental"
+        and recovered_status["coverageComplete"] is True
+        and recovered_status["backfillFailedDates"] == 0
+        and recovered_status["scannedDates"] == 2
+        and len(recovered_items) == 5
+        and any("I_list_001_20260730.html" in url for url in requested_urls)
+        and not any("I_list_001_20260729.html" in url for url in requested_urls),
+        "a prior-date watermark did not recover the intervening TDnet date",
+    )
+
+    compact_cache = producer.build_company_disclosure_cache(
+        parsed_items,
+        now,
+    )
+    restored_cache = producer.restore_company_disclosure_cache(
+        compact_cache,
+        now,
+    )
+    require(
+        len(compact_cache) == 5
+        and len(restored_cache) == 5
+        and {
+            item.get("disclosureId") for item in restored_cache
+        } == {
+            item.get("disclosureId") for item in parsed_items
+        }
+        and all(
+            item.get("discoveryProvider") == "tdnet-recent-cache"
+            for item in restored_cache
+        ),
+        "unselected TDnet candidates were not preserved by the 48-hour cache",
+    )
+    unknown_items = [
+        item for item in parsed_items if item.get("issuerCode") == "9999"
+    ]
+    require(
+        {
+            item.get("disclosureCategory") for item in unknown_items
+        }
+        == {"financial-results", "buyback", "stock-split"},
+        "generic classifier did not preserve three distinct same-issuer events",
+    )
+    require(
+        all(
+            producer.publisher_domain(item["url"]) == "www.release.tdnet.info"
+            and item["verification"] == "primary"
+            for item in parsed_items
+        ),
+        "TDnet items do not lead to official primary PDFs",
+    )
+    require(
+        producer.company_disclosure_category(
+            "業績連動型株式報酬制度のお知らせ"
+        )
+        == ("", 0)
+        and producer.company_disclosure_category(
+            "第1四半期決算説明資料"
+        )
+        == ("", 0),
+        "routine compensation or presentation material was misclassified as results",
+    )
+    require(
+        not producer._issuer_is_mentioned(
+            {"issuerCode": "2026", "issuerName": "架空産業"},
+            {"title": "2026年7月の日本株決算", "summary": ""},
+        )
+        and not producer._issuer_is_mentioned(
+            {"issuerCode": "7203", "issuerName": "架空自動車"},
+            {"title": "利益7203億円を計上", "summary": ""},
+        )
+        and not producer._issuer_is_mentioned(
+            {"issuerCode": "4813", "issuerName": "ACCESS"},
+            {
+                "title": "Investors seek access to markets during earnings season",
+                "summary": "",
+            },
+        ),
+        "bare numeric codes or short English names caused issuer false positives",
+    )
+    require(
+        producer._issuer_is_mentioned(
+            {"issuerCode": "Z99A", "issuerName": "無名企業"},
+            {"title": "TYO:Z99A reports quarterly results", "summary": ""},
+        ),
+        "an explicitly labelled alphanumeric security code was not detected",
+    )
+    collision_report = producer.build_item(
+        title="共通テックが決算を発表",
+        summary="株価への影響を確認します。",
+        url="https://example.com/shared-alias",
+        source="Example News",
+        source_kind="news",
+        published="2026-07-31T15:31:00+09:00",
+        retrieved_at=now,
+        topic_hint="japan-stocks",
+    )
+    collision_signals = producer.company_news_signals([
+        {"sourceKind": "official-company", "issuerCode": "7777", "issuerName": "共通テックHD"},
+        {"sourceKind": "official-company", "issuerCode": "6666", "issuerName": "共通テックグループ"},
+        collision_report,
+    ])
+    require(
+        all(row["mentions"] == 0 for row in collision_signals.values()),
+        "a shared issuer stem was attributed to multiple companies",
+    )
+
+    def shared_alias_disclosure(
+        code: str,
+        name: str,
+        document_id: str,
+    ) -> dict[str, Any]:
+        item = producer.build_item(
+            title=f"{name}｜2027年3月期 第1四半期決算短信",
+            summary="第1四半期決算を開示しました。",
+            url=(
+                "https://www.release.tdnet.info/inbs/"
+                f"{document_id}.pdf"
+            ),
+            source=f"TDnet / {name}",
+            source_kind="official-company",
+            published="2026-07-31T15:30:00+09:00",
+            retrieved_at=now,
+            topic_hint="japan-stocks",
+            verification="primary",
+            timestamp_basis="tdnet-official-disclosure-time",
+            timestamp_precision_value="minute",
+            discovery_provider="tdnet-public-viewer",
+            source_country="JP",
+        )
+        item.update({
+            "disclosureId": document_id,
+            "issuerCode": code,
+            "issuerName": name,
+            "disclosureCategory": "financial-results",
+            "materialityScore": 93,
+        })
+        return item
+
+    ambiguous_company_report = producer.build_item(
+        title="共通テック、第1四半期決算を発表",
+        summary="共通テックの決算速報です。",
+        url="https://example.com/shared-company-stem-results",
+        source="Example News",
+        source_kind="news",
+        published="2026-07-31T15:31:00+09:00",
+        retrieved_at=now,
+        topic_hint="japan-stocks",
+    )
+    ambiguous_clusters = producer.cluster_story_candidates([
+        shared_alias_disclosure(
+            "7777",
+            "共通テックHD",
+            "140120260731977771",
+        ),
+        shared_alias_disclosure(
+            "6666",
+            "共通テックグループ",
+            "140120260731966661",
+        ),
+        ambiguous_company_report,
+    ])
+    require(
+        len(ambiguous_clusters) == 3
+        and sum(
+            1
+            for row in ambiguous_clusters
+            if row.get("sourceKind") == "official-company"
+        )
+        == 2
+        and all(
+            row.get("clusterSize") == 1
+            for row in ambiguous_clusters
+        ),
+        "a shared issuer alias bridged two official company clusters",
+    )
+
+    explicit_code_report = producer.build_item(
+        title="共通テック（7777）、第1四半期決算を発表",
+        summary="証券コード7777の決算速報です。",
+        url="https://example.com/explicit-company-code-results",
+        source="Example News",
+        source_kind="news",
+        published="2026-07-31T15:31:00+09:00",
+        retrieved_at=now,
+        topic_hint="japan-stocks",
+    )
+    explicit_clusters = producer.cluster_story_candidates([
+        shared_alias_disclosure(
+            "7777",
+            "共通テックHD",
+            "140120260731977772",
+        ),
+        shared_alias_disclosure(
+            "6666",
+            "共通テックグループ",
+            "140120260731966662",
+        ),
+        explicit_code_report,
+    ])
+    explicit_cluster = next(
+        (
+            row for row in explicit_clusters
+            if row.get("issuerCode") == "7777"
+        ),
+        None,
+    )
+    other_company_cluster = next(
+        (
+            row for row in explicit_clusters
+            if row.get("issuerCode") == "6666"
+        ),
+        None,
+    )
+    require(
+        len(explicit_clusters) == 2
+        and explicit_cluster is not None
+        and explicit_cluster.get("clusterSize") == 2
+        and other_company_cluster is not None
+        and other_company_cluster.get("clusterSize") == 1
+        and any(
+            row.get("url")
+            == "https://example.com/explicit-company-code-results"
+            for row in explicit_cluster.get("relatedLinks") or []
+        ),
+        "an explicit issuer code did not bind news to exactly one company",
+    )
+
+    def category_disclosure(
+        category: str,
+        document_id: str,
+        title: str,
+    ) -> dict[str, Any]:
+        item = shared_alias_disclosure(
+            "B99A",
+            "Bridge Industries",
+            document_id,
+        )
+        item["title"] = f"Bridge Industries｜{title}"
+        item["disclosureCategory"] = category
+        return item
+
+    bridge_results_report = producer.build_item(
+        title="Bridge Industries quarterly financial results",
+        summary="Bridge Industries earnings report.",
+        url="https://example.com/bridge-company-event",
+        source="Example News",
+        source_kind="news",
+        published="2026-07-31T15:40:00+09:00",
+        retrieved_at=now,
+        topic_hint="japan-stocks",
+    )
+    bridge_guidance_report = producer.build_item(
+        title="Bridge Industries guidance revision",
+        summary="Bridge Industries revised its business outlook.",
+        url="https://example.com/bridge-company-event",
+        source="Example Wire",
+        source_kind="news-wire",
+        published="2026-07-31T15:39:00+09:00",
+        retrieved_at=now,
+        topic_hint="japan-stocks",
+    )
+    category_bridge_clusters = producer.cluster_story_candidates([
+        bridge_results_report,
+        bridge_guidance_report,
+        category_disclosure(
+            "financial-results",
+            "140120260731955551",
+            "Quarterly financial results",
+        ),
+        category_disclosure(
+            "guidance-revision",
+            "140120260731955552",
+            "Guidance revision",
+        ),
+    ])
+    official_category_clusters = [
+        row for row in category_bridge_clusters
+        if row.get("sourceKind") == "official-company"
+    ]
+    require(
+        len(category_bridge_clusters) == 3
+        and len(official_category_clusters) == 2
+        and {
+            row.get("disclosureCategory")
+            for row in official_category_clusters
+        } == {"financial-results", "guidance-revision"}
+        and all(
+            row.get("clusterSize") == 1
+            for row in official_category_clusters
+        ),
+        "same-issuer reports bridged two different disclosure categories",
+    )
+
+    result_report = producer.build_item(
+        title="未知テック、第1四半期決算を発表",
+        summary="決算速報です。",
+        url="https://example.com/unknown-company-results",
+        source="Example News",
+        source_kind="news",
+        published="2026-07-31T15:32:00+09:00",
+        retrieved_at=now,
+        topic_hint="japan-stocks",
+    )
+    result_report["originGroup"] = "reuters"
+    duplicate_report = producer.build_item(
+        title="未知テック、第1四半期決算を発表",
+        summary="決算速報です。",
+        url="https://another.example/unknown-company-results-copy",
+        source="Reuters syndication",
+        source_kind="news-wire",
+        published="2026-07-31T15:33:00+09:00",
+        retrieved_at=now,
+        topic_hint="japan-stocks",
+    )
+    duplicate_report["originGroup"] = "reuters"
+    second_origin_report = producer.build_item(
+        title="未知テックの好決算を市場が評価",
+        summary="同社株の反応を報じます。",
+        url="https://market.example/unknown-company-reaction",
+        source="Market Journal",
+        source_kind="news",
+        published="2026-07-31T15:34:00+09:00",
+        retrieved_at=now,
+        topic_hint="japan-stocks",
+    )
+    second_origin_report["originGroup"] = "market-journal"
+    dynamic_only_report = producer.build_item(
+        title="未知テック、第1四半期決算を発表",
+        summary="決算速報です。",
+        url="https://dynamic.example/unknown-company",
+        source="Dynamic Search",
+        source_kind="news",
+        published="2026-07-31T15:35:00+09:00",
+        retrieved_at=now,
+        topic_hint="japan-stocks",
+        discovery_provider="issuer-dynamic",
+    )
+    social_only_report = producer.build_item(
+        title="未知テック決算がSNSで話題",
+        summary="未検証の投稿です。",
+        url="https://x.com/example/status/123456789",
+        source="X public index",
+        source_kind="x-index",
+        published="2026-07-31T15:36:00+09:00",
+        retrieved_at=now,
+        topic_hint="japan-stocks",
+        discovery_provider="public-search-index",
+    )
+    signal_input = parsed_items + [
+        result_report,
+        duplicate_report,
+        second_origin_report,
+        dynamic_only_report,
+        social_only_report,
+    ]
+    producer.annotate_company_news_signals(signal_input)
+    unknown_signal_item = next(
+        item for item in parsed_items
+        if item.get("issuerCode") == "9999"
+    )
+    require(
+        unknown_signal_item["issuerNewsMentionCount"] == 2
+        and unknown_signal_item["issuerIndependentNewsSourceCount"] == 2
+        and unknown_signal_item["issuerBuzzScore"] == 6,
+        "issuer buzz did not exclude syndication, dynamic search, or social posts",
+    )
+    clustered = producer.cluster_story_candidates(
+        parsed_items + [result_report, dynamic_only_report]
+    )
+    result_cluster = next(
+        (
+            row for row in clustered
+            if producer.event_signature(row)
+            == "company-9999-financial-results"
+        ),
+        None,
+    )
+    require(
+        len(clustered) == 5
+        and result_cluster is not None
+        and result_cluster["sourceKind"] == "official-company"
+        and result_cluster["clusterSize"] == 3
+        and result_cluster["rankingClusterSize"] == 2
+        and result_cluster["independentSourceCount"] == 2
+        and any(
+            link.get("url") == "https://dynamic.example/unknown-company"
+            and link.get("rankingEvidence") is False
+            for link in result_cluster.get("relatedLinks") or []
+        ),
+        "generic issuer/category clustering mixed events or lost corroboration",
+    )
+
+    general_only_report = producer.build_item(
+        title="Generic issuer posts quarterly results",
+        summary="General discovery report.",
+        url="https://general.example/generic-results",
+        source="General News",
+        source_kind="news",
+        published="2026-07-31T15:34:00+09:00",
+        retrieved_at=now,
+        topic_hint="japan-stocks",
+        discovery_provider="google-news",
+    )
+    newer_dynamic_report = producer.build_item(
+        title="Generic issuer posts quarterly results",
+        summary="Issuer-specific follow-up result.",
+        url="https://dynamic.example/generic-results",
+        source="Dynamic Search",
+        source_kind="news",
+        published="2026-07-31T15:35:00+09:00",
+        retrieved_at=now,
+        topic_hint="japan-stocks",
+        discovery_provider="issuer-dynamic",
+    )
+    news_only_cluster = producer.cluster_story_candidates([
+        newer_dynamic_report,
+        general_only_report,
+    ])
+    require(
+        len(news_only_cluster) == 1
+        and news_only_cluster[0]["url"] == "https://general.example/generic-results"
+        and news_only_cluster[0]["clusterSize"] == 2
+        and news_only_cluster[0]["rankingClusterSize"] == 1
+        and len(news_only_cluster[0]["relatedLinks"]) == 1
+        and news_only_cluster[0]["relatedLinks"][0]["rankingEvidence"] is False,
+        "a newer issuer-dynamic item became ranking evidence for a news-only cluster",
+    )
+
+    duplicate_url_first = producer.build_item(
+        title="Generic market report",
+        summary="One canonical article.",
+        url="https://wire.example/canonical-story",
+        source="Wire Label A",
+        source_kind="news-wire",
+        published="2026-07-31T15:40:00+09:00",
+        retrieved_at=now,
+        topic_hint="japan-stocks",
+        discovery_provider="google-news",
+    )
+    duplicate_url_second = producer.build_item(
+        title="Generic market report mirror label",
+        summary="The same canonical article from another discovery path.",
+        url="https://wire.example/canonical-story",
+        source="Publisher Label B",
+        source_kind="news",
+        published="2026-07-31T15:39:00+09:00",
+        retrieved_at=now,
+        topic_hint="japan-stocks",
+        discovery_provider="bing-news",
+    )
+    duplicate_url_cluster = producer.cluster_story_candidates([
+        duplicate_url_first,
+        duplicate_url_second,
+    ])
+    require(
+        len(duplicate_url_cluster) == 1
+        and duplicate_url_cluster[0]["clusterSize"] == 1
+        and duplicate_url_cluster[0]["rankingClusterSize"] == 1
+        and duplicate_url_cluster[0]["independentSourceCount"] == 1
+        and not duplicate_url_cluster[0]["relatedLinks"],
+        "one canonical URL was counted as multiple independent ranking sources",
+    )
+
+    shared_general = producer.build_item(
+        title="未知テック quarterly results gain attention",
+        summary="General discovery copy.",
+        url="https://shared.example/unknown-results",
+        source="General Publisher",
+        source_kind="news",
+        published="2026-07-31T15:34:00+09:00",
+        retrieved_at=now,
+        topic_hint="japan-stocks",
+        discovery_provider="google-news",
+    )
+    shared_dynamic = producer.build_item(
+        title="未知テック quarterly results gain attention",
+        summary="Dynamic copy of the same canonical article.",
+        url="https://shared.example/unknown-results",
+        source="Dynamic Search",
+        source_kind="news",
+        published="2026-07-31T15:35:00+09:00",
+        retrieved_at=now,
+        topic_hint="japan-stocks",
+        discovery_provider="issuer-dynamic",
+    )
+    shared_url_cluster = producer.cluster_story_candidates([
+        unknown_signal_item,
+        shared_dynamic,
+        shared_general,
+    ])
+    shared_result_cluster = next(
+        row for row in shared_url_cluster
+        if producer.event_signature(row) == "company-9999-financial-results"
+    )
+    require(
+        shared_result_cluster["clusterSize"] == 2
+        and shared_result_cluster["rankingClusterSize"] == 2
+        and shared_result_cluster["independentSourceCount"] == 2
+        and len(shared_result_cluster["relatedLinks"]) == 1
+        and shared_result_cluster["relatedLinks"][0]["source"] == "General Publisher"
+        and shared_result_cluster["relatedLinks"][0]["rankingEvidence"] is True,
+        "same-URL dynamic copy hid or mislabeled the general ranking evidence",
+    )
+
+    dynamic_queries = producer.build_dynamic_company_news_queries(signal_input)
+    require(
+        dynamic_queries
+        and any(
+            "未知テック" in query["query"]
+            and "9999" not in query["query"]
+            and query.get("discoveryProvider") == "issuer-dynamic"
+            for query in dynamic_queries
+        ),
+        "dynamic discovery missed the issuer or retained a bare numeric code",
+    )
+    require(
+        unknown_signal_item["issuerBuzzScore"] == 6,
+        "dynamic discovery improperly self-reinforced issuer buzz",
+    )
+
+    filler_items = [
+        producer.build_item(
+            title=f"海外市場速報 {index:02d}",
+            summary="株式市場の更新です。",
+            url=f"https://example.com/market-{index:02d}",
+            source="Example News",
+            source_kind="news",
+            published=f"2026-07-31T06:{index:02d}:00+00:00",
+            retrieved_at=now,
+            topic_hint="us-stocks",
+        )
+        for index in range(30)
+    ]
+    ranked = producer.rank_briefing_items(
+        clustered + filler_items,
+        already_clustered=True,
+    )
+    require(
+        any(
+            producer.event_signature(item)
+            == "company-9999-financial-results"
+            for item in ranked
+        ),
+        "a material unknown-company result was displaced by a newer-news flood",
+    )
+    require(
+        sum(
+            1 for item in ranked
+            if item.get("sourceKind") == "official-company"
+        )
+        <= 6,
+        "company disclosure lane exceeded its six-card cap",
+    )
+
+    issuer_cap_items: list[dict[str, Any]] = []
+    for index, category in enumerate((
+        "financial-results",
+        "guidance-revision",
+        "m-and-a-tob",
+        "accounting-governance",
+    )):
+        cap_item = producer.build_item(
+            title=(
+                "Jason Furman comments on Cap Industries"
+                if index == 3
+                else f"Cap Industries material event {index}"
+            ),
+            summary="Official material disclosure.",
+            url=f"https://www.release.tdnet.info/inbs/issuer-cap-{index}.pdf",
+            source="TDnet / Cap Industries",
+            source_kind="official-company",
+            published=f"2026-07-31T15:{40 + index}:00+09:00",
+            retrieved_at=now,
+            topic_hint="japan-stocks",
+            verification="primary",
+        )
+        cap_item.update({
+            "disclosureId": f"issuer-cap-{index:02d}",
+            "issuerCode": "C99A",
+            "issuerName": "Cap Industries",
+            "disclosureCategory": category,
+            "materialityScore": 99 - index,
+            "issuerNewsMentionCount": 0,
+            "issuerIndependentNewsSourceCount": 0,
+            "issuerBuzzScore": 0,
+        })
+        issuer_cap_items.append(cap_item)
+    issuer_cap_ranked = producer.rank_briefing_items(
+        issuer_cap_items,
+        already_clustered=True,
+    )
+    require(
+        sum(item.get("issuerCode") == "C99A" for item in issuer_cap_ranked) == 3,
+        "reserved company categories bypassed the three-card issuer cap",
+    )
+
+    bundle_specs = (
+        ("RFIN", "financial-results", 100, 12, 6, 12),
+        ("RGDE", "guidance-revision", 100, 12, 6, 12),
+        ("RTOB", "m-and-a-tob", 100, 12, 6, 12),
+        ("RACC", "accounting-governance", 100, 12, 6, 12),
+        ("BNDL", "financial-results", 100, 1, 1, 0),
+        ("BNDL", "buyback", 98, 5, 5, 12),
+        ("BNDL", "stock-split", 95, 5, 5, 12),
+    )
+    bundle_items: list[dict[str, Any]] = []
+    for index, (
+        issuer,
+        category,
+        materiality,
+        cluster_size,
+        independent_sources,
+        buzz,
+    ) in enumerate(bundle_specs):
+        bundle_item = producer.build_item(
+            title=f"Generic {issuer} {category} disclosure",
+            summary="Official same-time material disclosure.",
+            url=f"https://www.release.tdnet.info/inbs/generic-bundle-{index}.pdf",
+            source=f"TDnet / Generic {issuer}",
+            source_kind="official-company",
+            published="2026-07-31T15:30:00+09:00",
+            retrieved_at=now,
+            topic_hint="japan-stocks",
+            verification="primary",
+        )
+        bundle_item.update({
+            "disclosureId": f"generic-bundle-{index:02d}",
+            "issuerCode": issuer,
+            "issuerName": f"Generic {issuer}",
+            "disclosureCategory": category,
+            "materialityScore": materiality,
+            "clusterSize": cluster_size,
+            "rankingClusterSize": cluster_size,
+            "independentSourceCount": independent_sources,
+            "issuerNewsMentionCount": buzz,
+            "issuerIndependentNewsSourceCount": independent_sources,
+            "issuerBuzzScore": buzz,
+        })
+        bundle_items.append(bundle_item)
+    bundle_ranked = producer.rank_briefing_items(
+        bundle_items,
+        already_clustered=True,
+    )
+    selected_bundle_categories = {
+        item.get("disclosureCategory")
+        for item in bundle_ranked
+        if item.get("issuerCode") == "BNDL"
+    }
+    require(
+        "financial-results" in selected_bundle_categories
+        and len(bundle_ranked) == 6,
+        "same-time ancillary disclosures displaced their issuer's core results",
+    )
+
+    carry_now = now + timedelta(hours=8)
+    carry_package = {
+        "briefing": {
+            "items": [issuer_cap_items[0]],
+            "summary": "stale aggregate",
+            "topicCounts": {"stale": 99},
+            "verificationCounts": {"stale": 99},
+            "sourceKindCounts": {"stale": 99},
+            "bullish": [],
+            "bearish": [],
+            "unverifiedCount": 99,
+        },
+        "dataHealth": {
+            "carriedForwardItems": 0,
+            "status": "ok",
+            "message": "",
+        },
+    }
+    carry_previous = {"briefing": {"items": issuer_cap_items[1:]}}
+    producer.carry_forward_if_needed(carry_package, carry_previous, carry_now)
+    carried_company_items = [
+        item for item in carry_package["briefing"]["items"]
+        if item.get("sourceKind") == "official-company"
+    ]
+    require(
+        len(carried_company_items) == 3
+        and sum(item.get("issuerCode") == "C99A" for item in carried_company_items) == 3
+        and carry_package["dataHealth"]["carriedForwardItems"] == 2,
+        "carry-forward bypassed the three-card issuer cap",
+    )
+    carried_briefing = carry_package["briefing"]
+    require(
+        sum(carried_briefing["topicCounts"].values()) == len(carried_briefing["items"])
+        and sum(carried_briefing["verificationCounts"].values()) == len(carried_briefing["items"])
+        and sum(carried_briefing["sourceKindCounts"].values()) == len(carried_briefing["items"])
+        and carried_briefing["unverifiedCount"]
+        == sum(item["verification"] == "unverified" for item in carried_briefing["items"]),
+        "carry-forward left stale briefing aggregates",
+    )
+
+    carry_guidance = dict(bundle_items[1])
+    carry_guidance.update({
+        "issuerCode": "BNDL",
+        "issuerName": "Generic BNDL",
+    })
+    carry_bundle_package = {
+        "briefing": {
+            "items": [carry_guidance],
+            "summary": "stale aggregate",
+            "topicCounts": {"stale": 99},
+            "verificationCounts": {"stale": 99},
+            "sourceKindCounts": {"stale": 99},
+            "bullish": [],
+            "bearish": [],
+            "unverifiedCount": 99,
+        },
+        "dataHealth": {
+            "carriedForwardItems": 0,
+            "status": "ok",
+            "message": "",
+        },
+    }
+    carry_bundle_previous = {
+        "briefing": {
+            "items": [bundle_items[5], bundle_items[6], bundle_items[4]],
+        },
+    }
+    producer.carry_forward_if_needed(
+        carry_bundle_package,
+        carry_bundle_previous,
+        carry_now,
+    )
+    carry_bundle_categories = {
+        item.get("disclosureCategory")
+        for item in carry_bundle_package["briefing"]["items"]
+        if item.get("issuerCode") == "BNDL"
+    }
+    require(
+        "financial-results" in carry_bundle_categories
+        and len(carry_bundle_categories) == 3
+        and carry_bundle_package["dataHealth"]["carriedForwardItems"] == 2,
+        "carry-forward ancillary items displaced their same-time core results",
+    )
+
+    requested_urls.clear()
+    head_only_feed = {
+        **company_feed,
+        "previousState": {
+            "newestDisclosureId": "140120260731900001",
+        },
+    }
+    producer.request = fixture_request
+    try:
+        _, head_status = producer.fetch_company_disclosures(
+            head_only_feed,
+            now,
+        )
+    finally:
+        producer.request = original_request
+    require(
+        head_status["scanMode"] == "head-only"
+        and head_status["scannedPages"] == 1
+        and not any("I_list_002_" in url for url in requested_urls),
+        "TDnet incremental watermark did not prevent unnecessary deep scanning",
+    )
+
+    require_https_url(
+        "https://www.release.tdnet.info/inbs/140120260731900001.pdf",
+        "TDnet official regression",
+        hosts=OFFICIAL_SOURCE_HOSTS["official-company"],
+    )
+    try:
+        require_https_url(
+            "https://example.com/not-an-official-disclosure",
+            "company disclosure regression",
+            hosts=OFFICIAL_SOURCE_HOSTS["official-company"],
+        )
+    except ValidationError:
+        pass
+    else:
+        raise ValidationError(
+            "unapproved host was accepted as an official company disclosure"
+        )
+
+
+def validate_company_disclosure_cache(
+    data: dict[str, Any],
+    generated_utc: datetime,
+) -> set[str]:
+    rows = require_list(
+        data.get("companyDisclosureCache"),
+        "companyDisclosureCache",
+    )
+    require(
+        len(rows) <= 2000,
+        "companyDisclosureCache exceeds its 2000-row safety cap",
+    )
+    disclosure_ids: set[str] = set()
+    previous_time: datetime | None = None
+    for index, raw in enumerate(rows):
+        context = f"companyDisclosureCache[{index}]"
+        row = require_dict(raw, context)
+        require_keys(
+            row,
+            {
+                "disclosureId",
+                "issuerCode",
+                "issuerName",
+                "disclosureCategory",
+                "materialityScore",
+                "title",
+                "url",
+                "publishedAtUtc",
+            },
+            context,
+        )
+        disclosure_id = require_string(
+            row["disclosureId"], f"{context}.disclosureId"
+        )
+        require(
+            re.fullmatch(r"[0-9A-Za-z_-]{8,80}", disclosure_id) is not None,
+            f"{context}.disclosureId is malformed",
+        )
+        require(
+            disclosure_id not in disclosure_ids,
+            f"{context}.disclosureId is duplicated",
+        )
+        disclosure_ids.add(disclosure_id)
+        require(
+            re.fullmatch(
+                r"[0-9A-Z]{4,6}",
+                require_string(row["issuerCode"], f"{context}.issuerCode"),
+            ) is not None,
+            f"{context}.issuerCode is malformed",
+        )
+        require_string(row["issuerName"], f"{context}.issuerName")
+        require_string(row["title"], f"{context}.title")
+        require(
+            row["disclosureCategory"] in DISCLOSURE_CATEGORIES,
+            f"{context}.disclosureCategory is invalid",
+        )
+        require_int(
+            row["materialityScore"],
+            f"{context}.materialityScore",
+            low=0,
+            high=100,
+        )
+        require_https_url(
+            row["url"],
+            f"{context}.url",
+            hosts={"release.tdnet.info"},
+        )
+        published = parse_timestamp(
+            row["publishedAtUtc"],
+            f"{context}.publishedAtUtc",
+            expected_offset=timedelta(0),
+        )
+        require(
+            published <= generated_utc + timedelta(minutes=2)
+            and generated_utc - published <= timedelta(hours=48, minutes=5),
+            f"{context} is outside the 48-hour cache window",
+        )
+        if previous_time is not None:
+            require(
+                published <= previous_time,
+                "companyDisclosureCache must be newest-first",
+            )
+        previous_time = published
+    return disclosure_ids
+
+
 def validate(path: Path) -> dict[str, Any]:
     require(path.exists(), f"live data file does not exist: {path}")
     try:
@@ -3000,6 +4509,7 @@ def validate(path: Path) -> dict[str, Any]:
             "marketShock",
             "premarket",
             "briefing",
+            "companyDisclosureCache",
             "sourceStatus",
             "methodology",
         },
@@ -3008,6 +4518,7 @@ def validate(path: Path) -> dict[str, Any]:
     )
     require(data["schemaVersion"] == 1, "live schemaVersion must be 1")
     generated_utc, generated_jst = validate_root_times(data)
+    cached_disclosure_ids = validate_company_disclosure_cache(data, generated_utc)
     validate_refresh_policy(data)
     source_rows, market_status = validate_source_status(data, generated_utc)
     validate_data_health(data, source_rows)
@@ -3015,6 +4526,64 @@ def validate(path: Path) -> dict[str, Any]:
     briefing_items = validate_briefing(
         data, generated_utc, generated_jst, source_rows
     )
+    for item in briefing_items.values():
+        if (
+            item.get("sourceKind") == "official-company"
+            and item.get("publisherDomain") == "www.release.tdnet.info"
+        ):
+            require(
+                item.get("disclosureId") in cached_disclosure_ids,
+                "selected TDnet disclosure is missing from the 48-hour cache",
+            )
+    selected_company_items = [
+        item for item in briefing_items.values()
+        if item.get("sourceKind") == "official-company"
+    ]
+
+    def selected_company_time(selected: dict[str, Any]) -> datetime:
+        return parse_timestamp(
+            selected["effectivePublishedAtUtc"],
+            f"selected company item {selected['id']}.effectivePublishedAtUtc",
+            expected_offset=timedelta(0),
+        )
+
+    cached_company_items = data["companyDisclosureCache"]
+    for item in selected_company_items:
+        if item.get("disclosureCategory") not in {
+            "buyback",
+            "stock-split",
+            "dividend",
+            "capital-raising",
+        }:
+            continue
+        issuer = str(item.get("issuerCode") or "")
+        item_time = parse_timestamp(
+            item["effectivePublishedAtUtc"],
+            f"selected company item {item['id']}.effectivePublishedAtUtc",
+            expected_offset=timedelta(0),
+        )
+        bundled_results = [
+            row for row in cached_company_items
+            if str(row.get("issuerCode") or "") == issuer
+            and row.get("disclosureCategory") == "financial-results"
+            and abs((
+                parse_timestamp(
+                    row["publishedAtUtc"],
+                    f"cached bundle result {row['disclosureId']}.publishedAtUtc",
+                    expected_offset=timedelta(0),
+                ) - item_time
+            ).total_seconds()) <= 15 * 60
+        ]
+        if bundled_results:
+            require(
+                any(
+                    selected.get("issuerCode") == issuer
+                    and selected.get("disclosureCategory") == "financial-results"
+                    and abs((selected_company_time(selected) - item_time).total_seconds()) <= 15 * 60
+                    for selected in selected_company_items
+                ),
+                "a selected same-time company bundle omitted its core financial results",
+            )
     quotes = validate_premarket(
         data, generated_utc, generated_jst, market_status
     )
@@ -3024,6 +4593,7 @@ def validate(path: Path) -> dict[str, Any]:
     run_price_only_intervention_regression()
     run_localization_freshness_regressions()
     run_story_cluster_regressions()
+    run_company_disclosure_regressions()
     return data
 
 
