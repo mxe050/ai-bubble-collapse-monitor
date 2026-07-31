@@ -27,6 +27,7 @@ from difflib import SequenceMatcher
 from email.utils import parsedate_to_datetime
 from pathlib import Path
 from typing import Any
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -943,8 +944,12 @@ def normalize_url(value: str) -> str:
             and key.casefold() not in tracking_keys
             for item in values
         ]
+        scheme = "https" if parsed.scheme == "http" and (
+            parsed.hostname == "boj.or.jp"
+            or (parsed.hostname or "").endswith(".boj.or.jp")
+        ) else parsed.scheme
         return urllib.parse.urlunparse((
-            parsed.scheme,
+            scheme,
             parsed.netloc.lower(),
             parsed.path,
             "",
@@ -1331,12 +1336,53 @@ def _trough_to_peak(points: list[dict[str, Any]]) -> dict[str, Any]:
     return best
 
 
+def _sample_weekly_sparkline(
+    points: list[dict[str, Any]], max_points: int = 168
+) -> list[dict[str, Any]]:
+    """Keep a readable, evenly spaced view of the latest five trading days."""
+    if len(points) <= max_points:
+        return points
+    last_index = len(points) - 1
+    selected = {
+        round(position * last_index / (max_points - 1))
+        for position in range(max_points)
+    }
+    return [points[index] for index in sorted(selected)]
+
+
+def _latest_trading_days(
+    points: list[dict[str, Any]], exchange_timezone: str | None, days: int = 5
+) -> list[dict[str, Any]]:
+    """Return the newest market-calendar days that have intraday prices."""
+    try:
+        market_timezone = ZoneInfo(exchange_timezone) if exchange_timezone else timezone.utc
+    except ZoneInfoNotFoundError:
+        market_timezone = timezone.utc
+
+    dates: set[Any] = set()
+    for row in reversed(points):
+        market_date = datetime.fromtimestamp(
+            row["timestamp"], timezone.utc
+        ).astimezone(market_timezone).date()
+        dates.add(market_date)
+        if len(dates) == days:
+            break
+
+    return [
+        row
+        for row in points
+        if datetime.fromtimestamp(
+            row["timestamp"], timezone.utc
+        ).astimezone(market_timezone).date() in dates
+    ]
+
+
 def fetch_intraday_quote(key: str, profile: dict[str, str], now: datetime) -> dict[str, Any]:
     symbol = profile["symbol"]
     encoded = urllib.parse.quote(symbol, safe="")
     url = (
         f"https://query1.finance.yahoo.com/v8/finance/chart/{encoded}"
-        "?range=5d&interval=5m&includePrePost=true&events=div%2Csplits"
+        "?range=14d&interval=5m&includePrePost=true&events=div%2Csplits"
     )
     raw, _ = request(url)
     payload = json.loads(raw.decode("utf-8"))
@@ -1372,7 +1418,12 @@ def fetch_intraday_quote(key: str, profile: dict[str, str], now: datetime) -> di
     stale_minutes = max(0.0, (now - latest_dt).total_seconds() / 60.0)
     market_state = "updating" if stale_minutes <= 25 else "delayed-or-closed"
     source_url = f"https://finance.yahoo.com/quote/{urllib.parse.quote(symbol)}"
-    spark = recent_points[-96:]
+    # The longer source window makes the display resilient to weekends and
+    # holidays. It is deliberately separate from the 30-hour short-term move
+    # metrics: the chart shows only the newest five trading days.
+    spark = _sample_weekly_sparkline(
+        _latest_trading_days(points, meta.get("exchangeTimezoneName"))
+    )
     return {
         "key": key,
         **profile,
@@ -2440,8 +2491,16 @@ def inherit_previous_item_state(
                 match.get("firstSeenAtUtc")
                 or ((match.get("freshness") or {}).get("firstSeenAtUtc"))
             )
-            if parse_datetime(inherited_first_seen):
-                item["firstSeenAtUtc"] = iso_or_none(inherited_first_seen)
+            inherited_first_seen_dt = parse_datetime(inherited_first_seen)
+            effective_dt = item_effective_datetime(item)
+            if inherited_first_seen_dt:
+                # A source can later correct its published timestamp.  Keep the
+                # original discovery time only when it is consistent with that
+                # corrected timestamp; otherwise show the confirmed publication
+                # time rather than claiming discovery before publication.
+                if effective_dt and inherited_first_seen_dt < effective_dt - timedelta(minutes=10):
+                    inherited_first_seen_dt = effective_dt
+                item["firstSeenAtUtc"] = inherited_first_seen_dt.astimezone(timezone.utc).isoformat()
             if match.get("clusterId"):
                 item["clusterId"] = match["clusterId"]
             previous_japanese = match.get("japanese") or {}

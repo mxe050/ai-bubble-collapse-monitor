@@ -239,7 +239,7 @@
     };
   }
 
-  function liveSparkline(points, stateClass) {
+  function liveSparkline(points, stateClass, label) {
     var usable = (points || []).map(function (point) { return finite(point.value); }).filter(function (value) { return value !== null; });
     if (usable.length < 2) return "";
     var min = Math.min.apply(null, usable);
@@ -251,7 +251,8 @@
       return x.toFixed(1) + "," + y.toFixed(1);
     }).join(" ");
     return "<svg class=\"live-sparkline " + escapeHtml(stateClass || "neutral")
-      + "\" viewBox=\"0 0 160 42\" preserveAspectRatio=\"none\" aria-hidden=\"true\" focusable=\"false\">"
+      + "\" viewBox=\"0 0 160 42\" preserveAspectRatio=\"none\" role=\"img\" aria-label=\""
+      + escapeHtml(label || "価格推移") + "\" focusable=\"false\">"
       + "<polyline points=\"" + coords + "\"></polyline></svg>";
   }
 
@@ -3498,13 +3499,14 @@
       var change = finite(quote.changePct);
       var direction = premarketDirection(key, change);
       var stateLabel = quote.marketState === "updating" ? "取引・更新中" : "休場または遅延";
+      var sparkline = liveSparkline(quote.sparkline, direction.tone, "直近1週間の価格推移");
       return "<article class=\"premarket-card\" data-key=\"" + escapeHtml(key) + "\">"
         + "<span>" + escapeHtml(quote.group === "japan" ? "日本株先物" : quote.group === "us" ? "米国株先物" : quote.group === "fx" ? "為替" : quote.group === "rates" ? "米国金利" : "市場心理") + "</span>"
         + "<h4>" + escapeHtml(quote.label || key) + "</h4>"
         + "<strong class=\"premarket-card-value\">" + escapeHtml(formatLiveValue(key, quote)) + "</strong>"
         + "<span class=\"premarket-card-change " + direction.tone + "\">前日比 " + direction.marker + " "
         + escapeHtml(formatLiveChange(key, quote)) + "</span>"
-        + liveSparkline(quote.sparkline, direction.tone)
+        + (sparkline ? "<div class=\"premarket-sparkline\">" + sparkline + "<small>1週間の推移（直近5取引日）</small></div>" : "")
         + "<small class=\"premarket-card-meta\">" + escapeHtml(stateLabel) + " / "
         + escapeHtml(formatLiveTime(quote.quoteTimeUtc, "値 ")) + "</small>"
         + liveSourceLink(quote.sourceUrl, "価格取得元を確認", "premarket-source-link")

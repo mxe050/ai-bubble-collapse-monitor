@@ -143,9 +143,12 @@ assert.match(indexSource, /id="premarketCards"/);
 assert.ok(indexSource.includes("\u7c7310\u5e74\u56fd\u50b5\u5229\u56de\u308a"));
 assert.ok(!indexSource.includes("10\u5e74\u30fb2\u5e74\u56fd\u50b5\u5229\u56de\u308a"));
 assert.match(stylesSource, /\.premarket-card \.context \{ color: var\(--blue\); \}/);
+assert.match(stylesSource, /\.premarket-sparkline small/);
 assert.match(stylesSource, /\.briefing-card \.briefing-card-head time \{ color: #53677a; \}/);
 assert.match(stylesSource, /\.briefing-more\[hidden\] \{ display: none; \}/);
 assert.match(appSource, /function formatLiveChange\(key, quote\)/);
+assert.match(appSource, /直近1週間の価格推移/);
+assert.match(appSource, /1週間の推移（直近5取引日）/);
 assert.doesNotMatch(appSource, /\?{2,}/);
 assert.match(indexSource, /id="live-briefing"/);
 assert.match(indexSource, /id="briefingLead"/);
@@ -321,6 +324,7 @@ setTimeout(async () => {
   assert.strictEqual((elements.get("premarketCards").innerHTML.match(/class="premarket-card"/g) || []).length, 9);
   assert.match(elements.get("premarketCards").innerHTML, /CME日経|日経225/);
   assert.match(elements.get("premarketCards").innerHTML, /Nasdaq|ナスダック/);
+  assert.match(elements.get("premarketCards").innerHTML, /1週間の推移（直近5取引日）/);
   const premarketMarkup = elements.get("premarketCards").innerHTML;
   const premarketCardFor = (key) => {
     const match = premarketMarkup.match(new RegExp('<article class="premarket-card" data-key="' + key + '">[\\s\\S]*?</article>'));

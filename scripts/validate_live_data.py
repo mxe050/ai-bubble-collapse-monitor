@@ -1105,8 +1105,9 @@ def validate_quote(
     )
 
     spark = require_list(quote["sparkline"], f"{context}.sparkline")
-    require(1 <= len(spark) <= 96, f"{context}.sparkline must contain 1..96 points")
+    require(1 <= len(spark) <= 168, f"{context}.sparkline must contain 1..168 points")
     spark_by_time: dict[str, float] = {}
+    first_time: datetime | None = None
     previous_time: datetime | None = None
     for index, raw_point in enumerate(spark):
         point_context = f"{context}.sparkline[{index}]"
@@ -1115,6 +1116,8 @@ def validate_quote(
         point_time = parse_timestamp(
             point["timeUtc"], f"{point_context}.timeUtc", expected_offset=timedelta(0)
         )
+        if first_time is None:
+            first_time = point_time
         point_value = number(point["value"], f"{point_context}.value")
         require(point_value > 0, f"{point_context}.value must be positive")
         if previous_time is not None:
@@ -1122,6 +1125,11 @@ def validate_quote(
         previous_time = point_time
         require(point["timeUtc"] not in spark_by_time, f"{context}.sparkline has duplicate times")
         spark_by_time[point["timeUtc"]] = point_value
+    if first_time is not None and previous_time is not None and len(spark) >= 2:
+        require(
+            previous_time - first_time >= timedelta(hours=96),
+            f"{context}.sparkline must cover the latest trading week",
+        )
     require(
         same_instant(previous_time or quote_utc, quote_utc),
         f"{context}.sparkline must end at quoteTimeUtc",
