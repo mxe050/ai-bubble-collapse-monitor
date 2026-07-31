@@ -9791,8 +9791,20 @@ details > summary {
 .live-sparkline {
   width: 100%;
   height: 42px;
-  margin: 8px 0 6px;
+  display: block;
+  margin: 0;
   overflow: visible;
+}
+
+.premarket-sparkline {
+  margin: 8px 0 6px;
+}
+
+.premarket-sparkline small {
+  display: block;
+  margin-top: 2px;
+  color: var(--muted);
+  font-size: 0.7rem;
 }
 
 .live-sparkline polyline {
