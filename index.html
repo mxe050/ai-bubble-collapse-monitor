@@ -1102,7 +1102,7 @@
           <div class="section-heading compact-heading">
             <p class="section-kicker">NIKKEI 225 / PUBLIC CONTRIBUTION PROXY</p>
             <h3 id="nikkeiAiThreeSeriesHeading">日経平均からAI過熱候補の寄与を分ける</h3>
-            <p>日経平均の実績と、公開された日次ウエート・終値を使う2本の寄与ベースproxyを比較します。10年分を無理に補間せず、公開入力が連続する区間だけを共通起点＝100で示します。</p>
+            <p>日経平均の実額を10年表示し、公開された日次ウエート・終値が連続する区間だけを、同じ円単位に換算した2本の寄与ベースproxyとして重ねます。公開入力のない過去は日経平均の実績だけを表示します。</p>
           </div>
 
           <aside id="nikkeiAiComparisonNotice" class="nikkei-ai-notice" hidden aria-live="polite"></aside>
@@ -1114,8 +1114,8 @@
           <div class="chart-panel nikkei-ai-chart-panel">
             <div class="panel-heading nikkei-ai-chart-heading">
               <div>
-                <h4 id="nikkeiAiChartTitle">公開データによる日次寄与比較</h4>
-                <p id="nikkeiAiChartSubtitle">共通起点＝100・価格指数・配当なし</p>
+                <h4 id="nikkeiAiChartTitle">10年間の3系列比較</h4>
+                <p id="nikkeiAiChartSubtitle">日経平均の実額（円）・価格指数・配当なし</p>
               </div>
               <span id="nikkeiAiMethodBadge" class="source-chip">データ確認中</span>
             </div>
@@ -1128,6 +1128,17 @@
               <p>対象は本サイトの価格・寄与基準によるAI過熱候補であり、公式指数・投資助言・バブルの統計的認定ではありません。</p>
             </div>
           </div>
+
+          <section class="nikkei-ai-event-context" aria-labelledby="nikkeiAiEventHeading">
+            <div class="nikkei-ai-event-header">
+              <div>
+                <p class="section-kicker">MARKET CONTEXT / OFFICIAL SOURCES</p>
+                <h4 id="nikkeiAiEventHeading">10年間の主な出来事</h4>
+              </div>
+              <p id="nikkeiAiEventNote">日経平均の値動きを単一の出来事で説明するものではありません。背景確認のため、各項目から公式資料を直接開けます。</p>
+            </div>
+            <div id="nikkeiAiEventTimeline" class="nikkei-ai-event-timeline" aria-live="polite"></div>
+          </section>
 
           <p id="nikkeiAiTargetNames" class="nikkei-ai-targets">本サイトの価格・寄与基準によるAI過熱候補：確認中</p>
 
