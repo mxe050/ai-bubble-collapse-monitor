@@ -41,6 +41,8 @@ def validate() -> None:
     require(meta["synthetic_series_are_official"] is False, "proxy cannot be official")
     require(datetime.fromisoformat(meta["generated_at"]).tzinfo is not None, "generation time needs timezone")
     require(date.fromisoformat(meta["start_date"]) <= date.fromisoformat(meta["market_date"]) <= date.fromisoformat(meta["end_date"]), "market dates are invalid")
+    require(meta.get("nominal_chart_unit") == "JPY", "nominal chart must disclose JPY")
+    require("円建て" in str(meta.get("nominal_chart_description") or ""), "nominal chart method is not disclosed")
 
     actual = payload["actual_series"]
     display = payload["series"]
@@ -54,6 +56,13 @@ def validate() -> None:
         close, index = num(row["nikkei_close"]), num(row["nikkei_actual"])
         require(close is not None and index is not None and abs(index - 100 * close / base) <= .02, "actual path changed")
     require(display and display[0]["date"] == meta["display_start_date"] and display[-1]["date"] == meta["display_end_date"], "display dates are invalid")
+    events = payload.get("historical_events") or []
+    event_dates = [date.fromisoformat(row["date"]) for row in events]
+    require(len(events) >= 8, "historical event timeline is incomplete")
+    require(event_dates == sorted(event_dates) and len(event_dates) == len(set(event_dates)), "historical events must be chronological")
+    require(all(item <= date.fromisoformat(meta["market_date"]) for item in event_dates), "future historical event is invalid")
+    require(all(row.get("label") and row.get("short_label") and row.get("note") for row in events), "historical event text is incomplete")
+    require(all(str(row.get("source_url") or "").startswith("https://") for row in events), "historical event source must be HTTPS")
 
     candidates, selected, keeps = payload["candidates"], payload["selected_candidates"], payload["explicit_keep"]
     require(len(candidates) >= 9, "candidate universe should include existing 8 plus Kioxia")
@@ -89,6 +98,10 @@ def validate() -> None:
     if coverage < 90:
         require(summary["full_period_returns_visible"] is False, "partial data must not show 10-year proxy returns")
     require(all(str(row.get("url") or "").startswith("https://") for row in payload["sources"]), "sources must be HTTPS")
+    index_html = (ROOT / "index.html").read_text(encoding="utf-8")
+    app_js = (ROOT / "app.js").read_text(encoding="utf-8")
+    require("nikkeiAiEventTimeline" in index_html and "nikkeiAiEventNote" in index_html, "historical event UI is missing")
+    require("historical_events" in app_js and "日経平均（円）" in app_js, "nominal chart rendering is missing")
     require(not _has_non_finite(payload), "payload contains NaN or infinity")
 
 

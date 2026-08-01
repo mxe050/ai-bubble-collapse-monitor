@@ -48,6 +48,20 @@ FALLBACK_AI = {
 }
 EXTRA = {"285A": ("キオクシアホールディングス", "285A.T")}
 
+# Historical context is intentionally separate from the price/proxy calculation.
+# Each item links to a primary source so readers can inspect the original record.
+HISTORICAL_EVENTS = (
+    {"date": "2016-11-08", "short_label": "米大統領選", "label": "米大統領選（トランプ氏勝利）", "category": "米政権・政策", "note": "米国の財政・通商・金利見通しを市場が見直す転機。", "source_label": "米国国立公文書館・2016年選挙結果", "source_url": "https://www.archives.gov/electoral-college/2016"},
+    {"date": "2020-03-11", "short_label": "コロナ", "label": "WHOがCOVID-19をパンデミックと評価", "category": "世界経済", "note": "感染拡大が実体経済・金融市場に急速に波及した局面。", "source_label": "WHO・2020年3月11日会見", "source_url": "https://www.who.int/news-room/speeches/item/who-director-general-s-opening-remarks-at-the-media-briefing-on-covid-19---11-march-2020"},
+    {"date": "2022-02-24", "short_label": "ウクライナ", "label": "ロシアによるウクライナへの軍事侵攻", "category": "地政学・資源", "note": "資源価格、インフレ、金融引締めの見通しが焦点化した局面。", "source_label": "国連安全保障理事会・報道資料", "source_url": "https://press.un.org/en/2022/sc14803.doc.htm"},
+    {"date": "2022-11-30", "short_label": "ChatGPT", "label": "ChatGPTのresearch preview公開", "category": "生成AI", "note": "生成AIへの注目が企業投資・半導体需要の議論を広げた。", "source_label": "OpenAI・ChatGPT公開", "source_url": "https://openai.com/index/chatgpt/"},
+    {"date": "2024-01-01", "short_label": "能登半島地震", "label": "令和6年能登半島地震", "category": "国内災害", "note": "国内の災害リスクを再認識する出来事。", "source_label": "気象庁・令和6年能登半島地震", "source_url": "https://www.jma.go.jp/jma/menu/20240101_noto_jishin.html"},
+    {"date": "2024-03-19", "short_label": "日銀政策変更", "label": "日銀が金融政策枠組みを見直し", "category": "日本の金利", "note": "マイナス金利・YCCを含む金融政策の枠組みを見直した。", "source_label": "日本銀行・2024年3月19日公表文", "source_url": "https://www.boj.or.jp/en/mopo/mpmdeci/mpr_2024/k240319a.pdf"},
+    {"date": "2024-11-05", "short_label": "米大統領選", "label": "米大統領選（トランプ氏勝利）", "category": "米政権・政策", "note": "次期米政権の政策・通商見通しを市場が再評価する局面。", "source_label": "米国国立公文書館・2024年選挙結果", "source_url": "https://www.archives.gov/electoral-college/2024"},
+    {"date": "2025-01-20", "short_label": "トランプ政権", "label": "第2次トランプ政権が発足", "category": "米政権・政策", "note": "新政権の政策実行・対外経済方針を追う起点。", "source_label": "ホワイトハウス・就任演説", "source_url": "https://www.whitehouse.gov/remarks/2025/01/the-inaugural-address/"},
+    {"date": "2025-04-02", "short_label": "相互関税", "label": "米国が相互関税の大統領令を公表", "category": "通商政策", "note": "通商政策が世界の供給網・企業収益見通しに影響し得る局面。", "source_label": "ホワイトハウス・大統領令", "source_url": "https://www.whitehouse.gov/presidential-actions/2025/04/regulating-imports-with-a-reciprocal-tariff-to-rectify-trade-practices-that-contribute-to-large-and-persistent-annual-united-states-goods-trade-deficits/"},
+)
+
 
 class ConfigurationError(ValueError):
     pass
@@ -639,6 +653,7 @@ def build_payload(config: dict[str, Any], *, yahoo_rows: list[dict[str, Any]], o
     reconstructed = sum(item["quality"] == "reconstructed" for item in good)
     legacy = sum(item["quality"] == "legacy_reconstructed" for item in good)
     full_visible = bool(has_proxy and coverage >= 90 and display[0]["date"] == actual_series[0]["date"] and display[-1]["date"] == actual_series[-1]["date"])
+    historical_events = [dict(item) for item in HISTORICAL_EVENTS if item["date"] <= end.isoformat()]
     payload = {
         "meta": {
             "title": "日経平均からAI過熱候補の寄与を分ける",
@@ -646,6 +661,7 @@ def build_payload(config: dict[str, Any], *, yahoo_rows: list[dict[str, Any]], o
             "market_date": end.isoformat(), "start_date": actual[0]["date"].isoformat(), "end_date": end.isoformat(),
             "display_start_date": display[0]["date"], "display_end_date": display[-1]["date"],
             "base_value": 100, "calculation_frequency": "daily", "display_frequency": "weekly",
+            "nominal_chart_unit": "JPY", "nominal_chart_description": "日経平均の10年実績は円建て。2本のproxyは比較開始日の実額を基準に円換算し、利用可能な連続区間だけを表示する。",
             "dividends_included": False, "price_field": "Close（配当調整済みAdj Closeは使用しない。株式分割だけを機械調整として扱う）",
             "mode": config["mode"], "normalization_reference": "TOPIX", "synthetic_series_are_official": False,
             "method_label": "公開データによる日次寄与調整proxy" if status == "public-contribution-proxy" else "実績のみ / データ状態を確認",
@@ -689,6 +705,7 @@ def build_payload(config: dict[str, Any], *, yahoo_rows: list[dict[str, Any]], o
         },
         "selection_config": {"method_version": config["method_version"], "mode": config["mode"], "screen": config["screen"], "auto_use_screened_candidates": config["auto_use_screened_candidates"]},
         "candidates": screened, "selected_candidates": targets, "explicit_keep": config["explicit_keep"],
+        "historical_events": historical_events,
         "actual_series": actual_series, "series": display, "warnings": [warning],
         "sources": [
             {"label": "日経公式・Daily Summary", "url": "https://indexes.nikkei.co.jp/en/nkave/archives/summary", "used_for": "対象候補の公開日次ウエートと日次除数"},

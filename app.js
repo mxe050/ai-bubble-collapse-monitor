@@ -2215,14 +2215,47 @@
     var candidates = Array.isArray(payload.candidates) ? payload.candidates : [];
     var targets = Array.isArray(payload.selected_candidates) ? payload.selected_candidates : [];
     var keeps = Array.isArray(payload.explicit_keep) ? payload.explicit_keep : [];
-    var series = (Array.isArray(payload.series) ? payload.series : []).filter(function (row) { return row && row.date && finite(row.nikkei_actual) !== null; });
+    var actualSeries = (Array.isArray(payload.actual_series) ? payload.actual_series : []).filter(function (row) { return row && row.date && finite(row.nikkei_close) !== null; });
+    var series = (Array.isArray(payload.series) ? payload.series : []).filter(function (row) { return row && row.date && finite(row.nikkei_actual) !== null && finite(row.nikkei_close) !== null; });
+    var historicalEvents = (Array.isArray(payload.historical_events) ? payload.historical_events : []).filter(function (event) { return event && event.date && event.label; });
     var warnings = Array.isArray(payload.warnings) ? payload.warnings.filter(Boolean) : [];
     var sources = Array.isArray(payload.sources) ? payload.sources : [];
     var status = String(meta.comparison_status || quality.data_state || "");
     var hasProxy = status === "public-contribution-proxy" && series.some(function (row) { return finite(row.ai_overheat_normalized) !== null && finite(row.ai_overheat_excluded) !== null; });
     var coverage = finite(quality.coverage_pct), dayCounts = quality.day_counts || {};
-    var summaryNode = byId("nikkeiAiThreeSummary"), targetNode = byId("nikkeiAiTargetNames"), stockRows = byId("nikkeiAiStockRows"), qualityNode = byId("nikkeiAiQualityNotes"), badge = byId("nikkeiAiMethodBadge"), canvas = byId("nikkeiAiThreeSeriesChart"), notice = byId("nikkeiAiComparisonNotice"), title = byId("nikkeiAiChartTitle"), subtitle = byId("nikkeiAiChartSubtitle"), reading = byId("nikkeiAiReading");
+    var summaryNode = byId("nikkeiAiThreeSummary"), targetNode = byId("nikkeiAiTargetNames"), stockRows = byId("nikkeiAiStockRows"), qualityNode = byId("nikkeiAiQualityNotes"), badge = byId("nikkeiAiMethodBadge"), canvas = byId("nikkeiAiThreeSeriesChart"), notice = byId("nikkeiAiComparisonNotice"), title = byId("nikkeiAiChartTitle"), subtitle = byId("nikkeiAiChartSubtitle"), reading = byId("nikkeiAiReading"), eventTimeline = byId("nikkeiAiEventTimeline"), eventNote = byId("nikkeiAiEventNote");
     if (!summaryNode || !targetNode || !stockRows || !qualityNode) return;
+
+    var actualByDate = {};
+    (actualSeries.length ? actualSeries : series).forEach(function (row) {
+      actualByDate[row.date] = { date: row.date, nikkei_close: finite(row.nikkei_close) };
+    });
+    series.forEach(function (row) {
+      if (!actualByDate[row.date]) actualByDate[row.date] = { date: row.date, nikkei_close: finite(row.nikkei_close) };
+    });
+    var chartRows = Object.keys(actualByDate).sort().map(function (key) { return actualByDate[key]; }).filter(function (row) { return finite(row.nikkei_close) !== null; });
+    var fullStart = chartRows[0] || {};
+    var fullEnd = chartRows[chartRows.length - 1] || {};
+    var proxyBaseClose = finite(series[0] && series[0].nikkei_close);
+    function formatYen(value) {
+      var amount = finite(value);
+      return amount === null ? "未確認" : numberTwo.format(amount) + "円";
+    }
+    function rangeText(startDate, endDate) {
+      return startDate && endDate ? String(startDate) + "〜" + String(endDate) : "取得済み期間";
+    }
+    var eventAnchors = historicalEvents.map(function (event) {
+      var anchor = null;
+      for (var eventIndex = 0; eventIndex < chartRows.length; eventIndex += 1) {
+        if (chartRows[eventIndex].date >= String(event.date)) { anchor = chartRows[eventIndex]; break; }
+      }
+      return {
+        date: String(event.date), short_label: String(event.short_label || event.label), label: String(event.label),
+        category: String(event.category || "市場の背景"), note: String(event.note || ""),
+        source_label: String(event.source_label || "公式資料"), source_url: event.source_url || "",
+        chart_date: anchor ? anchor.date : "", chart_close: anchor ? finite(anchor.nikkei_close) : null,
+      };
+    }).filter(function (event) { return event.chart_date && event.chart_close !== null; });
 
     var stateLabel = status === "public-contribution-proxy" ? "公開データproxy"
       : status === "data-insufficient-exact-reconstruction-inputs" ? "完全再構成モード：データ不足"
@@ -2234,27 +2267,40 @@
         ? "<strong>" + escapeHtml(stateLabel) + "：寄与ベースの比較</strong><p>" + escapeHtml(meta.proxy_disclaimer || "合成系列は研究用proxyです。") + (coverage !== null && coverage < 90 ? " 10年全体の十分な連続カバレッジがないため、取得できた連続区間だけを表示しています。" : "") + "</p>"
         : "<strong>" + escapeHtml(stateLabel) + "</strong><p>" + escapeHtml(warnings[0] || "比較に必要な公開入力がそろっていません。") + " 欠損日はゼロ・補間・実績同値で埋めていません。</p>";
     }
-    if (title) title.textContent = hasProxy ? (coverage !== null && coverage < 90 ? "取得できた連続区間の3系列比較" : "3系列比較") : "日経平均の実績（10年）";
-    if (subtitle) subtitle.textContent = hasProxy ? "共通起点＝100・価格指数・配当なし。合成系列は公開データによる研究用proxy" : "共通起点＝100・価格指数・配当なし。比較に必要な公開入力は未充足";
-    if (canvas) canvas.setAttribute("aria-label", hasProxy ? "日経平均とAI過熱候補の寄与を調整した3系列比較" : "日経平均の10年実績系列");
+    if (title) title.textContent = hasProxy ? "10年間の3系列比較" : "日経平均の10年実額";
+    if (subtitle) subtitle.textContent = hasProxy
+      ? "日経平均の実額（円）・価格指数・配当なし / 2本のproxyは " + rangeText(meta.display_start_date, meta.display_end_date) + " のみを円換算表示"
+      : "日経平均の実額（円）・価格指数・配当なし";
+    if (canvas) canvas.setAttribute("aria-label", hasProxy ? "日経平均の10年実額と、公開データが連続する区間だけを円換算したAI過熱候補の3系列比較" : "日経平均の10年実額");
+
     if (reading) reading.innerHTML = hasProxy
-      ? "<p><strong>一般市場並みに置換：</strong>対象候補の日次騰落をTOPIXの日次騰落に置き換えた試算です。</p><p><strong>残存部分：</strong>対象候補の日次寄与を日経平均から外し、残りを比率で表した試算です。</p><p>対象は本サイトの価格・寄与基準によるAI過熱候補であり、公式指数・投資助言・バブルの統計的認定ではありません。</p>"
-      : "<p><strong>実績のみ：</strong>公開データでは10年全期間の構成・PAF/CPAF等がそろわないため、合成系列を作っていません。</p><p>欠損を埋めて見かけ上の比較線を作ることはしません。</p>";
+      ? "<p><strong>一般市場並みに置換：</strong>対象候補の日次騰落をTOPIXの日次騰落に置き換えた研究用proxyです。比較開始日の実額を基準に円換算しています。</p><p><strong>残存部分：</strong>対象候補の日次寄与を外して残りを比率で表した研究用proxyです。公開入力がない過去へ延長していません。</p><p><strong>出来事の注記：</strong>各出来事は背景確認用であり、日経平均の変動を単一要因で説明するものではありません。カードから公式資料を直接確認できます。</p>"
+      : "<p><strong>日経平均の実額：</strong>公開データで確認できる10年の価格水準を円建てで表示します。比較に必要な公開入力がそろわないため、2本のproxyは描きません。</p><p>原因を後付けで単一化せず、公式資料と実績を分けて確認します。</p>";
 
     var cards = hasProxy ? [
-      ["日経平均・実績", formatPercent(summary.comparison_actual_return_pct, true), (meta.display_start_date || "開始日") + " → " + (meta.display_end_date || "終了日")],
-      ["一般市場並みに置換", formatPercent(summary.normalized_return_pct, true), "TOPIXの日次騰落で置換したproxy"],
-      ["候補を除いた残存部分", formatPercent(summary.excluded_return_pct, true), "日次寄与を外したproxy"],
-      ["対象候補の合計ウエート", formatPercent(summary.current_combined_weight_pct, false), "直近日。最大 " + formatPercent(summary.peak_combined_weight_pct, false)],
-      ["公開データのカバレッジ", coverage === null ? "―" : numberOne.format(coverage) + "%", "exact " + numberOne.format(finite(dayCounts.exact) || 0) + "日 / missing " + numberOne.format(finite(dayCounts.missing) || 0) + "日"]
+      ["日経平均・10年実績", formatYen(fullEnd.nikkei_close), (fullStart.date || "開始日") + "の" + formatYen(fullStart.nikkei_close) + "から " + formatPercent(summary.actual_full_period_return_pct, true)],
+      ["比較区間の日経平均", formatPercent(summary.comparison_actual_return_pct, true), formatYen(proxyBaseClose) + " → " + formatYen(series[series.length - 1] && series[series.length - 1].nikkei_close) + " / " + rangeText(meta.display_start_date, meta.display_end_date)],
+      ["一般市場並みに置換", formatPercent(summary.normalized_return_pct, true), "比較開始日の実額を基準に円換算したproxy"],
+      ["AI過熱候補を除いた残存部分", formatPercent(summary.excluded_return_pct, true), "比較開始日の実額を基準に円換算したproxy"],
+      ["proxyの公開データ範囲", coverage === null ? "—" : numberOne.format(coverage) + "%", "exact " + numberOne.format(finite(dayCounts.exact) || 0) + "日 / missing " + numberOne.format(finite(dayCounts.missing) || 0) + "日"]
     ] : [
-      ["日経平均・10年騰落率", formatPercent(summary.actual_full_period_return_pct, true), "公式月次CSVとのクロスチェック済み"],
+      ["日経平均・10年実績", formatYen(fullEnd.nikkei_close), (fullStart.date || "開始日") + "の" + formatYen(fullStart.nikkei_close) + "から " + formatPercent(summary.actual_full_period_return_pct, true)],
       ["候補ユニバース", numberOne.format(finite(summary.candidate_count) || 0) + "銘柄", "スクリーニング対象"],
-      ["比較に選ばれた候補", numberOne.format(finite(summary.selected_candidate_count) || 0) + "銘柄", "3条件以上で暫定選定"],
-      ["公開データのカバレッジ", coverage === null ? "―" : numberOne.format(coverage) + "%", "90%未満では10年proxyを表示しない"],
-      ["欠損日の扱い", "補間なし", "実績同値・ゼロ埋めもしない"]
+      ["比較に選ばれた候補", numberOne.format(finite(summary.selected_candidate_count) || 0) + "銘柄", "3項目以上で暫定選定"],
+      ["proxyの公開データ範囲", coverage === null ? "—" : numberOne.format(coverage) + "%", "90%未満では10年proxyを表示しない"],
+      ["原因の扱い", "単一化しない", "実績・公式資料・仮説を分けて確認"]
     ];
     summaryNode.innerHTML = cards.map(function (card) { return '<article class="nikkei-ai-summary-card"><span>' + escapeHtml(card[0]) + "</span><strong>" + escapeHtml(card[1]) + "</strong><small>" + escapeHtml(card[2]) + "</small></article>"; }).join("");
+    function eventSourceMarkup(event) {
+      var href = safeHttpsUrl(event.source_url);
+      return href ? '<a href="' + escapeHtml(href) + '" target="_blank" rel="noopener noreferrer">' + escapeHtml(event.source_label) + "</a>" : "<span>公式資料（リンク未確認）</span>";
+    }
+    if (eventTimeline) {
+      eventTimeline.innerHTML = eventAnchors.length ? eventAnchors.map(function (event) {
+        return '<article class="nikkei-ai-event-card"><div class="nikkei-ai-event-meta"><time datetime="' + escapeHtml(event.date) + '">' + escapeHtml(event.date) + '</time><span class="nikkei-ai-event-category">' + escapeHtml(event.category) + '</span></div><h5>' + escapeHtml(event.label) + '</h5><p>' + escapeHtml(event.note) + '</p>' + eventSourceMarkup(event) + '</article>';
+      }).join("") : '<p class="nikkei-ai-event-empty">公式ソース付きの出来事データを確認中です。</p>';
+    }
+    if (eventNote) eventNote.textContent = "日経平均の値動きを単一の出来事で説明するものではありません。背景確認のため、各項目から公式資料を直接開けます。";
     targetNode.innerHTML = targets.length ? "<strong>本サイトの価格・寄与基準によるAI過熱候補：</strong>" + targets.map(function (item) { return escapeHtml((item.name || "名称未取得") + "（" + (item.code || "コード未取得") + "、" + (item.status === "manual_include" ? "手動追加" : "自動暫定選定") + "）"); }).join("、") : "<strong>本サイトの価格・寄与基準によるAI過熱候補：</strong>今回の公開データと設定では、3条件以上を満たす候補はありません。";
 
     function screenCell(item) {
@@ -2276,6 +2322,9 @@
     ];
     if (meta.market_date) notes.unshift("<p><strong>最終市場日：</strong>" + escapeHtml(meta.market_date) + "</p>");
     if (quality.membership_handling) notes.push("<p><strong>採用・除外日の扱い：</strong>" + escapeHtml(quality.membership_handling) + "</p>");
+    if (finite(summary.current_combined_weight_pct) !== null || finite(summary.peak_combined_weight_pct) !== null) {
+      notes.push("<p><strong>対象候補合計ウエート：</strong>現在 " + escapeHtml(formatPercent(summary.current_combined_weight_pct, false)) + "、比較期間の最大 " + escapeHtml(formatPercent(summary.peak_combined_weight_pct, false)) + "。この値はproxyの対象範囲を示すもので、公式指数の構成比ではありません。</p>");
+    }
     var priceAudits = Array.isArray(quality.candidate_price_audit) ? quality.candidate_price_audit : [];
     var splitEventCount = priceAudits.reduce(function (total, item) { return total + (Array.isArray(item.split_events) ? item.split_events.length : 0); }, 0);
     if (priceAudits.length) notes.push("<p><strong>株式分割の確認：</strong>候補銘柄の分割イベントを " + escapeHtml(numberOne.format(splitEventCount)) + " 件取得。配当込みAdj Closeは使いません。</p>");
@@ -2289,15 +2338,124 @@
     qualityNode.innerHTML = notes.join("");
 
     if (state.nikkeiAiThreeSeriesChart) { state.nikkeiAiThreeSeriesChart.destroy(); state.nikkeiAiThreeSeriesChart = null; }
-    if (typeof Chart === "undefined" || !canvas || !series.length) return;
-    var labels = series.map(function (item) { return item.date; });
-    var datasets = [{ label: "日経平均・実績", data: series.map(function (item) { return finite(item.nikkei_actual); }), borderColor: "#1b4d6f", backgroundColor: "rgba(27,77,111,.08)", borderWidth: 2.8, pointRadius: 0, tension: .12 }];
-    if (hasProxy) {
-      datasets.push({ label: "AI過熱寄与を一般市場並みに置換", data: series.map(function (item) { return finite(item.ai_overheat_normalized); }), borderColor: "#11836f", borderWidth: 2.4, borderDash: [7, 4], pointRadius: 0, tension: .12 });
-      datasets.push({ label: "AI過熱候補を除いた残存部分", data: series.map(function (item) { return finite(item.ai_overheat_excluded); }), borderColor: "#b64a3b", borderWidth: 2.2, borderDash: [2, 4], pointRadius: 0, tension: .12 });
+    if (typeof Chart === "undefined" || !canvas || !chartRows.length) return;
+
+    var labels = chartRows.map(function (row) { return row.date; });
+    var proxyByDate = {};
+    series.forEach(function (row) { proxyByDate[row.date] = row; });
+    var eventsByChartDate = {};
+    eventAnchors.forEach(function (event) {
+      event.chart_index = labels.indexOf(event.chart_date);
+      if (!eventsByChartDate[event.chart_date]) eventsByChartDate[event.chart_date] = [];
+      eventsByChartDate[event.chart_date].push(event);
+    });
+    function nominalProxyValue(row, field) {
+      var proxyRow = proxyByDate[row.date] || {};
+      var indexValue = finite(proxyRow[field]);
+      return proxyBaseClose === null || indexValue === null ? null : proxyBaseClose * indexValue / 100;
     }
+    var datasets = [{
+      label: "日経平均・実績（円）",
+      data: chartRows.map(function (row) { return finite(row.nikkei_close); }),
+      borderColor: "#1b4d6f", backgroundColor: "rgba(27,77,111,.08)", borderWidth: 2.8, pointRadius: 0, tension: .12, spanGaps: false,
+    }];
+    if (hasProxy && proxyBaseClose !== null) {
+      datasets.push({
+        label: "AI過熱寄与を一般市場並みに置換（円換算）",
+        data: chartRows.map(function (row) { return nominalProxyValue(row, "ai_overheat_normalized"); }),
+        borderColor: "#11836f", borderWidth: 2.4, borderDash: [7, 4], pointRadius: 0, tension: .12, spanGaps: false,
+      });
+      datasets.push({
+        label: "AI過熱候補を除いた残存部分（円換算）",
+        data: chartRows.map(function (row) { return nominalProxyValue(row, "ai_overheat_excluded"); }),
+        borderColor: "#b64a3b", borderWidth: 2.2, borderDash: [2, 4], pointRadius: 0, tension: .12, spanGaps: false,
+      });
+    }
+    var historicalEventPlugin = {
+      id: "nikkeiAiHistoricalEvents",
+      afterDatasetsDraw: function (chartInstance) {
+        var options = chartInstance.options.plugins && chartInstance.options.plugins.nikkeiAiHistoricalEvents;
+        var events = options && Array.isArray(options.events) ? options.events : [];
+        var xScale = chartInstance.scales.x, yScale = chartInstance.scales.y, area = chartInstance.chartArea;
+        if (!events.length || !xScale || !yScale || !area) return;
+        var context = chartInstance.ctx, showLabels = !!options.showLabels;
+        context.save();
+        events.forEach(function (event, index) {
+          if (!Number.isFinite(event.chart_index) || event.chart_index < 0) return;
+          var x = xScale.getPixelForValue(event.chart_index);
+          var y = yScale.getPixelForValue(event.chart_close);
+          if (!Number.isFinite(x) || !Number.isFinite(y)) return;
+          context.strokeStyle = "rgba(33, 104, 121, .32)";
+          context.lineWidth = 1;
+          context.setLineDash([3, 4]);
+          context.beginPath(); context.moveTo(x, area.top); context.lineTo(x, area.bottom); context.stroke();
+          context.setLineDash([]);
+          context.fillStyle = "#f0a338";
+          context.strokeStyle = "#ffffff";
+          context.lineWidth = 1.5;
+          context.beginPath(); context.arc(x, y, 3.5, 0, Math.PI * 2); context.fill(); context.stroke();
+          if (showLabels) {
+            var label = String(event.short_label || event.label);
+            context.font = "600 10px system-ui, sans-serif";
+            var width = context.measureText(label).width;
+            var labelX = Math.max(area.left + 2, Math.min(x + 4, area.right - width - 2));
+            var labelY = area.top + 13 + (index % 3) * 13;
+            context.fillStyle = "#4e6875";
+            context.fillText(label, labelX, labelY);
+          }
+        });
+        context.restore();
+      },
+    };
     state.nikkeiAiThreeSeriesChart = new Chart(canvas, {
-      type: "line", data: { labels: labels, datasets: datasets }, options: { responsive: true, maintainAspectRatio: false, interaction: { mode: "index", intersect: false }, plugins: { legend: { position: "bottom", labels: { color: chartTextColor(), boxWidth: 18, usePointStyle: true } }, tooltip: { callbacks: { title: function (items) { return items[0] ? items[0].label : ""; }, afterBody: function (items) { var row = series[items[0] && Number.isFinite(items[0].dataIndex) ? items[0].dataIndex : series.length - 1] || {}, output = []; if (finite(row.nikkei_close) !== null) output.push("日経平均終値 " + numberTwo.format(row.nikkei_close) + "円"); if (row.quality) output.push("品質 " + row.quality); if (finite(row.combined_weight_pct) !== null) output.push("対象合計ウエート " + numberOne.format(row.combined_weight_pct) + "%"); return output; } } } }, scales: { x: { grid: { display: false }, ticks: { color: chartTextColor(), maxTicksLimit: window.matchMedia && window.matchMedia("(max-width: 700px)").matches ? 6 : 12, maxRotation: 0, callback: function (_value, index) { return String(labels[index] || "").slice(0, 7).replace("-", "/"); } } }, y: { grid: { color: "rgba(100,115,134,.15)" }, ticks: { color: chartTextColor(), callback: function (value) { return numberOne.format(value); } }, title: { display: true, text: "開始日＝100", color: chartTextColor() } } } }
+      type: "line",
+      data: { labels: labels, datasets: datasets },
+      plugins: eventAnchors.length ? [historicalEventPlugin] : [],
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        interaction: { mode: "index", intersect: false },
+        plugins: {
+          legend: { position: "bottom", labels: { color: chartTextColor(), boxWidth: 18, usePointStyle: true } },
+          nikkeiAiHistoricalEvents: { events: eventAnchors, showLabels: !(window.matchMedia && window.matchMedia("(max-width: 700px)").matches) },
+          tooltip: {
+            callbacks: {
+              title: function (items) { return items[0] ? items[0].label : ""; },
+              label: function (context) {
+                var value = finite(context.parsed && context.parsed.y);
+                return context.dataset.label + " " + (value === null ? "未確認" : formatYen(value));
+              },
+              afterBody: function (items) {
+                var index = items[0] && Number.isFinite(items[0].dataIndex) ? items[0].dataIndex : chartRows.length - 1;
+                var row = chartRows[index] || {};
+                var proxyRow = proxyByDate[row.date] || {};
+                var lines = [];
+                if (finite(row.nikkei_close) !== null) lines.push("日経平均終値 " + formatYen(row.nikkei_close));
+                if (proxyRow.quality) lines.push("proxy品質 " + proxyRow.quality);
+                if (finite(proxyRow.combined_weight_pct) !== null) lines.push("対象合計ウエート " + numberOne.format(proxyRow.combined_weight_pct) + "%");
+                (eventsByChartDate[row.date] || []).forEach(function (event) { lines.push("出来事: " + event.label); });
+                return lines;
+              },
+            },
+          },
+        },
+        scales: {
+          x: {
+            grid: { display: false },
+            ticks: {
+              color: chartTextColor(),
+              maxTicksLimit: window.matchMedia && window.matchMedia("(max-width: 700px)").matches ? 6 : 12,
+              maxRotation: 0,
+              callback: function (_value, index) { return String(labels[index] || "").slice(0, 7).replace("-", "/"); },
+            },
+          },
+          y: {
+            grid: { color: "rgba(100,115,134,.15)" },
+            ticks: { color: chartTextColor(), callback: function (value) { return numberOne.format(value) + "円"; } },
+            title: { display: true, text: "日経平均（円）", color: chartTextColor() },
+          },
+        },
+      },
     });
   }
 

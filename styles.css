@@ -11243,6 +11243,94 @@ main .band .label { font-size: 0.76rem; line-height: 1.45; }
 
 .nikkei-ai-reading strong { color: #1e5669; }
 
+.nikkei-ai-event-context {
+  margin-top: 16px;
+  padding: 20px;
+  border: 1px solid #c8d9df;
+  background: #f4f8fa;
+}
+
+.nikkei-ai-event-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 22px;
+  align-items: flex-end;
+}
+
+.nikkei-ai-event-header h4 { margin: 3px 0 0; }
+
+.nikkei-ai-event-header > p {
+  max-width: 520px;
+  margin: 0;
+  color: #5c717b;
+  font-size: .8rem;
+  line-height: 1.62;
+}
+
+.nikkei-ai-event-timeline {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.nikkei-ai-event-card {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+  padding: 13px 14px 14px;
+  border-left: 4px solid #168177;
+  background: #ffffff;
+}
+
+.nikkei-ai-event-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 9px;
+  align-items: baseline;
+}
+
+.nikkei-ai-event-card time {
+  color: #1f6676;
+  font-size: .74rem;
+  font-weight: 900;
+  letter-spacing: .035em;
+}
+
+.nikkei-ai-event-category {
+  color: #66808b;
+  font-size: .7rem;
+  font-weight: 800;
+}
+
+.nikkei-ai-event-card h5 {
+  margin: 0;
+  color: #1b4253;
+  font-size: .88rem;
+  line-height: 1.42;
+}
+
+.nikkei-ai-event-card p {
+  margin: 0;
+  color: #5e737d;
+  font-size: .76rem;
+  line-height: 1.55;
+}
+
+.nikkei-ai-event-card a {
+  color: #0a607d;
+  font-size: .74rem;
+  font-weight: 900;
+  overflow-wrap: anywhere;
+}
+
+.nikkei-ai-event-empty {
+  grid-column: 1 / -1;
+  margin: 0;
+  color: #5c717b;
+  font-size: .82rem;
+}
+
 .nikkei-ai-targets {
   margin: 14px 0;
   padding: 12px 14px;
@@ -11329,6 +11417,7 @@ main .band .label { font-size: 0.76rem; line-height: 1.45; }
 @media (max-width: 1100px) {
   .nikkei-ai-summary-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .nikkei-ai-reading { grid-template-columns: 1fr; }
+  .nikkei-ai-event-timeline { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
 @media (max-width: 700px) {
@@ -11344,6 +11433,10 @@ main .band .label { font-size: 0.76rem; line-height: 1.45; }
   .nikkei-ai-chart-heading { display: grid; grid-template-columns: 1fr; }
   #nikkeiAiMethodBadge { max-width: none; text-align: left; }
   .nikkei-ai-chart-frame { height: clamp(300px, 88vw, 400px); }
+  .nikkei-ai-event-context { padding: 15px 12px; }
+  .nikkei-ai-event-header { display: grid; gap: 8px; }
+  .nikkei-ai-event-timeline { grid-template-columns: 1fr; gap: 8px; }
+  .nikkei-ai-event-card { padding: 12px; }
   .nikkei-ai-reading p { padding: 11px 12px; }
   .nikkei-ai-targets { padding: 11px 12px; }
   .nikkei-ai-details > summary { padding: 13px 12px; }

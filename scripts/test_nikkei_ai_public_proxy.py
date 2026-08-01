@@ -98,6 +98,11 @@ def test_screen_and_proxy() -> None:
     require(result["quality"]["day_counts"]["exact"] > 0, "exact daily weight days are missing")
     require(len(result["quality"]["candidate_price_audit"]) == 3, "candidate price audit is missing")
     require("採用・除外" in result["quality"]["membership_handling"], "membership handling disclosure is missing")
+    events = result["historical_events"]
+    require(len(events) >= 8 and events[0]["date"] == "2016-11-08", "historical event timeline is missing")
+    require([item["date"] for item in events] == sorted(item["date"] for item in events), "historical events must be chronological")
+    require(all(item["source_url"].startswith("https://") for item in events), "historical event source must be HTTPS")
+    require(result["meta"]["nominal_chart_unit"] == "JPY", "nominal chart unit is missing")
     require(proxy.json_is_finite(result), "payload contains NaN or infinity")
 
 
