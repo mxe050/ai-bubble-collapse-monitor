@@ -3,10 +3,10 @@
 
 The current repository does not contain the historical Nikkei constituent,
 price-adjustment-factor, divisor, and peer-price inputs required to calculate
-a non-official exclusion index honestly.  The generator therefore fails closed:
-with no user-specified targets the three lines are identical to the Nikkei
-actual series; once targets are configured, synthetic lines remain null until
-the required historical input package is connected.
+a non-official exclusion index honestly. The generator therefore fails closed:
+until both user-specified targets and the required historical input package are
+available, synthetic series remain null. This prevents the page from presenting
+an uncomputed counterfactual as if it were a three-series comparison.
 """
 
 from __future__ import annotations
@@ -344,16 +344,12 @@ def build_payload(
         display_rows.insert(0, ordered[0])
     for row in display_rows:
         actual = 100.0 * row["close"] / base_close
-        if targets_configured:
-            normalized = None
-            excluded = None
-            actual_minus_normalized = None
-            normalized_minus_excluded = None
-        else:
-            normalized = actual
-            excluded = actual
-            actual_minus_normalized = 0.0
-            normalized_minus_excluded = 0.0
+        # Do not manufacture an adjustment path. A null means the required
+        # counterfactual inputs are not available, not that its effect is zero.
+        normalized = None
+        excluded = None
+        actual_minus_normalized = None
+        normalized_minus_excluded = None
         chart_rows.append({
             "date": row["date"].isoformat(),
             "nikkei_actual": round(actual, 6),
@@ -387,26 +383,27 @@ def build_payload(
         if chart_rows[-1]["ai_overheat_excluded"] is not None
         else None
     )
-    warnings = [
-        "AIバブル疑義銘柄が未設定です。AI関連という理由だけでは自動的に除外していません。"
-    ]
     missing_items = [
         "時点別の日経平均構成銘柄",
         "時点別の価格調整係数（PAF）・除数",
         "対象銘柄ごとの日次価格と同業比較群",
     ]
     if targets_configured:
-        warnings.append(
+        warnings = [
             "ユーザー指定対象はありますが、歴史的構成・PAF・日次比較群が未接続のため、"
-            "標準化・除外試算は未確認として表示します。"
-        )
-        method_label = "公開データによる近似proxy（合成系列は未確認）"
+            "標準化・除外試算は計算していません。"
+        ]
+        method_label = "対象設定済み・必要な履歴データ未接続のため比較未算出"
+        comparison_status = "comparison-uncomputed-missing-historical-inputs"
     else:
-        warnings.extend([
-            "対象未設定のため、標準化試算・除外試算は実績と同値です。",
+        missing_items.insert(0, "ユーザー指定のAIバブル疑義銘柄")
+        warnings = [
+            "AIバブル疑義銘柄が未設定です。AI関連という理由だけでは自動的に除外していません。",
+            "対象未設定のため、標準化試算・除外試算は計算していません。実績と同値の線を重ねて比較済みのように表示しません。",
             "歴史的構成銘柄・PAF・除数を取得できないため、対象を追加しても不足データのまま合成系列を作りません。",
-        ])
-        method_label = "対象銘柄未設定のため、比較試算は日経平均実績と同値"
+        ]
+        method_label = "対象銘柄未設定のため、反実仮想の比較は未算出"
+        comparison_status = "actual-only-comparison-uncomputed-no-targets"
     payload = {
         "meta": {
             "title": "日経平均・AI過熱寄与標準化・AI過熱銘柄除外の10年比較",
@@ -424,6 +421,7 @@ def build_payload(
             "exclusion_mode": config["exclusion_mode"],
             "synthetic_series_are_official": False,
             "method_label": method_label,
+            "comparison_status": comparison_status,
             "official_daily_available_from": min(official_daily_map).isoformat(),
             "official_monthly_available_from": min(official_monthly_map).isoformat(),
         },
@@ -455,7 +453,7 @@ def build_payload(
             "survivorship_bias": False,
             "missing_items": missing_items,
             "monthly_crosscheck": monthly_quality,
-            "data_state": "actual-only-no-targets" if not targets_configured else "synthetic-inputs-incomplete",
+            "data_state": comparison_status,
         },
         "bubble_suspect": targets,
         "explicit_keep": config["explicit_keep"],

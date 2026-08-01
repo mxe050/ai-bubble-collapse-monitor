@@ -28,6 +28,21 @@ from typing import Any, Iterable
 from zoneinfo import ZoneInfo
 
 from margin_debt import FINRA_PAGE_URL, write_margin_debt_history
+from china_market_data import (
+    CSI300_EASTMONEY_PUBLIC_URL,
+    CSI300_EASTMONEY_SOURCE_LABEL,
+    csi300_daily_url,
+    csi300_day_is_final,
+    csi300_freshness,
+    parse_csi300_daily_payload,
+)
+
+from tencent_csi300 import (
+    TENCENT_CSI300_PUBLIC_URL,
+    TENCENT_CSI300_SOURCE_LABEL,
+    parse_tencent_csi300_daily_payload,
+    tencent_csi300_daily_url,
+)
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -1287,6 +1302,228 @@ def fetch_price_series(symbol: str) -> dict[str, Any]:
         "sourceUrl": f"https://finance.yahoo.com/quote/{urllib.parse.quote(symbol)}",
     }
 
+
+
+
+
+def fetch_csi300_eastmoney_series() -> dict[str, Any]:
+    """Fetch a published CSI 300 five-year day-end series from the fallback."""
+
+    local_today = NOW.astimezone(ZoneInfo("Asia/Shanghai")).date()
+    start_day = local_today - timedelta(days=5 * 366 + 14)
+    retrieval_url = csi300_daily_url(start_day, local_today + timedelta(days=1))
+    retrieval_url = retrieval_url.replace("%2C", ",")
+    rows = parse_csi300_daily_payload(request(
+        retrieval_url,
+        extra_headers={
+            "Referer": "https://quote.eastmoney.com/",
+            "User-Agent": "Mozilla/5.0 (compatible; AI-bubble-monitor/1.0)",
+        },
+    ))
+    excluded = [
+        row["date"]
+        for row in rows
+        if not csi300_day_is_final(date.fromisoformat(row["date"]), NOW)
+    ]
+    points = [
+        {
+            "date": row["date"],
+            "close": row["close"],
+            "high": row["high"],
+            "low": row["low"],
+        }
+        for row in rows
+        if csi300_day_is_final(date.fromisoformat(row["date"]), NOW)
+    ]
+    if len(points) < 210:
+        raise RuntimeError("Eastmoney CSI 300 history is shorter than 210 completed sessions")
+
+    values = [row["close"] for row in points]
+    sma50 = moving_average(values, 50)
+    sma200 = moving_average(values, 200)
+    last = values[-1]
+    three_year = points[-756:] if len(points) >= 756 else points
+    peak_row = max(three_year, key=lambda row: row["close"])
+    rows_2026 = [row for row in points if row["date"] >= "2026-01-01"]
+    peak_2026_row = max(rows_2026, key=lambda row: row["high"]) if rows_2026 else None
+    low_2026_row = min(rows_2026, key=lambda row: row["low"]) if rows_2026 else None
+    below_days = 0
+    for value, average in reversed(list(zip(values, sma200))):
+        if average is not None and value < average:
+            below_days += 1
+        else:
+            break
+    prior_sma50 = sma50[-21] if len(sma50) >= 21 else None
+    recent_120 = points[-120:]
+    low_120_index, low_120_row = min(
+        enumerate(recent_120), key=lambda item: item[1]["close"]
+    )
+    freshness = csi300_freshness(date.fromisoformat(points[-1]["date"]), NOW)
+    return {
+        "symbol": "000300.SS",
+        "dailyCloseStatus": "completed-session-close",
+        "excludedUnfinishedSessionDates": sorted(set(excluded)),
+        **completed_close_metadata("000300.SS"),
+        "date": points[-1]["date"],
+        "close": last,
+        "change1dPct": pct_change(last, values[-2]) if len(values) > 1 else None,
+        "change5dPct": pct_change(last, values[-6]) if len(values) > 5 else None,
+        "change20dPct": pct_change(last, values[-21]) if len(values) > 20 else None,
+        "change60dPct": pct_change(last, values[-61]) if len(values) > 60 else None,
+        "peak3y": peak_row["close"],
+        "peak3yDate": peak_row["date"],
+        "drawdown3yPct": (1.0 - last / peak_row["close"]) * 100.0,
+        "peak2026": peak_2026_row["high"] if peak_2026_row else None,
+        "peak2026Date": peak_2026_row["date"] if peak_2026_row else None,
+        "drawdownFrom2026HighPct": (
+            (1.0 - last / peak_2026_row["high"]) * 100.0
+            if peak_2026_row else None
+        ),
+        "low2026": low_2026_row["low"] if low_2026_row else None,
+        "low2026Date": low_2026_row["date"] if low_2026_row else None,
+        "riseFrom2026LowToHighPct": (
+            pct_change(peak_2026_row["high"], low_2026_row["low"])
+            if peak_2026_row and low_2026_row else None
+        ),
+        "trailingDividendPerShare": 0.0,
+        "trailingDividendYieldPct": 0.0,
+        "sma200": sma200[-1],
+        "belowSma200": bool(sma200[-1] is not None and last < sma200[-1]),
+        "weeksBelowSma200": below_days / 5.0,
+        "sma50": sma50[-1],
+        "aboveSma50": bool(sma50[-1] is not None and last > sma50[-1]),
+        "sma50Slope20dPct": pct_change(sma50[-1], prior_sma50),
+        "low120d": low_120_row["close"],
+        "low120dDate": low_120_row["date"],
+        "tradingDaysSince120dLow": len(recent_120) - 1 - low_120_index,
+        "reboundFrom120dLowPct": pct_change(last, low_120_row["close"]),
+        "history": points,
+        "sourceUrl": CSI300_EASTMONEY_PUBLIC_URL,
+        "sourceName": CSI300_EASTMONEY_SOURCE_LABEL,
+        "sourceRetrievalUrl": retrieval_url,
+        "sourceNote": (
+            "Yahoo Financeの日足が直近平日より遅れた場合に使用するEastmoneyの公開CSI 300日足。"
+            "指数会社の公式値との最終照合が必要な場面では中国証券指数の公表資料も確認する。"
+        ),
+        **freshness,
+    }
+
+
+def fetch_csi300_tencent_series(yahoo_history: list[dict[str, Any]]) -> dict[str, Any]:
+    """Combine retained history with Tencent's latest published CSI 300 closes."""
+
+    retrieval_url = tencent_csi300_daily_url()
+    rows = parse_tencent_csi300_daily_payload(request(
+        retrieval_url,
+        extra_headers={
+            "Referer": "https://gu.qq.com/",
+            "User-Agent": "Mozilla/5.0 (compatible; AI-bubble-monitor/1.0)",
+        },
+    ))
+    completed = [
+        row for row in rows
+        if csi300_day_is_final(date.fromisoformat(row["date"]), NOW)
+    ]
+    if len(completed) < 210:
+        raise RuntimeError("Tencent CSI 300 history is shorter than 210 completed sessions")
+
+    points_by_date: dict[str, dict[str, Any]] = {}
+    for row in yahoo_history:
+        row_date = row.get("date")
+        close = finite(row.get("close"))
+        high = finite(row.get("high"))
+        low = finite(row.get("low"))
+        if (
+            isinstance(row_date, str)
+            and close is not None
+            and high is not None
+            and low is not None
+            and min(close, high, low) > 0
+            and high >= low
+        ):
+            points_by_date[row_date] = {
+                "date": row_date, "close": close, "high": high, "low": low,
+            }
+    for row in completed:
+        points_by_date[row["date"]] = {
+            "date": row["date"],
+            "close": row["close"],
+            "high": row["high"],
+            "low": row["low"],
+        }
+    points = [points_by_date[key] for key in sorted(points_by_date)]
+    if len(points) < 210:
+        raise RuntimeError("Merged CSI 300 history is shorter than 210 sessions")
+
+    values = [row["close"] for row in points]
+    sma50 = moving_average(values, 50)
+    sma200 = moving_average(values, 200)
+    last = values[-1]
+    three_year = points[-756:] if len(points) >= 756 else points
+    peak_row = max(three_year, key=lambda row: row["close"])
+    rows_2026 = [row for row in points if row["date"] >= "2026-01-01"]
+    peak_2026_row = max(rows_2026, key=lambda row: row["high"]) if rows_2026 else None
+    low_2026_row = min(rows_2026, key=lambda row: row["low"]) if rows_2026 else None
+    below_days = 0
+    for value, average in reversed(list(zip(values, sma200))):
+        if average is not None and value < average:
+            below_days += 1
+        else:
+            break
+    recent_120 = points[-120:]
+    low_120_index, low_120_row = min(
+        enumerate(recent_120), key=lambda item: item[1]["close"]
+    )
+    prior_sma50 = sma50[-21] if len(sma50) >= 21 else None
+    freshness = csi300_freshness(date.fromisoformat(points[-1]["date"]), NOW)
+    return {
+        "symbol": "000300.SS",
+        "dailyCloseStatus": "completed-session-close",
+        "excludedUnfinishedSessionDates": [],
+        **completed_close_metadata("000300.SS"),
+        "date": points[-1]["date"],
+        "close": last,
+        "change1dPct": pct_change(last, values[-2]) if len(values) > 1 else None,
+        "change5dPct": pct_change(last, values[-6]) if len(values) > 5 else None,
+        "change20dPct": pct_change(last, values[-21]) if len(values) > 20 else None,
+        "change60dPct": pct_change(last, values[-61]) if len(values) > 60 else None,
+        "peak3y": peak_row["close"],
+        "peak3yDate": peak_row["date"],
+        "drawdown3yPct": (1.0 - last / peak_row["close"]) * 100.0,
+        "peak2026": peak_2026_row["high"] if peak_2026_row else None,
+        "peak2026Date": peak_2026_row["date"] if peak_2026_row else None,
+        "drawdownFrom2026HighPct": (
+            (1.0 - last / peak_2026_row["high"]) * 100.0
+            if peak_2026_row else None
+        ),
+        "low2026": low_2026_row["low"] if low_2026_row else None,
+        "low2026Date": low_2026_row["date"] if low_2026_row else None,
+        "riseFrom2026LowToHighPct": (
+            pct_change(peak_2026_row["high"], low_2026_row["low"])
+            if peak_2026_row and low_2026_row else None
+        ),
+        "trailingDividendPerShare": 0.0,
+        "trailingDividendYieldPct": 0.0,
+        "sma200": sma200[-1],
+        "belowSma200": bool(sma200[-1] is not None and last < sma200[-1]),
+        "weeksBelowSma200": below_days / 5.0,
+        "sma50": sma50[-1],
+        "aboveSma50": bool(sma50[-1] is not None and last > sma50[-1]),
+        "sma50Slope20dPct": pct_change(sma50[-1], prior_sma50),
+        "low120d": low_120_row["close"],
+        "low120dDate": low_120_row["date"],
+        "tradingDaysSince120dLow": len(recent_120) - 1 - low_120_index,
+        "reboundFrom120dLowPct": pct_change(last, low_120_row["close"]),
+        "history": points,
+        "sourceUrl": TENCENT_CSI300_PUBLIC_URL,
+        "sourceName": TENCENT_CSI300_SOURCE_LABEL,
+        "sourceRetrievalUrl": retrieval_url,
+        "sourceNote": (
+            "Yahoo Financeの日足が直近平日より遅れた場合に使用するTencent Financeの公開CSI 300日足。"
+            "指数会社の公式値との最終照合が必要な場面では中国証券指数の公表資料も確認する。"
+        ),
+        **freshness,
+    }
 
 
 def fetch_topix_series(*, latest_common_date: date | None = None) -> dict[str, Any]:
@@ -3280,8 +3517,21 @@ def main() -> None:
 
     for label, symbol in PRICE_SYMBOLS.items():
         try:
-            prices[label] = fetch_price_series(symbol)
-            statuses.append(SourceStatus("Yahoo Finance chart", prices[label]["sourceUrl"], True, NOW.isoformat(), label))
+            prices[label] = (
+                fetch_csi300_series_with_fallback()
+                if label == "CSI300"
+                else fetch_price_series(symbol)
+            )
+            source_is_current = prices[label].get("freshnessStatus") != "stale"
+            if label == "CSI300":
+                source_is_current = prices[label].get("freshnessStatus") == "current"
+            source_name = prices[label].get("sourceName") or "Yahoo Finance chart"
+            source_note = prices[label].get("sourceNote") or label
+            if not source_is_current:
+                errors.append(f"Price {label}: {prices[label].get('freshnessNote') or source_note}")
+            statuses.append(SourceStatus(
+                source_name, prices[label]["sourceUrl"], source_is_current, NOW.isoformat(), source_note
+            ))
         except Exception as exc:  # keep other sources usable if one ticker fails
             errors.append(f"Price {label}: {exc}")
             statuses.append(SourceStatus("Yahoo Finance chart", f"https://finance.yahoo.com/quote/{symbol}", False, NOW.isoformat(), str(exc)))
@@ -3764,6 +4014,137 @@ def restore_japan_series_from_previous_nt_history(
         "TOPIX": rebuild("TOPIX", "topix", "998405", "https://finance.yahoo.co.jp/quote/998405/history"),
     }
 
+
+CSI300_CROSS_SOURCE_MAX_CLOSE_GAP_PCT = 0.25
+
+
+def fetch_csi300_eastmoney_latest_close() -> dict[str, Any]:
+    """Fetch a short Eastmoney window solely to reconcile same-day closes."""
+
+    local_today = NOW.astimezone(ZoneInfo("Asia/Shanghai")).date()
+    retrieval_url = csi300_daily_url(
+        local_today - timedelta(days=45),
+        local_today + timedelta(days=1),
+    ).replace("%2C", ",")
+    rows = parse_csi300_daily_payload(request(
+        retrieval_url,
+        timeout=8,
+        attempts=1,
+        extra_headers={
+            "Referer": "https://quote.eastmoney.com/",
+            "User-Agent": "Mozilla/5.0 (compatible; AI-bubble-monitor/1.0)",
+        },
+    ))
+    completed = [
+        row for row in rows
+        if csi300_day_is_final(date.fromisoformat(row["date"]), NOW)
+    ]
+    if len(completed) < 2:
+        raise RuntimeError("Eastmoney CSI 300 cross-check has fewer than two completed closes")
+    return {
+        "date": completed[-1]["date"],
+        "close": completed[-1]["close"],
+        "previousClose": completed[-2]["close"],
+        "sourceUrl": CSI300_EASTMONEY_PUBLIC_URL,
+        "retrievalUrl": retrieval_url,
+    }
+
+
+def reconcile_csi300_same_day_sources(
+    primary: dict[str, Any],
+    peer: dict[str, Any] | None,
+) -> dict[str, Any]:
+    """Fail closed if independent sources disagree materially on the same close."""
+
+    result = dict(primary)
+    if not isinstance(peer, dict):
+        result["crossSourceCheck"] = {
+            "status": "not-available",
+            "peerSourceUrl": None,
+            "closeGapPct": None,
+        }
+        return result
+    primary_date = str(primary.get("date") or "")
+    peer_date = str(peer.get("date") or "")
+    primary_close = finite(primary.get("close"))
+    peer_close = finite(peer.get("close"))
+    if not primary_date or primary_date != peer_date or primary_close is None or peer_close in (None, 0):
+        result["crossSourceCheck"] = {
+            "status": "different-date",
+            "peerSourceUrl": peer.get("sourceUrl"),
+            "closeGapPct": None,
+        }
+        return result
+    close_gap_pct = abs(pct_change(primary_close, peer_close) or 0.0)
+    result["crossSourceCheck"] = {
+        "status": "matched" if close_gap_pct <= CSI300_CROSS_SOURCE_MAX_CLOSE_GAP_PCT else "mismatch",
+        "peerSourceUrl": peer.get("sourceUrl"),
+        "peerRetrievalUrl": peer.get("retrievalUrl"),
+        "closeGapPct": close_gap_pct,
+    }
+    if close_gap_pct > CSI300_CROSS_SOURCE_MAX_CLOSE_GAP_PCT:
+        result["freshnessStatus"] = "unverified"
+        result["freshnessNote"] = (
+            f"同一基準日 {primary_date} のCSI 300終値が独立取得元間で{close_gap_pct:.3f}%乖離。"
+            "値・前日比・上昇下落の表示を停止し、原典を再確認する。"
+        )
+        result["sourceNote"] = (
+            str(result.get("sourceNote") or "")
+            + " "
+            + result["freshnessNote"]
+        ).strip()
+    return result
+
+
+def fetch_csi300_series_with_fallback() -> dict[str, Any]:
+    """Use a current close only when it passes freshness and cross-source checks."""
+
+    yahoo_series = fetch_price_series("000300.SS")
+    freshness = csi300_freshness(date.fromisoformat(yahoo_series["date"]), NOW)
+    yahoo_series.update({
+        "sourceName": "Yahoo Finance chart",
+        "sourceRetrievalUrl": yahoo_series["sourceUrl"],
+        **freshness,
+    })
+    if freshness["freshnessStatus"] == "current":
+        yahoo_series["sourceNote"] = "Yahoo Financeの日次確定値。"
+        return yahoo_series
+
+    errors: list[str] = []
+    try:
+        tencent = fetch_csi300_tencent_series(yahoo_series.get("history") or [])
+        try:
+            eastmoney = fetch_csi300_eastmoney_latest_close()
+        except Exception as exc:
+            errors.append(f"Eastmoney cross-check: {exc}")
+            eastmoney = None
+        reconciled = reconcile_csi300_same_day_sources(tencent, eastmoney)
+        if errors:
+            reconciled["crossSourceCheck"]["warning"] = errors[-1]
+        return reconciled
+    except Exception as exc:
+        errors.append(f"Tencent Finance: {exc}")
+    try:
+        fallback = fetch_csi300_eastmoney_series()
+        fallback["crossSourceCheck"] = {
+            "status": "not-available",
+            "peerSourceUrl": None,
+            "closeGapPct": None,
+        }
+        return fallback
+    except Exception as exc:
+        errors.append(f"Eastmoney: {exc}")
+    yahoo_series["sourceNote"] = (
+        "Yahoo Financeの日足が古く、独立した公開日足の取得にも失敗: "
+        + " / ".join(errors)
+        + "。この値は前日比・上昇下落の判定には使わない。"
+    )
+    yahoo_series["crossSourceCheck"] = {
+        "status": "not-available",
+        "peerSourceUrl": None,
+        "closeGapPct": None,
+    }
+    return yahoo_series
 
 if __name__ == "__main__":
     main()

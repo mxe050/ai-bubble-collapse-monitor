@@ -385,6 +385,7 @@ livePayload.premarket = livePayload.premarket || {};
 livePayload.premarket.quotes = livePayload.premarket.quotes || {};
 Object.assign(livePayload.premarket.quotes, {
   SP500_CASH: { value: 7405.04, changePct: 1.2, currency: "USD", marketState: "updating", quoteTimeUtc: "2026-07-31T15:30:00Z", sourceUrl: "https://finance.yahoo.com/quote/%5EGSPC" },
+  CSI300_CASH: { value: 4588.20, previousClose: 4549.72, changePct: 0.8458, currency: "CNY", marketState: "delayed-or-closed", quoteTimeUtc: "2026-07-31T07:00:00Z", referenceValidationStatus: "verified", referenceLabel: "public daily", sourceUrl: "https://gu.qq.com/sh000300", freshnessStatus: "current" },
   DXY: { value: 99.94, changePct: -0.9, currency: "USD", marketState: "updating", quoteTimeUtc: "2026-07-31T15:30:00Z", sourceUrl: "https://finance.yahoo.com/quote/DX-Y.NYB" },
   ACWI_CASH: { value: 141.23, changePct: 0.8, currency: "USD", marketState: "updating", quoteTimeUtc: "2026-07-31T15:30:00Z", sourceUrl: "https://finance.yahoo.com/quote/ACWI" },
   NIKKEI_CASH: { value: 64362.02, previousClose: 61867.43, changePct: 4.0321539, currency: "JPY", marketState: "delayed-or-closed", quoteTimeUtc: "2026-07-31T06:25:00Z", referenceValidationStatus: "verified", referenceLabel: "official", sourceUrl: "https://indexes.nikkei.co.jp/en/nkave/archives/data?list=daily" },
@@ -444,6 +445,9 @@ setTimeout(async () => {
   if (elements.get("dataHealth").textContent === "読込失敗") console.error("UI load error:", elements.get("uncertaintySummary").textContent);
   assert.notStrictEqual(elements.get("dataHealth").textContent, "読込失敗");
   assert.notStrictEqual(elements.get("headlineConclusion").textContent, "");
+  const nikkeiAiUncomputed = "\u672a\u7b97\u51fa";
+  assert.ok(elements.get("nikkeiAiThreeSummary").innerHTML.includes(nikkeiAiUncomputed));
+  assert.strictEqual(elements.get("nikkeiAiComparisonNotice").hidden, false);
   assert.match(elements.get("nikkeiAiThreeSummary").innerHTML, /実績・10年騰落率/);
   assert.match(elements.get("nikkeiAiTargetNames").innerHTML, /対象銘柄：未設定/);
   assert.match(elements.get("nikkeiAiStockRows").innerHTML, /AIバブル疑義銘柄が未設定/);
@@ -453,8 +457,11 @@ setTimeout(async () => {
   assert.ok(nikkeiAiChart, "日経AI三系列チャートを描画する");
   assert.strictEqual(nikkeiAiChart.config.data.datasets.length, 3);
   assert.strictEqual(nikkeiAiChart.config.data.labels.length, nikkeiAiThreeSeriesPayload.series.length);
-  assert.deepStrictEqual(nikkeiAiChart.config.data.datasets[0].data, nikkeiAiChart.config.data.datasets[1].data);
-  assert.deepStrictEqual(nikkeiAiChart.config.data.datasets[1].data, nikkeiAiChart.config.data.datasets[2].data);
+  assert.ok(nikkeiAiChart.config.data.datasets[1].label.includes(nikkeiAiUncomputed));
+  assert.ok(nikkeiAiChart.config.data.datasets[2].label.includes(nikkeiAiUncomputed));
+  assert.ok(nikkeiAiChart.config.data.datasets[1].data.every((value) => value === null));
+  assert.ok(nikkeiAiChart.config.data.datasets[2].data.every((value) => value === null));
+  assert.ok(nikkeiAiChart.config.data.datasets[0].data.some((value) => Number.isFinite(value)));
   assert.match(elements.get("dailySummaryLead").textContent, /パニック崩壊は未確認/);
   assert.strictEqual((elements.get("dailySummaryList").innerHTML.match(/<li>/g) || []).length, 11);
   assert.match(elements.get("dailySummaryList").innerHTML, /S&amp;P 500|S&P 500/);
@@ -471,6 +478,10 @@ setTimeout(async () => {
   assert.match(regionalMarkup, /official/);
   assert.match(regionalMarkup, /\+4%/);
   assert.doesNotMatch(regionalMarkup, /-4\.4%/);
+  assert.match(regionalMarkup, /region-china/);
+  assert.match(regionalMarkup, /4,588/);
+  assert.match(regionalMarkup, /\+0\.8%/);
+  assert.match(regionalMarkup, /gu\.qq\.com/);
   assert.match(elements.get("premarketLead").innerHTML, /日経|先物/);
   assert.strictEqual((elements.get("premarketCards").innerHTML.match(/class="premarket-card"/g) || []).length, 9);
   assert.match(elements.get("premarketCards").innerHTML, /CME日経|日経225/);
@@ -539,8 +550,26 @@ setTimeout(async () => {
   assert.strictEqual(Number(elements.get("briefingVisibleCount").textContent.replace(/,/g, "")), expectedFxCards);
   assert.ok(elements.get("briefingFilterStatus").textContent.includes(String(expectedFxCards)));
 
-  const newerLivePayload = JSON.parse(JSON.stringify(livePayload));
   const currentGeneratedAt = Date.parse(livePayload.generatedAtUtc);
+  const staleCsiPayload = JSON.parse(JSON.stringify(livePayload));
+  staleCsiPayload.generatedAtUtc = new Date(currentGeneratedAt + 30000).toISOString();
+  staleCsiPayload.briefing.checkedAtUtc = staleCsiPayload.generatedAtUtc;
+  Object.assign(staleCsiPayload.premarket.quotes.CSI300_CASH, {
+    freshnessStatus: "stale",
+    referenceValidationStatus: "unavailable",
+    previousClose: null,
+    changePct: null,
+    changePoints: null,
+    freshnessNote: "stale fixture",
+  });
+  nextLiveResponse = staleCsiPayload;
+  await dispatchWindowEvent("focus");
+  const staleChinaCard = (elements.get("regionalMarketCards").innerHTML.match(/<article class="regional-market-card region-china"[\s\S]*?<\/article>/) || [""])[0];
+  assert.match(staleChinaCard, /data-direction="unknown"/);
+  assert.match(staleChinaCard, /\u57fa\u6e96\u65e5\u30fb\u53d6\u5f97\u7d4c\u8def\u3092\u518d\u78ba\u8a8d\u4e2d/);
+  assert.doesNotMatch(staleChinaCard, /4,588/);
+
+  const newerLivePayload = JSON.parse(JSON.stringify(livePayload));
   newerLivePayload.generatedAtUtc = new Date(currentGeneratedAt + 60000).toISOString();
   newerLivePayload.briefing.checkedAtUtc = newerLivePayload.generatedAtUtc;
   const companyDisclosureItems = Array.from({ length: 7 }, (_, index) => {

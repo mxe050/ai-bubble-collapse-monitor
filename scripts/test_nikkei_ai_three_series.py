@@ -57,7 +57,7 @@ def synthetic_sources() -> tuple[list[dict], list[dict], list[dict]]:
     return list(rows), list(rows), monthly
 
 
-def test_empty_targets_are_exact_identity() -> None:
+def test_empty_targets_are_explicitly_uncomputed() -> None:
     config = module.load_config(ROOT / "config" / "nikkei-ai-overheat-stocks.json")
     yahoo, official_daily, official_monthly = synthetic_sources()
     payload = module.build_payload(
@@ -69,18 +69,21 @@ def test_empty_targets_are_exact_identity() -> None:
     )
 
     require(payload["summary"]["bubble_suspect_count"] == 0, "empty config must retain zero targets")
-    require(payload["summary"]["ai_excess_contribution_percentage_points"] == 0.0, "empty config must have no excess contribution")
-    require(payload["summary"]["retained_normal_contribution_percentage_points"] == 0.0, "empty config must have no retained contribution")
+    require(payload["meta"]["comparison_status"] == "actual-only-comparison-uncomputed-no-targets", "empty config must be explicitly uncomputed")
+    require(payload["summary"]["normalized_return_pct"] is None, "empty config must not create a normalized return")
+    require(payload["summary"]["excluded_return_pct"] is None, "empty config must not create an excluded return")
+    require(payload["summary"]["ai_excess_contribution_percentage_points"] is None, "empty config must not claim zero excess contribution")
+    require(payload["summary"]["retained_normal_contribution_percentage_points"] is None, "empty config must not claim zero retained contribution")
     require(payload["meta"]["market_date"] == payload["meta"]["end_date"], "series cannot extend beyond the official end date")
     require(payload["quality"]["monthly_crosscheck"]["matched_months"] >= 100, "monthly cross-check must cover ten years")
     require(payload["quality"]["monthly_crosscheck"]["missing_months"] == [], "monthly cross-check cannot skip months")
     require(payload["quality"]["monthly_crosscheck"]["within_0_02_jpy"], "monthly cross-check tolerance failed")
     require(payload["series"][0]["nikkei_actual"] == 100.0, "first actual point must be 100")
     for row in payload["series"]:
-        require(row["nikkei_actual"] == row["ai_overheat_normalized"], "empty targets must not alter normalized path")
-        require(row["nikkei_actual"] == row["ai_overheat_excluded"], "empty targets must not alter excluded path")
-        require(row["actual_minus_normalized"] == 0.0, "empty targets must have zero gap")
-        require(row["normalized_minus_excluded"] == 0.0, "empty targets must have zero exclusion gap")
+        require(row["ai_overheat_normalized"] is None, "empty targets must keep normalized path uncomputed")
+        require(row["ai_overheat_excluded"] is None, "empty targets must keep excluded path uncomputed")
+        require(row["actual_minus_normalized"] is None, "empty targets must not claim a zero gap")
+        require(row["normalized_minus_excluded"] is None, "empty targets must not claim a zero exclusion gap")
     require(
         any(text.startswith("AI") for text in payload["warnings"]),
         "safe empty-target warning is missing",
@@ -154,6 +157,7 @@ def test_configured_target_fails_closed() -> None:
         generated_at=datetime(2026, 8, 1, 0, 0, tzinfo=module.JST),
     )
     require(payload["summary"]["bubble_suspect_count"] == 1, "configured target count is wrong")
+    require(payload["meta"]["comparison_status"] == "comparison-uncomputed-missing-historical-inputs", "configured target must disclose missing historical inputs")
     require(payload["summary"]["normalized_return_pct"] is None, "missing inputs must not create synthetic return")
     require(payload["summary"]["excluded_return_pct"] is None, "missing inputs must not create excluded return")
     require(all(row["ai_overheat_normalized"] is None for row in payload["series"]), "normalized line must fail closed")
@@ -161,7 +165,7 @@ def test_configured_target_fails_closed() -> None:
 
 
 def main() -> None:
-    test_empty_targets_are_exact_identity()
+    test_empty_targets_are_explicitly_uncomputed()
     test_future_yahoo_rows_are_excluded()
     test_config_and_numeric_guards()
     test_configured_target_fails_closed()

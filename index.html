@@ -1105,6 +1105,8 @@
             <p>実際の日経平均、過熱銘柄の異常上昇だけを一般株並みに調整した試算、対象銘柄を除外した試算を、10年前＝100で比較します。</p>
           </div>
 
+          <aside id="nikkeiAiComparisonNotice" class="nikkei-ai-uncomputed" hidden aria-live="polite"></aside>
+
           <div id="nikkeiAiThreeSummary" class="nikkei-ai-summary-grid" aria-live="polite">
             <article class="nikkei-ai-summary-card is-loading"><span>比較データ</span><strong>読込中</strong><small>日経平均の3系列を確認しています。</small></article>
           </div>
@@ -1112,15 +1114,15 @@
           <div class="chart-panel nikkei-ai-chart-panel">
             <div class="panel-heading nikkei-ai-chart-heading">
               <div>
-                <h4>10年間の3系列比較</h4>
-                <p>共通起点＝100・価格指数・配当なし</p>
+                <h4 id="nikkeiAiChartTitle">10年間の3系列比較</h4>
+                <p id="nikkeiAiChartSubtitle">共通起点＝100・価格指数・配当なし</p>
               </div>
               <span id="nikkeiAiMethodBadge" class="source-chip">データ確認中</span>
             </div>
             <div class="nikkei-ai-chart-frame">
               <canvas id="nikkeiAiThreeSeriesChart" role="img" aria-label="日経平均とAI過熱調整後の3系列比較"></canvas>
             </div>
-            <div class="nikkei-ai-reading">
+            <div id="nikkeiAiReading" class="nikkei-ai-reading">
               <p><strong>実績－標準化：</strong>指定したAI過熱銘柄の異常上昇部分が日経平均を押し上げた大きさの試算です。</p>
               <p><strong>標準化－除外：</strong>対象企業を一般的な価格上昇の範囲で残した効果の試算です。</p>
               <p>これは公式指数、投資助言、バブルの統計的認定ではありません。</p>

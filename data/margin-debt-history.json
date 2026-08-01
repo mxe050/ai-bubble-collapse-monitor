@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-07-31T19:40:58.372253+00:00",
+  "generatedAt": "2026-08-01T02:10:58.750352+00:00",
   "title": "U.S. Margin Debt / Nominal GDP",
   "definition": "Rule 4521(d)の報告対象となるFINRA会員会社が報告した顧客の証券信用取引口座の借方残高を、米国名目GDPの年率換算値で割った比率。一般個人だけの借入ではありません。",
   "latest": {

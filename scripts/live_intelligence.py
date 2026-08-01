@@ -31,6 +31,22 @@ from pathlib import Path
 from typing import Any
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
+from china_market_data import (
+    CSI300_EASTMONEY_PUBLIC_URL,
+    CSI300_EASTMONEY_SOURCE_LABEL,
+    csi300_daily_url,
+    csi300_day_is_final,
+    csi300_freshness,
+    csi300_session_close_utc,
+    parse_csi300_daily_payload,
+)
+from tencent_csi300 import (
+    TENCENT_CSI300_PUBLIC_URL,
+    TENCENT_CSI300_SOURCE_LABEL,
+    parse_tencent_csi300_daily_payload,
+    tencent_csi300_daily_url,
+)
+
 
 ROOT = Path(__file__).resolve().parents[1]
 OUTPUT = ROOT / "data" / "live-intelligence.json"
@@ -70,6 +86,14 @@ INTRADAY_INSTRUMENTS: dict[str, dict[str, str]] = {
         "shortLabel": "S&P現物",
         "group": "us",
         "currency": "INDEX",
+        "role": "cash-reference",
+    },
+    "CSI300_CASH": {
+        "symbol": "000300.SS",
+        "label": "CSI 300（現物）",
+        "shortLabel": "CSI 300",
+        "group": "china",
+        "currency": "CNY",
         "role": "cash-reference",
     },
     "NIKKEI_FUTURES_YEN": {
@@ -179,7 +203,7 @@ PREMARKET_DISPLAY_KEYS = (
     "USDJPY", "US10Y", "VIX",
 )
 MARKET_SUMMARY_OVERLAY_KEYS = (
-    "NIKKEI_CASH", "SP500_CASH", "DXY", "ACWI_CASH", "KIOXIA",
+    "NIKKEI_CASH", "SP500_CASH", "CSI300_CASH", "DXY", "ACWI_CASH", "KIOXIA",
 )
 
 OFFICIAL_FEEDS = (
@@ -819,6 +843,8 @@ def pct_change(new: float | None, old: float | None) -> float | None:
 def quote_reference_label(key: str) -> str:
     if key == "NIKKEI_CASH":
         return "前営業日比（公式日経）"
+    if key == "CSI300_CASH":
+        return "前取引日終値比（公開日足）"
     if key in {"NIKKEI_FUTURES_YEN", "NIKKEI_FUTURES_USD", "SP500_FUTURES", "NASDAQ100_FUTURES", "DOW_FUTURES", "RUSSELL2000_FUTURES"}:
         return "前取引日終値比（提供元日足）"
     if key == "USDJPY":
@@ -1675,6 +1701,190 @@ def _latest_trading_days(
     ]
 
 
+CSI300_CROSS_SOURCE_MAX_CLOSE_GAP_PCT = 0.25
+
+
+def _csi300_completed_rows(rows: list[dict[str, Any]], now: datetime) -> list[dict[str, Any]]:
+    completed = [
+        row for row in rows
+        if csi300_day_is_final(date.fromisoformat(str(row["date"])), now)
+    ]
+    if len(completed) < 2:
+        raise RuntimeError("CSI 300 public day-end source has fewer than two completed rows")
+    return completed
+
+
+def _fetch_csi300_tencent_rows(now: datetime) -> tuple[list[dict[str, Any]], str, str, str]:
+    retrieval_url = tencent_csi300_daily_url()
+    raw, _ = request(
+        retrieval_url,
+        attempts=1,
+        headers={"Referer": "https://gu.qq.com/"},
+    )
+    return (
+        _csi300_completed_rows(parse_tencent_csi300_daily_payload(raw), now),
+        TENCENT_CSI300_PUBLIC_URL,
+        TENCENT_CSI300_SOURCE_LABEL,
+        retrieval_url,
+    )
+
+
+def _fetch_csi300_eastmoney_rows(now: datetime) -> tuple[list[dict[str, Any]], str, str, str]:
+    local_today = now.astimezone(ZoneInfo("Asia/Shanghai")).date()
+    retrieval_url = csi300_daily_url(
+        local_today - timedelta(days=60), local_today + timedelta(days=1)
+    ).replace("%2C", ",")
+    raw, _ = request(
+        retrieval_url,
+        attempts=1,
+        headers={"Referer": "https://quote.eastmoney.com/"},
+    )
+    return (
+        _csi300_completed_rows(parse_csi300_daily_payload(raw), now),
+        CSI300_EASTMONEY_PUBLIC_URL,
+        CSI300_EASTMONEY_SOURCE_LABEL,
+        retrieval_url,
+    )
+
+
+def _csi300_day_end_cross_check(
+    primary: dict[str, Any], peer: dict[str, Any] | None
+) -> dict[str, Any]:
+    if peer is None:
+        return {"status": "single-source", "peerSourceUrl": None, "closeGapPct": None}
+    if primary["date"] != peer["date"]:
+        return {
+            "status": "peer-lagging",
+            "peerSourceUrl": peer["sourceUrl"],
+            "peerDate": peer["date"],
+            "closeGapPct": None,
+        }
+    gap = abs(pct_change(primary["close"], peer["close"]) or 0.0)
+    return {
+        "status": "matched" if gap <= CSI300_CROSS_SOURCE_MAX_CLOSE_GAP_PCT else "mismatch",
+        "peerSourceUrl": peer["sourceUrl"],
+        "peerDate": peer["date"],
+        "closeGapPct": gap,
+    }
+
+
+def fetch_csi300_day_end_quote(
+    key: str, profile: dict[str, str], now: datetime
+) -> dict[str, Any]:
+    """Build an auditable CSI 300 quote from public completed daily bars.
+
+    This intentionally never routes CSI 300 through Yahoo intraday data.  A
+    stale Yahoo daily row must not produce a current-looking percentage in the
+    regional market card.
+    """
+
+    candidates: list[tuple[list[dict[str, Any]], str, str, str]] = []
+    errors: list[str] = []
+    for loader, name in (
+        (_fetch_csi300_tencent_rows, "Tencent Finance"),
+        (_fetch_csi300_eastmoney_rows, "Eastmoney"),
+    ):
+        try:
+            candidates.append(loader(now))
+        except Exception as exc:
+            errors.append(f"{name}: {exc}")
+    if not candidates:
+        raise RuntimeError("CSI 300 public day-end retrieval failed: " + " / ".join(errors))
+
+    candidates.sort(key=lambda candidate: candidate[0][-1]["date"], reverse=True)
+    rows, source_url, source_name, retrieval_url = candidates[0]
+    latest = rows[-1]
+    previous = rows[-2]
+    peer: dict[str, Any] | None = None
+    if len(candidates) > 1:
+        peer_rows, peer_url, _peer_name, _peer_retrieval = candidates[1]
+        peer = {"date": peer_rows[-1]["date"], "close": peer_rows[-1]["close"], "sourceUrl": peer_url}
+    check = _csi300_day_end_cross_check(latest, peer)
+    freshness = csi300_freshness(date.fromisoformat(latest["date"]), now)
+    reference_verified = (
+        freshness["freshnessStatus"] == "current"
+        and check["status"] != "mismatch"
+    )
+    reference_error: str | None = None
+    if freshness["freshnessStatus"] != "current":
+        reference_error = "CSI 300 latest completed session is stale; direction withheld"
+    elif check["status"] == "mismatch":
+        reference_error = "CSI 300 same-day close differs across public sources; direction withheld"
+    elif errors:
+        reference_error = " / ".join(errors)
+
+    latest_date = date.fromisoformat(latest["date"])
+    quote_dt = csi300_session_close_utc(latest_date)
+    if now - quote_dt > timedelta(days=5):
+        raise RuntimeError(
+            "CSI 300 public day-end close is older than five days: " + latest["date"]
+        )
+    spark_rows = []
+    for row in rows[-5:]:
+        row_dt = csi300_session_close_utc(date.fromisoformat(row["date"]))
+        spark_rows.append({"timeUtc": row_dt.isoformat(), "value": row["close"]})
+    if len(spark_rows) < 2:
+        raise RuntimeError("CSI 300 public day-end quote has an insufficient weekly sparkline")
+
+    verified_reference = {
+        "previousClose": previous["close"],
+        "previousCloseDate": previous["date"],
+        "changePct": pct_change(latest["close"], previous["close"]),
+        "changePoints": latest["close"] - previous["close"],
+        "referenceKind": "public-csi300-daily-close",
+        "referenceSourceUrl": source_url,
+        "referenceValidationStatus": "verified",
+    }
+    unavailable_reference = {
+        "previousClose": None,
+        "previousCloseDate": None,
+        "changePct": None,
+        "changePoints": None,
+        "referenceKind": "unavailable",
+        "referenceSourceUrl": None,
+        "referenceValidationStatus": "unavailable",
+    }
+    reference = verified_reference if reference_verified else unavailable_reference
+    stale_minutes = max(0.0, (now - quote_dt).total_seconds() / 60.0)
+    return {
+        "key": key,
+        **profile,
+        "value": latest["close"],
+        **reference,
+        "quoteDate": latest["date"],
+        "referenceLabel": quote_reference_label(key),
+        "rawMetaPreviousClose": None,
+        "metaReferenceDifferencePct": None,
+        "referenceError": reference_error,
+        "sessionHigh": latest["high"],
+        "sessionLow": latest["low"],
+        "sessionRangePct": pct_change(latest["high"], latest["low"]),
+        "quoteTimeUtc": quote_dt.isoformat(),
+        "quoteTimeJst": quote_dt.astimezone(JST).isoformat(),
+        "staleMinutes": round(stale_minutes, 1),
+        "marketState": "updating" if stale_minutes <= 25 else "delayed-or-closed",
+        "exchangeName": "Shanghai Stock Exchange",
+        "exchangeTimezone": "Asia/Shanghai",
+        "instrumentType": "INDEX",
+        "currencyReported": "CNY",
+        "regularMarketVolume": None,
+        "move5m": _max_window_move([], 5),
+        "move15m": _max_window_move([], 15),
+        "move30m": _max_window_move([], 30),
+        "peakToTrough": _peak_to_trough([]),
+        "troughToPeak": _trough_to_peak([]),
+        "sparkline": spark_rows,
+        "sourceUrl": source_url,
+        "sourceName": source_name,
+        "sourceRetrievalUrl": retrieval_url,
+        "freshnessStatus": freshness["freshnessStatus"],
+        "freshnessExpectedSessionDate": freshness["freshnessExpectedSessionDate"],
+        "freshnessDelayedWeekdays": freshness["freshnessDelayedWeekdays"],
+        "freshnessNote": freshness["freshnessNote"],
+        "crossSourceCheck": check,
+    }
+
+
 def fetch_intraday_quote(key: str, profile: dict[str, str], now: datetime) -> dict[str, Any]:
     """Fetch a live price and a separately validated previous-session close."""
 
@@ -1806,7 +2016,12 @@ def fetch_intraday_quotes(now: datetime) -> tuple[dict[str, Any], list[dict[str,
     statuses: list[dict[str, Any]] = []
     with ThreadPoolExecutor(max_workers=8) as executor:
         futures = {
-            executor.submit(fetch_intraday_quote, key, profile, now): (key, profile)
+            executor.submit(
+                fetch_csi300_day_end_quote if key == "CSI300_CASH" else fetch_intraday_quote,
+                key,
+                profile,
+                now,
+            ): (key, profile)
             for key, profile in INTRADAY_INSTRUMENTS.items()
         }
         for future in as_completed(futures):
@@ -1822,14 +2037,18 @@ def fetch_intraday_quotes(now: datetime) -> tuple[dict[str, Any], list[dict[str,
                     "status": "ok",
                     "url": quote["sourceUrl"],
                     "retrievedAtUtc": now.isoformat(),
-                    "message": "5分足を取得",
+                    "message": "completed daily close" if key == "CSI300_CASH" else "5-minute bars",
                 })
             except Exception as exc:
                 statuses.append({
                     "name": profile["label"],
                     "kind": "market-price",
                     "status": "failed",
-                    "url": f"https://finance.yahoo.com/quote/{urllib.parse.quote(profile['symbol'])}",
+                    "url": (
+                        TENCENT_CSI300_PUBLIC_URL
+                        if key == "CSI300_CASH"
+                        else f"https://finance.yahoo.com/quote/{urllib.parse.quote(profile['symbol'])}"
+                    ),
                     "retrievedAtUtc": now.isoformat(),
                     "message": str(exc),
                 })

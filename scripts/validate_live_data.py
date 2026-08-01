@@ -53,6 +53,14 @@ EXPECTED_INSTRUMENTS = {
         "currency": "INDEX",
         "role": "cash-reference",
     },
+    "CSI300_CASH": {
+        "symbol": "000300.SS",
+        "label": "CSI 300\uff08\u73fe\u7269\uff09",
+        "shortLabel": "CSI 300",
+        "group": "china",
+        "currency": "CNY",
+        "role": "cash-reference",
+    },
     "NIKKEI_FUTURES_YEN": {
         "symbol": "NIY=F",
         "label": "CME日経225先物（円建て）",
@@ -157,8 +165,25 @@ PREMARKET_DISPLAY_KEYS = (
     "USDJPY", "US10Y", "VIX",
 )
 MARKET_SUMMARY_OVERLAY_KEYS = (
-    "NIKKEI_CASH", "SP500_CASH", "DXY", "ACWI_CASH", "KIOXIA",
+    "NIKKEI_CASH", "SP500_CASH", "CSI300_CASH", "DXY", "ACWI_CASH", "KIOXIA",
 )
+
+CSI300_PUBLIC_SOURCE_HOSTS = {
+    "gu.qq.com",
+    "web.ifzq.gtimg.cn",
+    "quote.eastmoney.com",
+    "push2his.eastmoney.com",
+}
+
+
+def quote_source_hosts(key: str) -> set[str]:
+    """Return the public hosts permitted for each quote's dated source."""
+
+    if key == "NIKKEI_CASH":
+        return {"indexes.nikkei.co.jp"}
+    if key == "CSI300_CASH":
+        return CSI300_PUBLIC_SOURCE_HOSTS
+    return {"finance.yahoo.com"}
 
 BULL_TERMS = (
     "rally",
@@ -1199,6 +1224,19 @@ def validate_quote(
 ) -> None:
     context = f"premarket.quotes.{key}"
     quote = require_dict(raw, context)
+    csi300_optional_fields = (
+        {
+            "sourceName",
+            "sourceRetrievalUrl",
+            "freshnessStatus",
+            "freshnessExpectedSessionDate",
+            "freshnessDelayedWeekdays",
+            "freshnessNote",
+            "crossSourceCheck",
+        }
+        if key == "CSI300_CASH"
+        else ()
+    )
     require_keys(
         quote,
         {
@@ -1243,6 +1281,7 @@ def validate_quote(
             "sourceUrl",
         },
         context,
+        optional=csi300_optional_fields,
     )
     expected = EXPECTED_INSTRUMENTS[key]
     require(quote["key"] == key, f"{context}.key mismatch")
@@ -1306,11 +1345,7 @@ def validate_quote(
             reference_kind != "unavailable",
             f"{context}.referenceKind cannot be unavailable when verified",
         )
-        reference_hosts = (
-            {"indexes.nikkei.co.jp"}
-            if key == "NIKKEI_CASH"
-            else {"finance.yahoo.com"}
-        )
+        reference_hosts = quote_source_hosts(key)
         require_https_url(
             quote["referenceSourceUrl"],
             f"{context}.referenceSourceUrl",
@@ -1372,9 +1407,7 @@ def validate_quote(
     volume = number(quote["regularMarketVolume"], f"{context}.regularMarketVolume", nullable=True)
     if volume is not None:
         require(volume >= 0, f"{context}.regularMarketVolume must be nonnegative")
-    source_hosts = (
-        {"indexes.nikkei.co.jp"} if key == "NIKKEI_CASH" else {"finance.yahoo.com"}
-    )
+    source_hosts = quote_source_hosts(key)
     require_https_url(quote["sourceUrl"], f"{context}.sourceUrl", hosts=source_hosts)
 
     spark = require_list(quote["sparkline"], f"{context}.sparkline")

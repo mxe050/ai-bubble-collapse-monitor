@@ -1979,9 +1979,41 @@
     var qualityNode = byId("nikkeiAiQualityNotes");
     var badge = byId("nikkeiAiMethodBadge");
     var canvas = byId("nikkeiAiThreeSeriesChart");
+    var notice = byId("nikkeiAiComparisonNotice");
+    var chartTitle = byId("nikkeiAiChartTitle");
+    var chartSubtitle = byId("nikkeiAiChartSubtitle");
+    var readingNode = byId("nikkeiAiReading");
+    var comparisonStatus = String(meta.comparison_status || quality.data_state || "");
+    var comparisonSeriesPresent = series.some(function (row) {
+      return finite(row.ai_overheat_normalized) !== null || finite(row.ai_overheat_excluded) !== null;
+    });
+    var comparisonUncomputed = comparisonStatus.indexOf("comparison-uncomputed") !== -1
+      || (!targets.length && comparisonStatus.indexOf("actual-only") === 0) || !comparisonSeriesPresent;
+    var syntheticSeriesAvailable = !comparisonUncomputed && comparisonSeriesPresent;
+    var uncomputedDetail = targets.length
+      ? "対象銘柄は設定されていますが、日経平均を正確に再構築するための時点別構成銘柄・PAF・除数が未接続です。"
+      : "AIバブル疑義銘柄が未設定で、日経平均を正確に再構築するための時点別構成銘柄・PAF・除数も未接続です。";
     if (!summaryNode || !targetNode || !stockRows || !qualityNode) return;
 
     if (badge) badge.textContent = meta.method_label || "計算方法を確認中";
+    if (notice) {
+      notice.hidden = !comparisonUncomputed;
+      notice.innerHTML = comparisonUncomputed
+        ? "<strong>3系列比較は未算出です</strong><p>" + uncomputedDetail + "AI関連という理由だけで自動除外せず、実績と同値の線を重ねて比較済みのようには表示しません。</p>"
+        : "";
+    }
+    if (chartTitle) chartTitle.textContent = comparisonUncomputed ? "10年間の実績（比較未算出）" : "10年間の3系列比較";
+    if (chartSubtitle) chartSubtitle.textContent = comparisonUncomputed
+      ? "共通起点＝100・日経平均の実績のみ表示"
+      : "共通起点＝100・価格指数・配当なし";
+    if (canvas) canvas.setAttribute("aria-label", comparisonUncomputed
+      ? "日経平均の10年間実績。AI過熱の比較系列は未算出"
+      : "日経平均とAI過熱調整後の3系列比較");
+    if (readingNode) {
+      readingNode.innerHTML = comparisonUncomputed
+        ? "<p><strong>現在表示：</strong>日経平均の実績系列だけです。</p><p><strong>未算出の理由：</strong>対象銘柄と、過去の構成・PAF・除数の完全な履歴がそろっていません。</p><p><strong>次に必要なこと：</strong>対象を明示し、再構築誤差を検証できる履歴データを接続してから比較します。</p>"
+        : "<p><strong>実績－標準化：</strong>指定したAI過熱銘柄の異常上昇部分が日経平均を押し上げた大きさの試算です。</p><p><strong>標準化－除外：</strong>対象企業を一般的な価格上昇の範囲で残した効果の試算です。</p><p>これは公式指数、投資助言、バブルの統計的認定ではありません。</p>";
+    }
 
     if (!series.length) {
       summaryNode.innerHTML = '<article class="nikkei-ai-summary-card is-loading"><span>比較データ</span><strong>未確認</strong><small>日経平均の3系列データを取得できませんでした。</small></article>';
@@ -1995,18 +2027,21 @@
         },
         {
           label: "過熱を標準化した騰落率",
-          value: formatPercent(summary.normalized_return_pct, true),
-          caption: "異常上昇部分だけを一般株経路に調整",
+          value: syntheticSeriesAvailable ? formatPercent(summary.normalized_return_pct, true) : "未算出",
+          caption: syntheticSeriesAvailable ? "異常上昇部分だけを一般株経路に調整" : "対象・履歴データの接続後に計算",
+          uncomputed: !syntheticSeriesAvailable,
         },
         {
           label: "過熱銘柄を除外した騰落率",
-          value: formatPercent(summary.excluded_return_pct, true),
-          caption: "価格加重の再構成を行う想定",
+          value: syntheticSeriesAvailable ? formatPercent(summary.excluded_return_pct, true) : "未算出",
+          caption: syntheticSeriesAvailable ? "価格加重の再構成を行う想定" : "対象・履歴データの接続後に計算",
+          uncomputed: !syntheticSeriesAvailable,
         },
         {
           label: "実績－標準化",
-          value: formatPctPoints(summary.ai_excess_contribution_percentage_points, true),
-          caption: "AI過熱の超過寄与という試算",
+          value: syntheticSeriesAvailable ? formatPctPoints(summary.ai_excess_contribution_percentage_points, true) : "—",
+          caption: syntheticSeriesAvailable ? "AI過熱の超過寄与という試算" : "ゼロではなく未算出",
+          uncomputed: !syntheticSeriesAvailable,
         },
         {
           label: "対象銘柄の合計ウエート",
@@ -2015,7 +2050,7 @@
         },
       ];
       summaryNode.innerHTML = metricCards.map(function (card) {
-        return '<article class="nikkei-ai-summary-card"><span>' + escapeHtml(card.label)
+        return '<article class="nikkei-ai-summary-card' + (card.uncomputed ? " is-uncomputed" : "") + '"><span>' + escapeHtml(card.label)
           + "</span><strong>" + escapeHtml(card.value) + "</strong><small>" + escapeHtml(card.caption) + "</small></article>";
       }).join("");
     }
@@ -2092,6 +2127,8 @@
 
     var labels = series.map(function (row) { return row.date; });
     var latest = series[series.length - 1] || {};
+    var normalizedValues = comparisonUncomputed ? series.map(function () { return null; }) : series.map(function (row) { return finite(row.ai_overheat_normalized); });
+    var excludedValues = comparisonUncomputed ? series.map(function () { return null; }) : series.map(function (row) { return finite(row.ai_overheat_excluded); });
     state.nikkeiAiThreeSeriesChart = new Chart(canvas, {
       type: "line",
       data: {
@@ -2107,18 +2144,18 @@
             tension: 0.12,
           },
           {
-            label: "AI過熱を標準化",
-            data: series.map(function (row) { return finite(row.ai_overheat_normalized); }),
-            borderColor: "#11836f",
+            label: comparisonUncomputed ? "AI過熱を標準化（未算出）" : "AI過熱を標準化",
+            data: normalizedValues,
+            borderColor: comparisonUncomputed ? "#a99470" : "#11836f",
             borderWidth: 2.4,
             borderDash: [7, 4],
             pointRadius: 0,
             tension: 0.12,
           },
           {
-            label: "AI過熱銘柄を除外",
-            data: series.map(function (row) { return finite(row.ai_overheat_excluded); }),
-            borderColor: "#b64a3b",
+            label: comparisonUncomputed ? "AI過熱銘柄を除外（未算出）" : "AI過熱銘柄を除外",
+            data: excludedValues,
+            borderColor: comparisonUncomputed ? "#a99470" : "#b64a3b",
             borderWidth: 2.2,
             borderDash: [2, 4],
             pointRadius: 0,
@@ -2137,7 +2174,7 @@
               title: function (items) { return items[0] ? items[0].label : ""; },
               label: function (context) {
                 var value = finite(context.parsed && context.parsed.y);
-                return context.dataset.label + " " + (value === null ? "未確認" : numberOne.format(value));
+                return context.dataset.label + " " + (value === null ? "未算出" : numberOne.format(value));
               },
               afterBody: function (items) {
                 var index = items[0] && Number.isFinite(items[0].dataIndex) ? items[0].dataIndex : -1;
@@ -3652,8 +3689,9 @@
   }
 
   function summaryDateLabel(metric) {
-    if (!metric || !metric.date) return "日付未確認";
-    return metric.live ? metric.date + "・" + liveQuoteStateLabel(metric) : metric.date;
+    if (!metric || !metric.date) return "\u65e5\u4ed8\u672a\u78ba\u8a8d";
+    if (metric.stale) return metric.date + "\u30fb\u66f4\u65b0\u9045\u5ef6\uff0f\u518d\u78ba\u8a8d\u4e2d";
+    return metric.live ? metric.date + "\u30fb" + liveQuoteStateLabel(metric) : metric.date;
   }
 
   function summaryMetric(definition) {
@@ -3676,24 +3714,32 @@
     var liveKey = definition.liveKey || "";
     var live = liveQuoteForKey(liveKey);
     if (live) {
+      var liveFreshness = String(live.freshnessStatus || "").toLowerCase();
+      var liveNeedsReview = liveFreshness === "stale" || liveFreshness === "unverified";
       return {
-        value: finite(live.value),
+        value: liveNeedsReview ? null : finite(live.value),
         date: liveQuoteDate(live) || row.date || definition.date || "",
-        change: live.referenceValidationStatus === "verified" ? finite(live.changePct) : null,
-        referenceLabel: live.referenceLabel || "前日比",
+        change: !liveNeedsReview && live.referenceValidationStatus === "verified" ? finite(live.changePct) : null,
+        referenceLabel: live.referenceLabel || "\u524d\u65e5\u6bd4",
         referenceValidationStatus: live.referenceValidationStatus || "unavailable",
         sourceUrl: live.sourceUrl || row.sourceUrl || definition.sourceUrl || "",
         live: true,
         liveKey: liveKey,
         quoteTime: liveQuoteTime(live),
         marketState: live.marketState || "",
+        stale: liveNeedsReview,
+        freshnessNote: live.freshnessNote || live.referenceError || "",
       };
     }
+    var rowFreshness = String(row.freshnessStatus || "").toLowerCase();
+    var rowNeedsReview = rowFreshness === "stale" || rowFreshness === "unverified";
     return {
-      value: value,
+      value: rowNeedsReview ? null : value,
       date: row.date || definition.date || "",
-      change: finite(row.change1dPct),
+      change: rowNeedsReview ? null : finite(row.change1dPct),
       sourceUrl: row.sourceUrl || definition.sourceUrl || "",
+      stale: rowNeedsReview,
+      freshnessNote: row.freshnessNote || row.sourceNote || "",
     };
   }
 
@@ -3708,6 +3754,7 @@
   }
 
   function summaryChange(metric, definition) {
+    if (metric.stale) return "\u57fa\u6e96\u65e5\u30fb\u53d6\u5f97\u7d4c\u8def\u3092\u518d\u78ba\u8a8d\u4e2d";
     if (metric.live) {
       var liveTime = metric.quoteTime ? formatLiveTime(metric.quoteTime, "") : "時刻未確認";
       var liveState = liveQuoteStateLabel({ marketState: metric.marketState });
@@ -3730,9 +3777,10 @@
   }
 
   function summaryMoveSentence(metric, label) {
-    var referenceLabel = metric.referenceLabel || "前日比";
-    if (metric.change === null) return label + "の" + referenceLabel + "は再確認中です。";
-    return label + "は" + referenceLabel + formatPercent(metric.change, true) + "です。";
+    var referenceLabel = metric.referenceLabel || "\u524d\u65e5\u6bd4";
+    if (metric.stale) return label + "\u306f\u57fa\u6e96\u65e5\u30fb\u53d6\u5f97\u7d4c\u8def\u3092\u518d\u78ba\u8a8d\u4e2d\u3067\u3059\u3002";
+    if (metric.change === null) return label + "\u306e" + referenceLabel + "\u306f\u518d\u78ba\u8a8d\u4e2d\u3067\u3059\u3002";
+    return label + "\u306f" + referenceLabel + formatPercent(metric.change, true) + "\u3067\u3059\u3002";
   }
 
   function summarySourceLink(url, label) {
@@ -3760,7 +3808,7 @@
     var policyAgeDays = policyAsOf && !Number.isNaN(policyAsOf.valueOf()) ? (Date.now() - policyAsOf.valueOf()) / 86400000 : null;
     var hasFreshLive = generatedAgeMinutes !== null && generatedAgeMinutes >= -5 && generatedAgeMinutes <= 90;
     var isStale = !hasFreshLive;
-    var referenceKeys = ["NIKKEI_CASH", "SP500_CASH", "DXY", "ACWI_CASH", "USDJPY"];
+    var referenceKeys = ["NIKKEI_CASH", "SP500_CASH", "CSI300_CASH", "DXY", "ACWI_CASH", "USDJPY"];
     var hasUnverifiedReference = referenceKeys.some(function (key) {
       var quote = liveQuoteMap()[key] || {};
       return quote.referenceValidationStatus !== "verified";
@@ -3794,6 +3842,7 @@
       var fallbackLiveKeys = {
         japan: { stock: "NIKKEI_CASH", fx: "USDJPY" },
         "united-states": { stock: "SP500_CASH", fx: "DXY" },
+        china: { stock: "CSI300_CASH" },
         "all-country": { stock: "ACWI_CASH", fx: "DXY" },
       };
       var fallback = fallbackLiveKeys[region.id] || {};

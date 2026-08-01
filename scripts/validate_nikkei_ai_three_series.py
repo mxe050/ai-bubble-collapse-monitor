@@ -47,7 +47,7 @@ def validate_nikkei_ai_three_series() -> None:
         "title", "generated_at", "market_date", "start_date", "end_date",
         "base_value", "calculation_frequency", "display_frequency",
         "dividends_included", "price_field", "normalization_method",
-        "normalization_buffer", "exclusion_mode", "synthetic_series_are_official",
+        "normalization_buffer", "exclusion_mode", "synthetic_series_are_official", "comparison_status",
     ):
         require(key in meta, f"meta.{key} is missing")
     generated = datetime.fromisoformat(meta["generated_at"])
@@ -97,13 +97,16 @@ def validate_nikkei_ai_three_series() -> None:
     require(summary.get("bubble_suspect_count") == len(targets), "target count is inconsistent")
 
     if not targets:
-        require(summary.get("ai_excess_contribution_percentage_points") == 0.0, "empty targets must have zero excess contribution")
-        require(summary.get("retained_normal_contribution_percentage_points") == 0.0, "empty targets must have zero retained contribution")
-        require(summary.get("normalized_return_pct") == summary.get("actual_return_pct"), "empty targets changed normalized return")
-        require(summary.get("excluded_return_pct") == summary.get("actual_return_pct"), "empty targets changed excluded return")
+        require(meta.get("comparison_status") == "actual-only-comparison-uncomputed-no-targets", "empty targets must disclose that comparison is uncomputed")
+        require(summary.get("ai_excess_contribution_percentage_points") is None, "empty targets must not claim zero excess contribution")
+        require(summary.get("retained_normal_contribution_percentage_points") is None, "empty targets must not claim zero retained contribution")
+        require(summary.get("normalized_return_pct") is None, "empty targets must not create a normalized return")
+        require(summary.get("excluded_return_pct") is None, "empty targets must not create an excluded return")
         for row in series:
-            require(row["nikkei_actual"] == row["ai_overheat_normalized"] == row["ai_overheat_excluded"], "empty target paths must be identical")
-            require(row["actual_minus_normalized"] == row["normalized_minus_excluded"] == 0.0, "empty target gaps must be zero")
+            require(row["ai_overheat_normalized"] is None, "empty target normalized path must be uncomputed")
+            require(row["ai_overheat_excluded"] is None, "empty target excluded path must be uncomputed")
+            require(row["actual_minus_normalized"] is None, "empty target gap must be uncomputed")
+            require(row["normalized_minus_excluded"] is None, "empty target exclusion gap must be uncomputed")
         require(any(str(item).startswith("AI") for item in payload.get("warnings") or []), "safe empty-target warning is missing")
 
     monthly = quality.get("monthly_crosscheck") or {}
@@ -111,6 +114,7 @@ def validate_nikkei_ai_three_series() -> None:
     require(monthly.get("missing_months") == [], "monthly cross-check has missing months")
     require(monthly.get("within_0_02_jpy") is True, "monthly cross-check exceeds tolerance")
     require(finite(monthly.get("max_abs_error_jpy")) is not None, "monthly error is missing")
+    require(quality.get("data_state") == meta.get("comparison_status"), "data state must match comparison status")
     require((quality.get("data_state") or "").startswith("actual-only") or targets, "empty config data state is wrong")
 
     sources = payload.get("sources") or []

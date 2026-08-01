@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "generatedAtUtc": "2026-07-31T19:41:17.421701+00:00",
-  "generatedAtJst": "2026-08-01T04:41:17.421701+09:00",
+  "generatedAtUtc": "2026-08-01T02:11:21.345288+00:00",
+  "generatedAtJst": "2026-08-01T11:11:21.345288+09:00",
   "title": "S&P 500・日経平均の市場価格と推計理論価値を比較する統合チャート",
   "frequency": "monthly",
   "baseDate": "1985-01-01",
@@ -33126,7 +33126,7 @@
         "exchangeTimezone": "America/New_York",
         "frequency": "Monthly; provider month-end close",
         "latestMonth": "2026-07",
-        "cacheState": "fresh-cache"
+        "cacheState": "network"
       },
       {
         "provider": "Yahoo Finance chart API",
@@ -33135,7 +33135,7 @@
         "exchangeTimezone": "Asia/Tokyo",
         "frequency": "Monthly; provider month-end close",
         "latestMonth": "2026-07",
-        "cacheState": "fresh-cache"
+        "cacheState": "network"
       }
     ],
     "ExchangeRateProvider": {
@@ -33147,7 +33147,7 @@
       "sourceUrl": "https://www.stat-search.boj.or.jp/ssi/mtshtml/fm08_m_1_en.html",
       "latestMonth": "2026-06",
       "lastSourceUpdate": 20260703,
-      "cacheState": "fresh-cache"
+      "cacheState": "network"
     },
     "CPIProvider": [
       {
@@ -33170,7 +33170,7 @@
         "downloadUrl": "https://www.e-stat.go.jp/en/stat-search/file-download?fileKind=1&statInfId=000032103842",
         "latestMonth": "2026-06",
         "encoding": "cp932",
-        "cacheState": "fresh-cache",
+        "cacheState": "network",
         "historicalExtension": {
           "provider": "FRED",
           "seriesId": "JPNCPIALLMINMEI",
@@ -33223,7 +33223,7 @@
         "latestMonth": "2026-06",
         "fallback": "9-year yield is used only before the official 10-year series begins",
         "fallbackDailyRows": 3361,
-        "cacheState": "fresh-cache"
+        "cacheState": "network"
       }
     ],
     "EarningsProvider": [
@@ -33236,7 +33236,7 @@
         "availabilityRule": "Year Y is first used from May of Y+1 to avoid historical look-ahead",
         "sourceUrl": "https://pages.stern.nyu.edu/~adamodar/New_Home_Page/datafile/spearn.html",
         "latestYear": 2025,
-        "cacheState": "fresh-cache"
+        "cacheState": "network"
       },
       {
         "provider": "Nikkei Inc.",
@@ -33263,7 +33263,7 @@
         "methodologyUrl": "https://www.mof.go.jp/pri/reference/ssc/results/data.htm",
         "latestYear": 2024,
         "historyYears": 65,
-        "cacheState": "fresh-cache",
+        "cacheState": "network",
         "usageNote": "Historical macro proxy only; it is not Nikkei 225 constituent EPS."
       }
     ],
@@ -33356,7 +33356,7 @@
       "exchangeTimezone": "America/New_York",
       "frequency": "Monthly; provider month-end close",
       "latestMonth": "2026-07",
-      "cacheState": "fresh-cache"
+      "cacheState": "network"
     },
     {
       "provider": "Yahoo Finance chart API",
@@ -33365,7 +33365,7 @@
       "exchangeTimezone": "Asia/Tokyo",
       "frequency": "Monthly; provider month-end close",
       "latestMonth": "2026-07",
-      "cacheState": "fresh-cache"
+      "cacheState": "network"
     },
     {
       "provider": "Bank of Japan Time-Series Data Search API",
@@ -33376,7 +33376,7 @@
       "sourceUrl": "https://www.stat-search.boj.or.jp/ssi/mtshtml/fm08_m_1_en.html",
       "latestMonth": "2026-06",
       "lastSourceUpdate": 20260703,
-      "cacheState": "fresh-cache"
+      "cacheState": "network"
     },
     {
       "provider": "FRED / U.S. Bureau of Labor Statistics",
@@ -33398,7 +33398,7 @@
       "downloadUrl": "https://www.e-stat.go.jp/en/stat-search/file-download?fileKind=1&statInfId=000032103842",
       "latestMonth": "2026-06",
       "encoding": "cp932",
-      "cacheState": "fresh-cache",
+      "cacheState": "network",
       "historicalExtension": {
         "provider": "FRED",
         "seriesId": "JPNCPIALLMINMEI",
@@ -33459,7 +33459,7 @@
       "latestMonth": "2026-06",
       "fallback": "9-year yield is used only before the official 10-year series begins",
       "fallbackDailyRows": 3361,
-      "cacheState": "fresh-cache"
+      "cacheState": "network"
     },
     {
       "provider": "Aswath Damodaran, NYU Stern",
@@ -33470,7 +33470,7 @@
       "availabilityRule": "Year Y is first used from May of Y+1 to avoid historical look-ahead",
       "sourceUrl": "https://pages.stern.nyu.edu/~adamodar/New_Home_Page/datafile/spearn.html",
       "latestYear": 2025,
-      "cacheState": "fresh-cache"
+      "cacheState": "network"
     },
     {
       "provider": "Nikkei Inc.",
@@ -33497,7 +33497,7 @@
       "methodologyUrl": "https://www.mof.go.jp/pri/reference/ssc/results/data.htm",
       "latestYear": 2024,
       "historyYears": 65,
-      "cacheState": "fresh-cache",
+      "cacheState": "network",
       "usageNote": "Historical macro proxy only; it is not Nikkei 225 constituent EPS."
     }
   ],
@@ -33506,79 +33506,79 @@
     "entries": [
       {
         "cacheKey": "yahoo-sp500-monthly.json",
-        "sourceUrl": "https://query1.finance.yahoo.com/v8/finance/chart/%5EGSPC?period1=473385600&period2=1785786069&interval=1mo&events=history&includeAdjustedClose=true",
-        "state": "fresh-cache",
-        "fetchedAtUtc": "2026-07-31T18:54:42.433000+00:00",
+        "sourceUrl": "https://query1.finance.yahoo.com/v8/finance/chart/%5EGSPC?period1=473385600&period2=1785809469&interval=1mo&events=history&includeAdjustedClose=true",
+        "state": "network",
+        "fetchedAtUtc": "2026-08-01T02:11:09.986492+00:00",
         "warning": null
       },
       {
         "cacheKey": "yahoo-nikkei225-monthly.json",
-        "sourceUrl": "https://query1.finance.yahoo.com/v8/finance/chart/%5EN225?period1=473385600&period2=1785786069&interval=1mo&events=history&includeAdjustedClose=true",
-        "state": "fresh-cache",
-        "fetchedAtUtc": "2026-07-31T18:54:42.630000+00:00",
+        "sourceUrl": "https://query1.finance.yahoo.com/v8/finance/chart/%5EN225?period1=473385600&period2=1785809470&interval=1mo&events=history&includeAdjustedClose=true",
+        "state": "network",
+        "fetchedAtUtc": "2026-08-01T02:11:10.302685+00:00",
         "warning": null
       },
       {
         "cacheKey": "boj-fxerm06.json",
         "sourceUrl": "https://www.stat-search.boj.or.jp/api/v1/getDataCode?format=json&lang=en&db=FM08&startDate=198501&endDate=202608&code=FXERM06",
-        "state": "fresh-cache",
-        "fetchedAtUtc": "2026-07-31T18:54:43.298000+00:00",
+        "state": "network",
+        "fetchedAtUtc": "2026-08-01T02:11:10.519171+00:00",
         "warning": null
       },
       {
         "cacheKey": "japan-cpi-all-items.csv",
         "sourceUrl": "https://www.e-stat.go.jp/en/stat-search/file-download?fileKind=1&statInfId=000032103842",
-        "state": "fresh-cache",
-        "fetchedAtUtc": "2026-07-31T18:54:44.767000+00:00",
+        "state": "network",
+        "fetchedAtUtc": "2026-08-01T02:11:11.194822+00:00",
         "warning": null
       },
       {
         "cacheKey": "fred-jpncpiallminmei.csv",
         "sourceUrl": "https://fred.stlouisfed.org/graph/fredgraph.csv?id=JPNCPIALLMINMEI",
         "state": "network",
-        "fetchedAtUtc": "2026-07-31T19:41:09.370364+00:00",
+        "fetchedAtUtc": "2026-08-01T02:11:11.551113+00:00",
         "warning": null
       },
       {
         "cacheKey": "fred-gs10.csv",
         "sourceUrl": "https://fred.stlouisfed.org/graph/fredgraph.csv?id=GS10",
         "state": "network",
-        "fetchedAtUtc": "2026-07-31T19:41:11.025436+00:00",
+        "fetchedAtUtc": "2026-08-01T02:11:12.404873+00:00",
         "warning": null
       },
       {
         "cacheKey": "fred-aaa.csv",
         "sourceUrl": "https://fred.stlouisfed.org/graph/fredgraph.csv?id=AAA",
         "state": "network",
-        "fetchedAtUtc": "2026-07-31T19:41:11.317935+00:00",
+        "fetchedAtUtc": "2026-08-01T02:11:12.594926+00:00",
         "warning": null
       },
       {
         "cacheKey": "fred-baa.csv",
         "sourceUrl": "https://fred.stlouisfed.org/graph/fredgraph.csv?id=BAA",
         "state": "network",
-        "fetchedAtUtc": "2026-07-31T19:41:13.091157+00:00",
+        "fetchedAtUtc": "2026-08-01T02:11:13.393244+00:00",
         "warning": null
       },
       {
         "cacheKey": "mof-jgb-history.csv",
         "sourceUrl": "https://www.mof.go.jp/english/policy/jgbs/reference/interest_rate/historical/jgbcme_all.csv",
-        "state": "fresh-cache",
-        "fetchedAtUtc": "2026-07-31T19:24:20.733000+00:00",
+        "state": "network",
+        "fetchedAtUtc": "2026-08-01T02:11:14.168408+00:00",
         "warning": null
       },
       {
         "cacheKey": "damodaran-sp-earnings.html",
         "sourceUrl": "https://pages.stern.nyu.edu/~adamodar/New_Home_Page/datafile/spearn.html",
-        "state": "fresh-cache",
-        "fetchedAtUtc": "2026-07-31T19:24:23.014000+00:00",
+        "state": "network",
+        "fetchedAtUtc": "2026-08-01T02:11:14.589645+00:00",
         "warning": null
       },
       {
         "cacheKey": "mof-corporate-profits-large-ex-finance.json",
         "sourceUrl": "https://www.e-stat.go.jp/dbview?sid=0003060791",
-        "state": "fresh-cache",
-        "fetchedAtUtc": "2026-07-31T19:24:23.037567+00:00",
+        "state": "network",
+        "fetchedAtUtc": "2026-08-01T02:11:16.927428+00:00",
         "warning": null
       }
     ],
