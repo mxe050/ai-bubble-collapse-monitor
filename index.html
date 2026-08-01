@@ -1102,7 +1102,7 @@
           <div class="section-heading compact-heading">
             <p class="section-kicker">NIKKEI 225 / PUBLIC CONTRIBUTION PROXY</p>
             <h3 id="nikkeiAiThreeSeriesHeading">日経平均のAI過熱寄与を3つの円建て値で見る</h3>
-            <p>最後の取引日に、(1) 日経平均の公式終値、(2) AI過熱候補の騰落をTOPIX並みに置き換えた値、(3) その候補を除いた残存部分の値を、すべて同じ円単位で並べます。候補は固定20社ではなく、本サイトの日本AI関連ユニバースと客観スクリーニングで毎回選定します。公開日次ウエートがない日は推計せず、2本のproxyは連続計算できる期間だけを表示します。</p>
+            <p>最後の取引日に、(1) 日経平均の公式終値、(2) 指定AI過熱バスケット14社の騰落をTOPIX並みに置き換えた値、(3) 同じ14社を除いた残存部分の値を、すべて同じ円単位で並べます。上位10銘柄として公式掲載された日次ウエートを優先し、それ以外の指定対象は日経公式PAF・公式除数・終値から再構成します。2本は公式指数ではなく、公開入力が連続する期間だけを表示する研究用proxyです。</p>
           </div>
 
           <aside id="nikkeiAiComparisonNotice" class="nikkei-ai-notice" hidden aria-live="polite"></aside>
@@ -1123,9 +1123,9 @@
               <canvas id="nikkeiAiThreeSeriesChart" role="img" aria-label="日経平均の実績、AI過熱候補をTOPIX並みに標準化した値、AI過熱候補を除いた残存部分を同じ円単位で示す3系列比較"></canvas>
             </div>
             <div id="nikkeiAiReading" class="nikkei-ai-reading">
-              <p><strong>3つの値の意味：</strong>実績、AI過熱候補をTOPIX並みに置換した値、AI過熱候補を除いた残存部分を、同じ日経平均の円単位で比較します。</p>
-              <p><strong>候補の選定：</strong>固定20社を使いません。既存の日本AI関連ユニバースとキオクシアを客観条件で毎回スクリーニングし、条件を満たす候補だけを計算に使います。</p>
-              <p>公開日次ウエートや価格がそろわない日は0・補間・実績同値で埋めません。</p>
+              <p><strong>3つの値の意味：</strong>実績、指定14社をTOPIX並みに置換した値、同じ14社を除いた残存部分を、同じ日経平均の円単位で比較します。</p>
+              <p><strong>指定対象：</strong>（2）と（3）は同一の14社を使います。上位10掲載分は公式日次ウエート、未掲載分は日経公式PAF・公式除数・終値から再構成します。</p>
+              <p>構成変更で日経平均に未採用だった期間だけは0とし、公開入力が欠ける日は0・補間・実績同値で埋めません。</p>
             </div>
           </div>
 
@@ -1140,7 +1140,7 @@
             <div id="nikkeiAiEventTimeline" class="nikkei-ai-event-timeline" aria-live="polite"></div>
           </section>
 
-          <p id="nikkeiAiTargetNames" class="nikkei-ai-targets">本サイトの価格・寄与基準によるAI過熱候補：確認中</p>
+          <p id="nikkeiAiTargetNames" class="nikkei-ai-targets">指定AI過熱バスケット（（2）（3）共通）：確認中</p>
 
           <details class="nikkei-ai-details">
             <summary>候補抽出・品質・計算根拠を見る</summary>
