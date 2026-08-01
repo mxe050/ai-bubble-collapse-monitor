@@ -47,7 +47,7 @@
       <a href="#live-briefing" data-track="live-briefing">速報・介入</a>
       <a href="#today" data-track="today">今日の判定</a>
       <a href="#global-comparison" data-track="purchasing-power,decision-path,global-comparison">価値・過熱</a>
-      <a href="#nikkei-ai-three-series" data-track="sakakibara-method">AI上昇銘柄を固定除外</a>
+      <a href="#nikkei-ai-three-series" data-track="sakakibara-method">AI過熱候補の寄与を分ける</a>
       <a href="#us-japan-link" data-track="us-japan-link,sakakibara-method">日本への波及</a>
       <a href="#money-strategist" data-track="money-strategist,margin-leverage,signals">暴落確認</a>
       <a href="#nikkei-bottom" data-track="nikkei-bottom">底値・反転</a>
@@ -1100,32 +1100,32 @@
 
         <section id="nikkei-ai-three-series" class="nikkei-ai-three-series" aria-labelledby="nikkeiAiThreeSeriesHeading">
           <div class="section-heading compact-heading">
-            <p class="section-kicker">NIKKEI 225 / STRICT AI EXCLUSION</p>
-            <h3 id="nikkeiAiThreeSeriesHeading">AIを含めずに、日本株の上昇を見直す</h3>
-            <p>AI・半導体・メモリ・データセンター・AI投資の主要直接受益20社を、株価の上下にかかわらず固定で除外します。比較側はAI直接受益を含めない固定16社の日次等ウェートです。キオクシアも価格が戻っていてもAI側のままです。</p>
+            <p class="section-kicker">NIKKEI 225 / PUBLIC CONTRIBUTION PROXY</p>
+            <h3 id="nikkeiAiThreeSeriesHeading">日経平均のAI過熱寄与を3つの円建て値で見る</h3>
+            <p>最後の取引日に、(1) 日経平均の公式終値、(2) AI過熱候補の騰落をTOPIX並みに置き換えた値、(3) その候補を除いた残存部分の値を、すべて同じ円単位で並べます。候補は固定20社ではなく、本サイトの日本AI関連ユニバースと客観スクリーニングで毎回選定します。公開日次ウエートがない日は推計せず、2本のproxyは連続計算できる期間だけを表示します。</p>
           </div>
 
           <aside id="nikkeiAiComparisonNotice" class="nikkei-ai-notice" hidden aria-live="polite"></aside>
 
           <div id="nikkeiAiThreeSummary" class="nikkei-ai-summary-grid" aria-live="polite">
-            <article class="nikkei-ai-summary-card is-loading"><span>比較データ</span><strong>固定対象を計算中</strong><small>公開データの品質と比較可能な期間を確認しています。</small></article>
+            <article class="nikkei-ai-summary-card is-loading"><span>比較データ</span><strong>読込中</strong><small>公開データの品質と比較可能な期間を確認しています。</small></article>
           </div>
 
           <div class="chart-panel nikkei-ai-chart-panel">
             <div class="panel-heading nikkei-ai-chart-heading">
               <div>
-                <h4 id="nikkeiAiChartTitle">10年実額と、固定AI／非AIの3系列比較</h4>
-                <p id="nikkeiAiChartSubtitle">日経平均は実額（円）。AI・非AIの2系列は比較開始日の日経平均終値を起点に円換算した研究用比較です。</p>
+                <h4 id="nikkeiAiChartTitle">日経平均の実績・標準化・AI候補除外（円）</h4>
+                <p id="nikkeiAiChartSubtitle">3本とも円建て。実績は10年、2本のproxyは公開日次寄与が連続する期間だけを描画します。</p>
               </div>
               <span id="nikkeiAiMethodBadge" class="source-chip">データ確認中</span>
             </div>
             <div class="nikkei-ai-chart-frame">
-              <canvas id="nikkeiAiThreeSeriesChart" role="img" aria-label="日経平均の実額と、固定AI除外・非AIコアを比較した3系列チャート"></canvas>
+              <canvas id="nikkeiAiThreeSeriesChart" role="img" aria-label="日経平均の実績、AI過熱候補をTOPIX並みに標準化した値、AI過熱候補を除いた残存部分を同じ円単位で示す3系列比較"></canvas>
             </div>
             <div id="nikkeiAiReading" class="nikkei-ai-reading">
-              <p><strong>何を比べるか：</strong>AI・半導体・メモリ・データセンター・AI投資の直接受益20社と、これらを含めない固定16社を日次等ウェートで比較します。</p>
-              <p><strong>重要な限界：</strong>これは日経平均の公式「AI除外指数」ではありません。指数構成銘柄・株価換算係数・除数の全履歴がなければ、日経225を厳密に再構成できないためです。</p>
-              <p><strong>読み方：</strong>AIバスケットと非AIコアの差が大きいほど、今回の上昇がAI関連に集中している可能性を示します。</p>
+              <p><strong>3つの値の意味：</strong>実績、AI過熱候補をTOPIX並みに置換した値、AI過熱候補を除いた残存部分を、同じ日経平均の円単位で比較します。</p>
+              <p><strong>候補の選定：</strong>固定20社を使いません。既存の日本AI関連ユニバースとキオクシアを客観条件で毎回スクリーニングし、条件を満たす候補だけを計算に使います。</p>
+              <p>公開日次ウエートや価格がそろわない日は0・補間・実績同値で埋めません。</p>
             </div>
           </div>
 
@@ -1140,22 +1140,24 @@
             <div id="nikkeiAiEventTimeline" class="nikkei-ai-event-timeline" aria-live="polite"></div>
           </section>
 
-          <p id="nikkeiAiTargetNames" class="nikkei-ai-targets">固定AI除外・非AIコアを確認中</p>
+          <p id="nikkeiAiTargetNames" class="nikkei-ai-targets">本サイトの価格・寄与基準によるAI過熱候補：確認中</p>
 
           <details class="nikkei-ai-details">
-            <summary>対象銘柄・分類・品質を見る</summary>
+            <summary>候補抽出・品質・計算根拠を見る</summary>
             <div class="table-wrap nikkei-ai-table-wrap">
               <table class="nikkei-ai-stock-table">
                 <thead>
                   <tr>
-                    <th>区分</th>
                     <th>コード</th>
                     <th>会社名</th>
-                    <th>分類</th>
-                    <th>扱い・理由</th>
-                    <th>比較期間の騰落</th>
-                    <th>高値から</th>
-                    <th>価格データ</th>
+                    <th>選定状態</th>
+                    <th>A: 36か月超過騰落</th>
+                    <th>B: 最大12か月騰落</th>
+                    <th>C: 日経平均内の最大ウエート</th>
+                    <th>D: 事業成長との差</th>
+                    <th>該当条件</th>
+                    <th>現在 / 最大ウエート</th>
+                    <th>データ状態</th>
                   </tr>
                 </thead>
                 <tbody id="nikkeiAiStockRows"></tbody>

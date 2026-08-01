@@ -11390,27 +11390,6 @@ main .band .label { font-size: 0.76rem; line-height: 1.45; }
 .nikkei-ai-screen-cell { display: grid; gap: 3px; }
 .nikkei-ai-stock-table td small { display: block; margin-top: 4px; color: #71858f; font-size: .68rem; line-height: 1.35; }
 
-.nikkei-ai-stock-table tbody tr.is-ai-exclusion td { background: #f0faf8; }
-.nikkei-ai-stock-table tbody tr.is-non-ai-core td { background: #fffaf2; }
-.nikkei-ai-stock-table tbody tr.is-ai-exclusion td:first-child strong,
-.nikkei-ai-stock-table tbody tr.is-non-ai-core td:first-child strong {
-  display: inline-block;
-  min-width: 86px;
-  padding: 3px 6px;
-  border-radius: 999px;
-  font-size: .67rem;
-  line-height: 1.2;
-  text-align: center;
-}
-.nikkei-ai-stock-table tbody tr.is-ai-exclusion td:first-child strong {
-  color: #0b6c62;
-  background: #d8f0eb;
-}
-.nikkei-ai-stock-table tbody tr.is-non-ai-core td:first-child strong {
-  color: #9b5a13;
-  background: #fff0d8;
-}
-
 .nikkei-ai-quality-notes {
   padding: 15px 16px;
   color: #536c77;
