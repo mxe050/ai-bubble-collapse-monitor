@@ -1,0 +1,29 @@
+{
+  "method_version": "2.0",
+  "mode": "public_contribution_proxy",
+  "lookback_years": 10,
+  "normalization_reference": "TOPIX",
+  "candidate_universe": {
+    "use_existing_japan_ai_linked": true,
+    "additional_codes": [
+      "285A"
+    ]
+  },
+  "screen": {
+    "excess_return_vs_topix_36m_pp": 100,
+    "max_rolling_12m_return_pct": 80,
+    "peak_nikkei_weight_pct": 1,
+    "price_minus_business_growth_36m_pp": 75,
+    "minimum_conditions": 3
+  },
+  "auto_use_screened_candidates": true,
+  "explicit_keep": [
+    {
+      "code": "7203",
+      "name": "トヨタ自動車",
+      "reason": "AIとの接点だけでは除外しない。ユーザーが明示的に残すよう指定"
+    }
+  ],
+  "manual_include": [],
+  "manual_exclude": []
+}

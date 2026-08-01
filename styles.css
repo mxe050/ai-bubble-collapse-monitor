@@ -11165,23 +11165,23 @@ main .band .label { font-size: 0.76rem; line-height: 1.45; }
 .nikkei-ai-summary-card.is-loading { background: #f2f6f7; }
 .nikkei-ai-summary-card.is-uncomputed { background: #fff8e8; }
 
-.nikkei-ai-uncomputed {
+.nikkei-ai-notice {
   display: grid;
   grid-template-columns: minmax(150px, 220px) minmax(0, 1fr);
   gap: 14px;
   align-items: start;
   margin: 18px 0;
   padding: 16px 18px;
-  color: #6a5428;
-  border: 1px solid #e7c775;
-  border-left: 5px solid #b9871d;
-  background: #fff8e8;
+  color: #235464;
+  border: 1px solid #9fc7ca;
+  border-left: 5px solid #168177;
+  background: #eef8f7;
   line-height: 1.65;
 }
 
-.nikkei-ai-uncomputed[hidden] { display: none; }
-.nikkei-ai-uncomputed strong { color: #6a4a08; }
-.nikkei-ai-uncomputed p { margin: 0; font-size: .86rem; }
+.nikkei-ai-notice[hidden] { display: none; }
+.nikkei-ai-notice strong { color: #12645f; }
+.nikkei-ai-notice p { margin: 0; font-size: .86rem; }
 
 .nikkei-ai-chart-panel {
   margin: 0;
@@ -11299,6 +11299,9 @@ main .band .label { font-size: 0.76rem; line-height: 1.45; }
 
 .nikkei-ai-stock-table tbody tr:last-child td { border-bottom: 0; }
 
+.nikkei-ai-screen-cell { display: grid; gap: 3px; }
+.nikkei-ai-stock-table td small { display: block; margin-top: 4px; color: #71858f; font-size: .68rem; line-height: 1.35; }
+
 .nikkei-ai-quality-notes {
   padding: 15px 16px;
   color: #536c77;
@@ -11336,7 +11339,7 @@ main .band .label { font-size: 0.76rem; line-height: 1.45; }
 
   .nikkei-ai-summary-grid { grid-template-columns: 1fr; }
   .nikkei-ai-summary-card { min-height: 0; padding: 14px; }
-  .nikkei-ai-uncomputed { grid-template-columns: 1fr; gap: 6px; padding: 13px 14px; }
+  .nikkei-ai-notice { grid-template-columns: 1fr; gap: 6px; padding: 13px 14px; }
   .nikkei-ai-chart-panel { padding: 15px 12px; }
   .nikkei-ai-chart-heading { display: grid; grid-template-columns: 1fr; }
   #nikkeiAiMethodBadge { max-width: none; text-align: left; }

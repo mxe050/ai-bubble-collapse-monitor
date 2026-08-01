@@ -35,6 +35,9 @@ def close_enough(left: float, right: float, tolerance: float = 1e-4) -> bool:
 
 
 def validate_nikkei_ai_three_series() -> None:
+    from validate_nikkei_ai_public_proxy import validate as validate_public_proxy
+    validate_public_proxy()
+    return
     require(DATA_FILE.exists(), "Nikkei AI three-series package is missing")
     payload = json.loads(DATA_FILE.read_text(encoding="utf-8"))
     config = json.loads(CONFIG_FILE.read_text(encoding="utf-8"))
@@ -129,4 +132,5 @@ def main() -> None:
 
 
 if __name__ == "__main__":
-    main()
+    from validate_nikkei_ai_public_proxy import main as public_main
+    public_main()
