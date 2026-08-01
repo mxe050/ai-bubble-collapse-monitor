@@ -27,7 +27,7 @@ from zoneinfo import ZoneInfo
 
 
 ROOT = Path(__file__).resolve().parents[1]
-CONFIG_PATH = ROOT / "config" / "nikkei-ai-overheat-stocks.json"
+CONFIG_PATH = ROOT / "config" / "nikkei-ai-overheat-config.json"
 OUTPUT_PATH = ROOT / "data" / "nikkei-ai-three-series.json"
 JST = ZoneInfo("Asia/Tokyo")
 OFFICIAL_DAILY_URL = (
@@ -501,6 +501,8 @@ def write_nikkei_ai_three_series(
     config_path: Path = CONFIG_PATH,
     output_path: Path = OUTPUT_PATH,
 ) -> dict[str, Any]:
+    from nikkei_ai_public_proxy import write_nikkei_ai_three_series as write_public_proxy
+    return write_public_proxy(config_path=config_path, output_path=output_path)
     config = load_config(config_path)
     payload = build_payload(
         config,

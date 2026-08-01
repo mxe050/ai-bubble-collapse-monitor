@@ -2209,6 +2209,98 @@
       },
     });
   }
+  function renderNikkeiAiContributionProxy() {
+    var payload = state.nikkeiAiThreeSeries || {};
+    var meta = payload.meta || {}, summary = payload.summary || {}, quality = payload.quality || {};
+    var candidates = Array.isArray(payload.candidates) ? payload.candidates : [];
+    var targets = Array.isArray(payload.selected_candidates) ? payload.selected_candidates : [];
+    var keeps = Array.isArray(payload.explicit_keep) ? payload.explicit_keep : [];
+    var series = (Array.isArray(payload.series) ? payload.series : []).filter(function (row) { return row && row.date && finite(row.nikkei_actual) !== null; });
+    var warnings = Array.isArray(payload.warnings) ? payload.warnings.filter(Boolean) : [];
+    var sources = Array.isArray(payload.sources) ? payload.sources : [];
+    var status = String(meta.comparison_status || quality.data_state || "");
+    var hasProxy = status === "public-contribution-proxy" && series.some(function (row) { return finite(row.ai_overheat_normalized) !== null && finite(row.ai_overheat_excluded) !== null; });
+    var coverage = finite(quality.coverage_pct), dayCounts = quality.day_counts || {};
+    var summaryNode = byId("nikkeiAiThreeSummary"), targetNode = byId("nikkeiAiTargetNames"), stockRows = byId("nikkeiAiStockRows"), qualityNode = byId("nikkeiAiQualityNotes"), badge = byId("nikkeiAiMethodBadge"), canvas = byId("nikkeiAiThreeSeriesChart"), notice = byId("nikkeiAiComparisonNotice"), title = byId("nikkeiAiChartTitle"), subtitle = byId("nikkeiAiChartSubtitle"), reading = byId("nikkeiAiReading");
+    if (!summaryNode || !targetNode || !stockRows || !qualityNode) return;
+
+    var stateLabel = status === "public-contribution-proxy" ? "公開データproxy"
+      : status === "data-insufficient-exact-reconstruction-inputs" ? "完全再構成モード：データ不足"
+        : status === "actual-only-no-screened-candidates" ? "実績のみ（候補0社）" : "実績のみ（データ不足）";
+    if (badge) badge.textContent = stateLabel + " / " + (meta.method_label || "データ状態を確認");
+    if (notice) {
+      notice.hidden = false;
+      notice.innerHTML = hasProxy
+        ? "<strong>" + escapeHtml(stateLabel) + "：寄与ベースの比較</strong><p>" + escapeHtml(meta.proxy_disclaimer || "合成系列は研究用proxyです。") + (coverage !== null && coverage < 90 ? " 10年全体の十分な連続カバレッジがないため、取得できた連続区間だけを表示しています。" : "") + "</p>"
+        : "<strong>" + escapeHtml(stateLabel) + "</strong><p>" + escapeHtml(warnings[0] || "比較に必要な公開入力がそろっていません。") + " 欠損日はゼロ・補間・実績同値で埋めていません。</p>";
+    }
+    if (title) title.textContent = hasProxy ? (coverage !== null && coverage < 90 ? "取得できた連続区間の3系列比較" : "3系列比較") : "日経平均の実績（10年）";
+    if (subtitle) subtitle.textContent = hasProxy ? "共通起点＝100・価格指数・配当なし。合成系列は公開データによる研究用proxy" : "共通起点＝100・価格指数・配当なし。比較に必要な公開入力は未充足";
+    if (canvas) canvas.setAttribute("aria-label", hasProxy ? "日経平均とAI過熱候補の寄与を調整した3系列比較" : "日経平均の10年実績系列");
+    if (reading) reading.innerHTML = hasProxy
+      ? "<p><strong>一般市場並みに置換：</strong>対象候補の日次騰落をTOPIXの日次騰落に置き換えた試算です。</p><p><strong>残存部分：</strong>対象候補の日次寄与を日経平均から外し、残りを比率で表した試算です。</p><p>対象は本サイトの価格・寄与基準によるAI過熱候補であり、公式指数・投資助言・バブルの統計的認定ではありません。</p>"
+      : "<p><strong>実績のみ：</strong>公開データでは10年全期間の構成・PAF/CPAF等がそろわないため、合成系列を作っていません。</p><p>欠損を埋めて見かけ上の比較線を作ることはしません。</p>";
+
+    var cards = hasProxy ? [
+      ["日経平均・実績", formatPercent(summary.comparison_actual_return_pct, true), (meta.display_start_date || "開始日") + " → " + (meta.display_end_date || "終了日")],
+      ["一般市場並みに置換", formatPercent(summary.normalized_return_pct, true), "TOPIXの日次騰落で置換したproxy"],
+      ["候補を除いた残存部分", formatPercent(summary.excluded_return_pct, true), "日次寄与を外したproxy"],
+      ["対象候補の合計ウエート", formatPercent(summary.current_combined_weight_pct, false), "直近日。最大 " + formatPercent(summary.peak_combined_weight_pct, false)],
+      ["公開データのカバレッジ", coverage === null ? "―" : numberOne.format(coverage) + "%", "exact " + numberOne.format(finite(dayCounts.exact) || 0) + "日 / missing " + numberOne.format(finite(dayCounts.missing) || 0) + "日"]
+    ] : [
+      ["日経平均・10年騰落率", formatPercent(summary.actual_full_period_return_pct, true), "公式月次CSVとのクロスチェック済み"],
+      ["候補ユニバース", numberOne.format(finite(summary.candidate_count) || 0) + "銘柄", "スクリーニング対象"],
+      ["比較に選ばれた候補", numberOne.format(finite(summary.selected_candidate_count) || 0) + "銘柄", "3条件以上で暫定選定"],
+      ["公開データのカバレッジ", coverage === null ? "―" : numberOne.format(coverage) + "%", "90%未満では10年proxyを表示しない"],
+      ["欠損日の扱い", "補間なし", "実績同値・ゼロ埋めもしない"]
+    ];
+    summaryNode.innerHTML = cards.map(function (card) { return '<article class="nikkei-ai-summary-card"><span>' + escapeHtml(card[0]) + "</span><strong>" + escapeHtml(card[1]) + "</strong><small>" + escapeHtml(card[2]) + "</small></article>"; }).join("");
+    targetNode.innerHTML = targets.length ? "<strong>本サイトの価格・寄与基準によるAI過熱候補：</strong>" + targets.map(function (item) { return escapeHtml((item.name || "名称未取得") + "（" + (item.code || "コード未取得") + "、" + (item.status === "manual_include" ? "手動追加" : "自動暫定選定") + "）"); }).join("、") : "<strong>本サイトの価格・寄与基準によるAI過熱候補：</strong>今回の公開データと設定では、3条件以上を満たす候補はありません。";
+
+    function screenCell(item) {
+      item = item || {};
+      var value = finite(item.value), threshold = finite(item.threshold), result = item.met === true ? "該当" : item.met === false ? "非該当" : "判定不能";
+      return '<span class="nikkei-ai-screen-cell">' + escapeHtml(value === null ? "―" : formatPercent(value, true)) + "<small>" + escapeHtml((threshold === null ? "" : "基準 " + numberOne.format(threshold) + "% / ") + result) + "</small></span>";
+    }
+    function candidateStatus(item) { return ({ auto_screened_provisional: "自動暫定選定", manual_include: "手動追加", manual_exclude: "手動除外", explicit_keep: "明示維持", not_selected: "非選定" })[item.status] || "要確認"; }
+    stockRows.innerHTML = candidates.length ? candidates.map(function (item) {
+      var condition = item.conditions || {}, current = finite(item.current_nikkei_weight_pct), peak = finite(item.peak_nikkei_weight_pct);
+      return "<tr><td>" + escapeHtml(item.code || "―") + "</td><td>" + escapeHtml(item.name || "名称未取得") + "</td><td><strong>" + escapeHtml(candidateStatus(item)) + "</strong><small>" + escapeHtml(item.selection_reason || "") + "</small></td><td>" + screenCell(condition.A) + "</td><td>" + screenCell(condition.B) + "</td><td>" + screenCell(condition.C) + "</td><td>" + screenCell(condition.D) + "</td><td>" + escapeHtml((item.passed_conditions || []).join("・") || "なし") + "</td><td>" + escapeHtml(current === null ? "―" : formatPercent(current, false)) + " / 最大 " + escapeHtml(peak === null ? "―" : formatPercent(peak, false)) + "</td><td>" + escapeHtml(item.data_status || item.weight_method || "公開データ") + "</td></tr>";
+    }).join("") : '<tr><td colspan="10">候補ユニバースを確認できませんでした。</td></tr>';
+
+    var notes = [
+      "<p><strong>実績期間：</strong>" + escapeHtml((meta.start_date || "―") + " → " + (meta.end_date || "―")) + "。表示区間は " + escapeHtml((meta.display_start_date || "―") + " → " + (meta.display_end_date || "―")) + " です。</p>",
+      "<p><strong>日次品質：</strong>exact " + escapeHtml(numberOne.format(finite(dayCounts.exact) || 0)) + "日、reconstructed " + escapeHtml(numberOne.format(finite(dayCounts.reconstructed) || 0)) + "日、legacy_reconstructed " + escapeHtml(numberOne.format(finite(dayCounts.legacy_reconstructed) || 0)) + "日、missing " + escapeHtml(numberOne.format(finite(dayCounts.missing) || 0)) + "日。</p>",
+      "<p><strong>ウエート：</strong>" + escapeHtml(quality.weight_method || "―") + "</p>",
+      "<p><strong>価格：</strong>" + escapeHtml(quality.price_method || meta.price_field || "―") + "</p>"
+    ];
+    if (meta.market_date) notes.unshift("<p><strong>最終市場日：</strong>" + escapeHtml(meta.market_date) + "</p>");
+    if (quality.membership_handling) notes.push("<p><strong>採用・除外日の扱い：</strong>" + escapeHtml(quality.membership_handling) + "</p>");
+    var priceAudits = Array.isArray(quality.candidate_price_audit) ? quality.candidate_price_audit : [];
+    var splitEventCount = priceAudits.reduce(function (total, item) { return total + (Array.isArray(item.split_events) ? item.split_events.length : 0); }, 0);
+    if (priceAudits.length) notes.push("<p><strong>株式分割の確認：</strong>候補銘柄の分割イベントを " + escapeHtml(numberOne.format(splitEventCount)) + " 件取得。配当込みAdj Closeは使いません。</p>");
+    var candidatePriceLinks = priceAudits.filter(function (item) { return safeHttpsUrl(item.source_url); }).map(function (item) { return nikkeiAiSourceMarkup({ label: String(item.code || "候補") + " Close", url: item.source_url }); });
+    if (candidatePriceLinks.length) notes.push('<p class="nikkei-ai-source-links"><strong>候補別終値：</strong>' + candidatePriceLinks.join(" / ") + "</p>");
+    if (keeps.length) notes.push("<p><strong>明示的に維持：</strong>" + keeps.map(function (item) { return escapeHtml((item.name || "名称未取得") + "（" + (item.code || "コード未取得") + "）"); }).join("、") + "。AIとの接点だけでは自動的に除外しません。</p>");
+    if ((quality.missing_items || []).length) notes.push("<p><strong>未取得のため再構成に使っていない入力：</strong>" + escapeHtml(quality.missing_items.join("、")) + "</p>");
+    if (finite(quality.missing_date_count) !== null) notes.push("<p><strong>欠損日：</strong>" + escapeHtml(numberOne.format(quality.missing_date_count)) + "日。該当日を0・補間・実績同値で埋めていません。</p>");
+    if (warnings.length) notes.push('<ul class="nikkei-ai-warning-list">' + warnings.map(function (item) { return "<li>" + escapeHtml(item) + "</li>"; }).join("") + "</ul>");
+    if (sources.length) notes.push('<p class="nikkei-ai-source-links"><strong>出典：</strong>' + sources.map(nikkeiAiSourceMarkup).join(" / ") + "</p>");
+    qualityNode.innerHTML = notes.join("");
+
+    if (state.nikkeiAiThreeSeriesChart) { state.nikkeiAiThreeSeriesChart.destroy(); state.nikkeiAiThreeSeriesChart = null; }
+    if (typeof Chart === "undefined" || !canvas || !series.length) return;
+    var labels = series.map(function (item) { return item.date; });
+    var datasets = [{ label: "日経平均・実績", data: series.map(function (item) { return finite(item.nikkei_actual); }), borderColor: "#1b4d6f", backgroundColor: "rgba(27,77,111,.08)", borderWidth: 2.8, pointRadius: 0, tension: .12 }];
+    if (hasProxy) {
+      datasets.push({ label: "AI過熱寄与を一般市場並みに置換", data: series.map(function (item) { return finite(item.ai_overheat_normalized); }), borderColor: "#11836f", borderWidth: 2.4, borderDash: [7, 4], pointRadius: 0, tension: .12 });
+      datasets.push({ label: "AI過熱候補を除いた残存部分", data: series.map(function (item) { return finite(item.ai_overheat_excluded); }), borderColor: "#b64a3b", borderWidth: 2.2, borderDash: [2, 4], pointRadius: 0, tension: .12 });
+    }
+    state.nikkeiAiThreeSeriesChart = new Chart(canvas, {
+      type: "line", data: { labels: labels, datasets: datasets }, options: { responsive: true, maintainAspectRatio: false, interaction: { mode: "index", intersect: false }, plugins: { legend: { position: "bottom", labels: { color: chartTextColor(), boxWidth: 18, usePointStyle: true } }, tooltip: { callbacks: { title: function (items) { return items[0] ? items[0].label : ""; }, afterBody: function (items) { var row = series[items[0] && Number.isFinite(items[0].dataIndex) ? items[0].dataIndex : series.length - 1] || {}, output = []; if (finite(row.nikkei_close) !== null) output.push("日経平均終値 " + numberTwo.format(row.nikkei_close) + "円"); if (row.quality) output.push("品質 " + row.quality); if (finite(row.combined_weight_pct) !== null) output.push("対象合計ウエート " + numberOne.format(row.combined_weight_pct) + "%"); return output; } } } }, scales: { x: { grid: { display: false }, ticks: { color: chartTextColor(), maxTicksLimit: window.matchMedia && window.matchMedia("(max-width: 700px)").matches ? 6 : 12, maxRotation: 0, callback: function (_value, index) { return String(labels[index] || "").slice(0, 7).replace("-", "/"); } } }, y: { grid: { color: "rgba(100,115,134,.15)" }, ticks: { color: chartTextColor(), callback: function (value) { return numberOne.format(value); } }, title: { display: true, text: "開始日＝100", color: chartTextColor() } } } }
+    });
+  }
+
   function latestOfficialDisclosureForIssuer(issuerCode) {
     var target = String(issuerCode || "").toUpperCase().trim();
     if (!target) return null;
@@ -4566,7 +4658,7 @@
     renderGates(gates);
     renderJapanTransmission(transmission);
     renderSakakibaraMethod();
-    renderNikkeiAiThreeSeries();
+    renderNikkeiAiContributionProxy();
     renderMoneyStrategist();
     renderMarginDebt();
     renderCrashLens(evidence, gates);

@@ -173,4 +173,5 @@ def main() -> None:
 
 
 if __name__ == "__main__":
-    main()
+    from test_nikkei_ai_public_proxy import main as public_main
+    public_main()

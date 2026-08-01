@@ -3868,7 +3868,7 @@ def main() -> None:
     except Exception as exc:
         print(f"Warning: retained previous six-series comparison package: {exc}")
     try:
-        from nikkei_ai_three_series import write_nikkei_ai_three_series
+        from nikkei_ai_public_proxy import write_nikkei_ai_three_series
         nikkei_comparison = write_nikkei_ai_three_series()
         print(f"Updated Nikkei AI three-series through {nikkei_comparison['meta']['market_date']}")
     except Exception as exc:
