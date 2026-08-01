@@ -1986,7 +1986,14 @@ def fetch_intraday_quote(key: str, profile: dict[str, str], now: datetime) -> di
         "referenceError": reference_error,
         "sessionHigh": max(max(recent_values), display_value),
         "sessionLow": min(min(recent_values), display_value),
-        "sessionRangePct": pct_change(max(recent_values), min(recent_values)),
+        # Keep the derived range in lockstep with the displayed high/low. The
+        # official Nikkei close can replace the intraday provider's last value,
+        # so calculating this from the raw series alone makes the three fields
+        # internally inconsistent.
+        "sessionRangePct": pct_change(
+            max(max(recent_values), display_value),
+            min(min(recent_values), display_value),
+        ),
         "quoteTimeUtc": latest_dt.isoformat(),
         "quoteTimeJst": latest_dt.astimezone(JST).isoformat(),
         "staleMinutes": round(stale_minutes, 1),
