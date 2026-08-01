@@ -1,29 +1,219 @@
 {
-  "method_version": "2.0",
-  "mode": "public_contribution_proxy",
+  "method_version": "3.0",
+  "mode": "strict-fixed-basket-proxy",
   "lookback_years": 10,
-  "normalization_reference": "TOPIX",
-  "candidate_universe": {
-    "use_existing_japan_ai_linked": true,
-    "additional_codes": [
-      "285A"
+  "comparison_lookback_years": 3,
+  "basket_return_method": "daily-equal-weight-available-close-to-close",
+  "classification_policy": "fixed-business-exposure-list",
+  "minimum_active_ratio": 0.8,
+  "ai_exclusion_basket": {
+    "label": "AI・半導体・メモリ・データセンター・AI投資の直接受益20社",
+    "members": [
+      {
+        "code": "6857",
+        "name": "アドバンテスト",
+        "role": "AI/HPC半導体テスト",
+        "reason": "AI・HPC向け半導体テスター需要を直接の成長要因とする。"
+      },
+      {
+        "code": "8035",
+        "name": "東京エレクトロン",
+        "role": "先端半導体製造装置",
+        "reason": "生成AI向け先端ロジック・メモリ投資の直接受益。"
+      },
+      {
+        "code": "6146",
+        "name": "ＤＩＳＣＯ",
+        "role": "半導体切断・研削装置",
+        "reason": "生成AI向け先端ロジック・HBMを含む設備投資の直接受益。"
+      },
+      {
+        "code": "6920",
+        "name": "レーザーテック",
+        "role": "EUV・半導体検査装置",
+        "reason": "GPU・HBMなどAI向け先端半導体の検査装置企業。"
+      },
+      {
+        "code": "7735",
+        "name": "ＳＣＲＥＥＮホールディングス",
+        "role": "半導体製造装置",
+        "reason": "生成AI向けGPU・メモリ投資を背景とする製造装置企業。"
+      },
+      {
+        "code": "3436",
+        "name": "ＳＵＭＣＯ",
+        "role": "シリコンウエハ",
+        "reason": "先端ロジック・メモリを含む半導体生産の基礎材料を供給。"
+      },
+      {
+        "code": "4063",
+        "name": "信越化学工業",
+        "role": "半導体シリコン・材料",
+        "reason": "半導体シリコンウエハなどAI計算基盤の供給網に位置する。"
+      },
+      {
+        "code": "7741",
+        "name": "ＨＯＹＡ",
+        "role": "半導体マスクブランクス",
+        "reason": "先端半導体製造に使うフォトマスクブランクスを含む供給網企業。"
+      },
+      {
+        "code": "285A",
+        "name": "キオクシアホールディングス",
+        "role": "AI推論向けフラッシュメモリ・SSD",
+        "reason": "AI推論インフラ向けメモリ・SSDを成長戦略の中核に置く。価格が戻っても再編入しない。"
+      },
+      {
+        "code": "6723",
+        "name": "ルネサスエレクトロニクス",
+        "role": "エッジAI・AIサーバー半導体",
+        "reason": "エッジAI、AIインフラ・コンピュートを戦略成長領域とする。"
+      },
+      {
+        "code": "6526",
+        "name": "ソシオネクスト",
+        "role": "AIデータセンター向けSoC",
+        "reason": "AIデータセンター向けカスタムSoCを開発。"
+      },
+      {
+        "code": "5803",
+        "name": "フジクラ",
+        "role": "AIデータセンター向け光配線",
+        "reason": "生成AI拡大に伴うデータセンター向け高密度光配線の受益企業。"
+      },
+      {
+        "code": "5801",
+        "name": "古河電気工業",
+        "role": "AIデータセンター向け光部品",
+        "reason": "AI・データセンター向け光ファイバー・光デバイスを重点分野とする。"
+      },
+      {
+        "code": "9984",
+        "name": "ソフトバンクグループ",
+        "role": "AI投資・Arm",
+        "reason": "Armを含むAI投資・AI計算基盤の価値変動に直接結び付く。"
+      },
+      {
+        "code": "6501",
+        "name": "日立製作所",
+        "role": "AI・デジタル・産業システム",
+        "reason": "AI・デジタル事業を成長戦略の中核に置く。"
+      },
+      {
+        "code": "6702",
+        "name": "富士通",
+        "role": "AI・DXサービス",
+        "reason": "AI・DXのシステム提供を主要事業の成長領域とする。"
+      },
+      {
+        "code": "6701",
+        "name": "ＮＥＣ",
+        "role": "AI・デジタル企業システム",
+        "reason": "AIを含むデジタル事業を重点領域に置く。"
+      },
+      {
+        "code": "6762",
+        "name": "ＴＤＫ",
+        "role": "AIサーバー向け電子部品・電源",
+        "reason": "AIサーバーを含む高性能計算機の電子部品・電源需要に関わる。"
+      },
+      {
+        "code": "6861",
+        "name": "キーエンス",
+        "role": "FA・画像検査・自動化",
+        "reason": "AI・画像検査・自動化の設備投資に連動しやすい。"
+      },
+      {
+        "code": "6954",
+        "name": "ファナック",
+        "role": "産業ロボット・AI自動化",
+        "reason": "AIを伴う工場自動化・ロボット投資の直接受益。"
+      }
     ]
   },
-  "screen": {
-    "excess_return_vs_topix_36m_pp": 100,
-    "max_rolling_12m_return_pct": 80,
-    "peak_nikkei_weight_pct": 1,
-    "price_minus_business_growth_36m_pp": 75,
-    "minimum_conditions": 3
-  },
-  "auto_use_screened_candidates": true,
-  "explicit_keep": [
-    {
-      "code": "7203",
-      "name": "トヨタ自動車",
-      "reason": "AIとの接点だけでは除外しない。ユーザーが明示的に残すよう指定"
-    }
-  ],
-  "manual_include": [],
-  "manual_exclude": []
+  "non_ai_core_basket": {
+    "label": "AI直接受益を含まない分散16社",
+    "members": [
+      {
+        "code": "7203",
+        "name": "トヨタ自動車",
+        "sector": "自動車"
+      },
+      {
+        "code": "8306",
+        "name": "三菱ＵＦＪフィナンシャル・グループ",
+        "sector": "銀行"
+      },
+      {
+        "code": "8058",
+        "name": "三菱商事",
+        "sector": "総合商社"
+      },
+      {
+        "code": "1605",
+        "name": "ＩＮＰＥＸ",
+        "sector": "エネルギー"
+      },
+      {
+        "code": "2914",
+        "name": "日本たばこ産業",
+        "sector": "消費財"
+      },
+      {
+        "code": "4502",
+        "name": "武田薬品工業",
+        "sector": "医薬品"
+      },
+      {
+        "code": "9020",
+        "name": "東日本旅客鉄道",
+        "sector": "鉄道"
+      },
+      {
+        "code": "9101",
+        "name": "日本郵船",
+        "sector": "海運"
+      },
+      {
+        "code": "8591",
+        "name": "オリックス",
+        "sector": "総合金融"
+      },
+      {
+        "code": "9531",
+        "name": "東京ガス",
+        "sector": "公益・ガス"
+      },
+      {
+        "code": "8801",
+        "name": "三井不動産",
+        "sector": "不動産"
+      },
+      {
+        "code": "4452",
+        "name": "花王",
+        "sector": "日用品"
+      },
+      {
+        "code": "5020",
+        "name": "ＥＮＥＯＳホールディングス",
+        "sector": "石油・エネルギー"
+      },
+      {
+        "code": "8766",
+        "name": "東京海上ホールディングス",
+        "sector": "保険"
+      },
+      {
+        "code": "5401",
+        "name": "日本製鉄",
+        "sector": "鉄鋼"
+      },
+      {
+        "code": "2502",
+        "name": "アサヒグループホールディングス",
+        "sector": "飲料"
+      }
+    ]
+  }
 }
