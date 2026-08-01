@@ -1213,6 +1213,15 @@ def validate_quote(
             "previousClose",
             "changePct",
             "changePoints",
+            "quoteDate",
+            "previousCloseDate",
+            "referenceKind",
+            "referenceLabel",
+            "referenceSourceUrl",
+            "referenceValidationStatus",
+            "rawMetaPreviousClose",
+            "metaReferenceDifferencePct",
+            "referenceError",
             "sessionHigh",
             "sessionLow",
             "sessionRangePct",
@@ -1246,6 +1255,81 @@ def validate_quote(
     change = number(quote["changePct"], f"{context}.changePct", nullable=True)
     change_points = number(quote["changePoints"], f"{context}.changePoints", nullable=True)
     range_pct = number(quote["sessionRangePct"], f"{context}.sessionRangePct")
+    reference_status = require_string(
+        quote["referenceValidationStatus"],
+        f"{context}.referenceValidationStatus",
+    )
+    require(
+        reference_status in {"verified", "unavailable"},
+        f"{context}.referenceValidationStatus is invalid",
+    )
+    reference_kind = require_string(quote["referenceKind"], f"{context}.referenceKind")
+    require_string(quote["referenceLabel"], f"{context}.referenceLabel")
+    quote_date_text = require_string(quote["quoteDate"], f"{context}.quoteDate")
+    try:
+        quote_market_date = date.fromisoformat(quote_date_text)
+    except ValueError as exc:
+        raise ValidationError(f"{context}.quoteDate must be YYYY-MM-DD") from exc
+    raw_meta_previous = number(
+        quote["rawMetaPreviousClose"],
+        f"{context}.rawMetaPreviousClose",
+        nullable=True,
+    )
+    meta_difference = number(
+        quote["metaReferenceDifferencePct"],
+        f"{context}.metaReferenceDifferencePct",
+        nullable=True,
+    )
+    require(
+        quote["referenceError"] is None or isinstance(quote["referenceError"], str),
+        f"{context}.referenceError must be a string or null",
+    )
+    if reference_status == "verified":
+        previous_date_text = require_string(
+            quote["previousCloseDate"], f"{context}.previousCloseDate"
+        )
+        try:
+            previous_market_date = date.fromisoformat(previous_date_text)
+        except ValueError as exc:
+            raise ValidationError(
+                f"{context}.previousCloseDate must be YYYY-MM-DD"
+            ) from exc
+        require(
+            previous_market_date < quote_market_date,
+            f"{context}.previousCloseDate must precede quoteDate",
+        )
+        require(
+            previous is not None and change is not None and change_points is not None,
+            f"{context} verified reference must include a directional calculation",
+        )
+        require(
+            reference_kind != "unavailable",
+            f"{context}.referenceKind cannot be unavailable when verified",
+        )
+        reference_hosts = (
+            {"indexes.nikkei.co.jp"}
+            if key == "NIKKEI_CASH"
+            else {"finance.yahoo.com"}
+        )
+        require_https_url(
+            quote["referenceSourceUrl"],
+            f"{context}.referenceSourceUrl",
+            hosts=reference_hosts,
+        )
+        if raw_meta_previous is not None:
+            require(
+                close_enough(meta_difference, pct_change(raw_meta_previous, previous)),
+                f"{context}.metaReferenceDifferencePct identity failed",
+            )
+    else:
+        require(
+            previous is None and change is None and change_points is None,
+            f"{context} unavailable reference must not publish a directional calculation",
+        )
+        require(
+            quote["previousCloseDate"] is None and quote["referenceSourceUrl"] is None,
+            f"{context} unavailable reference must not claim a dated source",
+        )
     require(current > 0 and high > 0 and low > 0, f"{context} prices must be positive")
     if previous is not None:
         require(previous > 0, f"{context}.previousClose must be positive")
@@ -1270,8 +1354,8 @@ def validate_quote(
         quote["quoteTimeJst"], f"{context}.quoteTimeJst", expected_offset=timedelta(hours=9)
     )
     require(same_instant(quote_utc, quote_jst), f"{context} UTC/JST quote times differ")
-    require(quote_utc <= generated + timedelta(minutes=10), f"{context} quote is future-dated")
-    require(generated - quote_utc <= timedelta(days=7), f"{context} quote is older than seven days")
+    require(quote_utc <= generated + timedelta(minutes=2), f"{context} quote is future-dated")
+    require(generated - quote_utc <= timedelta(days=5), f"{context} quote is older than five days")
     stale = number(quote["staleMinutes"], f"{context}.staleMinutes")
     expected_stale = round(max(0.0, (generated - quote_utc).total_seconds() / 60.0), 1)
     require(close_enough(stale, expected_stale, absolute=0.11), f"{context}.staleMinutes mismatch")
@@ -1288,9 +1372,10 @@ def validate_quote(
     volume = number(quote["regularMarketVolume"], f"{context}.regularMarketVolume", nullable=True)
     if volume is not None:
         require(volume >= 0, f"{context}.regularMarketVolume must be nonnegative")
-    require_https_url(
-        quote["sourceUrl"], f"{context}.sourceUrl", hosts={"finance.yahoo.com"}
+    source_hosts = (
+        {"indexes.nikkei.co.jp"} if key == "NIKKEI_CASH" else {"finance.yahoo.com"}
     )
+    require_https_url(quote["sourceUrl"], f"{context}.sourceUrl", hosts=source_hosts)
 
     spark = require_list(quote["sparkline"], f"{context}.sparkline")
     require(1 <= len(spark) <= 168, f"{context}.sparkline must contain 1..168 points")
@@ -3055,6 +3140,99 @@ def run_price_only_intervention_regression() -> None:
     )
 
 
+
+
+def run_quote_reference_regressions() -> None:
+    """Prevent a Yahoo intraday metadata value from driving a displayed sign."""
+
+    try:
+        import live_intelligence as producer
+    except ImportError as exc:
+        raise ValidationError("unable to import scripts/live_intelligence.py") from exc
+
+    def verified(
+        key: str,
+        current: float,
+        previous: float,
+        raw_meta: float,
+        quote_day: str = "2026-07-31",
+        previous_day: str = "2026-07-30",
+    ) -> dict[str, Any]:
+        return producer.build_quote_reference(
+            key=key,
+            current_value=current,
+            quote_date=date.fromisoformat(quote_day),
+            raw_meta_previous_close=raw_meta,
+            daily_reference={
+                "previousClose": previous,
+                "previousCloseDate": previous_day,
+                "referenceKind": "yahoo-daily-close",
+                "referenceSourceUrl": "https://finance.yahoo.com/quote/test/history",
+                "sourceUrl": "https://finance.yahoo.com/quote/test",
+            },
+        )
+
+    nikkei = producer.build_quote_reference(
+        key="NIKKEI_CASH",
+        current_value=64299.390625,
+        quote_date=date(2026, 7, 31),
+        raw_meta_previous_close=67242.73,
+        official_reference={
+            "currentValue": 64362.02,
+            "quoteDate": "2026-07-31",
+            "previousClose": 61867.43,
+            "previousCloseDate": "2026-07-30",
+            "referenceKind": "official-nikkei-daily-close",
+            "referenceSourceUrl": "https://indexes.nikkei.co.jp/en/nkave/archives/data?list=daily",
+            "sourceUrl": "https://indexes.nikkei.co.jp/en/nkave/archives/data?list=daily",
+        },
+    )
+    require(
+        close_enough(nikkei["changePct"], 4.032153913618197, absolute=1e-9),
+        "Nikkei official previous close regression failed",
+    )
+    require(
+        nikkei["changePct"] > 0 and nikkei["rawMetaPreviousClose"] == 67242.73,
+        "Nikkei metadata close changed the published direction",
+    )
+
+    kioxia = verified("KIOXIA", 39420.0, 38380.0, 67100.0, "2026-07-30", "2026-07-29")
+    require(
+        close_enough(kioxia["changePct"], 2.709744658676394, absolute=1e-9),
+        "Kioxia daily previous close regression failed",
+    )
+    require(kioxia["changePct"] > 0, "Kioxia metadata close changed the published direction")
+
+    for key, current, previous, raw_meta, expected_sign in (
+        ("SP500_CASH", 7504.95, 7437.6298828125, 7515.34, 1),
+        ("DXY", 99.907, 100.01, 100.73, -1),
+        ("VIX", 16.08, 17.09, 16.50, -1),
+        ("USDJPY", 157.40, 163.30, 162.429, -1),
+        ("US10Y", 4.745, 4.663, 4.585, 1),
+        ("SP500_FUTURES", 7000.0, 6971.0, 7039.0, 1),
+    ):
+        quote = verified(key, current, previous, raw_meta)
+        require(
+            quote["changePct"] * expected_sign > 0,
+            f"{key} daily reference regression changed the expected sign",
+        )
+        require(
+            quote["referenceValidationStatus"] == "verified",
+            f"{key} reference is not marked verified",
+        )
+
+    unavailable = producer.build_quote_reference(
+        key="ACWI_CASH",
+        current_value=156.43,
+        quote_date=date(2026, 7, 31),
+        raw_meta_previous_close=155.94,
+    )
+    require(
+        unavailable["changePct"] is None
+        and unavailable["previousClose"] is None
+        and unavailable["referenceValidationStatus"] == "unavailable",
+        "unverified metadata close was published as a daily comparison",
+    )
 def run_localization_freshness_regressions() -> None:
     """Exercise bilingual fallbacks and freshness boundaries without network access."""
 
@@ -4641,6 +4819,7 @@ def validate(path: Path) -> dict[str, Any]:
         data, generated_utc, quotes, briefing_items
     )
     run_price_only_intervention_regression()
+    run_quote_reference_regressions()
     run_localization_freshness_regressions()
     run_story_cluster_regressions()
     run_company_disclosure_regressions()

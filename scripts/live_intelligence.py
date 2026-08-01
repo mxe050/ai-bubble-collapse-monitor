@@ -9,8 +9,10 @@ signals.  It never treats a social post or a price move as proof of intervention
 
 from __future__ import annotations
 
+import csv
 import hashlib
 import html
+import io
 import json
 import math
 import os
@@ -22,7 +24,7 @@ import urllib.parse
 import urllib.request
 import xml.etree.ElementTree as ET
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
 from difflib import SequenceMatcher
 from email.utils import parsedate_to_datetime
 from pathlib import Path
@@ -44,6 +46,14 @@ GDELT_DOC_URL = "https://api.gdeltproject.org/api/v2/doc/doc"
 DEEPL_BATCH_LIMIT = 50
 
 MOF_INTERVENTION_URL = "https://www.mof.go.jp/policy/international_policy/reference/feio/index.html"
+NIKKEI_OFFICIAL_DAILY_URL = "https://indexes.nikkei.co.jp/nkave/historical/nikkei_stock_average_daily_en.csv"
+NIKKEI_OFFICIAL_DAILY_PAGE_URL = "https://indexes.nikkei.co.jp/en/nkave/archives/data?list=daily"
+
+# ``chartPreviousClose`` in Yahoo's intraday response is not a reliable
+# previous-session reference.  It has occasionally pointed to an unrelated
+# value even while the five-minute prices themselves were correct.  Keep a
+# separate daily-close lookup and retain the raw metadata only for audit.
+YAHOO_DAILY_REFERENCE_RANGE = "1mo"
 
 INTRADAY_INSTRUMENTS: dict[str, dict[str, str]] = {
     "NIKKEI_CASH": {
@@ -804,6 +814,173 @@ def pct_change(new: float | None, old: float | None) -> float | None:
     return (new / old - 1.0) * 100.0
 
 
+
+
+def quote_reference_label(key: str) -> str:
+    if key == "NIKKEI_CASH":
+        return "前営業日比（公式日経）"
+    if key in {"NIKKEI_FUTURES_YEN", "NIKKEI_FUTURES_USD", "SP500_FUTURES", "NASDAQ100_FUTURES", "DOW_FUTURES", "RUSSELL2000_FUTURES"}:
+        return "前取引日終値比（提供元日足）"
+    if key == "USDJPY":
+        return "前NYクローズ比（提供元日足）"
+    if key == "US10Y":
+        return "前取引日比"
+    return "前日比"
+
+
+def market_timezone(name: str | None) -> timezone | ZoneInfo:
+    try:
+        return ZoneInfo(name) if name else timezone.utc
+    except ZoneInfoNotFoundError:
+        return timezone.utc
+
+
+def market_date_for_timestamp(timestamp: int, exchange_timezone: str | None) -> date:
+    return datetime.fromtimestamp(timestamp, timezone.utc).astimezone(
+        market_timezone(exchange_timezone)
+    ).date()
+
+
+def parse_market_number(value: Any) -> float | None:
+    return finite(re.sub(r"[^0-9.+\-]", "", str(value or "")))
+
+
+def fetch_nikkei_official_reference(quote_date: date) -> dict[str, Any]:
+    """Return official Nikkei cash close and its preceding official close."""
+
+    raw, _ = request(
+        NIKKEI_OFFICIAL_DAILY_URL,
+        headers={
+            "Accept": "text/csv,*/*;q=0.8",
+            "Accept-Language": "en-US,en;q=0.8",
+        },
+    )
+    rows: list[dict[str, Any]] = []
+    for row in csv.DictReader(io.StringIO(raw.decode("cp932", errors="replace"))):
+        raw_date = str(row.get("Date of Data") or "").strip()
+        try:
+            row_date = datetime.strptime(raw_date, "%Y/%m/%d").date()
+        except ValueError:
+            continue
+        close = parse_market_number(row.get("Close"))
+        if close is not None and close > 0:
+            rows.append({"date": row_date, "close": close})
+    rows.sort(key=lambda row: row["date"])
+    current = next((row for row in reversed(rows) if row["date"] == quote_date), None)
+    if current is None:
+        raise RuntimeError(f"Nikkei official close is unavailable for {quote_date.isoformat()}")
+    previous = next(
+        (row for row in reversed(rows) if row["date"] < current["date"]),
+        None,
+    )
+    if previous is None:
+        raise RuntimeError("Nikkei official previous close is unavailable")
+    return {
+        "currentValue": current["close"],
+        "quoteDate": current["date"].isoformat(),
+        "previousClose": previous["close"],
+        "previousCloseDate": previous["date"].isoformat(),
+        "referenceKind": "official-nikkei-daily-close",
+        "referenceSourceUrl": NIKKEI_OFFICIAL_DAILY_PAGE_URL,
+        "sourceUrl": NIKKEI_OFFICIAL_DAILY_PAGE_URL,
+    }
+
+
+def fetch_yahoo_daily_reference(
+    symbol: str,
+    quote_date: date,
+    exchange_timezone: str | None,
+) -> dict[str, Any]:
+    """Use date-labelled daily bars, never the intraday metadata close."""
+
+    encoded = urllib.parse.quote(symbol, safe="")
+    url = (
+        f"https://query1.finance.yahoo.com/v8/finance/chart/{encoded}"
+        f"?range={YAHOO_DAILY_REFERENCE_RANGE}&interval=1d&events=div%2Csplits"
+    )
+    raw, _ = request(url)
+    result = json.loads(raw.decode("utf-8"))["chart"]["result"][0]
+    meta = result.get("meta") or {}
+    market_tz = meta.get("exchangeTimezoneName") or exchange_timezone
+    timestamps = result.get("timestamp") or []
+    quote = ((result.get("indicators") or {}).get("quote") or [{}])[0]
+    closes = quote.get("close") or []
+    rows: list[dict[str, Any]] = []
+    for index, timestamp in enumerate(timestamps):
+        close = finite(closes[index]) if index < len(closes) else None
+        if close is None:
+            continue
+        rows.append({
+            "date": market_date_for_timestamp(int(timestamp), market_tz),
+            "close": close,
+        })
+    reference = max(
+        (row for row in rows if row["date"] < quote_date),
+        key=lambda row: row["date"],
+        default=None,
+    )
+    if reference is None:
+        raise RuntimeError(
+            f"Daily close before {quote_date.isoformat()} is unavailable for {symbol}"
+        )
+    return {
+        "previousClose": reference["close"],
+        "previousCloseDate": reference["date"].isoformat(),
+        "referenceKind": "yahoo-daily-close",
+        "referenceSourceUrl": f"https://finance.yahoo.com/quote/{encoded}/history",
+        "sourceUrl": f"https://finance.yahoo.com/quote/{encoded}",
+    }
+
+
+def build_quote_reference(
+    *,
+    key: str,
+    current_value: float,
+    quote_date: date,
+    raw_meta_previous_close: float | None,
+    daily_reference: dict[str, Any] | None = None,
+    official_reference: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    """Create one auditable previous-close contract for every displayed quote."""
+
+    reference = official_reference or daily_reference
+    label = quote_reference_label(key)
+    if not isinstance(reference, dict):
+        return {
+            "value": current_value,
+            "quoteDate": quote_date.isoformat(),
+            "previousClose": None,
+            "previousCloseDate": None,
+            "changePct": None,
+            "changePoints": None,
+            "referenceKind": "unavailable",
+            "referenceLabel": label,
+            "referenceSourceUrl": None,
+            "sourceUrl": f"https://finance.yahoo.com/quote/{urllib.parse.quote(INTRADAY_INSTRUMENTS[key]['symbol'])}",
+            "referenceValidationStatus": "unavailable",
+            "rawMetaPreviousClose": raw_meta_previous_close,
+            "metaReferenceDifferencePct": None,
+        }
+    reference_close = finite(reference.get("previousClose"))
+    if reference_close is None or reference_close <= 0:
+        raise RuntimeError(f"Invalid daily reference for {key}")
+    value = finite(reference.get("currentValue")) or current_value
+    meta_difference = pct_change(raw_meta_previous_close, reference_close)
+    return {
+        "value": value,
+        "quoteDate": str(reference.get("quoteDate") or quote_date.isoformat()),
+        "previousClose": reference_close,
+        "previousCloseDate": str(reference.get("previousCloseDate") or ""),
+        "changePct": pct_change(value, reference_close),
+        "changePoints": value - reference_close,
+        "referenceKind": str(reference.get("referenceKind") or "yahoo-daily-close"),
+        "referenceLabel": label,
+        "referenceSourceUrl": reference.get("referenceSourceUrl"),
+        "sourceUrl": str(reference.get("sourceUrl") or ""),
+        "referenceValidationStatus": "verified",
+        "rawMetaPreviousClose": raw_meta_previous_close,
+        "metaReferenceDifferencePct": meta_difference,
+    }
 def clean_text(value: Any) -> str:
     text = re.sub(r"<[^>]+>", " ", str(value or ""))
     return re.sub(r"\s+", " ", html.unescape(text)).strip()
@@ -1499,6 +1676,8 @@ def _latest_trading_days(
 
 
 def fetch_intraday_quote(key: str, profile: dict[str, str], now: datetime) -> dict[str, Any]:
+    """Fetch a live price and a separately validated previous-session close."""
+
     symbol = profile["symbol"]
     encoded = urllib.parse.quote(symbol, safe="")
     url = (
@@ -1518,13 +1697,43 @@ def fetch_intraday_quote(key: str, profile: dict[str, str], now: datetime) -> di
     points: list[dict[str, Any]] = []
     for index, timestamp in enumerate(timestamps):
         value = finite(closes[index]) if index < len(closes) else None
-        if value is None:
-            continue
-        points.append({"timestamp": int(timestamp), "value": value})
+        if value is not None:
+            points.append({"timestamp": int(timestamp), "value": value})
     if not points:
         raise RuntimeError(f"No intraday values for {symbol}")
+
     latest = points[-1]
     latest_dt = datetime.fromtimestamp(latest["timestamp"], timezone.utc)
+    exchange_timezone = meta.get("exchangeTimezoneName")
+    quote_date = market_date_for_timestamp(latest["timestamp"], exchange_timezone)
+    raw_meta_previous_close = finite(meta.get("chartPreviousClose"))
+    if raw_meta_previous_close is None:
+        raw_meta_previous_close = finite(meta.get("previousClose"))
+
+    daily_reference: dict[str, Any] | None = None
+    official_reference: dict[str, Any] | None = None
+    reference_error: str | None = None
+    try:
+        if key == "NIKKEI_CASH":
+            official_reference = fetch_nikkei_official_reference(quote_date)
+        else:
+            daily_reference = fetch_yahoo_daily_reference(
+                symbol, quote_date, exchange_timezone
+            )
+    except Exception as exc:
+        # Never fall back to chartPreviousClose.  A missing dated daily bar is
+        # safer than a false directional percentage or a wrong red/blue card.
+        reference_error = str(exc)
+
+    reference = build_quote_reference(
+        key=key,
+        current_value=latest["value"],
+        quote_date=quote_date,
+        raw_meta_previous_close=raw_meta_previous_close,
+        daily_reference=daily_reference,
+        official_reference=official_reference,
+    )
+    display_value = finite(reference.get("value")) or latest["value"]
     recent_cutoff = max(
         int((now - timedelta(hours=30)).timestamp()),
         points[0]["timestamp"],
@@ -1533,60 +1742,64 @@ def fetch_intraday_quote(key: str, profile: dict[str, str], now: datetime) -> di
     if len(recent_points) < 2:
         recent_points = points[-2:]
     recent_values = [row["value"] for row in recent_points]
-    previous_close = finite(meta.get("chartPreviousClose"))
-    if previous_close is None:
-        previous_close = finite(meta.get("previousClose"))
     stale_minutes = max(0.0, (now - latest_dt).total_seconds() / 60.0)
     market_state = "updating" if stale_minutes <= 25 else "delayed-or-closed"
-    source_url = f"https://finance.yahoo.com/quote/{urllib.parse.quote(symbol)}"
-    # A delayed or closed-market quote is still useful as a reference price, but
-    # its old five-minute candles are not current short-term market evidence.
-    # Do not let them create false intraday moves or intervention alerts.
     short_term_points = recent_points if stale_minutes <= 30 * 60 else []
-    # The longer source window makes the display resilient to weekends and
-    # holidays. It is deliberately separate from the 30-hour short-term move
-    # metrics: the chart shows only the newest five trading days.
     spark = _sample_weekly_sparkline(
-        _latest_trading_days(points, meta.get("exchangeTimezoneName"))
+        _latest_trading_days(points, exchange_timezone)
     )
+    spark_rows = [
+        {
+            "timeUtc": datetime.fromtimestamp(row["timestamp"], timezone.utc).isoformat(),
+            "value": row["value"],
+        }
+        for row in spark
+    ]
+    if spark_rows:
+        spark_rows[-1]["value"] = display_value
+
     return {
         "key": key,
         **profile,
-        "value": latest["value"],
-        "previousClose": previous_close,
-        "changePct": pct_change(latest["value"], previous_close),
-        "changePoints": latest["value"] - previous_close if previous_close is not None else None,
-        "sessionHigh": max(recent_values),
-        "sessionLow": min(recent_values),
+        "value": display_value,
+        "previousClose": reference["previousClose"],
+        "changePct": reference["changePct"],
+        "changePoints": reference["changePoints"],
+        "quoteDate": reference["quoteDate"],
+        "previousCloseDate": reference["previousCloseDate"],
+        "referenceKind": reference["referenceKind"],
+        "referenceLabel": reference["referenceLabel"],
+        "referenceSourceUrl": reference["referenceSourceUrl"],
+        "referenceValidationStatus": reference["referenceValidationStatus"],
+        "rawMetaPreviousClose": reference["rawMetaPreviousClose"],
+        "metaReferenceDifferencePct": reference["metaReferenceDifferencePct"],
+        "referenceError": reference_error,
+        "sessionHigh": max(max(recent_values), display_value),
+        "sessionLow": min(min(recent_values), display_value),
         "sessionRangePct": pct_change(max(recent_values), min(recent_values)),
         "quoteTimeUtc": latest_dt.isoformat(),
         "quoteTimeJst": latest_dt.astimezone(JST).isoformat(),
         "staleMinutes": round(stale_minutes, 1),
         "marketState": market_state,
         "exchangeName": meta.get("exchangeName"),
-        "exchangeTimezone": meta.get("exchangeTimezoneName"),
+        "exchangeTimezone": exchange_timezone,
         "instrumentType": meta.get("instrumentType"),
         "currencyReported": meta.get("currency"),
         "regularMarketVolume": (
-            finite(volumes[-1]) if volumes and len(volumes) == len(timestamps) else finite(meta.get("regularMarketVolume"))
+            finite(volumes[-1])
+            if volumes and len(volumes) == len(timestamps)
+            else finite(meta.get("regularMarketVolume"))
         ),
         "move5m": _max_window_move(short_term_points, 5),
         "move15m": _max_window_move(short_term_points, 15),
         "move30m": _max_window_move(short_term_points, 30),
         "peakToTrough": _peak_to_trough(short_term_points),
         "troughToPeak": _trough_to_peak(short_term_points),
-        "sparkline": [
-            {
-                "timeUtc": datetime.fromtimestamp(row["timestamp"], timezone.utc).isoformat(),
-                "value": row["value"],
-            }
-            for row in spark
-        ],
-        "sourceUrl": source_url,
+        "sparkline": spark_rows,
+        "sourceUrl": reference["sourceUrl"],
         "_rawHighCount": sum(1 for value in highs if finite(value) is not None),
         "_rawLowCount": sum(1 for value in lows if finite(value) is not None),
     }
-
 
 def fetch_intraday_quotes(now: datetime) -> tuple[dict[str, Any], list[dict[str, Any]]]:
     quotes: dict[str, Any] = {}

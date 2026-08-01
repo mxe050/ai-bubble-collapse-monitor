@@ -31,6 +31,8 @@
     nikkeiBottomInitialized: false,
     sakakibaraFairValue: loadSakakibaraFairValue(),
     sakakibaraInitialized: false,
+    nikkeiAiThreeSeries: null,
+    nikkeiAiThreeSeriesChart: null,
   };
 
   var numberOne = new Intl.NumberFormat("ja-JP", { maximumFractionDigits: 1 });
@@ -77,6 +79,13 @@
     var number = Number(value);
     var prefix = signed && number > 0 ? "+" : "";
     return prefix + numberOne.format(number) + "%";
+  }
+
+  function formatLivePercent(value, signed) {
+    if (value === null || value === undefined || !Number.isFinite(Number(value))) return "\u672a\u78ba\u8a8d";
+    var number = Number(value);
+    var prefix = signed && number > 0 ? "+" : "";
+    return prefix + numberTwo.format(number) + "%";
   }
 
   function formatPctPoints(value, signed) {
@@ -223,13 +232,14 @@
   }
 
   function formatLiveChange(key, quote) {
+    if (!quote || quote.referenceValidationStatus !== "verified") return "基準値を再確認中";
     if (key === "US10Y") {
       var changePoints = finite(quote && quote.changePoints);
       if (changePoints === null) return "\u672a\u78ba\u8a8d";
       var basisPoints = changePoints * 100;
       return (basisPoints > 0 ? "+" : "") + numberOne.format(basisPoints) + "bp";
     }
-    return formatPercent(finite(quote && quote.changePct), true);
+    return formatLivePercent(finite(quote && quote.changePct), true);
   }
 
   function premarketDirection(key, change) {
@@ -1942,6 +1952,226 @@
     renderEnAiProxy(analysis);
   }
 
+  function nikkeiAiSourceMarkup(source) {
+    var item = source || {};
+    var label = String(item.label || item.name || "出典");
+    if (item.used_for) label += "（" + String(item.used_for) + "）";
+    var href = safeHttpsUrl(item.url);
+    if (!href) return "<span>" + escapeHtml(label) + "</span>";
+    return '<a href="' + escapeHtml(href) + '" target="_blank" rel="noopener noreferrer">' + escapeHtml(label) + "</a>";
+  }
+
+  function renderNikkeiAiThreeSeries() {
+    var payload = state.nikkeiAiThreeSeries || {};
+    var meta = payload.meta || {};
+    var summary = payload.summary || {};
+    var quality = payload.quality || {};
+    var targets = Array.isArray(payload.bubble_suspect) ? payload.bubble_suspect : [];
+    var keeps = Array.isArray(payload.explicit_keep) ? payload.explicit_keep : [];
+    var warnings = Array.isArray(payload.warnings) ? payload.warnings.filter(Boolean) : [];
+    var sources = Array.isArray(payload.sources) ? payload.sources : [];
+    var series = (Array.isArray(payload.series) ? payload.series : []).filter(function (row) {
+      return row && row.date && finite(row.nikkei_actual) !== null;
+    });
+    var summaryNode = byId("nikkeiAiThreeSummary");
+    var targetNode = byId("nikkeiAiTargetNames");
+    var stockRows = byId("nikkeiAiStockRows");
+    var qualityNode = byId("nikkeiAiQualityNotes");
+    var badge = byId("nikkeiAiMethodBadge");
+    var canvas = byId("nikkeiAiThreeSeriesChart");
+    if (!summaryNode || !targetNode || !stockRows || !qualityNode) return;
+
+    if (badge) badge.textContent = meta.method_label || "計算方法を確認中";
+
+    if (!series.length) {
+      summaryNode.innerHTML = '<article class="nikkei-ai-summary-card is-loading"><span>比較データ</span><strong>未確認</strong><small>日経平均の3系列データを取得できませんでした。</small></article>';
+    } else {
+      var combinedWeight = finite(summary.current_combined_weight_pct);
+      var metricCards = [
+        {
+          label: "実績・10年騰落率",
+          value: formatPercent(summary.actual_return_pct, true),
+          caption: "日経平均の実際の価格指数",
+        },
+        {
+          label: "過熱を標準化した騰落率",
+          value: formatPercent(summary.normalized_return_pct, true),
+          caption: "異常上昇部分だけを一般株経路に調整",
+        },
+        {
+          label: "過熱銘柄を除外した騰落率",
+          value: formatPercent(summary.excluded_return_pct, true),
+          caption: "価格加重の再構成を行う想定",
+        },
+        {
+          label: "実績－標準化",
+          value: formatPctPoints(summary.ai_excess_contribution_percentage_points, true),
+          caption: "AI過熱の超過寄与という試算",
+        },
+        {
+          label: "対象銘柄の合計ウエート",
+          value: combinedWeight === null ? (targets.length ? "未確認" : "未設定") : formatPercent(combinedWeight, false),
+          caption: targets.length ? "最新時点の価格加重ベース" : "対象銘柄がまだ設定されていません",
+        },
+      ];
+      summaryNode.innerHTML = metricCards.map(function (card) {
+        return '<article class="nikkei-ai-summary-card"><span>' + escapeHtml(card.label)
+          + "</span><strong>" + escapeHtml(card.value) + "</strong><small>" + escapeHtml(card.caption) + "</small></article>";
+      }).join("");
+    }
+
+    if (targets.length) {
+      targetNode.innerHTML = "<strong>対象銘柄：</strong>" + targets.map(function (item) {
+        var name = String(item.name || item.company_name || "名称未確認");
+        var code = String(item.code || item.ticker || "");
+        return escapeHtml(name + (code ? "（" + code + "）" : ""));
+      }).join("、");
+      stockRows.innerHTML = targets.map(function (item) {
+        var status = item.data_status || item.status || "未確認";
+        var peerCount = finite(item.peer_count);
+        var actual = finite(item.actual_return_pct);
+        var peer = finite(item.peer_path_return_pct);
+        var removed = finite(item.removed_excess_return_percentage_points);
+        var weight = finite(item.current_nikkei_weight_pct);
+        return "<tr>"
+          + "<td>" + escapeHtml(item.code || item.ticker || "未確認") + "</td>"
+          + "<td>" + escapeHtml(item.name || item.company_name || "未確認") + "</td>"
+          + "<td>" + escapeHtml(item.effective_from || "未確認") + "</td>"
+          + "<td>" + escapeHtml(item.reason || "未確認") + "</td>"
+          + "<td>" + (peerCount === null ? "未確認" : numberOne.format(peerCount) + "社") + "</td>"
+          + "<td>" + escapeHtml(formatPercent(actual, true)) + "</td>"
+          + "<td>" + escapeHtml(formatPercent(peer, true)) + "</td>"
+          + "<td>" + escapeHtml(formatPctPoints(removed, true)) + "</td>"
+          + "<td>" + escapeHtml(formatPercent(weight, false)) + "</td>"
+          + "<td>" + escapeHtml(status) + "</td>"
+          + "</tr>";
+      }).join("");
+    } else {
+      targetNode.innerHTML = "<strong>対象銘柄：未設定</strong> — AIバブル疑義銘柄が未設定です。AI関連という理由だけでは自動的に除外していません。";
+      stockRows.innerHTML = '<tr><td colspan="10">AIバブル疑義銘柄が未設定です。AI関連という理由だけでは自動的に除外していません。</td></tr>';
+    }
+
+    var qualityMarkup = [];
+    qualityMarkup.push("<p><strong>計算の位置づけ：</strong>" + escapeHtml(meta.method_label || "未確認") + "</p>");
+    qualityMarkup.push("<p><strong>データ範囲：</strong>" + escapeHtml((meta.start_date || "開始日未確認") + " から " + (meta.end_date || "終了日未確認"))
+      + "。日次計算・週次表示、基準値 " + escapeHtml(meta.base_value || 100) + "、配当なしです。</p>");
+    qualityMarkup.push("<p><strong>実績系列：</strong>" + escapeHtml(meta.price_field || "価格系列を確認中")
+      + "。公式日次データは " + escapeHtml(meta.official_daily_available_from || "未確認") + " 以降を優先しています。</p>");
+    qualityMarkup.push("<p><strong>\u66f4\u65b0\u6642\u523b\uff1a</strong>" + escapeHtml(meta.generated_at || "\u672a\u78ba\u8a8d") + "</p>");
+    var crosscheck = quality.monthly_crosscheck || {};
+    if (finite(crosscheck.matched_months) !== null) {
+      qualityMarkup.push("<p><strong>月次照合：</strong>" + escapeHtml(numberOne.format(crosscheck.matched_months))
+        + "か月を照合" + (crosscheck.within_0_02_jpy ? "し、公式月次終値との差は0.02円以内です。" : "しています。") + "</p>");
+    }
+    var missingItems = Array.isArray(quality.missing_items) ? quality.missing_items.filter(Boolean) : [];
+    if (missingItems.length) {
+      qualityMarkup.push("<p><strong>未取得のため試算しない項目：</strong>" + escapeHtml(missingItems.join("、")) + "</p>");
+    }
+    if (keeps.length) {
+      qualityMarkup.push("<p><strong>除外しない指定：</strong>" + keeps.map(function (item) {
+        var name = String(item.name || "名称未確認");
+        var code = item.code ? "（" + item.code + "）" : "";
+        return escapeHtml(name + code);
+      }).join("、") + "</p>");
+    }
+    if (warnings.length) {
+      qualityMarkup.push('<ul class="nikkei-ai-warning-list">' + warnings.map(function (warning) {
+        return "<li>" + escapeHtml(warning) + "</li>";
+      }).join("") + "</ul>");
+    }
+    if (sources.length) {
+      qualityMarkup.push('<p class="nikkei-ai-source-links"><strong>出典：</strong>' + sources.map(nikkeiAiSourceMarkup).join(" / ") + "</p>");
+    }
+    qualityNode.innerHTML = qualityMarkup.join("");
+
+    if (state.nikkeiAiThreeSeriesChart) {
+      state.nikkeiAiThreeSeriesChart.destroy();
+      state.nikkeiAiThreeSeriesChart = null;
+    }
+    if (typeof Chart === "undefined" || !canvas || !series.length) return;
+
+    var labels = series.map(function (row) { return row.date; });
+    var latest = series[series.length - 1] || {};
+    state.nikkeiAiThreeSeriesChart = new Chart(canvas, {
+      type: "line",
+      data: {
+        labels: labels,
+        datasets: [
+          {
+            label: "日経平均・実績",
+            data: series.map(function (row) { return finite(row.nikkei_actual); }),
+            borderColor: "#1b4d6f",
+            backgroundColor: "rgba(27,77,111,.08)",
+            borderWidth: 2.8,
+            pointRadius: 0,
+            tension: 0.12,
+          },
+          {
+            label: "AI過熱を標準化",
+            data: series.map(function (row) { return finite(row.ai_overheat_normalized); }),
+            borderColor: "#11836f",
+            borderWidth: 2.4,
+            borderDash: [7, 4],
+            pointRadius: 0,
+            tension: 0.12,
+          },
+          {
+            label: "AI過熱銘柄を除外",
+            data: series.map(function (row) { return finite(row.ai_overheat_excluded); }),
+            borderColor: "#b64a3b",
+            borderWidth: 2.2,
+            borderDash: [2, 4],
+            pointRadius: 0,
+            tension: 0.12,
+          },
+        ],
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        interaction: { mode: "index", intersect: false },
+        plugins: {
+          legend: { position: "bottom", labels: { color: chartTextColor(), boxWidth: 18, usePointStyle: true } },
+          tooltip: {
+            callbacks: {
+              title: function (items) { return items[0] ? items[0].label : ""; },
+              label: function (context) {
+                var value = finite(context.parsed && context.parsed.y);
+                return context.dataset.label + " " + (value === null ? "未確認" : numberOne.format(value));
+              },
+              afterBody: function (items) {
+                var index = items[0] && Number.isFinite(items[0].dataIndex) ? items[0].dataIndex : -1;
+                var row = index >= 0 ? series[index] : latest;
+                var lines = [];
+                if (finite(row.nikkei_close) !== null) lines.push("日経平均終値 " + numberTwo.format(row.nikkei_close) + "円");
+                if (finite(row.actual_minus_normalized) !== null) lines.push("実績－標準化 " + formatPctPoints(row.actual_minus_normalized, true));
+                if (finite(row.normalized_minus_excluded) !== null) lines.push("標準化－除外 " + formatPctPoints(row.normalized_minus_excluded, true));
+                return lines;
+              },
+            },
+          },
+        },
+        scales: {
+          x: {
+            grid: { display: false },
+            ticks: {
+              color: chartTextColor(),
+              maxTicksLimit: window.matchMedia && window.matchMedia("(max-width: 700px)").matches ? 6 : 12,
+              maxRotation: 0,
+              callback: function (_value, index) {
+                return String(labels[index] || "").slice(0, 7).replace("-", "/");
+              },
+            },
+          },
+          y: {
+            grid: { color: "rgba(100,115,134,.15)" },
+            ticks: { color: chartTextColor(), callback: function (value) { return numberOne.format(value); } },
+            title: { display: true, text: "10年前＝100", color: chartTextColor() },
+          },
+        },
+      },
+    });
+  }
   function latestOfficialDisclosureForIssuer(issuerCode) {
     var target = String(issuerCode || "").toUpperCase().trim();
     if (!target) return null;
@@ -3395,6 +3625,8 @@
   function liveQuoteForKey(key) {
     if (!key) return null;
     var quote = liveQuoteMap()[key];
+    var staleMinutes = finite(quote && quote.staleMinutes);
+    if (staleMinutes !== null && staleMinutes > 72 * 60) return null;
     return quote && typeof quote === "object" && finite(quote.value) !== null ? quote : null;
   }
 
@@ -3447,7 +3679,9 @@
       return {
         value: finite(live.value),
         date: liveQuoteDate(live) || row.date || definition.date || "",
-        change: finite(live.changePct),
+        change: live.referenceValidationStatus === "verified" ? finite(live.changePct) : null,
+        referenceLabel: live.referenceLabel || "前日比",
+        referenceValidationStatus: live.referenceValidationStatus || "unavailable",
         sourceUrl: live.sourceUrl || row.sourceUrl || definition.sourceUrl || "",
         live: true,
         liveKey: liveKey,
@@ -3477,7 +3711,11 @@
     if (metric.live) {
       var liveTime = metric.quoteTime ? formatLiveTime(metric.quoteTime, "") : "時刻未確認";
       var liveState = liveQuoteStateLabel({ marketState: metric.marketState });
-      return liveState + "・前日比 " + formatPercent(metric.change, true) + " / " + liveTime;
+      var referenceLabel = metric.referenceLabel || "前日比";
+      if (metric.change === null) {
+        return liveState + "・" + referenceLabel + "を再確認中 / " + liveTime;
+      }
+      return liveState + "・" + referenceLabel + " " + formatPercent(metric.change, true) + " / " + liveTime;
     }
     if (metric.change === null || definition.scope === "macro" || finite(definition.value) !== null) {
       return metric.date ? "基準日 " + metric.date : "基準日未確認";
@@ -3486,13 +3724,15 @@
   }
 
   function summaryDirection(metric) {
-    if (metric.change === null || Math.abs(metric.change) < 0.005) return "flat";
+    if (metric.change === null) return "unknown";
+    if (Math.abs(metric.change) < 0.005) return "flat";
     return metric.change > 0 ? "up" : "down";
   }
 
   function summaryMoveSentence(metric, label) {
-    if (metric.change === null) return label + "の前日比は未確認です。";
-    return label + "は前日比" + formatPercent(metric.change, true) + "です。";
+    var referenceLabel = metric.referenceLabel || "前日比";
+    if (metric.change === null) return label + "の" + referenceLabel + "は再確認中です。";
+    return label + "は" + referenceLabel + formatPercent(metric.change, true) + "です。";
   }
 
   function summarySourceLink(url, label) {
@@ -3520,6 +3760,11 @@
     var policyAgeDays = policyAsOf && !Number.isNaN(policyAsOf.valueOf()) ? (Date.now() - policyAsOf.valueOf()) / 86400000 : null;
     var hasFreshLive = generatedAgeMinutes !== null && generatedAgeMinutes >= -5 && generatedAgeMinutes <= 90;
     var isStale = !hasFreshLive;
+    var referenceKeys = ["NIKKEI_CASH", "SP500_CASH", "DXY", "ACWI_CASH", "USDJPY"];
+    var hasUnverifiedReference = referenceKeys.some(function (key) {
+      var quote = liveQuoteMap()[key] || {};
+      return quote.referenceValidationStatus !== "verified";
+    });
     var policyNeedsDateCheck = policyAgeDays !== null && policyAgeDays > 1;
     var dateTimeFormat = new Intl.DateTimeFormat("ja-JP", {
       dateStyle: "medium",
@@ -3527,10 +3772,10 @@
       timeZone: "Asia/Tokyo",
     });
 
-    byId("marketSummaryStatus").className = "status-dot " + (isStale ? "warn" : "ok");
+    byId("marketSummaryStatus").className = "status-dot " + (isStale || hasUnverifiedReference ? "warn" : "ok");
     byId("marketSummaryStatus").textContent = isStale
       ? "価格の基準日時を確認"
-      : policyNeedsDateCheck ? "ライブ価格を確認済み（政策文は日付確認）" : "ライブ価格を確認済み";
+      : hasUnverifiedReference ? "一部の価格基準値を再確認中" : policyNeedsDateCheck ? "ライブ価格を確認済み（政策文は日付確認）" : "ライブ価格を確認済み";
     byId("marketSummaryDataAsOf").textContent = displayGenerated && !Number.isNaN(displayGenerated.valueOf())
       ? dateTimeFormat.format(displayGenerated) : "未確認";
     byId("marketSummaryPolicyAsOf").textContent = policyAsOf && !Number.isNaN(policyAsOf.valueOf())
@@ -3740,7 +3985,7 @@
     ];
     cardsNode.innerHTML = order.filter(function (key) { return quotes[key]; }).map(function (key) {
       var quote = quotes[key] || {};
-      var change = finite(quote.changePct);
+      var change = quote.referenceValidationStatus === "verified" ? finite(quote.changePct) : null;
       var direction = premarketDirection(key, change);
       var stateLabel = quote.marketState === "updating" ? "取引・更新中" : "休場または遅延";
       var sparkline = liveSparkline(quote.sparkline, direction.tone, "直近1週間の価格推移");
@@ -3748,7 +3993,7 @@
         + "<span>" + escapeHtml(quote.group === "japan" ? "日本株先物" : quote.group === "us" ? "米国株先物" : quote.group === "fx" ? "為替" : quote.group === "rates" ? "米国金利" : "市場心理") + "</span>"
         + "<h4>" + escapeHtml(quote.label || key) + "</h4>"
         + "<strong class=\"premarket-card-value\">" + escapeHtml(formatLiveValue(key, quote)) + "</strong>"
-        + "<span class=\"premarket-card-change " + direction.tone + "\">前日比 " + direction.marker + " "
+        + "<span class=\"premarket-card-change " + direction.tone + "\">" + escapeHtml(quote.referenceLabel || "前日比") + " " + direction.marker + " "
         + escapeHtml(formatLiveChange(key, quote)) + "</span>"
         + (sparkline ? "<div class=\"premarket-sparkline\">" + sparkline + "<small>1週間の推移（直近5取引日）</small></div>" : "")
         + "<small class=\"premarket-card-meta\">" + escapeHtml(stateLabel) + " / "
@@ -4272,6 +4517,7 @@
     renderGates(gates);
     renderJapanTransmission(transmission);
     renderSakakibaraMethod();
+    renderNikkeiAiThreeSeries();
     renderMoneyStrategist();
     renderMarginDebt();
     renderCrashLens(evidence, gates);
@@ -4502,6 +4748,9 @@
       var liveIntelligenceRequest = fetch("data/live-intelligence.json?ts=" + Date.now(), { cache: "no-store" })
         .then(function (liveResponse) { return liveResponse.ok ? liveResponse.json() : null; })
         .catch(function () { return null; });
+      var nikkeiAiThreeSeriesRequest = fetch("data/nikkei-ai-three-series.json?ts=" + Date.now(), { cache: "no-store" })
+        .then(function (nikkeiAiResponse) { return nikkeiAiResponse.ok ? nikkeiAiResponse.json() : null; })
+        .catch(function () { return null; });
       var response = await fetch("data/latest.json?ts=" + Date.now(), { cache: "no-store" });
       if (!response.ok) throw new Error("HTTP " + response.status);
       var payload = await response.json();
@@ -4513,6 +4762,7 @@
       state.snapshotHistoryIndex = await snapshotIndexRequest;
       state.marketSummary = await marketSummaryRequest;
       state.liveIntelligence = await liveIntelligenceRequest;
+      state.nikkeiAiThreeSeries = await nikkeiAiThreeSeriesRequest;
       state.snapshotComparisonPayload = null;
       state.snapshotComparisonDays = null;
       state.snapshotComparisonEntry = null;

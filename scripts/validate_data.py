@@ -820,7 +820,13 @@ def main() -> None:
     require("参考資料の2026年7月18日付「市況展望」の着眼点を、別の日にも再現できるよう定量化しました。" not in index_source, "requested market-outlook sentence remains")
 
     from validate_global_comparison import validate_global_comparison
+    from validate_nikkei_ai_three_series import validate_nikkei_ai_three_series
+    require('id="nikkei-ai-three-series"' in index_source, "Nikkei AI comparison section is missing")
+    require('href="#nikkei-ai-three-series"' in index_source, "Nikkei AI comparison navigation link is missing")
+    require("nikkei-ai-three-series.json" in app_source, "Nikkei AI comparison data load is missing")
+    require("function renderNikkeiAiThreeSeries" in app_source, "Nikkei AI comparison renderer is missing")
     validate_global_comparison()
+    validate_nikkei_ai_three_series()
 
     print(
         "Data and logic audit passed: schema, formulas, coverage, YoY dates, baskets, "

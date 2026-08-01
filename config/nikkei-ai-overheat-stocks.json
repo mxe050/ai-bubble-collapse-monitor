@@ -1,0 +1,15 @@
+{
+  "method_version": "1.0",
+  "lookback_years": 10,
+  "normalization_method": "same-sector-peer-price-path",
+  "normalization_buffer": 1.0,
+  "exclusion_mode": "retrospective-fixed-list",
+  "bubble_suspect": [],
+  "explicit_keep": [
+    {
+      "code": "7203",
+      "name": "トヨタ自動車",
+      "reason": "AIとの接点だけでは除外せず、ユーザーが明示的に残すよう指定"
+    }
+  ]
+}

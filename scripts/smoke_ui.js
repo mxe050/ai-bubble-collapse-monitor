@@ -142,6 +142,13 @@ assert.match(indexSource, /日本、米国、欧州、中国、世界全体/);
 assert.match(indexSource, /regionalMarketCards/);
 assert.match(indexSource, /id="copyMonitorButton"/);
 assert.match(indexSource, /サマリーコピー/);
+assert.match(indexSource, /id="nikkei-ai-three-series"/);
+assert.match(indexSource, /AI過熱寄与を除いた日経比較/);
+assert.ok(indexSource.indexOf('class="rotation-comparison"') < indexSource.indexOf('id="nikkei-ai-three-series"'));
+assert.ok(indexSource.indexOf('id="nikkei-ai-three-series"') < indexSource.indexOf('class="kioxia-case"'));
+assert.match(appSource, /function renderNikkeiAiThreeSeries\(\)/);
+assert.match(appSource, /data\/nikkei-ai-three-series\.json\?ts=/);
+assert.match(stylesSource, /\.nikkei-ai-chart-frame/);
 assert.match(indexSource, /sakKioxiaLiveIrLink/);
 assert.match(indexSource, /overseasArchiveList/);
 assert.match(stylesSource, /regional-market-card\[data-direction="up"\]/);
@@ -372,6 +379,7 @@ const globalComparisonPayload = JSON.parse(fs.readFileSync("data/global-market-v
 const snapshotIndexPayload = JSON.parse(fs.readFileSync("data/history/index.json", "utf8"));
 const marketSummaryPayload = JSON.parse(fs.readFileSync("data/market-summary.json", "utf8"));
 const livePayload = JSON.parse(fs.readFileSync("data/live-intelligence.json", "utf8"));
+const nikkeiAiThreeSeriesPayload = JSON.parse(fs.readFileSync("data/nikkei-ai-three-series.json", "utf8"));
 livePayload.generatedAtUtc = livePayload.generatedAtUtc || "2026-08-01T00:30:00+09:00";
 livePayload.premarket = livePayload.premarket || {};
 livePayload.premarket.quotes = livePayload.premarket.quotes || {};
@@ -379,6 +387,7 @@ Object.assign(livePayload.premarket.quotes, {
   SP500_CASH: { value: 7405.04, changePct: 1.2, currency: "USD", marketState: "updating", quoteTimeUtc: "2026-07-31T15:30:00Z", sourceUrl: "https://finance.yahoo.com/quote/%5EGSPC" },
   DXY: { value: 99.94, changePct: -0.9, currency: "USD", marketState: "updating", quoteTimeUtc: "2026-07-31T15:30:00Z", sourceUrl: "https://finance.yahoo.com/quote/DX-Y.NYB" },
   ACWI_CASH: { value: 141.23, changePct: 0.8, currency: "USD", marketState: "updating", quoteTimeUtc: "2026-07-31T15:30:00Z", sourceUrl: "https://finance.yahoo.com/quote/ACWI" },
+  NIKKEI_CASH: { value: 64362.02, previousClose: 61867.43, changePct: 4.0321539, currency: "JPY", marketState: "delayed-or-closed", quoteTimeUtc: "2026-07-31T06:25:00Z", referenceValidationStatus: "verified", referenceLabel: "official", sourceUrl: "https://indexes.nikkei.co.jp/en/nkave/archives/data?list=daily" },
   KIOXIA: { value: 39500, changePct: 3.4, currency: "JPY", marketState: "delayed-or-closed", quoteTimeUtc: "2026-07-31T06:25:00Z", sourceUrl: "https://finance.yahoo.com/quote/285A.T" },
 });
 livePayload.briefing = livePayload.briefing || { items: [] };
@@ -423,6 +432,7 @@ global.fetch = async (url) => {
       if (requested.includes("money-strategist-history")) return moneyPayload;
       if (requested.includes("margin-debt-history")) return marginPayload;
       if (requested.includes("global-market-value-comparison")) return globalComparisonPayload;
+      if (requested.includes("nikkei-ai-three-series")) return nikkeiAiThreeSeriesPayload;
       return payload;
     },
   };
@@ -434,6 +444,17 @@ setTimeout(async () => {
   if (elements.get("dataHealth").textContent === "読込失敗") console.error("UI load error:", elements.get("uncertaintySummary").textContent);
   assert.notStrictEqual(elements.get("dataHealth").textContent, "読込失敗");
   assert.notStrictEqual(elements.get("headlineConclusion").textContent, "");
+  assert.match(elements.get("nikkeiAiThreeSummary").innerHTML, /実績・10年騰落率/);
+  assert.match(elements.get("nikkeiAiTargetNames").innerHTML, /対象銘柄：未設定/);
+  assert.match(elements.get("nikkeiAiStockRows").innerHTML, /AIバブル疑義銘柄が未設定/);
+  assert.match(elements.get("nikkeiAiQualityNotes").innerHTML, /トヨタ自動車（7203）/);
+  const nikkeiAiChart = renderedCharts.find((chart) => chart.config && chart.config.data
+    && chart.config.data.datasets.some((dataset) => dataset.label === "日経平均・実績"));
+  assert.ok(nikkeiAiChart, "日経AI三系列チャートを描画する");
+  assert.strictEqual(nikkeiAiChart.config.data.datasets.length, 3);
+  assert.strictEqual(nikkeiAiChart.config.data.labels.length, nikkeiAiThreeSeriesPayload.series.length);
+  assert.deepStrictEqual(nikkeiAiChart.config.data.datasets[0].data, nikkeiAiChart.config.data.datasets[1].data);
+  assert.deepStrictEqual(nikkeiAiChart.config.data.datasets[1].data, nikkeiAiChart.config.data.datasets[2].data);
   assert.match(elements.get("dailySummaryLead").textContent, /パニック崩壊は未確認/);
   assert.strictEqual((elements.get("dailySummaryList").innerHTML.match(/<li>/g) || []).length, 11);
   assert.match(elements.get("dailySummaryList").innerHTML, /S&amp;P 500|S&P 500/);
@@ -445,6 +466,11 @@ setTimeout(async () => {
   assert.match(elements.get("regionalMarketCards").innerHTML, /data-direction="up|data-direction="down/);
   assert.match(elements.get("regionalMarketCards").innerHTML, /取引中|直近終値/);
   assert.match(elements.get("regionalMarketCards").innerHTML, /is-live/);
+  const regionalMarkup = elements.get("regionalMarketCards").innerHTML;
+  assert.match(regionalMarkup, /64,362/);
+  assert.match(regionalMarkup, /official/);
+  assert.match(regionalMarkup, /\+4%/);
+  assert.doesNotMatch(regionalMarkup, /-4\.4%/);
   assert.match(elements.get("premarketLead").innerHTML, /日経|先物/);
   assert.strictEqual((elements.get("premarketCards").innerHTML.match(/class="premarket-card"/g) || []).length, 9);
   assert.match(elements.get("premarketCards").innerHTML, /CME日経|日経225/);

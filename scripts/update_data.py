@@ -3617,6 +3617,12 @@ def main() -> None:
         print(f"Updated six-series comparison through {comparison['latestCommonMonth']}")
     except Exception as exc:
         print(f"Warning: retained previous six-series comparison package: {exc}")
+    try:
+        from nikkei_ai_three_series import write_nikkei_ai_three_series
+        nikkei_comparison = write_nikkei_ai_three_series()
+        print(f"Updated Nikkei AI three-series through {nikkei_comparison['meta']['market_date']}")
+    except Exception as exc:
+        print(f"Warning: retained previous Nikkei AI three-series package: {exc}")
     print(f"Wrote {OUTPUT} with {len(companies)} companies and {len(errors)} warnings")
 
 

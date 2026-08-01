@@ -11111,3 +11111,218 @@ main .band .label { font-size: 0.76rem; line-height: 1.45; }
   .overseas-news-list .overseas-live-card { grid-template-columns: 1fr; }
   .overseas-live-card a { justify-self: start; }
 }
+
+
+/* 日経平均・AI過熱寄与の三系列比較 */
+.nikkei-ai-three-series {
+  margin-top: 44px;
+  padding-top: 38px;
+  border-top: 2px solid #667f91;
+}
+
+.nikkei-ai-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 1px;
+  margin: 22px 0;
+  border: 1px solid #b7c8d2;
+  background: #b7c8d2;
+}
+
+.nikkei-ai-summary-card {
+  min-width: 0;
+  min-height: 126px;
+  padding: 17px 16px;
+  background: #ffffff;
+}
+
+.nikkei-ai-summary-card > span,
+.nikkei-ai-summary-card > small {
+  display: block;
+}
+
+.nikkei-ai-summary-card > span {
+  color: #426272;
+  font-size: .71rem;
+  font-weight: 900;
+  letter-spacing: .04em;
+}
+
+.nikkei-ai-summary-card > strong {
+  display: block;
+  margin: 8px 0 6px;
+  color: #173c52;
+  font-size: 1.16rem;
+  line-height: 1.22;
+}
+
+.nikkei-ai-summary-card > small {
+  color: #607681;
+  font-size: .74rem;
+  line-height: 1.5;
+}
+
+.nikkei-ai-summary-card.is-loading { background: #f2f6f7; }
+
+.nikkei-ai-chart-panel {
+  margin: 0;
+  padding: 22px;
+  border: 1px solid #b7c8d2;
+  background: #ffffff;
+}
+
+.nikkei-ai-chart-heading {
+  align-items: flex-start;
+  gap: 14px;
+}
+
+.nikkei-ai-chart-heading h4 { margin-bottom: 4px; }
+.nikkei-ai-chart-heading p {
+  margin: 0;
+  color: var(--muted);
+  font-size: .8rem;
+}
+
+#nikkeiAiMethodBadge {
+  max-width: min(380px, 42vw);
+  overflow-wrap: anywhere;
+  text-align: right;
+  white-space: normal;
+}
+
+.nikkei-ai-chart-frame {
+  position: relative;
+  width: 100%;
+  min-width: 0;
+  height: 420px;
+  margin-top: 16px;
+}
+
+.nikkei-ai-chart-frame canvas {
+  display: block;
+  width: 100% !important;
+  height: 100% !important;
+}
+
+.nikkei-ai-reading {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1px;
+  margin-top: 16px;
+  border: 1px solid #d4e0e5;
+  background: #d4e0e5;
+}
+
+.nikkei-ai-reading p {
+  margin: 0;
+  padding: 12px 14px;
+  color: #4d6570;
+  background: #f7fafb;
+  font-size: .78rem;
+  line-height: 1.58;
+}
+
+.nikkei-ai-reading strong { color: #1e5669; }
+
+.nikkei-ai-targets {
+  margin: 14px 0;
+  padding: 12px 14px;
+  color: #3e5966;
+  border-left: 4px solid #1a7980;
+  background: #edf5f4;
+  font-size: .84rem;
+  line-height: 1.6;
+}
+
+.nikkei-ai-details {
+  border: 1px solid #c9d7dd;
+  background: #ffffff;
+}
+
+.nikkei-ai-details > summary {
+  padding: 14px 16px;
+  color: #244b5b;
+  font-size: .9rem;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.nikkei-ai-details[open] > summary { border-bottom: 1px solid #c9d7dd; }
+
+.nikkei-ai-table-wrap { margin: 0; border: 0; }
+
+.nikkei-ai-stock-table {
+  width: 100%;
+  min-width: 1080px;
+  border-collapse: collapse;
+}
+
+.nikkei-ai-stock-table th,
+.nikkei-ai-stock-table td {
+  padding: 11px 10px;
+  color: #425e6b;
+  border-right: 1px solid #dce5e9;
+  border-bottom: 1px solid #dce5e9;
+  font-size: .76rem;
+  line-height: 1.48;
+  text-align: left;
+  vertical-align: top;
+}
+
+.nikkei-ai-stock-table th {
+  color: #ffffff;
+  background: #244b5b;
+  font-size: .71rem;
+}
+
+.nikkei-ai-stock-table th:last-child,
+.nikkei-ai-stock-table td:last-child { border-right: 0; }
+
+.nikkei-ai-stock-table tbody tr:last-child td { border-bottom: 0; }
+
+.nikkei-ai-quality-notes {
+  padding: 15px 16px;
+  color: #536c77;
+  background: #f6f9fa;
+  font-size: .79rem;
+  line-height: 1.62;
+}
+
+.nikkei-ai-quality-notes p { margin: 0 0 8px; }
+.nikkei-ai-quality-notes p:last-child { margin-bottom: 0; }
+.nikkei-ai-quality-notes strong { color: #254f60; }
+.nikkei-ai-quality-notes a { color: #0c6683; font-weight: 800; }
+.nikkei-ai-source-links { overflow-wrap: anywhere; }
+
+.nikkei-ai-warning-list {
+  margin: 10px 0;
+  padding: 10px 12px 10px 30px;
+  color: #735c25;
+  border-left: 4px solid #c38d26;
+  background: #fff8e8;
+}
+
+.nikkei-ai-warning-list li + li { margin-top: 5px; }
+
+@media (max-width: 1100px) {
+  .nikkei-ai-summary-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .nikkei-ai-reading { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 700px) {
+  .nikkei-ai-three-series {
+    margin-top: 34px;
+    padding-top: 28px;
+  }
+
+  .nikkei-ai-summary-grid { grid-template-columns: 1fr; }
+  .nikkei-ai-summary-card { min-height: 0; padding: 14px; }
+  .nikkei-ai-chart-panel { padding: 15px 12px; }
+  .nikkei-ai-chart-heading { display: grid; grid-template-columns: 1fr; }
+  #nikkeiAiMethodBadge { max-width: none; text-align: left; }
+  .nikkei-ai-chart-frame { height: clamp(300px, 88vw, 400px); }
+  .nikkei-ai-reading p { padding: 11px 12px; }
+  .nikkei-ai-targets { padding: 11px 12px; }
+  .nikkei-ai-details > summary { padding: 13px 12px; }
+  .nikkei-ai-quality-notes { padding: 13px 12px; }
+}

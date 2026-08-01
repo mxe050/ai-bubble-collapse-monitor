@@ -47,6 +47,7 @@
       <a href="#live-briefing" data-track="live-briefing">速報・介入</a>
       <a href="#today" data-track="today">今日の判定</a>
       <a href="#global-comparison" data-track="purchasing-power,decision-path,global-comparison">価値・過熱</a>
+      <a href="#nikkei-ai-three-series" data-track="sakakibara-method">AI過熱寄与を除いた日経比較</a>
       <a href="#us-japan-link" data-track="us-japan-link,sakakibara-method">日本への波及</a>
       <a href="#money-strategist" data-track="money-strategist,margin-leverage,signals">暴落確認</a>
       <a href="#nikkei-bottom" data-track="nikkei-bottom">底値・反転</a>
@@ -1096,6 +1097,62 @@
             <p id="sakBreadthInterpretation">値動きの広がりを確認しています。</p>
           </div>
         </div>
+
+        <section id="nikkei-ai-three-series" class="nikkei-ai-three-series" aria-labelledby="nikkeiAiThreeSeriesHeading">
+          <div class="section-heading compact-heading">
+            <p class="section-kicker">NIKKEI 225 / AI EXCESS CONTRIBUTION</p>
+            <h3 id="nikkeiAiThreeSeriesHeading">日経平均からAI過熱の影響を分ける</h3>
+            <p>実際の日経平均、過熱銘柄の異常上昇だけを一般株並みに調整した試算、対象銘柄を除外した試算を、10年前＝100で比較します。</p>
+          </div>
+
+          <div id="nikkeiAiThreeSummary" class="nikkei-ai-summary-grid" aria-live="polite">
+            <article class="nikkei-ai-summary-card is-loading"><span>比較データ</span><strong>読込中</strong><small>日経平均の3系列を確認しています。</small></article>
+          </div>
+
+          <div class="chart-panel nikkei-ai-chart-panel">
+            <div class="panel-heading nikkei-ai-chart-heading">
+              <div>
+                <h4>10年間の3系列比較</h4>
+                <p>共通起点＝100・価格指数・配当なし</p>
+              </div>
+              <span id="nikkeiAiMethodBadge" class="source-chip">データ確認中</span>
+            </div>
+            <div class="nikkei-ai-chart-frame">
+              <canvas id="nikkeiAiThreeSeriesChart" role="img" aria-label="日経平均とAI過熱調整後の3系列比較"></canvas>
+            </div>
+            <div class="nikkei-ai-reading">
+              <p><strong>実績－標準化：</strong>指定したAI過熱銘柄の異常上昇部分が日経平均を押し上げた大きさの試算です。</p>
+              <p><strong>標準化－除外：</strong>対象企業を一般的な価格上昇の範囲で残した効果の試算です。</p>
+              <p>これは公式指数、投資助言、バブルの統計的認定ではありません。</p>
+            </div>
+          </div>
+
+          <p id="nikkeiAiTargetNames" class="nikkei-ai-targets">対象銘柄：確認中</p>
+
+          <details class="nikkei-ai-details">
+            <summary>対象銘柄と計算根拠を見る</summary>
+            <div class="table-wrap nikkei-ai-table-wrap">
+              <table class="nikkei-ai-stock-table">
+                <thead>
+                  <tr>
+                    <th>コード</th>
+                    <th>会社名</th>
+                    <th>開始日</th>
+                    <th>選定理由</th>
+                    <th>同業比較数</th>
+                    <th>実績騰落</th>
+                    <th>一般株経路</th>
+                    <th>除去した超過上昇</th>
+                    <th>現在ウエート</th>
+                    <th>データ状態</th>
+                  </tr>
+                </thead>
+                <tbody id="nikkeiAiStockRows"></tbody>
+              </table>
+            </div>
+            <div id="nikkeiAiQualityNotes" class="nikkei-ai-quality-notes"></div>
+          </details>
+        </section>
 
         <div class="kioxia-case">
           <div>
