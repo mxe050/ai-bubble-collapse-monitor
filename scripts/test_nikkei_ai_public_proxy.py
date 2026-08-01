@@ -54,8 +54,12 @@ def sources() -> tuple[list[dict], list[dict], list[dict], list[dict], dict, dic
     return actual, actual, monthly, topix, prices, summaries
 
 
-def payload(*, missing: bool = False, flat: bool = False, mode: str | None = None) -> dict:
+def payload(*, missing: bool = False, flat: bool = False, mode: str | None = None,
+            manual_codes: list[str] | None = None) -> dict:
     config = proxy.load_config(ROOT / "config" / "nikkei-ai-overheat-config.json")
+    config["auto_use_screened_candidates"] = False
+    config["manual_include"] = list(manual_codes if manual_codes is not None else ["6857"])
+    config["manual_basket"]["member_starts"] = {item_code: "2016-07-31" for item_code in config["manual_include"]}
     if mode is not None:
         config["mode"] = mode
     yahoo, official, monthly, topix, prices, summaries = sources()
@@ -67,6 +71,8 @@ def payload(*, missing: bool = False, flat: bool = False, mode: str | None = Non
         {"code": "285A", "name": "キオクシアホールディングス", "symbol": "285A.T", "universe_source": "test"},
     ]
     if flat:
+        config["manual_include"] = []
+        config["manual_basket"]["member_starts"] = {}
         catalog = [{"code": "285A", "name": "キオクシアホールディングス", "symbol": "285A.T", "universe_source": "test"}]
     return proxy.build_payload(
         config,
@@ -86,11 +92,12 @@ def test_screen_and_proxy() -> None:
     selected = result["selected_candidates"]
     require([row["code"] for row in selected] == ["6857"], "only screened candidate should be selected")
     candidate = next(row for row in result["candidates"] if row["code"] == "6857")
-    require(candidate["status"] == "auto_screened_provisional", "screened candidate status is wrong")
+    require(candidate["status"] == "manual_include", "specified candidate status is wrong")
     require(candidate["passed_conditions"] == ["A", "B", "C"], "screen conditions are wrong")
     kept = next(row for row in result["candidates"] if row["code"] == "7203")
     require(kept["status"] == "explicit_keep" and not kept["selected_for_proxy"], "7203 must remain explicit_keep")
     require(result["meta"]["comparison_status"] == "public-contribution-proxy", "public proxy should calculate")
+    require(result["meta"]["title"] == "日経平均から指定AI過熱バスケットの寄与を分ける", "manual-basket title is wrong")
     require(result["series"][0]["nikkei_actual"] == 100, "actual proxy start must be 100")
     require(result["series"][0]["ai_overheat_normalized"] == 100, "normalized proxy start must be 100")
     require(result["series"][0]["ai_overheat_excluded"] == 100, "excluded proxy start must be 100")
@@ -131,6 +138,24 @@ def test_actual_only_and_missing_behavior() -> None:
     require(missing["quality"]["coverage_pct"] < 100, "missing input cannot be filled")
     require(proxy.weight({"confirmed_non_members": ["6857"], "weights": {}}, "6857")[0] == 0, "confirmed non-member should be zero")
     require(proxy.weight({"weights": {}}, "6857")[0] is None, "unlisted top-10 issuer cannot be silently zero")
+    paf_rows = proxy.proxy_rows(
+        [{"date": date(2026, 1, 1), "close": 100}, {"date": date(2026, 1, 2), "close": 101}],
+        {date(2026, 1, 1): 100, date(2026, 1, 2): 101},
+        {"6976": {date(2026, 1, 1): 10, date(2026, 1, 2): 11}},
+        {date(2026, 1, 1): {"weights": {}, "divisor": 1.0}},
+        [{"code": "6976"}], {"6976": 1.0}, {"6976": date(2016, 1, 1)},
+    )
+    require(paf_rows[0]["computed"] and paf_rows[0]["quality"] == "reconstructed", "PAF fallback must be disclosed")
+    require(abs(paf_rows[0]["weights"]["6976"] - .1) < 1e-12, "PAF weight formula is wrong")
+    require(paf_rows[0]["weight_sources"]["6976"] == "paf_reconstructed", "PAF source is missing")
+    pre_adoption = proxy.proxy_rows(
+        [{"date": date(2026, 1, 1), "close": 100}, {"date": date(2026, 1, 2), "close": 101}],
+        {date(2026, 1, 1): 100, date(2026, 1, 2): 101},
+        {"285A": {}}, {date(2026, 1, 1): {"weights": {}, "divisor": 1.0}},
+        [{"code": "285A"}], {"285A": .7}, {"285A": date(2026, 4, 1)},
+    )
+    require(pre_adoption[0]["computed"], "confirmed pre-adoption date must remain calculable")
+    require(pre_adoption[0]["weights"]["285A"] == 0, "pre-adoption Kioxia weight must be zero")
 
 
 def test_denominator_and_config_guards() -> None:
@@ -160,6 +185,11 @@ def test_denominator_and_config_guards() -> None:
     source = Path(proxy.__file__).read_text(encoding="utf-8").lower()
     require('quote.get("close")' in source and "adjclose" not in source, "Adj Close must not be used")
     config = proxy.load_config(ROOT / "config" / "nikkei-ai-overheat-config.json")
+    expected_manual = ["285A", "6976", "5801", "4062", "6981", "3436", "4004", "5706", "6963", "6723", "5803", "6857", "8035", "9984"]
+    require(config["method_version"] == "2.1", "manual basket method version is wrong")
+    require(config["auto_use_screened_candidates"] is False, "auto-screening must be disabled")
+    require(config["manual_include"] == expected_manual, "manual basket is not the specified 14 companies")
+    require(set(config["manual_basket"]["member_starts"]) == set(expected_manual), "every specified company needs a membership start")
     invalid = copy.deepcopy(config)
     invalid["explicit_keep"] = []
     try:

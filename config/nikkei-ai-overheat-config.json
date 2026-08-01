@@ -1,13 +1,11 @@
 {
-  "method_version": "2.0",
+  "method_version": "2.1",
   "mode": "public_contribution_proxy",
   "lookback_years": 10,
   "normalization_reference": "TOPIX",
   "candidate_universe": {
-    "use_existing_japan_ai_linked": true,
-    "additional_codes": [
-      "285A"
-    ]
+    "use_existing_japan_ai_linked": false,
+    "additional_codes": []
   },
   "screen": {
     "excess_return_vs_topix_36m_pp": 100,
@@ -16,7 +14,7 @@
     "price_minus_business_growth_36m_pp": 75,
     "minimum_conditions": 3
   },
-  "auto_use_screened_candidates": true,
+  "auto_use_screened_candidates": false,
   "explicit_keep": [
     {
       "code": "7203",
@@ -24,6 +22,43 @@
       "reason": "AIとの接点だけでは除外しない。ユーザーが明示的に残すよう指定"
     }
   ],
-  "manual_include": [],
+  "manual_basket": {
+    "label": "指定AI過熱バスケット",
+    "description": "（2）では同じ14社の日次騰落をTOPIXの日次騰落に置換し、（3）では同じ14社の日経平均への寄与を除外する。",
+    "weight_method": "official_top10_or_paf_reconstruction",
+    "component_history_source_url": "https://indexes.nikkei.co.jp/nkave/archives/file/history_of_nikkei_stock_average_component_changes_en.pdf",
+    "member_starts": {
+      "3436": "2023-07-26",
+      "4004": "2023-07-26",
+      "4062": "2025-11-11",
+      "5706": "2023-07-26",
+      "5801": "2023-07-26",
+      "5803": "2023-07-26",
+      "6723": "2023-04-03",
+      "6857": "2023-07-26",
+      "6963": "2025-07-04",
+      "6976": "2023-07-26",
+      "6981": "2023-07-26",
+      "8035": "2023-07-26",
+      "9984": "2023-07-26",
+      "285A": "2026-04-01"
+    }
+  },
+  "manual_include": [
+    "285A",
+    "6976",
+    "5801",
+    "4062",
+    "6981",
+    "3436",
+    "4004",
+    "5706",
+    "6963",
+    "6723",
+    "5803",
+    "6857",
+    "8035",
+    "9984"
+  ],
   "manual_exclude": []
 }

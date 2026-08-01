@@ -2218,6 +2218,9 @@
     var actualSeries = (Array.isArray(payload.actual_series) ? payload.actual_series : []).filter(function (row) { return row && row.date && finite(row.nikkei_close) !== null; });
     var series = (Array.isArray(payload.series) ? payload.series : []).filter(function (row) { return row && row.date && finite(row.nikkei_actual) !== null && finite(row.nikkei_close) !== null; });
     var historicalEvents = (Array.isArray(payload.historical_events) ? payload.historical_events : []).filter(function (event) { return event && event.date && event.label; });
+    var selectionConfig = payload.selection_config || {};
+    var manualBasket = selectionConfig.manual_basket || {};
+    var basketLabel = String(manualBasket.label || summary.target_basket_label || "指定AI過熱バスケット");
     var warnings = Array.isArray(payload.warnings) ? payload.warnings.filter(Boolean) : [];
     var sources = Array.isArray(payload.sources) ? payload.sources : [];
     var status = String(meta.comparison_status || quality.data_state || "");
@@ -2294,22 +2297,22 @@
         ? "<strong>" + escapeHtml(stateLabel) + "：寄与ベースの比較</strong><p>" + escapeHtml(meta.proxy_disclaimer || "合成系列は研究用proxyです。") + (coverage !== null && coverage < 90 ? " 10年全体の十分な連続カバレッジがないため、取得できた連続区間だけを表示しています。" : "") + "</p>"
         : "<strong>" + escapeHtml(stateLabel) + "</strong><p>" + escapeHtml(warnings[0] || "比較に必要な公開入力がそろっていません。") + " 欠損日はゼロ・補間・実績同値で埋めていません。</p>";
     }
-    if (title) title.textContent = hasProxy ? "円建ての3系列比較（実績・標準化・AI候補除外）" : "日経平均の10年実績";
+    if (title) title.textContent = hasProxy ? "円建ての3系列比較（実績・標準化・指定14社除外）" : "日経平均の10年実績";
     if (subtitle) subtitle.textContent = hasProxy
       ? "実績は10年、2本のproxyは " + rangeText(meta.display_start_date, meta.display_end_date) + " の公開日次寄与が連続する区間だけを、同じ円単位で表示します。"
       : "日経平均の10年実績のみを表示しています。";
     if (canvas) canvas.setAttribute("aria-label", hasProxy ? "日経平均の実績、AI過熱候補をTOPIX並みに標準化した値、AI過熱候補を除いた残存部分を同じ円単位で示す3系列比較" : "日経平均の10年実績");
 
     if (reading) reading.innerHTML = hasProxy
-      ? "<p><strong>一般市場並みに置換：</strong>対象候補の日次騰落をTOPIXの日次騰落に置き換えた研究用proxyです。比較開始日の実額を基準に円換算しています。</p><p><strong>残存部分：</strong>対象候補の日次寄与を外して残りを比率で表した研究用proxyです。公開入力がない過去へ延長していません。</p><p><strong>出来事の注記：</strong>各出来事は背景確認用であり、日経平均の変動を単一要因で説明するものではありません。カードから公式資料を直接確認できます。</p>"
+      ? "<p><strong>一般市場並みに置換：</strong>指定14社の日次騰落をTOPIXの日次騰落に置き換えた研究用proxyです。比較開始日の実額を基準に円換算しています。</p><p><strong>残存部分：</strong>同じ指定14社の日次寄与を外して残りを比率で表した研究用proxyです。公式上位10掲載値を優先し、未掲載分だけ公開PAF・公式除数・終値から再構成します。</p><p><strong>出来事の注記：</strong>各出来事は背景確認用であり、日経平均の変動を単一要因で説明するものではありません。カードから公式資料を直接確認できます。</p>"
       : "<p><strong>日経平均の実額：</strong>公開データで確認できる10年の価格水準を円建てで表示します。比較に必要な公開入力がそろわないため、2本のproxyは描きません。</p><p>原因を後付けで単一化せず、公式資料と実績を分けて確認します。</p>";
 
     var cards = hasProxy ? [
       ["日経平均・実績（" + latestAsOfDate + "）", formatYen(latestActualClose), "公式終値。3つとも同じ日経平均の円建て換算値です。"],
-      ["AI過熱候補をTOPIX並みに標準化", formatYen(latestNormalizedClose), actualGapCaption(latestActualMinusNormalized) + "。対象候補の当日騰落をTOPIX騰落へ置換したproxyです。"],
-      ["AI過熱候補を除いた残存部分", formatYen(latestExcludedClose), actualGapCaption(latestActualMinusExcluded) + "。対象候補の当日寄与を取り除いたproxyです。"],
-      ["今回の自動選定", numberOne.format(targets.length) + "社", targets.length ? "固定20社ではなく、価格・寄与の客観条件を満たした候補だけです。" : "条件を満たす候補がないためproxyは表示しません。"],
-      ["proxyの公開データ範囲", coverage === null ? "―" : numberOne.format(coverage) + "%", "exact " + numberOne.format(finite(dayCounts.exact) || 0) + "日 / missing " + numberOne.format(finite(dayCounts.missing) || 0) + "日"]
+      [basketLabel + "をTOPIX並みに標準化", formatYen(latestNormalizedClose), actualGapCaption(latestActualMinusNormalized) + "。指定14社の当日騰落をTOPIX騰落へ置換したproxyです。"],
+      [basketLabel + "を除いた残存部分", formatYen(latestExcludedClose), actualGapCaption(latestActualMinusExcluded) + "。同じ指定14社の日次寄与を取り除いたproxyです。"],
+      ["指定対象（（2）（3）共通）", numberOne.format(targets.length) + "社", targets.length ? "ユーザー指定の14社。自動スクリーニングで銘柄数を変えません。" : "指定対象を確認できないためproxyは表示しません。"],
+      ["proxyの公開データ範囲", coverage === null ? "―" : numberOne.format(coverage) + "%", "公式上位10 " + numberOne.format(finite((quality.weight_source_counts || {}).exact) || 0) + "件 / PAF再構成 " + numberOne.format(finite((quality.weight_source_counts || {}).paf_reconstructed) || 0) + "件"]
     ] : [
       ["日経平均・実績", formatYen(fullEnd.nikkei_close), (fullStart.date || "開始日") + "の" + formatYen(fullStart.nikkei_close) + "から " + formatPercent(summary.actual_full_period_return_pct, true)],
       ["候補ユニバース", numberOne.format(finite(summary.candidate_count) || 0) + "社", "既存の日本AI関連銘柄とキオクシアを毎回スクリーニングします。"],
@@ -2328,14 +2331,14 @@
       }).join("") : '<p class="nikkei-ai-event-empty">公式ソース付きの出来事データを確認中です。</p>';
     }
     if (eventNote) eventNote.textContent = "日経平均の値動きを単一の出来事で説明するものではありません。背景確認のため、各項目から公式資料を直接開けます。";
-    targetNode.innerHTML = targets.length ? "<strong>本サイトの価格・寄与基準によるAI過熱候補：</strong>" + targets.map(function (item) { return escapeHtml((item.name || "名称未取得") + "（" + (item.code || "コード未取得") + "、" + (item.status === "manual_include" ? "手動追加" : "自動暫定選定") + "）"); }).join("、") : "<strong>本サイトの価格・寄与基準によるAI過熱候補：</strong>今回の公開データと設定では、3条件以上を満たす候補はありません。";
+    targetNode.innerHTML = targets.length ? "<strong>" + escapeHtml(basketLabel) + "（（2）（3）共通・" + escapeHtml(numberOne.format(targets.length)) + "社）：</strong>" + targets.map(function (item) { return escapeHtml((item.name || "名称未取得") + "（" + (item.code || "コード未取得") + "、指定対象）"); }).join("、") : "<strong>" + escapeHtml(basketLabel) + "：</strong>指定対象を確認できないため、比較は実績のみです。";
 
     function screenCell(item) {
       item = item || {};
       var value = finite(item.value), threshold = finite(item.threshold), result = item.met === true ? "該当" : item.met === false ? "非該当" : "判定不能";
       return '<span class="nikkei-ai-screen-cell">' + escapeHtml(value === null ? "―" : formatPercent(value, true)) + "<small>" + escapeHtml((threshold === null ? "" : "基準 " + numberOne.format(threshold) + "% / ") + result) + "</small></span>";
     }
-    function candidateStatus(item) { return ({ auto_screened_provisional: "自動暫定選定", manual_include: "手動追加", manual_exclude: "手動除外", explicit_keep: "明示維持", not_selected: "非選定" })[item.status] || "要確認"; }
+    function candidateStatus(item) { return ({ auto_screened_provisional: "自動暫定選定", manual_include: "指定対象", manual_exclude: "手動除外", explicit_keep: "明示維持", not_selected: "非選定" })[item.status] || "要確認"; }
     stockRows.innerHTML = candidates.length ? candidates.map(function (item) {
       var condition = item.conditions || {}, current = finite(item.current_nikkei_weight_pct), peak = finite(item.peak_nikkei_weight_pct);
       return "<tr><td>" + escapeHtml(item.code || "―") + "</td><td>" + escapeHtml(item.name || "名称未取得") + "</td><td><strong>" + escapeHtml(candidateStatus(item)) + "</strong><small>" + escapeHtml(item.selection_reason || "") + "</small></td><td>" + screenCell(condition.A) + "</td><td>" + screenCell(condition.B) + "</td><td>" + screenCell(condition.C) + "</td><td>" + screenCell(condition.D) + "</td><td>" + escapeHtml((item.passed_conditions || []).join("・") || "なし") + "</td><td>" + escapeHtml(current === null ? "―" : formatPercent(current, false)) + " / 最大 " + escapeHtml(peak === null ? "―" : formatPercent(peak, false)) + "</td><td>" + escapeHtml(item.data_status || item.weight_method || "公開データ") + "</td></tr>";
@@ -2390,12 +2393,12 @@
     }];
     if (hasProxy && proxyBaseClose !== null) {
       datasets.push({
-        label: "AI過熱候補をTOPIX並みに標準化（円換算）",
+        label: "指定14社をTOPIX並みに標準化（円換算）",
         data: chartRows.map(function (row) { return nominalProxyValue(row, "ai_overheat_normalized"); }),
         borderColor: "#11836f", borderWidth: 2.4, borderDash: [7, 4], pointRadius: 0, tension: .12, spanGaps: false,
       });
       datasets.push({
-        label: "AI過熱候補を除いた残存部分（円換算）",
+        label: "指定14社を除いた残存部分（円換算）",
         data: chartRows.map(function (row) { return nominalProxyValue(row, "ai_overheat_excluded"); }),
         borderColor: "#b64a3b", borderWidth: 2.2, borderDash: [2, 4], pointRadius: 0, tension: .12, spanGaps: false,
       });

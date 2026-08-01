@@ -28,10 +28,13 @@ ROOT = Path(__file__).resolve().parents[1]
 CONFIG_PATH = ROOT / "config" / "nikkei-ai-overheat-config.json"
 OUTPUT_PATH = ROOT / "data" / "nikkei-ai-three-series.json"
 CACHE_PATH = ROOT / "data" / "nikkei-ai-public-proxy-cache.json"
+PAF_CACHE_PATH = ROOT / "data" / "nikkei-ai-paf-cache.json"
 JST = ZoneInfo("Asia/Tokyo")
 USER_AGENT = "mxe050-ai-bubble-monitor/2.0 (https://github.com/mxe050)"
 OFFICIAL_DAILY_URL = "https://indexes.nikkei.co.jp/nkave/historical/nikkei_stock_average_daily_en.csv"
 OFFICIAL_MONTHLY_URL = "https://indexes.nikkei.co.jp/nkave/historical/nikkei_stock_average_monthly_en.csv"
+OFFICIAL_PAF_URL = "https://indexes.nikkei.co.jp/nkave/archives/file/nikkei_225_price_adjustment_factor_en.csv"
+OFFICIAL_COMPONENT_HISTORY_URL = "https://indexes.nikkei.co.jp/nkave/archives/file/history_of_nikkei_stock_average_component_changes_en.pdf"
 OFFICIAL_DAILY_PAGE_URL = "https://indexes.nikkei.co.jp/en/nkave/archives/data?list=daily"
 OFFICIAL_SUMMARY_URL = "https://indexes.nikkei.co.jp/en/nkave/archives/summary?dt={}&idx=nk225"
 TOPIX_HISTORY_URL = "https://finance.yahoo.co.jp/quote/998405.T/history"
@@ -46,7 +49,19 @@ FALLBACK_AI = {
     "4063": ("信越化学工業", "4063.T"),
     "7741": ("HOYA", "7741.T"),
 }
-EXTRA = {"285A": ("キオクシアホールディングス", "285A.T")}
+EXTRA = {
+    "285A": ("キオクシアホールディングス", "285A.T"),
+    "6976": ("太陽誘電", "6976.T"),
+    "5801": ("古河電気工業", "5801.T"),
+    "4062": ("イビデン", "4062.T"),
+    "6981": ("村田製作所", "6981.T"),
+    "3436": ("SUMCO", "3436.T"),
+    "4004": ("レゾナック・ホールディングス", "4004.T"),
+    "5706": ("三井金属", "5706.T"),
+    "6963": ("ローム", "6963.T"),
+    "6723": ("ルネサスエレクトロニクス", "6723.T"),
+    "5803": ("フジクラ", "5803.T"),
+}
 
 # Historical context is intentionally separate from the price/proxy calculation.
 # Each item links to a primary source so readers can inspect the original record.
@@ -130,12 +145,12 @@ def validate_config(payload: Any) -> dict[str, Any]:
     required = {
         "method_version", "mode", "lookback_years", "normalization_reference",
         "candidate_universe", "screen", "auto_use_screened_candidates",
-        "explicit_keep", "manual_include", "manual_exclude",
+        "explicit_keep", "manual_basket", "manual_include", "manual_exclude",
     }
     if required - set(payload):
         raise ConfigurationError("configuration keys are incomplete")
-    if str(payload["method_version"]) != "2.0":
-        raise ConfigurationError("method_version must be 2.0")
+    if str(payload["method_version"]) != "2.1":
+        raise ConfigurationError("method_version must be 2.1")
     if payload["mode"] not in {"exact_reconstruction", "public_contribution_proxy"}:
         raise ConfigurationError("unsupported mode")
     if isinstance(payload["lookback_years"], bool) or payload["lookback_years"] != 10:
@@ -175,6 +190,34 @@ def validate_config(payload: Any) -> dict[str, Any]:
         raise ConfigurationError("Toyota 7203 must be unique explicit_keep")
     if not isinstance(payload["auto_use_screened_candidates"], bool):
         raise ConfigurationError("auto_use_screened_candidates must be boolean")
+    manual_include = code_list(payload["manual_include"], "manual_include")
+    manual_exclude = code_list(payload["manual_exclude"], "manual_exclude")
+    basket = payload["manual_basket"]
+    if not isinstance(basket, dict):
+        raise ConfigurationError("manual_basket must be an object")
+    label = str(basket.get("label") or "").strip()
+    description = str(basket.get("description") or "").strip()
+    if not label or not description:
+        raise ConfigurationError("manual_basket label and description are required")
+    if basket.get("weight_method") != "official_top10_or_paf_reconstruction":
+        raise ConfigurationError("manual_basket weight_method is invalid")
+    source_url = str(basket.get("component_history_source_url") or "").strip()
+    if not source_url.startswith("https://"):
+        raise ConfigurationError("manual_basket component history source must be HTTPS")
+    starts = basket.get("member_starts")
+    if not isinstance(starts, dict):
+        raise ConfigurationError("manual_basket member_starts must be an object")
+    normalized_starts = {}
+    for raw_code, raw_start in starts.items():
+        item_code = code(raw_code, "manual_basket.member_starts")
+        if item_code not in manual_include:
+            raise ConfigurationError("manual_basket member start must refer to manual_include")
+        try:
+            normalized_starts[item_code] = date.fromisoformat(str(raw_start))
+        except ValueError as exc:
+            raise ConfigurationError("manual_basket member start must be YYYY-MM-DD") from exc
+    if set(normalized_starts) != set(manual_include):
+        raise ConfigurationError("manual_basket needs an explicit member start for every included code")
     return {
         **payload,
         "candidate_universe": {
@@ -183,8 +226,15 @@ def validate_config(payload: Any) -> dict[str, Any]:
         },
         "screen": normalized_screen,
         "explicit_keep": keeps,
-        "manual_include": code_list(payload["manual_include"], "manual_include"),
-        "manual_exclude": code_list(payload["manual_exclude"], "manual_exclude"),
+        "manual_basket": {
+            "label": label,
+            "description": description,
+            "weight_method": basket["weight_method"],
+            "component_history_source_url": source_url,
+            "member_starts": {item_code: observed.isoformat() for item_code, observed in normalized_starts.items()},
+        },
+        "manual_include": manual_include,
+        "manual_exclude": manual_exclude,
     }
 
 
@@ -204,6 +254,41 @@ def fetch_official_csv(url: str) -> list[dict[str, Any]]:
         if close is not None and close > 0:
             rows.append({"date": observed, "close": close})
     return sorted(rows, key=lambda row: row["date"])
+
+
+def fetch_paf_snapshot(cache_path: Path = PAF_CACHE_PATH) -> dict[str, Any]:
+    """Fetch the public current PAF snapshot, retaining a disclosed local fallback."""
+    try:
+        text = request(OFFICIAL_PAF_URL, "text/csv,*/*").decode("cp932", errors="replace")
+        factors, observed_dates = {}, []
+        for row in csv.DictReader(io.StringIO(text)):
+            item_code = str(row.get("Code") or "").strip().upper()
+            factor = parse_number(row.get("Price Adjustment Factor"))
+            try:
+                observed = datetime.strptime(str(row.get("Date of Data") or ""), "%Y/%m/%d").date()
+            except ValueError:
+                continue
+            if re.fullmatch(r"[0-9A-Z]{4}", item_code) and factor is not None and factor > 0:
+                factors[item_code] = factor
+                observed_dates.append(observed)
+        if len(factors) < 200 or not observed_dates:
+            raise RuntimeError("official PAF CSV is incomplete")
+        payload = {"snapshot_date": max(observed_dates).isoformat(), "factors": factors,
+                   "source_url": OFFICIAL_PAF_URL, "fetched_live": True}
+        atomic_write_json(cache_path, payload)
+        return payload
+    except Exception:
+        try:
+            cached = json.loads(cache_path.read_text(encoding="utf-8"))
+            factors = {str(k).upper(): value for k, raw in (cached.get("factors") or {}).items()
+                       for value in [finite(raw)]
+                       if re.fullmatch(r"[0-9A-Z]{4}", str(k).upper()) and value is not None and value > 0}
+            if len(factors) < 200 or not str(cached.get("snapshot_date") or ""):
+                raise RuntimeError("cached PAF snapshot is incomplete")
+            return {"snapshot_date": str(cached["snapshot_date"]), "factors": factors,
+                    "source_url": str(cached.get("source_url") or OFFICIAL_PAF_URL), "fetched_live": False}
+        except Exception as cache_error:
+            raise RuntimeError("official PAF snapshot and its cache are unavailable") from cache_error
 
 
 def fetch_yahoo_close(symbol: str) -> dict[str, Any]:
@@ -408,8 +493,28 @@ def weight(summary: dict[str, Any] | None, item_code: str) -> tuple[float | None
     return None, "missing"
 
 
+def resolve_proxy_weight(summary: dict[str, Any] | None, item_code: str, observed: date,
+                         item_close: float | None, nikkei_close: float | None,
+                         paf_factors: dict[str, float], membership_starts: dict[str, date]) -> tuple[float | None, str]:
+    """Use an official top-10 weight first, otherwise a disclosed PAF reconstruction."""
+    value, source = weight(summary, item_code)
+    if value is not None:
+        return value, source
+    start = membership_starts.get(item_code)
+    if start is not None and observed < start:
+        return 0.0, "confirmed_non_member"
+    divisor = finite((summary or {}).get("divisor"))
+    paf = finite(paf_factors.get(item_code))
+    if item_close is None or nikkei_close in (None, 0) or divisor in (None, 0) or paf in (None, 0):
+        return None, "missing"
+    value = item_close * paf / (nikkei_close * divisor)
+    return (value, "paf_reconstructed") if 0 <= value < 1 else (None, "missing")
+
+
 def screen_one(item: dict[str, str], end: date, topix: dict[date, float], prices: dict[date, float],
-               summaries: dict[date, dict[str, Any]], config: dict[str, Any]) -> dict[str, Any]:
+               summaries: dict[date, dict[str, Any]], config: dict[str, Any],
+               nikkei: dict[date, float] | None = None, paf_factors: dict[str, float] | None = None,
+               membership_starts: dict[str, date] | None = None) -> dict[str, Any]:
     start = years_before(end, 3)
     _, close0 = prior(prices, start)
     _, close1 = prior(prices, end)
@@ -424,10 +529,14 @@ def screen_one(item: dict[str, str], end: date, topix: dict[date, float], prices
             change = pct_change(current, old)
             if change is not None:
                 rolling.append(change)
-    observations = [(observed, weight(summary, item["code"])[0]) for observed, summary in summaries.items()]
+    nikkei, paf_factors, membership_starts = nikkei or {}, paf_factors or {}, membership_starts or {}
+    observations = [(observed, resolve_proxy_weight(summary, item["code"], observed, prices.get(observed),
+                    nikkei.get(observed), paf_factors, membership_starts)[0])
+                    for observed, summary in summaries.items()]
     observations = [(observed, value) for observed, value in observations if value is not None]
     peak = max((value for _, value in observations), default=None)
-    current_weight, _ = weight(summaries.get(end), item["code"])
+    current_weight, current_weight_source = resolve_proxy_weight(
+        summaries.get(end), item["code"], end, prices.get(end), nikkei.get(end), paf_factors, membership_starts)
     thresholds = config["screen"]
     def cond(value: float | None, threshold: float, label: str) -> dict[str, Any]:
         return {"value": round(value, 6) if value is not None else None, "threshold": threshold,
@@ -463,23 +572,30 @@ def screen_one(item: dict[str, str], end: date, topix: dict[date, float], prices
         "peak_nikkei_weight_pct": peak * 100 if peak is not None else None,
         "peak_nikkei_weight_date": max(observations, key=lambda row: row[1])[0].isoformat() if observations else None,
         "weight_observation_count": len(observations),
-        "weight_method": "日経公式Daily Summary上位10銘柄掲載値。未掲載日は0ではなくmissing。",
+        "current_weight_source": current_weight_source,
+        "weight_method": ("日経公式Daily Summary上位10銘柄掲載値を優先。未掲載の指定対象は公式PAF・終値・除数から再構成。"
+                          if paf_factors else "日経公式Daily Summary上位10銘柄掲載値。未掲載日は0ではなくmissing。"),
         "data_status": "D条件の一貫した36か月売上・評価用FCF成長率は未接続。",
     }
 
 
 def proxy_rows(actual: list[dict[str, Any]], topix: dict[date, float], prices: dict[str, dict[date, float]],
-               summaries: dict[date, dict[str, Any]], targets: list[dict[str, Any]]) -> list[dict[str, Any]]:
+               summaries: dict[date, dict[str, Any]], targets: list[dict[str, Any]],
+               paf_factors: dict[str, float] | None = None, membership_starts: dict[str, date] | None = None) -> list[dict[str, Any]]:
+    """Build returns without turning an absent top-10 entry into a zero weight."""
     result, codes = [], [item["code"] for item in targets]
+    paf_factors, membership_starts = paf_factors or {}, membership_starts or {}
     for previous, current in zip(actual, actual[1:]):
-        items, missing = {}, []
+        items, sources, missing = {}, {}, []
         for item_code in codes:
-            value, source = weight(summaries.get(previous["date"]), item_code)
+            series = prices.get(item_code) or {}
+            value, source = resolve_proxy_weight(summaries.get(previous["date"]), item_code, previous["date"],
+                series.get(previous["date"]), previous["close"], paf_factors, membership_starts)
             if value is None:
                 missing.append(f"{item_code}の前営業日ウエート")
-            else:
-                items[item_code] = value
-            if previous["date"] not in prices[item_code] or current["date"] not in prices[item_code]:
+                continue
+            items[item_code], sources[item_code] = value, source
+            if value > 0 and (previous["date"] not in series or current["date"] not in series):
                 missing.append(f"{item_code}のClose")
         if previous["date"] not in topix or current["date"] not in topix:
             missing.append("TOPIX Close")
@@ -493,16 +609,19 @@ def proxy_rows(actual: list[dict[str, Any]], topix: dict[date, float], prices: d
                            "quality": "missing", "missing": ["対象ウエート合計が1以上でrExcludedの分母が0以下"],
                            "combined_weight": total})
             continue
-        returns = {item_code: prices[item_code][current["date"]] / prices[item_code][previous["date"]] - 1
+        returns = {item_code: 0.0 if items[item_code] == 0 else (
+                   prices[item_code][current["date"]] / prices[item_code][previous["date"]] - 1)
                    for item_code in codes}
         nikkei = current["close"] / previous["close"] - 1
         market = topix[current["date"]] / topix[previous["date"]] - 1
         contribution = sum(items[key] * returns[key] for key in codes)
         result.append({
-            "date": current["date"], "previous_date": previous["date"], "computed": True, "quality": "exact",
+            "date": current["date"], "previous_date": previous["date"], "computed": True,
+            "quality": "reconstructed" if "paf_reconstructed" in sources.values() else "exact",
             "nikkei_return": nikkei, "normalized_return": nikkei + sum(items[key] * (market - returns[key]) for key in codes),
             "excluded_return": (nikkei - contribution) / (1 - total),
-            "combined_weight": total, "target_contribution": contribution, "weights": items,
+            "combined_weight": total, "target_contribution": contribution,
+            "weights": items, "weight_sources": sources,
         })
     return result
 
@@ -630,7 +749,8 @@ def json_is_finite(value: Any) -> bool:
 def build_payload(config: dict[str, Any], *, yahoo_rows: list[dict[str, Any]], official_daily: list[dict[str, Any]],
                   official_monthly: list[dict[str, Any]], topix_rows: list[dict[str, Any]] | None = None,
                   candidate_prices: dict[str, Any] | None = None, official_summaries: dict[Any, Any] | None = None,
-                  candidate_catalog: list[dict[str, str]] | None = None, generated_at: datetime | None = None) -> dict[str, Any]:
+                  candidate_catalog: list[dict[str, str]] | None = None, paf_snapshot: dict[str, Any] | None = None,
+                  generated_at: datetime | None = None) -> dict[str, Any]:
     daily, monthly = rows_map(official_daily), rows_map(official_monthly)
     if not daily:
         raise RuntimeError("official Nikkei daily data is missing")
@@ -644,16 +764,24 @@ def build_payload(config: dict[str, Any], *, yahoo_rows: list[dict[str, Any]], o
     if cross["matched_months"] < 100:
         raise RuntimeError("monthly Nikkei cross-check is incomplete")
     topix, summaries = rows_map(topix_rows), summary_map(official_summaries)
+    paf_snapshot = paf_snapshot or {}
+    paf_factors = {str(item_code).upper(): value for item_code, raw in (paf_snapshot.get("factors") or {}).items()
+                   for value in [finite(raw)]
+                   if re.fullmatch(r"[0-9A-Z]{4}", str(item_code).upper()) and value is not None and value > 0}
+    membership_starts = {item_code: date.fromisoformat(observed)
+                         for item_code, observed in config["manual_basket"]["member_starts"].items()}
     candidates = candidate_catalog or catalog(config)
     price_inputs = candidate_prices or {}
     prices = {item["code"]: rows_map((price_inputs.get(item["code"]) or {}).get("rows")
                                     if isinstance(price_inputs.get(item["code"]), dict)
                                     else price_inputs.get(item["code"]))
               for item in candidates}
-    screened = [screen_one(item, end, topix, prices[item["code"]], summaries, config) for item in candidates]
+    screened = [screen_one(item, end, topix, prices[item["code"]], summaries, config, daily, paf_factors, membership_starts)
+                for item in candidates]
     targets = [item for item in screened if item["selected_for_proxy"]]
     actual_series = full_actual(actual)
-    calculations = proxy_rows(actual, topix, prices, summaries, targets) if targets and config["mode"] == "public_contribution_proxy" else []
+    calculations = (proxy_rows(actual, topix, prices, summaries, targets, paf_factors, membership_starts)
+                    if targets and config["mode"] == "public_contribution_proxy" else [])
     good, blocks = [item for item in calculations if item["computed"]], segments(calculations)
     total_days, coverage = len(actual) - 1, (100 * len(good) / (len(actual) - 1) if len(actual) > 1 else 0)
     selected = max(blocks, key=len) if blocks else []
@@ -668,7 +796,8 @@ def build_payload(config: dict[str, Any], *, yahoo_rows: list[dict[str, Any]], o
     max_weight = max((item.get("combined_weight") for item in good), default=None)
     latest_weight = None
     if targets:
-        latest = [weight(summaries.get(end), item["code"])[0] for item in targets]
+        latest = [resolve_proxy_weight(summaries.get(end), item["code"], end, prices[item["code"]].get(end),
+                  daily.get(end), paf_factors, membership_starts)[0] for item in targets]
         latest_weight = sum(latest) if all(item is not None for item in latest) else None
     has_proxy = bool(selected and display[-1]["ai_overheat_normalized"] is not None)
     comp_actual = display[-1]["nikkei_actual"] - 100 if has_proxy else None
@@ -697,21 +826,25 @@ def build_payload(config: dict[str, Any], *, yahoo_rows: list[dict[str, Any]], o
         else None
     )
     historical_events = [dict(item) for item in HISTORICAL_EVENTS if item["date"] <= end.isoformat()]
+    weight_source_counts: dict[str, int] = {}
+    for item in good:
+        for source in (item.get("weight_sources") or {}).values():
+            weight_source_counts[source] = weight_source_counts.get(source, 0) + 1
     payload = {
         "meta": {
-            "title": "日経平均からAI過熱候補の寄与を分ける",
+            "title": "日経平均から指定AI過熱バスケットの寄与を分ける",
             "generated_at": (generated_at or datetime.now(JST)).astimezone(JST).replace(microsecond=0).isoformat(),
             "market_date": end.isoformat(), "start_date": actual[0]["date"].isoformat(), "end_date": end.isoformat(),
             "display_start_date": display[0]["date"], "display_end_date": display[-1]["date"],
             "proxy_base_close": round(proxy_base_close, 2) if proxy_base_close is not None else None,
             "base_value": 100, "calculation_frequency": "daily", "display_frequency": "weekly",
-            "nominal_chart_unit": "JPY", "nominal_chart_description": "日経平均の10年実績は円建て。2本のproxyは比較開始日の実額を基準に円換算し、利用可能な連続区間だけを表示する。",
+            "nominal_chart_unit": "JPY", "nominal_chart_description": "日経平均の10年実績は円建て。2本のproxyは比較開始日の実額を基準に円換算し、公式上位10銘柄ウエートを優先しつつ、未掲載の指定対象は公開PAF・公式除数・終値から再構成した連続区間だけを表示する。",
             "dividends_included": False, "price_field": "Close（配当調整済みAdj Closeは使用しない。株式分割だけを機械調整として扱う）",
             "mode": config["mode"], "normalization_reference": "TOPIX", "synthetic_series_are_official": False,
-            "method_label": "公開データによる日次寄与調整proxy" if status == "public-contribution-proxy" else "実績のみ / データ状態を確認",
+            "method_label": "指定14社 / 公式PAF併用の日次寄与調整proxy" if status == "public-contribution-proxy" else "実績のみ / データ状態を確認",
             "comparison_status": status, "official_daily_available_from": min(daily).isoformat(),
             "official_monthly_available_from": min(monthly).isoformat(),
-            "proxy_disclaimer": "2本の合成系列は公式の日経平均ではありません。公開データから対象銘柄の日次寄与を調整した研究用proxyです。",
+            "proxy_disclaimer": "2本の合成系列は公式の日経平均ではありません。指定14社について、公式Daily Summaryの上位10掲載ウエートを優先し、未掲載分は公式PAF・公式除数・終値から再構成した研究用proxyです。",
         },
         "summary": {
             "actual_full_period_return_pct": round(actual_series[-1]["nikkei_actual"] - 100, 6),
@@ -726,6 +859,7 @@ def build_payload(config: dict[str, Any], *, yahoo_rows: list[dict[str, Any]], o
             "ai_excess_contribution_percentage_points": round(comp_actual - normalized, 6) if comp_actual is not None and normalized is not None else None,
             "retained_normal_contribution_percentage_points": round(normalized - excluded, 6) if normalized is not None and excluded is not None else None,
             "candidate_count": len(screened), "selected_candidate_count": len(targets),
+            "target_basket_label": config["manual_basket"]["label"],
             "current_combined_weight_pct": round(latest_weight * 100, 6) if latest_weight is not None else None,
             "peak_combined_weight_pct": round(max_weight * 100, 6) if max_weight is not None else None,
             "full_period_returns_visible": full_visible,
@@ -740,9 +874,14 @@ def build_payload(config: dict[str, Any], *, yahoo_rows: list[dict[str, Any]], o
             "proxy_data_available_from": min(summaries).isoformat() if summaries else None,
             "proxy_data_available_to": max(summaries).isoformat() if summaries else None,
             "proxy_segments": [{"start_date": block[0]["previous_date"].isoformat(), "end_date": block[-1]["date"].isoformat(), "return_day_count": len(block)} for block in blocks],
-            "weight_method": "日経公式Daily Summary掲載の上位10銘柄日次ウエート。未掲載は0ではなくmissing。PAF/CPAF再構成は未使用。",
+            "weight_method": "日経公式Daily Summaryの上位10掲載ウエートを優先。未掲載の指定対象は、Yahoo Finance Close × 日経公式PAF ÷（日経公式終値 × 日次公式除数）で再構成する。上場前・日経採用前は、公式構成変更履歴で確認した期間だけ0とする。",
+            "weight_source_counts": weight_source_counts,
+            "paf_reference": {"snapshot_date": paf_snapshot.get("snapshot_date"),
+                              "source_url": paf_snapshot.get("source_url") or OFFICIAL_PAF_URL,
+                              "fetched_live": bool(paf_snapshot.get("fetched_live")),
+                              "available_target_count": sum(item["code"] in paf_factors for item in targets)},
             "price_method": "Yahoo Finance Close。配当調整済みAdj Closeは使わず、株式分割イベントを取得して終値系列の連続性を確認する。",
-            "membership_handling": "日経平均への採用・除外が公式に確認できる期間だけウエート0とする。Daily Summaryの上位10銘柄に未掲載なだけの銘柄はmissingのままにする。",
+            "membership_handling": "指定14社は、日経平均への採用・除外を公式の構成変更履歴で確認し、採用日前だけウエート0とする。Daily Summaryの上位10銘柄に未掲載なだけの銘柄は、公開PAF・公式除数・終値がそろう場合に限り再構成し、欠損を0にはしない。",
             "candidate_price_audit": [
                 {"code": item["code"],
                  "source_url": (price_inputs.get(item["code"]) or {}).get("source_url") if isinstance(price_inputs.get(item["code"]), dict) else None,
@@ -750,15 +889,19 @@ def build_payload(config: dict[str, Any], *, yahoo_rows: list[dict[str, Any]], o
                 for item in candidates
             ],
             "monthly_crosscheck": cross, "data_state": status,
-            "missing_items": ["10年全期間の対象銘柄別日次ウエート", "対象銘柄の日経平均採用・除外日の完全履歴", "PAF/CPAFまたは2021年9月以前のみなし額面相当係数", "D条件用の一貫した36か月売上・評価用FCF成長率"],
+            "missing_items": ["10年全期間の対象銘柄別日次ウエートとPAFの完全履歴", "日経平均の公式反実仮想指数", "D条件用の一貫した36か月売上・評価用FCF成長率"],
         },
-        "selection_config": {"method_version": config["method_version"], "mode": config["mode"], "screen": config["screen"], "auto_use_screened_candidates": config["auto_use_screened_candidates"]},
+        "selection_config": {"method_version": config["method_version"], "mode": config["mode"], "screen": config["screen"],
+                             "auto_use_screened_candidates": config["auto_use_screened_candidates"],
+                             "manual_basket": config["manual_basket"], "manual_include": config["manual_include"]},
         "candidates": screened, "selected_candidates": targets, "explicit_keep": config["explicit_keep"],
         "historical_events": historical_events,
         "actual_series": actual_series, "series": display, "warnings": [warning],
         "sources": [
             {"label": "日経公式・Daily Summary", "url": "https://indexes.nikkei.co.jp/en/nkave/archives/summary", "used_for": "対象候補の公開日次ウエートと日次除数"},
             {"label": "日経公式・日次終値", "url": OFFICIAL_DAILY_PAGE_URL, "used_for": "直近の公式日次終値"},
+            {"label": "日経公式・PAF CSV", "url": str(paf_snapshot.get("source_url") or OFFICIAL_PAF_URL), "used_for": "上位10に未掲載の指定対象の公開ウエート再構成"},
+            {"label": "日経公式・構成銘柄変更履歴", "url": config["manual_basket"]["component_history_source_url"], "used_for": "キオクシア、イビデン、ローム、ルネサスの採用日前ウエート0の確認"},
             {"label": "日経公式・月次終値CSV", "url": OFFICIAL_MONTHLY_URL, "used_for": "10年実績系列の月次クロスチェック"},
             {"label": "Yahoo Finance ^N225", "url": "https://finance.yahoo.com/quote/%5EN225/history", "used_for": "10年の日付付きClose"},
             {"label": "Yahoo!ファイナンス TOPIX", "url": TOPIX_HISTORY_URL, "used_for": "TOPIXの日次Close"},
@@ -782,6 +925,7 @@ def write_nikkei_ai_three_series(config_path: Path = CONFIG_PATH, output_path: P
                                  cache_path: Path = CACHE_PATH) -> dict[str, Any]:
     config, nikkei = load_config(config_path), fetch_yahoo_close("^N225")
     daily, monthly = fetch_official_csv(OFFICIAL_DAILY_URL), fetch_official_csv(OFFICIAL_MONTHLY_URL)
+    paf_snapshot = fetch_paf_snapshot()
     end, start = max(item["date"] for item in daily), years_before(max(item["date"] for item in daily), 3) - timedelta(days=5)
     topix, candidates = fetch_topix(start, end), catalog(config)
     prices, price_errors = {}, []
@@ -797,7 +941,7 @@ def write_nikkei_ai_three_series(config_path: Path = CONFIG_PATH, output_path: P
         cache_write(cache_path, summaries)
     payload = build_payload(config, yahoo_rows=nikkei["rows"], official_daily=daily, official_monthly=monthly,
                             topix_rows=topix, candidate_prices=prices, official_summaries=summaries,
-                            candidate_catalog=candidates)
+                            candidate_catalog=candidates, paf_snapshot=paf_snapshot)
     if price_errors or summary_errors:
         payload["warnings"].append("一部の公開入力を取得できませんでした。該当日はmissingのままとし、0・補間・実績同値で埋めていません。")
         payload["quality"]["fetch_errors"] = (price_errors + summary_errors)[:100]

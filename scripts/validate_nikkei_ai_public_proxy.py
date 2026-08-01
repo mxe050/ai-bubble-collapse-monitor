@@ -33,9 +33,14 @@ def validate() -> None:
     payload = json.loads(DATA.read_text(encoding="utf-8"))
     config = json.loads(CONFIG.read_text(encoding="utf-8"))
     meta, summary, quality = payload["meta"], payload["summary"], payload["quality"]
-    require(config["method_version"] == "2.0", "method v2 config is missing")
+    expected_manual = ["285A", "6976", "5801", "4062", "6981", "3436", "4004", "5706", "6963", "6723", "5803", "6857", "8035", "9984"]
+    require(config["method_version"] == "2.1", "method v2.1 config is missing")
+    require(config["auto_use_screened_candidates"] is False, "automatic candidate selection must be disabled")
+    require(config["candidate_universe"]["use_existing_japan_ai_linked"] is False, "candidate universe must be the specified basket")
+    require(config["manual_include"] == expected_manual, "manual basket differs from the specified 14 companies")
+    require(set(config["manual_basket"]["member_starts"]) == set(expected_manual), "member starts are incomplete")
     require(config["mode"] in {"public_contribution_proxy", "exact_reconstruction"}, "invalid mode")
-    require(meta["title"] == "日経平均からAI過熱候補の寄与を分ける", "new title is missing")
+    require(meta["title"] == "日経平均から指定AI過熱バスケットの寄与を分ける", "new title is missing")
     require(meta["calculation_frequency"] == "daily" and meta["display_frequency"] == "weekly", "frequency is wrong")
     require(meta["dividends_included"] is False and "Adj Close" in meta["price_field"], "price-field disclosure is wrong")
     require(meta["synthetic_series_are_official"] is False, "proxy cannot be official")
@@ -65,15 +70,13 @@ def validate() -> None:
     require(all(str(row.get("source_url") or "").startswith("https://") for row in events), "historical event source must be HTTPS")
 
     candidates, selected, keeps = payload["candidates"], payload["selected_candidates"], payload["explicit_keep"]
-    require(len(candidates) >= 9, "candidate universe should include existing 8 plus Kioxia")
-    require(any(row["code"] == "285A" for row in candidates), "Kioxia is absent")
+    require([row["code"] for row in candidates] == expected_manual, "candidate universe must be exactly the specified 14")
+    require([row["code"] for row in selected] == expected_manual, "both comparison paths must use the specified 14")
     require("7203" in {row["code"] for row in keeps}, "Toyota explicit_keep is absent")
     require(not {"7203"} & {row["code"] for row in selected}, "Toyota cannot be selected")
     for row in candidates:
-        require(row["status"] in {"auto_screened_provisional", "manual_include", "manual_exclude", "explicit_keep", "not_selected"}, "candidate status invalid")
+        require(row["status"] == "manual_include", "specified candidate status is invalid")
         require(set(row["conditions"]) == {"A", "B", "C", "D"}, "screen details missing")
-    for row in selected:
-        require(row["status"] in {"auto_screened_provisional", "manual_include"}, "selected candidate status invalid")
 
     counts = quality["day_counts"]
     require(sum(counts.values()) == quality["calculation_day_count"], "quality day counts do not reconcile")
@@ -84,6 +87,9 @@ def validate() -> None:
         require(0 <= maximum < 100, "all target weights must remain below one")
     require(quality["data_state"] == meta["comparison_status"], "quality state diverges")
     require("採用・除外" in quality.get("membership_handling", ""), "membership handling is not disclosed")
+    paf = quality.get("paf_reference") or {}
+    require(str(paf.get("source_url") or "").startswith("https://"), "PAF source is missing")
+    require(int((quality.get("weight_source_counts") or {}).get("paf_reconstructed", 0)) > 0, "non-top10 PAF reconstruction is missing")
     audit = quality.get("candidate_price_audit") or []
     require(len(audit) == len(candidates), "candidate price audit is incomplete")
     require(all(isinstance(item.get("split_events"), list) for item in audit), "split-event audit is invalid")
@@ -120,7 +126,7 @@ def validate() -> None:
     index_html = (ROOT / "index.html").read_text(encoding="utf-8")
     app_js = (ROOT / "app.js").read_text(encoding="utf-8")
     require("nikkeiAiEventTimeline" in index_html and "nikkeiAiEventNote" in index_html, "historical event UI is missing")
-    require("historical_events" in app_js and "日経平均（円）" in app_js, "nominal chart rendering is missing")
+    require("historical_events" in app_js and "指定14社" in app_js, "nominal chart rendering is missing")
     require(not _has_non_finite(payload), "payload contains NaN or infinity")
 
 

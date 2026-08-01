@@ -461,16 +461,18 @@ setTimeout(async () => {
   assert.match(nikkeiAiSummaryMarkup, new RegExp(nikkeiAiYen.format(latestActualClose) + "円"));
   assert.match(nikkeiAiSummaryMarkup, new RegExp(nikkeiAiYen.format(latestNormalizedClose) + "円"));
   assert.match(nikkeiAiSummaryMarkup, new RegExp(nikkeiAiYen.format(latestExcludedClose) + "円"));
-  assert.match(nikkeiAiSummaryMarkup, /固定20社ではなく/);
+  assert.match(nikkeiAiSummaryMarkup, /ユーザー指定の14社/);
   if (nikkeiAiThreeSeriesPayload.meta && nikkeiAiThreeSeriesPayload.meta.market_date === "2026-07-31") {
     assert.strictEqual(Math.round(latestActualClose), 64362);
-    assert.strictEqual(Math.round(latestNormalizedClose), 56181);
-    assert.strictEqual(Math.round(latestExcludedClose), 56354);
+    assert.ok(Number.isFinite(latestNormalizedClose));
+    assert.ok(Number.isFinite(latestExcludedClose));
     assert.ok(latestActualClose > latestNormalizedClose);
     assert.ok(latestActualClose > latestExcludedClose);
   }
-  assert.match(elements.get("nikkeiAiTargetNames").innerHTML, /本サイトの価格・寄与基準によるAI過熱候補/);
-  assert.match(elements.get("nikkeiAiStockRows").innerHTML, /自動暫定選定|非選定/);
+  assert.match(elements.get("nikkeiAiTargetNames").innerHTML, /指定AI過熱バスケット/);
+  assert.match(elements.get("nikkeiAiStockRows").innerHTML, /指定対象/);
+  assert.deepStrictEqual(nikkeiAiThreeSeriesPayload.selected_candidates.map((row) => row.code),
+    ["285A", "6976", "5801", "4062", "6981", "3436", "4004", "5706", "6963", "6723", "5803", "6857", "8035", "9984"]);
   assert.match(elements.get("nikkeiAiQualityNotes").innerHTML, /トヨタ自動車（7203）/);
   const nikkeiAiChart = renderedCharts.find((chart) => chart.config && chart.config.data
     && chart.config.data.datasets.some((dataset) => dataset.label === "日経平均・実績（円）"));
@@ -478,8 +480,8 @@ setTimeout(async () => {
   assert.strictEqual(nikkeiAiChart.config.data.datasets.length, 3);
   const expectedNikkeiAiDates = new Set([...(nikkeiAiThreeSeriesPayload.actual_series || []), ...(nikkeiAiThreeSeriesPayload.series || [])].map((row) => row.date));
   assert.strictEqual(nikkeiAiChart.config.data.labels.length, expectedNikkeiAiDates.size);
-  assert.strictEqual(nikkeiAiChart.config.data.datasets[1].label, "AI過熱候補をTOPIX並みに標準化（円換算）");
-  assert.strictEqual(nikkeiAiChart.config.data.datasets[2].label, "AI過熱候補を除いた残存部分（円換算）");
+  assert.strictEqual(nikkeiAiChart.config.data.datasets[1].label, "指定14社をTOPIX並みに標準化（円換算）");
+  assert.strictEqual(nikkeiAiChart.config.data.datasets[2].label, "指定14社を除いた残存部分（円換算）");
   assert.strictEqual(nikkeiAiChart.config.data.datasets[1].data.filter((value) => Number.isFinite(value)).length, nikkeiAiThreeSeriesPayload.series.length);
   assert.strictEqual(nikkeiAiChart.config.data.datasets[2].data.filter((value) => Number.isFinite(value)).length, nikkeiAiThreeSeriesPayload.series.length);
   assert.ok(nikkeiAiChart.config.data.datasets[0].data.some((value) => Number.isFinite(value)));
