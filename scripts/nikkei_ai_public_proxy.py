@@ -731,6 +731,10 @@ def atomic_write_json(path: Path, payload: dict[str, Any]) -> None:
 
 def write_nikkei_ai_three_series(config_path: Path = CONFIG_PATH, output_path: Path = OUTPUT_PATH,
                                  cache_path: Path = CACHE_PATH) -> dict[str, Any]:
+    raw = json.loads(config_path.read_text(encoding='utf-8'))
+    if str(raw.get('method_version')) == '3.0':
+        from nikkei_ai_strict_basket import write_nikkei_ai_three_series as write_strict_basket
+        return write_strict_basket(config_path=config_path, output_path=output_path)
     config, nikkei = load_config(config_path), fetch_yahoo_close("^N225")
     daily, monthly = fetch_official_csv(OFFICIAL_DAILY_URL), fetch_official_csv(OFFICIAL_MONTHLY_URL)
     end, start = max(item["date"] for item in daily), years_before(max(item["date"] for item in daily), 3) - timedelta(days=5)
