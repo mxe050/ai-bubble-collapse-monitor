@@ -2209,398 +2209,6 @@
       },
     });
   }
-  function renderNikkeiAiStrictBasket() {
-    var payload = state.nikkeiAiThreeSeries || {};
-    var meta = payload.meta || {}, summary = payload.summary || {}, quality = payload.quality || {};
-    var aiMembers = Array.isArray(payload.ai_exclusion_members) ? payload.ai_exclusion_members : [];
-    var coreMembers = Array.isArray(payload.non_ai_core_members) ? payload.non_ai_core_members : [];
-    var actualSeries = (Array.isArray(payload.actual_series) ? payload.actual_series : []).filter(function (row) {
-      return row && row.date && finite(row.nikkei_close) !== null;
-    });
-    var series = (Array.isArray(payload.series) ? payload.series : []).filter(function (row) {
-      return row && row.date && finite(row.nikkei_actual) !== null && finite(row.ai_basket) !== null && finite(row.non_ai_core_basket) !== null && finite(row.nikkei_close) !== null;
-    });
-    var historicalEvents = (Array.isArray(payload.historical_events) ? payload.historical_events : []).filter(function (event) {
-      return event && event.date && event.label;
-    });
-    var warnings = Array.isArray(payload.warnings) ? payload.warnings.filter(Boolean) : [];
-    var sources = Array.isArray(payload.sources) ? payload.sources : [];
-    var status = String(meta.comparison_status || quality.data_state || '');
-    if (status !== 'strict-fixed-basket-proxy') {
-      renderNikkeiAiContributionProxy();
-      return;
-    }
-
-    var summaryNode = byId('nikkeiAiThreeSummary');
-    var targetNode = byId('nikkeiAiTargetNames');
-    var stockRows = byId('nikkeiAiStockRows');
-    var qualityNode = byId('nikkeiAiQualityNotes');
-    var badge = byId('nikkeiAiMethodBadge');
-    var canvas = byId('nikkeiAiThreeSeriesChart');
-    var notice = byId('nikkeiAiComparisonNotice');
-    var title = byId('nikkeiAiChartTitle');
-    var subtitle = byId('nikkeiAiChartSubtitle');
-    var reading = byId('nikkeiAiReading');
-    var eventTimeline = byId('nikkeiAiEventTimeline');
-    var eventNote = byId('nikkeiAiEventNote');
-    var heading = byId('nikkeiAiThreeSeriesHeading');
-    var section = byId('nikkei-ai-three-series');
-    if (!summaryNode || !targetNode || !stockRows || !qualityNode || !canvas) return;
-
-    if (section) {
-      var kicker = section.querySelector('.section-kicker');
-      if (kicker) kicker.textContent = 'NIKKEI 225 / STRICT AI EXCLUSION';
-    }
-    if (heading) heading.textContent = 'AI????????????????';
-    if (badge) badge.textContent = '??20???? / ?AI??16?';
-    if (title) title.textContent = '10???????AI??AI?3????';
-    if (subtitle) subtitle.textContent = '???????????AI??AI?2????????????????????????????????';
-    canvas.setAttribute('aria-label', '???????????AI????AI???????3??????');
-
-    var actualByDate = {};
-    actualSeries.forEach(function (row) {
-      actualByDate[row.date] = { date:row.date, nikkei_close:finite(row.nikkei_close) };
-    });
-    series.forEach(function (row) {
-      if (!actualByDate[row.date]) actualByDate[row.date] = { date:row.date, nikkei_close:finite(row.nikkei_close) };
-    });
-    var chartRows = Object.keys(actualByDate).sort().map(function (key) { return actualByDate[key]; }).filter(function (row) {
-      return finite(row.nikkei_close) !== null;
-    });
-    var fullStart = chartRows[0] || {}, fullEnd = chartRows[chartRows.length - 1] || {};
-    var baseClose = finite(series[0] && series[0].nikkei_close);
-
-    function yen(value) {
-      value = finite(value);
-      return value === null ? '???' : numberTwo.format(value) + '?';
-    }
-    function rangeText(startDate, endDate) {
-      return startDate && endDate ? String(startDate) + '?' + String(endDate) : '???????';
-    }
-    function sourceMarkup(source) {
-      var href = safeHttpsUrl(source && source.url);
-      var label = String((source && source.label) || '??');
-      return href ? '<a href="' + escapeHtml(href) + '" target="_blank" rel="noopener noreferrer">' + escapeHtml(label) + '</a>' : '<span>' + escapeHtml(label) + '</span>';
-    }
-    function memberLink(item, label) {
-      var href = safeHttpsUrl(item && item.price_source_url);
-      return href ? '<a href="' + escapeHtml(href) + '" target="_blank" rel="noopener noreferrer">' + escapeHtml(label) + '</a>' : escapeHtml(label);
-    }
-
-    if (notice) {
-      notice.hidden = false;
-      notice.innerHTML = '<strong>?AI?????????????????????????????</strong><p>' +
-        escapeHtml(meta.proxy_disclaimer || '') + ' ??????AI????????SSD?????????????????????AI????????</p>';
-    }
-    if (reading) {
-      reading.innerHTML = '<p><strong>???????</strong>AI?????????????????AI???????20?????????????16????????????????</p>' +
-        '<p><strong>??????</strong>???????????AI?????????????????????????????????????????225????????????????</p>' +
-        '<p><strong>????</strong>AI???????AI?????????????????AI???????????????????AI?????????AI??????????????????????????</p>';
-    }
-
-    var cards = [
-      ['?????10???', yen(fullEnd.nikkei_close), (fullStart.date || '???') + '?? ' + formatPercent(summary.actual_full_period_return_pct, true)],
-      ['?????????', formatPercent(summary.comparison_actual_return_pct, true), rangeText(meta.display_start_date, meta.display_end_date)],
-      ['AI????20?', formatPercent(summary.ai_basket_return_pct, true), '??????????????????'],
-      ['AI??????AI??16?', formatPercent(summary.non_ai_core_return_pct, true), '?????????????????'],
-      ['AI??AI??', numberOne.format(finite(summary.ai_minus_non_ai_percentage_points) || 0) + 'pt', '??????100??????']
-    ];
-    summaryNode.innerHTML = cards.map(function (card) {
-      return '<article class="nikkei-ai-summary-card"><span>' + escapeHtml(card[0]) + '</span><strong>' + escapeHtml(card[1]) + '</strong><small>' + escapeHtml(card[2]) + '</small></article>';
-    }).join('');
-
-    var table = stockRows.closest('table');
-    var head = table && table.querySelector('thead');
-    if (head) {
-      head.innerHTML = '<tr><th>??</th><th>???</th><th>???</th><th>??</th><th>?????</th><th>???????</th><th>????</th><th>?????</th></tr>';
-    }
-    var rows = aiMembers.map(function (item) {
-      return { item:item, kind:'AI????', descriptor:item.role || '', reason:item.reason || 'AI???????????' };
-    }).concat(coreMembers.map(function (item) {
-      return { item:item, kind:'?AI??', descriptor:item.sector || '', reason:'AI?????????????????' };
-    }));
-    stockRows.innerHTML = rows.length ? rows.map(function (entry) {
-      var item = entry.item || {};
-      var availability = item.first_price_date && item.latest_price_date ? item.first_price_date + '?' + item.latest_price_date : '?????';
-      var retracement = finite(item.drawdown_from_peak_pct);
-      return '<tr class="' + (entry.kind === 'AI????' ? 'is-ai-exclusion' : 'is-non-ai-core') + '">' +
-        '<td><strong>' + escapeHtml(entry.kind) + '</strong></td>' +
-        '<td>' + escapeHtml(item.code || '?') + '</td>' +
-        '<td>' + memberLink(item, item.name || '?????') + '</td>' +
-        '<td>' + escapeHtml(entry.descriptor) + '</td>' +
-        '<td><small>' + escapeHtml(entry.reason) + '</small></td>' +
-        '<td>' + escapeHtml(formatPercent(item.comparison_return_pct, true)) + '</td>' +
-        '<td>' + escapeHtml(retracement === null ? '?' : formatPercent(retracement, true)) + '</td>' +
-        '<td><small>' + escapeHtml(availability) + '</small></td></tr>';
-    }).join('') : '<tr><td colspan="8">????????????????????</td></tr>';
-
-    targetNode.innerHTML = '<strong>????20??</strong>' + aiMembers.map(function (item) {
-      return escapeHtml((item.name || '') + '?' + (item.code || '') + '?');
-    }).join('?') + '<br><strong>?AI??16??</strong>' + coreMembers.map(function (item) {
-      return escapeHtml((item.name || '') + '?' + (item.code || '') + '?');
-    }).join('?');
-
-    var trump = summary.trump_window || {};
-    var aiRange = Array.isArray(quality.ai_active_member_range) ? quality.ai_active_member_range.join('?') : '?';
-    var coreRange = Array.isArray(quality.non_ai_active_member_range) ? quality.non_ai_active_member_range.join('?') : '?';
-    var notes = [
-      '<p><strong>?????</strong>' + escapeHtml((meta.start_date || '?') + '?' + (meta.end_date || '?')) + '????????? ' + escapeHtml(rangeText(meta.display_start_date, meta.display_end_date)) + '?</p>',
-      '<p><strong>????</strong>' + escapeHtml(quality.basket_return_method || '?') + '?AI??????? ' + escapeHtml(aiRange) + '???AI?? ' + escapeHtml(coreRange) + '????</p>',
-      '<p><strong>??????????</strong>???? ' + escapeHtml(formatPercent((trump.nikkei || {}).return_pct, true)) + '?AI20? ' + escapeHtml(formatPercent((trump.ai_basket || {}).return_pct, true)) + '??AI??16? ' + escapeHtml(formatPercent((trump.non_ai_core || {}).return_pct, true)) + '?</p>',
-      '<p><strong>??????</strong>' + escapeHtml(quality.membership_handling || '?') + '</p>',
-      '<p><strong>???</strong>' + escapeHtml(quality.price_method || meta.price_field || '?') + '</p>'
-    ];
-    if (warnings.length) notes.push('<ul class="nikkei-ai-warning-list">' + warnings.map(function (warning) { return '<li>' + escapeHtml(warning) + '</li>'; }).join('') + '</ul>');
-    if (sources.length) notes.push('<p class="nikkei-ai-source-links"><strong>???</strong>' + sources.map(sourceMarkup).join(' / ') + '</p>');
-    qualityNode.innerHTML = notes.join('');
-
-    var events = historicalEvents.map(function (event) {
-      var anchor = null;
-      for (var index = 0; index < chartRows.length; index += 1) {
-        if (chartRows[index].date >= String(event.date)) { anchor = chartRows[index]; break; }
-      }
-      return {
-        date:String(event.date), label:String(event.label), short_label:String(event.short_label || event.label),
-        category:String(event.category || '??????'), note:String(event.note || ''),
-        source_label:String(event.source_label || '???????'), source_url:event.source_url || '',
-        chart_date:anchor ? anchor.date : '', chart_close:anchor ? finite(anchor.nikkei_close) : null
-      };
-    }).filter(function (event) { return event.chart_date && event.chart_close !== null; });
-    if (eventTimeline) {
-      eventTimeline.innerHTML = events.length ? events.map(function (event) {
-        return '<article class="nikkei-ai-event-card"><div class="nikkei-ai-event-meta"><time datetime="' + escapeHtml(event.date) + '">' + escapeHtml(event.date) + '</time><span class="nikkei-ai-event-category">' + escapeHtml(event.category) + '</span></div><h5>' + escapeHtml(event.label) + '</h5><p>' + escapeHtml(event.note) + '</p>' + sourceMarkup({ label:event.source_label, url:event.source_url }) + '</article>';
-      }).join('') : '<p class="nikkei-ai-event-empty">??????????????????</p>';
-    }
-    if (eventNote) eventNote.textContent = '??????????????10??????????????????AI??AI?????????????3??????????';
-
-    if (state.nikkeiAiThreeSeriesChart) {
-      state.nikkeiAiThreeSeriesChart.destroy();
-      state.nikkeiAiThreeSeriesChart = null;
-    }
-    if (typeof Chart === 'undefined' || !chartRows.length || baseClose === null) return;
-
-    var labels = chartRows.map(function (row) { return row.date; });
-    var byDate = {};
-    series.forEach(function (row) { byDate[row.date] = row; });
-    function nominalValue(row, field) {
-      var source = byDate[row.date] || {};
-      var value = finite(source[field]);
-      return value === null ? null : baseClose * value / 100;
-    }
-    var eventByDate = {};
-    events.forEach(function (event) {
-      event.chart_index = labels.indexOf(event.chart_date);
-      if (!eventByDate[event.chart_date]) eventByDate[event.chart_date] = [];
-      eventByDate[event.chart_date].push(event);
-    });
-    var eventPlugin = {
-      id:'nikkeiAiStrictEvents',
-      afterDatasetsDraw:function (chartInstance) {
-        var options = chartInstance.options.plugins && chartInstance.options.plugins.nikkeiAiStrictEvents;
-        var items = options && Array.isArray(options.events) ? options.events : [];
-        var x = chartInstance.scales.x, y = chartInstance.scales.y, area = chartInstance.chartArea;
-        if (!items.length || !x || !y || !area) return;
-        var context = chartInstance.ctx;
-        context.save();
-        items.forEach(function (event, index) {
-          if (!Number.isFinite(event.chart_index) || event.chart_index < 0) return;
-          var px = x.getPixelForValue(event.chart_index), py = y.getPixelForValue(event.chart_close);
-          if (!Number.isFinite(px) || !Number.isFinite(py)) return;
-          context.strokeStyle = 'rgba(33, 104, 121, .30)';
-          context.lineWidth = 1;
-          context.setLineDash([3, 4]);
-          context.beginPath(); context.moveTo(px, area.top); context.lineTo(px, area.bottom); context.stroke();
-          context.setLineDash([]);
-          context.fillStyle = '#f0a338';
-          context.strokeStyle = '#ffffff';
-          context.lineWidth = 1.5;
-          context.beginPath(); context.arc(px, py, 3.5, 0, Math.PI * 2); context.fill(); context.stroke();
-          if (options.showLabels) {
-            var label = String(event.short_label || event.label);
-            context.font = '600 10px system-ui, sans-serif';
-            var width = context.measureText(label).width;
-            var labelX = Math.max(area.left + 2, Math.min(px + 4, area.right - width - 2));
-            context.fillStyle = '#4e6875';
-            context.fillText(label, labelX, area.top + 13 + (index % 3) * 13);
-          }
-        });
-        context.restore();
-      }
-    };
-    state.nikkeiAiThreeSeriesChart = new Chart(canvas, {
-      type:'line',
-      data:{
-        labels:labels,
-        datasets:[
-          { label:'???????', data:chartRows.map(function (row) { return finite(row.nikkei_close); }), borderColor:'#1b4d6f', backgroundColor:'rgba(27,77,111,.08)', borderWidth:2.8, pointRadius:0, tension:.12, spanGaps:false },
-          { label:'AI????20??????', data:chartRows.map(function (row) { return nominalValue(row, 'ai_basket'); }), borderColor:'#11836f', borderWidth:2.4, borderDash:[7,4], pointRadius:0, tension:.12, spanGaps:false },
-          { label:'AI??????AI??16??????', data:chartRows.map(function (row) { return nominalValue(row, 'non_ai_core_basket'); }), borderColor:'#b64a3b', borderWidth:2.4, borderDash:[2,4], pointRadius:0, tension:.12, spanGaps:false }
-        ]
-      },
-      plugins:events.length ? [eventPlugin] : [],
-      options:{
-        responsive:true,
-        maintainAspectRatio:false,
-        interaction:{ mode:'index', intersect:false },
-        plugins:{
-          legend:{ position:'bottom', labels:{ color:chartTextColor(), boxWidth:18, usePointStyle:true } },
-          nikkeiAiStrictEvents:{ events:events, showLabels:!(window.matchMedia && window.matchMedia('(max-width: 700px)').matches) },
-          tooltip:{
-            callbacks:{
-              title:function (items) { return items[0] ? items[0].label : ''; },
-              label:function (context) {
-                var value = finite(context.parsed && context.parsed.y);
-                return context.dataset.label + ' ' + (value === null ? '???' : yen(value));
-              },
-              afterBody:function (items) {
-                var index = items[0] && Number.isFinite(items[0].dataIndex) ? items[0].dataIndex : chartRows.length - 1;
-                var row = chartRows[index] || {}, detail = byDate[row.date] || {}, lines = [];
-                if (finite(detail.ai_active_member_count) !== null) lines.push('AI??????: ' + detail.ai_active_member_count);
-                if (finite(detail.non_ai_active_member_count) !== null) lines.push('?AI??????: ' + detail.non_ai_active_member_count);
-                (eventByDate[row.date] || []).forEach(function (event) { lines.push('???: ' + event.label); });
-                return lines;
-              }
-            }
-          }
-        },
-        scales:{
-          x:{ grid:{ display:false }, ticks:{ color:chartTextColor(), maxTicksLimit:window.matchMedia && window.matchMedia('(max-width: 700px)').matches ? 6 : 12, maxRotation:0, callback:function (_value, index) { return String(labels[index] || '').slice(0, 7).replace('-', '/'); } } },
-          y:{ grid:{ color:'rgba(100,115,134,.15)' }, ticks:{ color:chartTextColor(), callback:function (value) { return numberOne.format(value) + '?'; } }, title:{ display:true, text:'???? / ?????', color:chartTextColor() } }
-        }
-      }
-    });
-  }
-
-
-  function renderNikkeiAiStrictBasketV2() {
-    var payload = state.nikkeiAiThreeSeries || {};
-    var meta = payload.meta || {}, summary = payload.summary || {}, quality = payload.quality || {};
-    if (String(meta.comparison_status || quality.data_state || '') !== 'strict-fixed-basket-proxy') {
-      renderNikkeiAiContributionProxy();
-      return;
-    }
-    var binary = atob('eyJraWNrZXIiOiJOSUtLRUkgMjI1IC8gU1RSSUNUIEFJIEVYQ0xVU0lPTiIsImhlYWRpbmciOiJBSeOCkuWQq+OCgeOBmuOBq+OAgeaXpeacrOagquOBruS4iuaYh+OCkuimi+ebtOOBmSIsImJhZGdlIjoi5Zu65a6aMjDnpL7jgpLpmaTlpJYgLyDpnZ5BSeOCs+OCojE256S+IiwiY2hhcnRUaXRsZSI6IjEw5bm05a6f6aGN44Go44CB5Zu65a6aQUnvvI/pnZ5BSeOBrjPns7vliJfmr5TovIMiLCJjaGFydFN1YnRpdGxlIjoi5pel57WM5bmz5Z2H44Gv5a6f6aGN77yI5YaG77yJ44CCQUnjg7vpnZ5BSeOBrjLns7vliJfjga/mr5TovIPplovlp4vml6Xjga7ml6XntYzlubPlnYfntYLlgKTjgpLotbfngrnjgavlhobmj5vnrpfjgZfjgZ/noJTnqbbnlKjmr5TovIPjgafjgZnjgIIiLCJjaGFydEFyaWEiOiLml6XntYzlubPlnYfjga7lrp/poY3jgajjgIHlm7rlrppBSemZpOWkluODu+mdnkFJ44Kz44Ki44KS5q+U6LyD44GX44GfM+ezu+WIl+ODgeODo+ODvOODiCIsIm1pc3NpbmciOiLmnKrnorroqo0iLCJ5ZW4iOiLlhoYiLCJyYW5nZSI6IuOAnCIsInNvdXJjZSI6IuWHuuWFuCIsIm5vdGljZVRpdGxlIjoi44CMQUnjgpLpmaTjgY/jgI3jgpLjgIHmoKrkvqHjga7kuIrkuIvjgafliKTlrprjgZfjgarjgYTlm7rlrprliIbpoZ7jgbjlpInmm7TjgZfjgb7jgZfjgZ/jgIIiLCJub3RpY2VFeHRyYSI6IuOCreOCquOCr+OCt+OCouOBr0FJ5o6o6KuW5ZCR44GR44Oh44Oi44Oq44O7U1NE44Go44GX44Gm5Zu65a6a6Zmk5aSW44GX44CB5oCl6aiw5b6M44Gr5L6h5qC844GM5oi744Gj44Gm44KC6Z2eQUnlgbTjgavlhaXjgozjgb7jgZvjgpPjgIIiLCJyZWFkaW5nV2hhdCI6IuS9leOCkuavlOOBueOCi+OBi++8miIsInJlYWRpbmdXaGF0Qm9keSI6IkFJ44O75Y2K5bCO5L2T44O744Oh44Oi44Oq44O744OH44O844K/44K744Oz44K/44O844O7QUnmipXos4fjga7nm7TmjqXlj5fnm4oyMOekvuOBqOOAgeOBk+OCjOOCieOCkuWQq+OCgeOBquOBhOWbuuWumjE256S+44KS5pel5qyh562J44Km44Kn44O844OI44Gn5q+U6LyD44GX44G+44GZ44CCIiwicmVhZGluZ0xpbWl0Ijoi6YeN6KaB44Gq6ZmQ55WM77yaIiwicmVhZGluZ0xpbWl0Qm9keSI6IuOBk+OCjOOBr+aXpee1jOW5s+Wdh+OBruWFrOW8j+OAjEFJ6Zmk5aSW5oyH5pWw44CN44Gn44Gv44GC44KK44G+44Gb44KT44CC5oyH5pWw5qeL5oiQ6YqY5p+E44O75qCq5L6h5o+b566X5L+C5pWw44O76Zmk5pWw44Gu5YWo5bGl5q2044GM44Gq44GR44KM44Gw44CB5pel57WMMjI144KS5Y6z5a+G44Gr5YaN5qeL5oiQ44Gn44GN44Gq44GE44Gf44KB44Gn44GZ44CCIiwicmVhZGluZ0hvdyI6IuiqreOBv+aWue+8miIsInJlYWRpbmdIb3dCb2R5IjoiQUnjg5DjgrnjgrHjg4Pjg4jjgajpnZ5BSeOCs+OCouOBruW3ruOBjOWkp+OBjeOBhOOBu+OBqeOAgeS7iuWbnuOBruS4iuaYh+OBjEFJ6Zai6YCj44Gr6ZuG5Lit44GX44Gm44GE44KL5Y+v6IO95oCn44KS56S644GX44G+44GZ44CC6Z2eQUnjgrPjgqLjga7kuIrmmIfoh6rkvZPjga/jgIFBSeS7peWkluOBruaZr+awl+ODu+mHkeiejeODu+eCuuabv+ODu+S8gealreWPjuebiuOBruimgeWboOOCguWPjeaYoOOBl+OBvuOBmeOAgiIsImNhcmRUZW4iOiLml6XntYzlubPlnYfjg7sxMOW5tOWun+mhjSIsImNhcmRDb21wYXJlIjoi5q+U6LyD5pyf6ZaT44Gu5pel57WM5bmz5Z2HIiwiY2FyZEFpIjoiQUnnm7TmjqXlj5fnm4oyMOekviIsImNhcmROb25BaSI6IkFJ44KS5ZCr44G+44Gq44GE6Z2eQUnjgrPjgqIxNuekviIsImNhcmRHYXAiOiJBSeKIkumdnkFJ44Gu5beuIiwic3RhcnQiOiLplovlp4vml6UiLCJzdGFibGUiOiLlm7rlrprliIbpoZ7jgILlj43okL3jgZfjgabjgoLmr5TovIPlgbTjgbjmiLvjgZXjgarjgYQiLCJlcXVhbFdlaWdodCI6IuaXpeasoeetieOCpuOCp+ODvOODiOODu+S+oeagvOaMh+aVsOODu+mFjeW9k+OBquOBlyIsImJhc2UxMDAiOiLmr5TovIPplovlp4vml6XjgpIxMDDjgajjgZfjgZ/ntK/nqY3lt64iLCJoS2luZCI6IuWMuuWIhiIsImhDb2RlIjoi44Kz44O844OJIiwiaE5hbWUiOiLkvJrnpL7lkI0iLCJoQ2xhc3MiOiLliIbpoZ4iLCJoUmVhc29uIjoi5omx44GE44O755CG55SxIiwiaFJldHVybiI6IuavlOi8g+acn+mWk+OBrumosOiQvSIsImhEcmF3ZG93biI6IumrmOWApOOBi+OCiSIsImhEYXRhIjoi5L6h5qC844OH44O844K/IiwiYWlGaXhlZCI6IkFJ5Zu65a6a6Zmk5aSWIiwibm9uQWlDb3JlIjoi6Z2eQUnjgrPjgqIiLCJhaVJlYXNvbiI6IkFJ55u05o6l5Y+X55uK44Go44GX44Gm5Zu65a6a6Zmk5aSWIiwiY29yZVJlYXNvbiI6IkFJ55u05o6l5Y+X55uK44KS5ZCr44KB44Gq44GE5q+U6LyD55So44Gu5Zu65a6a44Kz44KiIiwicHJpY2VVbmF2YWlsYWJsZSI6IuS+oeagvOacquWPluW+lyIsInVuYXZhaWxhYmxlTmFtZSI6IuWQjeensOacqueiuuiqjSIsIm5vTWVtYmVycyI6IuWbuuWumuWvvuixoeOBruODh+ODvOOCv+OCkuWPluW+l+OBp+OBjeOBvuOBm+OCk+OBp+OBl+OBn+OAgiIsInRhcmdldEFpIjoi5Zu65a6a6Zmk5aSWMjDnpL7vvJoiLCJ0YXJnZXRDb3JlIjoi6Z2eQUnjgrPjgqIxNuekvu+8miIsInBlcmlvZCI6IuioiOeul+acn+mWk++8miIsImJhc2tldFBlcmlvZCI6IuavlOi8g+ODkOOCueOCseODg+ODiOOBryAiLCJmb3JtdWxhIjoi6KiI566X5byP77yaIiwiYWlBY3RpdmUiOiJBSeWBtOOBrueovOWDjeekvuaVsOOBryAiLCJjb3JlQWN0aXZlIjoi56S+44CB6Z2eQUnlgbTjga8gIiwiY29yZUFjdGl2ZUVuZCI6IuekvuOBp+OBmeOAgiIsInRydW1wIjoi44OI44Op44Oz44OX5pS/5qip55m66Laz5b6M77yaIiwibmlra2VpIjoi5pel57WM5bmz5Z2HICIsImFpMjAiOiLjgIFBSTIw56S+ICIsImNvcmUxNiI6IuOAgemdnkFJ44Kz44KiMTbnpL4gIiwibWVtYmVyc2hpcCI6IumKmOafhOOBruaJseOBhO+8miIsInByaWNlIjoi5L6h5qC877yaIiwic291cmNlcyI6IuWHuuWFuO+8miIsImV2ZW50Tm90ZSI6IuaXpee1jOW5s+Wdh+OBruWun+mhjeODgeODo+ODvOODiOOBq+OBr+OAgTEw5bm06ZaT44Gu5Luj6KGo55qE44Gq5Ye65p2l5LqL44KS6YeN44Gt44Gm44GE44G+44GZ44CCQUnjg7vpnZ5BSeOBruavlOi8g+e3muOBr+ODh+ODvOOCv+OBjOaPg+OBhuebtOi/kTPlubTplpPjga7jgb/ooajnpLrjgZfjgb7jgZnjgIIiLCJkYXRhTGFiZWxOaWtrZWkiOiLml6XntYzlubPlnYfjg7vlrp/poY0iLCJkYXRhTGFiZWxBaSI6IkFJ55u05o6l5Y+X55uKMjDnpL7vvIjlhobmj5vnrpfvvIkiLCJkYXRhTGFiZWxDb3JlIjoiQUnjgpLlkKvjgb7jgarjgYTpnZ5BSeOCs+OCojE256S+77yI5YaG5o+b566X77yJIiwieVRpdGxlIjoi5YaG77yI5a6f6aGNIC8g5q+U6LyD5o+b566X77yJIiwiYWlBY3RpdmVUb29sdGlwIjoiQUnlgbTjga7nqLzlg43npL7mlbA6ICIsImNvcmVBY3RpdmVUb29sdGlwIjoi6Z2eQUnlgbTjga7nqLzlg43npL7mlbA6ICIsImV2ZW50VG9vbHRpcCI6IuWHuuadpeS6izogIn0='), encoded = '';
-    for (var offset = 0; offset < binary.length; offset += 1) encoded += '%' + ('00' + binary.charCodeAt(offset).toString(16)).slice(-2);
-    var text = JSON.parse(decodeURIComponent(encoded));
-    renderNikkeiAiStrictBasket();
-
-    var section = byId('nikkei-ai-three-series');
-    var heading = byId('nikkeiAiThreeSeriesHeading');
-    var badge = byId('nikkeiAiMethodBadge');
-    var title = byId('nikkeiAiChartTitle');
-    var subtitle = byId('nikkeiAiChartSubtitle');
-    var canvas = byId('nikkeiAiThreeSeriesChart');
-    var notice = byId('nikkeiAiComparisonNotice');
-    var reading = byId('nikkeiAiReading');
-    var summaryNode = byId('nikkeiAiThreeSummary');
-    var stockRows = byId('nikkeiAiStockRows');
-    var targetNode = byId('nikkeiAiTargetNames');
-    var qualityNode = byId('nikkeiAiQualityNotes');
-    var eventNote = byId('nikkeiAiEventNote');
-    if (!summaryNode || !stockRows || !targetNode || !qualityNode) return;
-
-    if (section) {
-      var kicker = section.querySelector('.section-kicker');
-      if (kicker) kicker.textContent = text.kicker;
-    }
-    if (heading) heading.textContent = text.heading;
-    if (badge) badge.textContent = text.badge;
-    if (title) title.textContent = text.chartTitle;
-    if (subtitle) subtitle.textContent = text.chartSubtitle;
-    if (canvas) canvas.setAttribute('aria-label', text.chartAria);
-    if (notice) {
-      notice.hidden = false;
-      notice.innerHTML = '<strong>' + escapeHtml(text.noticeTitle) + '</strong><p>' + escapeHtml(meta.proxy_disclaimer || '') + ' ' + escapeHtml(text.noticeExtra) + '</p>';
-    }
-    if (reading) {
-      reading.innerHTML = '<p><strong>' + escapeHtml(text.readingWhat) + '</strong>' + escapeHtml(text.readingWhatBody) + '</p>' +
-        '<p><strong>' + escapeHtml(text.readingLimit) + '</strong>' + escapeHtml(text.readingLimitBody) + '</p>' +
-        '<p><strong>' + escapeHtml(text.readingHow) + '</strong>' + escapeHtml(text.readingHowBody) + '</p>';
-    }
-
-    function yen(value) {
-      value = finite(value);
-      return value === null ? text.missing : numberTwo.format(value) + text.yen;
-    }
-    function sourceMarkup(source) {
-      var href = safeHttpsUrl(source && source.url);
-      var label = String((source && source.label) || text.source);
-      return href ? '<a href="' + escapeHtml(href) + '" target="_blank" rel="noopener noreferrer">' + escapeHtml(label) + '</a>' : '<span>' + escapeHtml(label) + '</span>';
-    }
-    var actual = (Array.isArray(payload.actual_series) ? payload.actual_series : []).filter(function (row) { return row && finite(row.nikkei_close) !== null; });
-    var first = actual[0] || {}, last = actual[actual.length - 1] || {};
-    var cards = [
-      [text.cardTen, yen(last.nikkei_close), (first.date || text.start) + 'から ' + formatPercent(summary.actual_full_period_return_pct, true)],
-      [text.cardCompare, formatPercent(summary.comparison_actual_return_pct, true), (meta.display_start_date || text.missing) + text.range + (meta.display_end_date || text.missing)],
-      [text.cardAi, formatPercent(summary.ai_basket_return_pct, true), text.stable],
-      [text.cardNonAi, formatPercent(summary.non_ai_core_return_pct, true), text.equalWeight],
-      [text.cardGap, numberOne.format(finite(summary.ai_minus_non_ai_percentage_points) || 0) + 'pt', text.base100]
-    ];
-    summaryNode.innerHTML = cards.map(function (card) {
-      return '<article class="nikkei-ai-summary-card"><span>' + escapeHtml(card[0]) + '</span><strong>' + escapeHtml(card[1]) + '</strong><small>' + escapeHtml(card[2]) + '</small></article>';
-    }).join('');
-
-    var table = stockRows.closest('table');
-    var head = table && table.querySelector('thead');
-    if (head) head.innerHTML = '<tr><th>' + text.hKind + '</th><th>' + text.hCode + '</th><th>' + text.hName + '</th><th>' + text.hClass + '</th><th>' + text.hReason + '</th><th>' + text.hReturn + '</th><th>' + text.hDrawdown + '</th><th>' + text.hData + '</th></tr>';
-    var ai = Array.isArray(payload.ai_exclusion_members) ? payload.ai_exclusion_members : [];
-    var core = Array.isArray(payload.non_ai_core_members) ? payload.non_ai_core_members : [];
-    var rows = ai.map(function (item) {
-      return { item:item, kind:text.aiFixed, descriptor:item.role || '', reason:item.reason || text.aiReason, ai:true };
-    }).concat(core.map(function (item) {
-      return { item:item, kind:text.nonAiCore, descriptor:item.sector || '', reason:text.coreReason, ai:false };
-    }));
-    stockRows.innerHTML = rows.length ? rows.map(function (entry) {
-      var item = entry.item || {}, href = safeHttpsUrl(item.price_source_url);
-      var name = escapeHtml(item.name || text.unavailableName);
-      var nameMarkup = href ? '<a href="' + escapeHtml(href) + '" target="_blank" rel="noopener noreferrer">' + name + '</a>' : name;
-      var range = item.first_price_date && item.latest_price_date ? item.first_price_date + text.range + item.latest_price_date : text.priceUnavailable;
-      return '<tr class="' + (entry.ai ? 'is-ai-exclusion' : 'is-non-ai-core') + '"><td><strong>' + escapeHtml(entry.kind) + '</strong></td><td>' + escapeHtml(item.code || text.missing) + '</td><td>' + nameMarkup + '</td><td>' + escapeHtml(entry.descriptor) + '</td><td><small>' + escapeHtml(entry.reason) + '</small></td><td>' + escapeHtml(formatPercent(item.comparison_return_pct, true)) + '</td><td>' + escapeHtml(finite(item.drawdown_from_peak_pct) === null ? text.missing : formatPercent(item.drawdown_from_peak_pct, true)) + '</td><td><small>' + escapeHtml(range) + '</small></td></tr>';
-    }).join('') : '<tr><td colspan="8">' + escapeHtml(text.noMembers) + '</td></tr>';
-    targetNode.innerHTML = '<strong>' + escapeHtml(text.targetAi) + '</strong>' + ai.map(function (item) { return escapeHtml((item.name || '') + '（' + (item.code || '') + '）'); }).join('、') + '<br><strong>' + escapeHtml(text.targetCore) + '</strong>' + core.map(function (item) { return escapeHtml((item.name || '') + '（' + (item.code || '') + '）'); }).join('、');
-
-    var trump = summary.trump_window || {};
-    var aiRange = Array.isArray(quality.ai_active_member_range) ? quality.ai_active_member_range.join(text.range) : text.missing;
-    var coreRange = Array.isArray(quality.non_ai_active_member_range) ? quality.non_ai_active_member_range.join(text.range) : text.missing;
-    var notes = [
-      '<p><strong>' + text.period + '</strong>' + escapeHtml((meta.start_date || text.missing) + text.range + (meta.end_date || text.missing)) + '。' + text.basketPeriod + escapeHtml((meta.display_start_date || text.missing) + text.range + (meta.display_end_date || text.missing)) + '。</p>',
-      '<p><strong>' + text.formula + '</strong>' + escapeHtml(quality.basket_return_method || text.missing) + '。' + text.aiActive + escapeHtml(aiRange) + text.coreActive + escapeHtml(coreRange) + text.coreActiveEnd + '</p>',
-      '<p><strong>' + text.trump + '</strong>' + text.nikkei + escapeHtml(formatPercent((trump.nikkei || {}).return_pct, true)) + text.ai20 + escapeHtml(formatPercent((trump.ai_basket || {}).return_pct, true)) + text.core16 + escapeHtml(formatPercent((trump.non_ai_core || {}).return_pct, true)) + '。</p>',
-      '<p><strong>' + text.membership + '</strong>' + escapeHtml(quality.membership_handling || text.missing) + '</p>',
-      '<p><strong>' + text.price + '</strong>' + escapeHtml(quality.price_method || meta.price_field || text.missing) + '</p>'
-    ];
-    var warnings = Array.isArray(payload.warnings) ? payload.warnings.filter(Boolean) : [];
-    var sources = Array.isArray(payload.sources) ? payload.sources : [];
-    if (warnings.length) notes.push('<ul class="nikkei-ai-warning-list">' + warnings.map(function (warning) { return '<li>' + escapeHtml(warning) + '</li>'; }).join('') + '</ul>');
-    if (sources.length) notes.push('<p class="nikkei-ai-source-links"><strong>' + text.sources + '</strong>' + sources.map(sourceMarkup).join(' / ') + '</p>');
-    qualityNode.innerHTML = notes.join('');
-    if (eventNote) eventNote.textContent = text.eventNote;
-
-    var chart = state.nikkeiAiThreeSeriesChart;
-    var chartOptions = chart && (chart.options || (chart.config && chart.config.options));
-    if (chart && chartOptions && chartOptions.scales && chartOptions.plugins && chartOptions.plugins.tooltip) {
-      chart.data.datasets[0].label = text.dataLabelNikkei;
-      chart.data.datasets[1].label = text.dataLabelAi;
-      chart.data.datasets[2].label = text.dataLabelCore;
-      chartOptions.scales.y.ticks.callback = function (value) { return numberOne.format(value) + text.yen; };
-      chartOptions.scales.y.title.text = text.yTitle;
-      chartOptions.plugins.tooltip.callbacks.label = function (context) {
-        var value = finite(context.parsed && context.parsed.y);
-        return context.dataset.label + ' ' + (value === null ? text.missing : yen(value));
-      };
-      chartOptions.plugins.tooltip.callbacks.afterBody = function (items) {
-        var index = items[0] && Number.isFinite(items[0].dataIndex) ? items[0].dataIndex : 0;
-        var date = chart.data.labels[index], current = (Array.isArray(payload.series) ? payload.series : []).filter(function (row) { return row.date === date; })[0] || {};
-        var output = [];
-        if (finite(current.ai_active_member_count) !== null) output.push(text.aiActiveTooltip + current.ai_active_member_count);
-        if (finite(current.non_ai_active_member_count) !== null) output.push(text.coreActiveTooltip + current.non_ai_active_member_count);
-        return output;
-      };
-      if (typeof chart.update === 'function') chart.update('none');
-    }
-  }
-
-
   function renderNikkeiAiContributionProxy() {
     var payload = state.nikkeiAiThreeSeries || {};
     var meta = payload.meta || {}, summary = payload.summary || {}, quality = payload.quality || {};
@@ -2629,9 +2237,36 @@
     var fullStart = chartRows[0] || {};
     var fullEnd = chartRows[chartRows.length - 1] || {};
     var proxyBaseClose = finite(series[0] && series[0].nikkei_close);
+    var latestProxyRow = series[series.length - 1] || {};
+    var latestActualClose = finite(summary.latest_actual_close);
+    if (latestActualClose === null) latestActualClose = finite(latestProxyRow.nikkei_close);
+    var latestNormalizedClose = finite(summary.latest_normalized_close);
+    if (latestNormalizedClose === null && proxyBaseClose !== null) {
+      var latestNormalizedIndex = finite(latestProxyRow.ai_overheat_normalized);
+      latestNormalizedClose = latestNormalizedIndex === null ? null : proxyBaseClose * latestNormalizedIndex / 100;
+    }
+    var latestExcludedClose = finite(summary.latest_excluded_close);
+    if (latestExcludedClose === null && proxyBaseClose !== null) {
+      var latestExcludedIndex = finite(latestProxyRow.ai_overheat_excluded);
+      latestExcludedClose = latestExcludedIndex === null ? null : proxyBaseClose * latestExcludedIndex / 100;
+    }
+    var latestActualMinusNormalized = finite(summary.actual_minus_normalized_jpy);
+    if (latestActualMinusNormalized === null && latestActualClose !== null && latestNormalizedClose !== null) {
+      latestActualMinusNormalized = latestActualClose - latestNormalizedClose;
+    }
+    var latestActualMinusExcluded = finite(summary.actual_minus_excluded_jpy);
+    if (latestActualMinusExcluded === null && latestActualClose !== null && latestExcludedClose !== null) {
+      latestActualMinusExcluded = latestActualClose - latestExcludedClose;
+    }
+    var latestAsOfDate = latestProxyRow.date || meta.market_date || "";
     function formatYen(value) {
       var amount = finite(value);
-      return amount === null ? "未確認" : numberTwo.format(amount) + "円";
+      return amount === null ? "未確認" : nikkeiFormat.format(amount) + "円";
+    }
+    function actualGapCaption(value) {
+      var gap = finite(value);
+      if (gap === null) return "実績との差は未確認";
+      return gap >= 0 ? "実績より" + formatYen(gap) + "低い" : "実績より" + formatYen(-gap) + "高い";
     }
     function rangeText(startDate, endDate) {
       return startDate && endDate ? String(startDate) + "〜" + String(endDate) : "取得済み期間";
@@ -2659,28 +2294,28 @@
         ? "<strong>" + escapeHtml(stateLabel) + "：寄与ベースの比較</strong><p>" + escapeHtml(meta.proxy_disclaimer || "合成系列は研究用proxyです。") + (coverage !== null && coverage < 90 ? " 10年全体の十分な連続カバレッジがないため、取得できた連続区間だけを表示しています。" : "") + "</p>"
         : "<strong>" + escapeHtml(stateLabel) + "</strong><p>" + escapeHtml(warnings[0] || "比較に必要な公開入力がそろっていません。") + " 欠損日はゼロ・補間・実績同値で埋めていません。</p>";
     }
-    if (title) title.textContent = hasProxy ? "10年間の3系列比較" : "日経平均の10年実額";
+    if (title) title.textContent = hasProxy ? "円建ての3系列比較（実績・標準化・AI候補除外）" : "日経平均の10年実績";
     if (subtitle) subtitle.textContent = hasProxy
-      ? "日経平均の実額（円）・価格指数・配当なし / 2本のproxyは " + rangeText(meta.display_start_date, meta.display_end_date) + " のみを円換算表示"
-      : "日経平均の実額（円）・価格指数・配当なし";
-    if (canvas) canvas.setAttribute("aria-label", hasProxy ? "日経平均の10年実額と、公開データが連続する区間だけを円換算したAI過熱候補の3系列比較" : "日経平均の10年実額");
+      ? "実績は10年、2本のproxyは " + rangeText(meta.display_start_date, meta.display_end_date) + " の公開日次寄与が連続する区間だけを、同じ円単位で表示します。"
+      : "日経平均の10年実績のみを表示しています。";
+    if (canvas) canvas.setAttribute("aria-label", hasProxy ? "日経平均の実績、AI過熱候補をTOPIX並みに標準化した値、AI過熱候補を除いた残存部分を同じ円単位で示す3系列比較" : "日経平均の10年実績");
 
     if (reading) reading.innerHTML = hasProxy
       ? "<p><strong>一般市場並みに置換：</strong>対象候補の日次騰落をTOPIXの日次騰落に置き換えた研究用proxyです。比較開始日の実額を基準に円換算しています。</p><p><strong>残存部分：</strong>対象候補の日次寄与を外して残りを比率で表した研究用proxyです。公開入力がない過去へ延長していません。</p><p><strong>出来事の注記：</strong>各出来事は背景確認用であり、日経平均の変動を単一要因で説明するものではありません。カードから公式資料を直接確認できます。</p>"
       : "<p><strong>日経平均の実額：</strong>公開データで確認できる10年の価格水準を円建てで表示します。比較に必要な公開入力がそろわないため、2本のproxyは描きません。</p><p>原因を後付けで単一化せず、公式資料と実績を分けて確認します。</p>";
 
     var cards = hasProxy ? [
-      ["日経平均・10年実績", formatYen(fullEnd.nikkei_close), (fullStart.date || "開始日") + "の" + formatYen(fullStart.nikkei_close) + "から " + formatPercent(summary.actual_full_period_return_pct, true)],
-      ["比較区間の日経平均", formatPercent(summary.comparison_actual_return_pct, true), formatYen(proxyBaseClose) + " → " + formatYen(series[series.length - 1] && series[series.length - 1].nikkei_close) + " / " + rangeText(meta.display_start_date, meta.display_end_date)],
-      ["一般市場並みに置換", formatPercent(summary.normalized_return_pct, true), "比較開始日の実額を基準に円換算したproxy"],
-      ["AI過熱候補を除いた残存部分", formatPercent(summary.excluded_return_pct, true), "比較開始日の実額を基準に円換算したproxy"],
-      ["proxyの公開データ範囲", coverage === null ? "—" : numberOne.format(coverage) + "%", "exact " + numberOne.format(finite(dayCounts.exact) || 0) + "日 / missing " + numberOne.format(finite(dayCounts.missing) || 0) + "日"]
+      ["日経平均・実績（" + latestAsOfDate + "）", formatYen(latestActualClose), "公式終値。3つとも同じ日経平均の円建て換算値です。"],
+      ["AI過熱候補をTOPIX並みに標準化", formatYen(latestNormalizedClose), actualGapCaption(latestActualMinusNormalized) + "。対象候補の当日騰落をTOPIX騰落へ置換したproxyです。"],
+      ["AI過熱候補を除いた残存部分", formatYen(latestExcludedClose), actualGapCaption(latestActualMinusExcluded) + "。対象候補の当日寄与を取り除いたproxyです。"],
+      ["今回の自動選定", numberOne.format(targets.length) + "社", targets.length ? "固定20社ではなく、価格・寄与の客観条件を満たした候補だけです。" : "条件を満たす候補がないためproxyは表示しません。"],
+      ["proxyの公開データ範囲", coverage === null ? "―" : numberOne.format(coverage) + "%", "exact " + numberOne.format(finite(dayCounts.exact) || 0) + "日 / missing " + numberOne.format(finite(dayCounts.missing) || 0) + "日"]
     ] : [
-      ["日経平均・10年実績", formatYen(fullEnd.nikkei_close), (fullStart.date || "開始日") + "の" + formatYen(fullStart.nikkei_close) + "から " + formatPercent(summary.actual_full_period_return_pct, true)],
-      ["候補ユニバース", numberOne.format(finite(summary.candidate_count) || 0) + "銘柄", "スクリーニング対象"],
-      ["比較に選ばれた候補", numberOne.format(finite(summary.selected_candidate_count) || 0) + "銘柄", "3項目以上で暫定選定"],
-      ["proxyの公開データ範囲", coverage === null ? "—" : numberOne.format(coverage) + "%", "90%未満では10年proxyを表示しない"],
-      ["原因の扱い", "単一化しない", "実績・公式資料・仮説を分けて確認"]
+      ["日経平均・実績", formatYen(fullEnd.nikkei_close), (fullStart.date || "開始日") + "の" + formatYen(fullStart.nikkei_close) + "から " + formatPercent(summary.actual_full_period_return_pct, true)],
+      ["候補ユニバース", numberOne.format(finite(summary.candidate_count) || 0) + "社", "既存の日本AI関連銘柄とキオクシアを毎回スクリーニングします。"],
+      ["条件を満たした候補", numberOne.format(finite(summary.selected_candidate_count) || 0) + "社", "候補がなければ実績と同値の線を作りません。"],
+      ["proxyの公開データ範囲", coverage === null ? "―" : numberOne.format(coverage) + "%", "公開日次ウエートがそろう連続区間だけを計算します。"],
+      ["表示上の扱い", "実績のみ", "データ不足時は標準化・除外の値を推計しません。"]
     ];
     summaryNode.innerHTML = cards.map(function (card) { return '<article class="nikkei-ai-summary-card"><span>' + escapeHtml(card[0]) + "</span><strong>" + escapeHtml(card[1]) + "</strong><small>" + escapeHtml(card[2]) + "</small></article>"; }).join("");
     function eventSourceMarkup(event) {
@@ -2743,6 +2378,8 @@
     });
     function nominalProxyValue(row, field) {
       var proxyRow = proxyByDate[row.date] || {};
+      var directValue = finite(proxyRow[field + "_close"]);
+      if (directValue !== null) return directValue;
       var indexValue = finite(proxyRow[field]);
       return proxyBaseClose === null || indexValue === null ? null : proxyBaseClose * indexValue / 100;
     }
@@ -2753,7 +2390,7 @@
     }];
     if (hasProxy && proxyBaseClose !== null) {
       datasets.push({
-        label: "AI過熱寄与を一般市場並みに置換（円換算）",
+        label: "AI過熱候補をTOPIX並みに標準化（円換算）",
         data: chartRows.map(function (row) { return nominalProxyValue(row, "ai_overheat_normalized"); }),
         borderColor: "#11836f", borderWidth: 2.4, borderDash: [7, 4], pointRadius: 0, tension: .12, spanGaps: false,
       });
@@ -5208,7 +4845,7 @@
     renderGates(gates);
     renderJapanTransmission(transmission);
     renderSakakibaraMethod();
-    renderNikkeiAiStrictBasketV2();
+    renderNikkeiAiContributionProxy();
     renderMoneyStrategist();
     renderMarginDebt();
     renderCrashLens(evidence, gates);

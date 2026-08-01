@@ -542,24 +542,44 @@ def full_actual(actual: list[dict[str, Any]]) -> list[dict[str, Any]]:
 
 def make_segment(segment: list[dict[str, Any]], closes: dict[date, float]) -> list[dict[str, Any]]:
     base_date, actual, normalized, excluded = segment[0]["previous_date"], 100.0, 100.0, 100.0
-    rows = [{"date": base_date, "nikkei_actual": actual, "ai_overheat_normalized": normalized,
-             "ai_overheat_excluded": excluded, "nikkei_close": closes[base_date], "quality": "exact"}]
+    base_close = closes[base_date]
+    rows = [{
+        "date": base_date,
+        "nikkei_actual": actual,
+        "ai_overheat_normalized": normalized,
+        "ai_overheat_excluded": excluded,
+        "nikkei_close": base_close,
+        "ai_overheat_normalized_close": base_close,
+        "ai_overheat_excluded_close": base_close,
+        "quality": "exact",
+    }]
     for item in segment:
         actual *= 1 + item["nikkei_return"]
         normalized *= 1 + item["normalized_return"]
         excluded *= 1 + item["excluded_return"]
-        rows.append({"date": item["date"], "nikkei_actual": actual, "ai_overheat_normalized": normalized,
-                     "ai_overheat_excluded": excluded, "nikkei_close": closes[item["date"]],
-                     "quality": item["quality"], "combined_weight_pct": item["combined_weight"] * 100,
-                     "actual_minus_normalized": actual - normalized,
-                     "normalized_minus_excluded": normalized - excluded})
+        rows.append({
+            "date": item["date"],
+            "nikkei_actual": actual,
+            "ai_overheat_normalized": normalized,
+            "ai_overheat_excluded": excluded,
+            "nikkei_close": closes[item["date"]],
+            "ai_overheat_normalized_close": base_close * normalized / 100,
+            "ai_overheat_excluded_close": base_close * excluded / 100,
+            "quality": item["quality"],
+            "combined_weight_pct": item["combined_weight"] * 100,
+            "actual_minus_normalized": actual - normalized,
+            "normalized_minus_excluded": normalized - excluded,
+        })
     output = []
     for item in weekly(rows):
         output.append({
             "date": item["date"].isoformat(), "nikkei_actual": round(item["nikkei_actual"], 6),
             "ai_overheat_normalized": round(item["ai_overheat_normalized"], 6),
             "ai_overheat_excluded": round(item["ai_overheat_excluded"], 6),
-            "nikkei_close": round(item["nikkei_close"], 2), "quality": item["quality"],
+            "nikkei_close": round(item["nikkei_close"], 2),
+            "ai_overheat_normalized_close": round(item["ai_overheat_normalized_close"], 2),
+            "ai_overheat_excluded_close": round(item["ai_overheat_excluded_close"], 2),
+            "quality": item["quality"],
             "combined_weight_pct": round(item["combined_weight_pct"], 6) if finite(item.get("combined_weight_pct")) is not None else None,
             "actual_minus_normalized": round(item["actual_minus_normalized"], 6) if finite(item.get("actual_minus_normalized")) is not None else None,
             "normalized_minus_excluded": round(item["normalized_minus_excluded"], 6) if finite(item.get("normalized_minus_excluded")) is not None else None,
@@ -568,9 +588,17 @@ def make_segment(segment: list[dict[str, Any]], closes: dict[date, float]) -> li
 
 
 def only_actual(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    return [{**row, "ai_overheat_normalized": None, "ai_overheat_excluded": None,
-             "actual_minus_normalized": None, "normalized_minus_excluded": None,
-             "quality": "actual_only", "combined_weight_pct": None} for row in rows]
+    return [{
+        **row,
+        "ai_overheat_normalized": None,
+        "ai_overheat_excluded": None,
+        "ai_overheat_normalized_close": None,
+        "ai_overheat_excluded_close": None,
+        "actual_minus_normalized": None,
+        "normalized_minus_excluded": None,
+        "quality": "actual_only",
+        "combined_weight_pct": None,
+    } for row in rows]
 
 
 def monthly_check(values: dict[date, float], monthly: list[dict[str, Any]], start: date) -> dict[str, Any]:
@@ -653,6 +681,21 @@ def build_payload(config: dict[str, Any], *, yahoo_rows: list[dict[str, Any]], o
     reconstructed = sum(item["quality"] == "reconstructed" for item in good)
     legacy = sum(item["quality"] == "legacy_reconstructed" for item in good)
     full_visible = bool(has_proxy and coverage >= 90 and display[0]["date"] == actual_series[0]["date"] and display[-1]["date"] == actual_series[-1]["date"])
+    latest_display = display[-1] if display else {}
+    proxy_base_close = finite(display[0].get("nikkei_close")) if display else None
+    latest_actual_close = finite(latest_display.get("nikkei_close"))
+    latest_normalized_close = finite(latest_display.get("ai_overheat_normalized_close"))
+    latest_excluded_close = finite(latest_display.get("ai_overheat_excluded_close"))
+    actual_minus_normalized_jpy = (
+        latest_actual_close - latest_normalized_close
+        if latest_actual_close is not None and latest_normalized_close is not None
+        else None
+    )
+    actual_minus_excluded_jpy = (
+        latest_actual_close - latest_excluded_close
+        if latest_actual_close is not None and latest_excluded_close is not None
+        else None
+    )
     historical_events = [dict(item) for item in HISTORICAL_EVENTS if item["date"] <= end.isoformat()]
     payload = {
         "meta": {
@@ -660,6 +703,7 @@ def build_payload(config: dict[str, Any], *, yahoo_rows: list[dict[str, Any]], o
             "generated_at": (generated_at or datetime.now(JST)).astimezone(JST).replace(microsecond=0).isoformat(),
             "market_date": end.isoformat(), "start_date": actual[0]["date"].isoformat(), "end_date": end.isoformat(),
             "display_start_date": display[0]["date"], "display_end_date": display[-1]["date"],
+            "proxy_base_close": round(proxy_base_close, 2) if proxy_base_close is not None else None,
             "base_value": 100, "calculation_frequency": "daily", "display_frequency": "weekly",
             "nominal_chart_unit": "JPY", "nominal_chart_description": "日経平均の10年実績は円建て。2本のproxyは比較開始日の実額を基準に円換算し、利用可能な連続区間だけを表示する。",
             "dividends_included": False, "price_field": "Close（配当調整済みAdj Closeは使用しない。株式分割だけを機械調整として扱う）",
@@ -674,6 +718,11 @@ def build_payload(config: dict[str, Any], *, yahoo_rows: list[dict[str, Any]], o
             "comparison_actual_return_pct": round(comp_actual, 6) if comp_actual is not None else None,
             "normalized_return_pct": round(normalized, 6) if normalized is not None else None,
             "excluded_return_pct": round(excluded, 6) if excluded is not None else None,
+            "latest_actual_close": round(latest_actual_close, 2) if latest_actual_close is not None else None,
+            "latest_normalized_close": round(latest_normalized_close, 2) if latest_normalized_close is not None else None,
+            "latest_excluded_close": round(latest_excluded_close, 2) if latest_excluded_close is not None else None,
+            "actual_minus_normalized_jpy": round(actual_minus_normalized_jpy, 2) if actual_minus_normalized_jpy is not None else None,
+            "actual_minus_excluded_jpy": round(actual_minus_excluded_jpy, 2) if actual_minus_excluded_jpy is not None else None,
             "ai_excess_contribution_percentage_points": round(comp_actual - normalized, 6) if comp_actual is not None and normalized is not None else None,
             "retained_normal_contribution_percentage_points": round(normalized - excluded, 6) if normalized is not None and excluded is not None else None,
             "candidate_count": len(screened), "selected_candidate_count": len(targets),
@@ -731,10 +780,6 @@ def atomic_write_json(path: Path, payload: dict[str, Any]) -> None:
 
 def write_nikkei_ai_three_series(config_path: Path = CONFIG_PATH, output_path: Path = OUTPUT_PATH,
                                  cache_path: Path = CACHE_PATH) -> dict[str, Any]:
-    raw = json.loads(config_path.read_text(encoding='utf-8'))
-    if str(raw.get('method_version')) == '3.0':
-        from nikkei_ai_strict_basket import write_nikkei_ai_three_series as write_strict_basket
-        return write_strict_basket(config_path=config_path, output_path=output_path)
     config, nikkei = load_config(config_path), fetch_yahoo_close("^N225")
     daily, monthly = fetch_official_csv(OFFICIAL_DAILY_URL), fetch_official_csv(OFFICIAL_MONTHLY_URL)
     end, start = max(item["date"] for item in daily), years_before(max(item["date"] for item in daily), 3) - timedelta(days=5)
