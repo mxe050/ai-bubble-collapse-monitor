@@ -315,6 +315,72 @@ def main() -> None:
     require(close_enough(nt["declineFromPeakPct"], expected_nt_decline), "NT peak decline identity failed")
     require(len(nt_history) >= 200, "NT ratio history is too short")
 
+    cycle = sakakibara.get("cycleValidation") or {}
+    require(cycle.get("version") == "nt-topix-cycle-v1", "cycle validation version changed")
+    price_evidence = cycle.get("priceEvidence") or {}
+    normal_band = price_evidence.get("normalNtBand") or {}
+    lower_band = float(normal_band["lower"]) if finite(normal_band.get("lower")) else None
+    upper_band = float(normal_band["upper"]) if finite(normal_band.get("upper")) else None
+    require(lower_band is not None and upper_band is not None and lower_band < upper_band, "cycle NT reference band is invalid")
+    require(normal_band.get("status") == "reference-hypothesis", "cycle NT reference band must remain a hypothesis")
+    require(close_enough(price_evidence.get("currentNt"), nt.get("latest")), "cycle current NT identity failed")
+    require(price_evidence.get("currentNtDate") == nt.get("latestDate"), "cycle current NT date is not aligned")
+    relation = price_evidence.get("currentRelation")
+    expected_relation = (
+        "below-reference-band" if nt["latest"] < lower_band
+        else "above-reference-band" if nt["latest"] > upper_band
+        else "within-reference-band"
+    )
+    require(relation == expected_relation, "cycle NT reference-band relation is inconsistent")
+    regimes = price_evidence.get("regimes") or []
+    expected_windows = [
+        ("pre-wave", "2025-08-01", "2025-10-15"),
+        ("first-wave", "2025-10-16", "2026-04-13"),
+        ("second-wave", "2026-04-14", "2026-06-25"),
+        ("normalization-start", "2026-06-26", "2026-07-31"),
+    ]
+    require(len(regimes) == len(expected_windows), "cycle regime count changed")
+    for regime, (regime_id, start_date, end_date) in zip(regimes, expected_windows):
+        require(regime.get("id") == regime_id, f"cycle regime id changed: {regime_id}")
+        require(regime.get("startDate") == start_date and regime.get("endDate") == end_date, f"cycle regime window changed: {regime_id}")
+        observed_days = regime.get("observedDays")
+        require(isinstance(observed_days, int) and observed_days >= 0, f"cycle regime observed days invalid: {regime_id}")
+        low = float(regime["ntLow"]) if finite(regime.get("ntLow")) else None
+        high = float(regime["ntHigh"]) if finite(regime.get("ntHigh")) else None
+        if observed_days:
+            require(regime.get("dataStatus") == "observed", f"cycle regime status invalid: {regime_id}")
+            require(low is not None and high is not None and low <= high, f"cycle regime range invalid: {regime_id}")
+            last_nt = float(regime["lastNt"]) if finite(regime.get("lastNt")) else None
+            require(last_nt is not None and low <= last_nt <= high, f"cycle regime final NT outside range: {regime_id}")
+        else:
+            require(regime.get("dataStatus") == "insufficient" and low is None and high is None, f"cycle regime empty state invalid: {regime_id}")
+
+    valuation_scenario = cycle.get("valuationScenario") or {}
+    require(valuation_scenario.get("status") == "reference-only", "cycle valuation must not be promoted to a live target")
+    require(valuation_scenario.get("asOfDate") == "2026-07-31", "cycle valuation as-of date changed")
+    valuation_inputs = valuation_scenario.get("inputs") or {}
+    valuation_outputs = valuation_scenario.get("outputs") or {}
+    scenario_eps = float(valuation_inputs["nikkeiImpliedEps"]) if finite(valuation_inputs.get("nikkeiImpliedEps")) else None
+    scenario_scale = float(valuation_inputs["topixScale"]) if finite(valuation_inputs.get("topixScale")) else None
+    scenario_multiple = float(valuation_inputs["targetMultiple"]) if finite(valuation_inputs.get("targetMultiple")) else None
+    scenario_lower = float(valuation_inputs["normalNtLower"]) if finite(valuation_inputs.get("normalNtLower")) else None
+    scenario_upper = float(valuation_inputs["normalNtUpper"]) if finite(valuation_inputs.get("normalNtUpper")) else None
+    require(all(value is not None for value in (scenario_eps, scenario_scale, scenario_multiple, scenario_lower, scenario_upper)), "cycle valuation inputs missing")
+    require(scenario_scale > 0 and scenario_lower < scenario_upper, "cycle valuation inputs invalid")
+    expected_topix_target = scenario_eps * scenario_multiple / scenario_scale
+    require(close_enough(valuation_outputs.get("topixTarget"), expected_topix_target), "cycle TOPIX scenario identity failed")
+    require(close_enough(valuation_outputs.get("nikkeiRangeLow"), expected_topix_target * scenario_lower), "cycle Nikkei low scenario identity failed")
+    require(close_enough(valuation_outputs.get("nikkeiRangeHigh"), expected_topix_target * scenario_upper), "cycle Nikkei high scenario identity failed")
+    require(valuation_outputs["nikkeiRangeLow"] < valuation_outputs["nikkeiRangeHigh"], "cycle Nikkei scenario range is invalid")
+    require(len(valuation_scenario.get("limitations") or []) >= 3, "cycle valuation limitations are incomplete")
+    require("時価総額ベース" in valuation_inputs.get("epsDefinition", ""), "cycle EPS definition caveat missing")
+    require(len(valuation_scenario.get("sources") or []) >= 2, "cycle valuation sources are incomplete")
+    for source in valuation_scenario.get("sources") or []:
+        require(isinstance(source, dict) and str(source.get("url", "")).startswith("https://"), "cycle valuation source URL must be HTTPS")
+    falsification = cycle.get("falsificationRules") or []
+    require(len(falsification) >= 3, "cycle falsification rules are incomplete")
+    require(all(isinstance(rule, dict) and rule.get("title") and rule.get("detail") for rule in falsification), "cycle falsification rule is incomplete")
+
     gates = sakakibara.get("gates") or {}
     for key in ("distortion", "ntReversal", "broadOutperformance", "basketRotation", "breadthConfirmation"):
         require(isinstance(gates.get(key), bool), f"Sakakibara gate is not boolean: {key}")

@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "updated_at": "2026-08-01T14:51:46+09:00",
+  "updated_at": "2026-08-04T21:02:58+09:00",
   "official_daily_summaries": {
     "2023-07-26": {
       "date": "2023-07-26",
@@ -13267,6 +13267,42 @@
       "divisor": 29.83110217,
       "weight_source": "official_daily_summary_top10",
       "source_url": "https://indexes.nikkei.co.jp/en/nkave/archives/summary?dt=07312026&idx=nk225"
+    },
+    "2026-08-03": {
+      "date": "2026-08-03",
+      "weights": {
+        "6857": 0.11900000000000001,
+        "9983": 0.10039999999999999,
+        "8035": 0.0867,
+        "9984": 0.0681,
+        "6762": 0.024399999999999998,
+        "6098": 0.0195,
+        "9433": 0.0183,
+        "285A": 0.0181,
+        "4062": 0.0163,
+        "6954": 0.0161
+      },
+      "divisor": 29.83110217,
+      "weight_source": "official_daily_summary_top10",
+      "source_url": "https://indexes.nikkei.co.jp/en/nkave/archives/summary?dt=08032026&idx=nk225"
+    },
+    "2026-08-04": {
+      "date": "2026-08-04",
+      "weights": {
+        "6857": 0.11699999999999999,
+        "9983": 0.099,
+        "8035": 0.0892,
+        "9984": 0.0658,
+        "6762": 0.024,
+        "6098": 0.0195,
+        "285A": 0.0191,
+        "9433": 0.0181,
+        "4062": 0.0171,
+        "6954": 0.016200000000000003
+      },
+      "divisor": 29.83110217,
+      "weight_source": "official_daily_summary_top10",
+      "source_url": "https://indexes.nikkei.co.jp/en/nkave/archives/summary?dt=08042026&idx=nk225"
     }
   }
 }

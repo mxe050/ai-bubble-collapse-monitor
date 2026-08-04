@@ -2158,6 +2158,100 @@ def build_sakakibara_analysis(
     nt_change_20d = pct_change(nt_values[-1], nt_values[-21]) if len(nt_values) > 20 else None
     nt_drawdown = (1.0 - latest_nt["ntRatio"] / peak_nt["ntRatio"]) * 100.0
 
+    # Keep the price evidence and the valuation thought experiment separate.
+    # These historical windows are re-calculated from the same aligned close
+    # series on every rebuild; the reference valuation remains fixed to its
+    # disclosed as-of date until matching same-day TOPIX valuation inputs exist.
+    cycle_window_specs = (
+        ("pre-wave", "第1波前", "2025-08-01", "2025-10-15"),
+        ("first-wave", "第1波", "2025-10-16", "2026-04-13"),
+        ("second-wave", "極端な第2波", "2026-04-14", "2026-06-25"),
+        ("normalization-start", "調整確認期", "2026-06-26", "2026-07-31"),
+    )
+    cycle_regimes: list[dict[str, Any]] = []
+    for regime_id, label, start_date, end_date in cycle_window_specs:
+        observed = [row for row in nt_rows if start_date <= row["date"] <= end_date]
+        cycle_regimes.append({
+            "id": regime_id,
+            "label": label,
+            "startDate": start_date,
+            "endDate": end_date,
+            "observedDays": len(observed),
+            "ntLow": min((row["ntRatio"] for row in observed), default=None),
+            "ntHigh": max((row["ntRatio"] for row in observed), default=None),
+            "lastDate": observed[-1]["date"] if observed else None,
+            "lastNt": observed[-1]["ntRatio"] if observed else None,
+            "dataStatus": "observed" if observed else "insufficient",
+        })
+
+    reference_nt_lower = 13.5
+    reference_nt_upper = 14.8
+    if latest_nt["ntRatio"] < reference_nt_lower:
+        nt_band_relation = "below-reference-band"
+    elif latest_nt["ntRatio"] > reference_nt_upper:
+        nt_band_relation = "above-reference-band"
+    else:
+        nt_band_relation = "within-reference-band"
+
+    # This reproduces the supplied 2026-07-31 thought experiment, but it is
+    # deliberately not a live target because the daily TOPIX P/E input and
+    # denominator definition have not been connected to the current close.
+    scenario_eps = 3678.0
+    scenario_topix_scale = 13.89
+    scenario_target_multiple = 16.6
+    scenario_topix_target = scenario_eps * scenario_target_multiple / scenario_topix_scale
+    scenario_nikkei_low = scenario_topix_target * reference_nt_lower
+    scenario_nikkei_high = scenario_topix_target * reference_nt_upper
+    cycle_validation = {
+        "version": "nt-topix-cycle-v1",
+        "priceEvidence": {
+            "asOfDate": latest_nt["date"],
+            "normalNtBand": {
+                "lower": reference_nt_lower,
+                "upper": reference_nt_upper,
+                "status": "reference-hypothesis",
+                "meaning": "2020年以降の観察を基にした検証用の参照帯であり、固定的な正常値や売買基準ではない。",
+            },
+            "currentNt": latest_nt["ntRatio"],
+            "currentNtDate": latest_nt["date"],
+            "currentRelation": nt_band_relation,
+            "regimes": cycle_regimes,
+        },
+        "valuationScenario": {
+            "status": "reference-only",
+            "asOfDate": "2026-07-31",
+            "inputs": {
+                "nikkeiImpliedEps": scenario_eps,
+                "epsDefinition": "2026年7月31日の時価総額ベースPERからの逆算値",
+                "topixScale": scenario_topix_scale,
+                "targetMultiple": scenario_target_multiple,
+                "normalNtLower": reference_nt_lower,
+                "normalNtUpper": reference_nt_upper,
+            },
+            "outputs": {
+                "topixTarget": scenario_topix_target,
+                "nikkeiRangeLow": scenario_nikkei_low,
+                "nikkeiRangeHigh": scenario_nikkei_high,
+            },
+            "formula": "TOPIX試算 = EPS × PER ÷ 13.89、日経平均試算 = TOPIX試算 × NT倍率参照帯",
+            "limitations": [
+                "EPS 3,678円は2026年7月31日の時価総額ベースPERからの逆算値で、指数ウェートPER由来のEPSとは定義が異なる。",
+                "13.89は比較のための換算係数であり、TOPIXの公式PERそのものではない。",
+                "同日・同定義のTOPIX PERを毎日接続していないため、この範囲はライブの適正株価や価格目標ではない。",
+                "実現するかは利益、金利、為替、リスク回避、指数構成の変化に左右される。売買推奨ではない。",
+            ],
+            "sources": [
+                {"label": "日経平均 P/E archive", "url": "https://indexes.nikkei.co.jp/en/nkave/archives/data?list=per"},
+                {"label": "JPX TOPIX profile", "url": "https://www.jpx.co.jp/english/markets/indices/topix/index.html"},
+            ],
+        },
+        "falsificationRules": [
+            {"id": "relative-performance", "title": "NT倍率だけでは確認しない", "detail": "NT倍率が参照帯へ戻っても、TOPIXや分散型株の相対優位が続かなければ、AI一極集中からの資金循環という読解は支持されない。"},
+            {"id": "panic-separation", "title": "市場全体の悪化を分けて確認する", "detail": "TOPIX・分散型株も同時に下落し、VIXや信用スプレッドが悪化するなら、穏やかな揺り戻しではなくパニック経路として別に扱う。"},
+            {"id": "valuation-inputs", "title": "同日・同定義の入力がそろうまで価格試算を更新しない", "detail": "EPS、TOPIXの評価指標、換算係数の定義が変われば固定シナリオを再計算し、古い59,000〜65,000円台の範囲を現在値へ機械的に当てはめない。"},
+        ],
+    }
+
     japan_ai = basket_summary(companies, JAPAN_AI_TICKERS, nikkei)
     diversified_tickers = tuple(
         company["ticker"] for company in companies
@@ -2271,6 +2365,7 @@ def build_sakakibara_analysis(
                 {"date": "2026-06-25", "value": 18.02},
             ],
         },
+        "cycleValidation": cycle_validation,
         "relativeMarket": {
             "nikkei": {
                 "change5dPct": nikkei.get("change5dPct"),

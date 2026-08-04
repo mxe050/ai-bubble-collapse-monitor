@@ -26,7 +26,7 @@
           <i data-lucide="refresh-cw" aria-hidden="true"></i>
           最新情報を再読込
         </button>
-        <small id="refreshHint" class="refresh-hint">取引中価格・先物・公式IR・海外情報を公開済みの最新状態へ更新</small>
+        <small id="refreshHint" class="refresh-hint">公開済みの最新スナップショットを再読込（各カードの基準日を確認）</small>
         <button id="copyMonitorButton" class="command" type="button" title="PCで表示中の監視ページ全体をテキストとしてコピー">
           <i data-lucide="copy" aria-hidden="true"></i>
           サマリーコピー
@@ -67,7 +67,7 @@
           </div>
           <div class="market-summary-stamp">
             <span id="marketSummaryStatus" class="status-dot">読込中</span>
-            <span>価格更新（ライブ） <strong id="marketSummaryDataAsOf">―</strong></span>
+            <span>価格データ取得時刻 <strong id="marketSummaryDataAsOf">―</strong></span>
             <span>分析・政策の確認日時 <strong id="marketSummaryPolicyAsOf">―</strong></span>
           </div>
         </div>
@@ -1066,6 +1066,17 @@
           </article>
         </div>
 
+        <section class="rotation-cycle-validation" aria-labelledby="cycleValidationHeading">
+          <div class="section-heading compact-heading">
+            <p class="section-kicker">REPEATABLE CYCLE CHECK</p>
+            <h3 id="cycleValidationHeading">局面の検証マップ：NT倍率・TOPIX・PERを同じ順序で見る</h3>
+            <p>日次価格で確認できる事実と、2026年7月31日を基準にした参考試算を分けます。固定の値幅を毎日の目標価格にせず、相対騰落・市場全体の悪化・入力定義を順番に確かめます。</p>
+          </div>
+          <div id="cycleCurrentReading" class="cycle-current-reading" aria-live="polite"></div>
+          <div id="cycleRegimeGrid" class="cycle-regime-grid" aria-live="polite"></div>
+          <div id="cycleValuationScenario" class="cycle-valuation-scenario" aria-live="polite"></div>
+          <div id="cycleFalsification" class="cycle-falsification" aria-live="polite"></div>
+        </section>
         <div class="logic-guardrail">
           <div><strong>価格関係を確認する判定です。</strong><p>条件1～4がそろっても、売買主体や資金の移動経路を直接観測したことにはなりません。「AI集中の修正とNon-AI側の相対的な強さ」という価格関係に整合するかだけを判定します。</p></div>
           <div><strong>8社は統計的に小さい標本です。</strong><p>1社で比率が12.5ポイント動き、中央値は4番目と5番目の値に左右されます。現存しデータ取得できる代表企業を選んだため、生存者・選択バイアスも入り得ます。</p></div>

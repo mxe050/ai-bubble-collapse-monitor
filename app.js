@@ -1836,6 +1836,77 @@
       : "8社バスケットの監査情報を取得できませんでした。";
   }
 
+  function renderRotationCycleValidation(analysis) {
+    var cycle = analysis && analysis.cycleValidation ? analysis.cycleValidation : {};
+    var evidence = cycle.priceEvidence || {};
+    var band = evidence.normalNtBand || {};
+    var scenario = cycle.valuationScenario || {};
+    var currentNode = byId("cycleCurrentReading");
+    var regimesNode = byId("cycleRegimeGrid");
+    var scenarioNode = byId("cycleValuationScenario");
+    var falsificationNode = byId("cycleFalsification");
+    var currentNt = finite(evidence.currentNt);
+    var lower = finite(band.lower);
+    var upper = finite(band.upper);
+    var relation = String(evidence.currentRelation || "");
+    var relationLabel = "参照帯との関係を確認中";
+    var relationDetail = "NT倍率だけでは資金移動を証明できません。TOPIX、分散型株、VIX、信用市場も並べて確認します。";
+    if (relation === "above-reference-band") {
+      relationLabel = "参照帯を上回る";
+      relationDetail = "AI・半導体への集中がなお残る仮説と整合します。参照帯への復帰だけでなく、相対パフォーマンスの広がりを続けて確認します。";
+    } else if (relation === "within-reference-band") {
+      relationLabel = "参照帯の中";
+      relationDetail = "集中度は参照帯まで戻りました。ただし、それだけで健全な資金循環や上昇余地を意味するわけではありません。";
+    } else if (relation === "below-reference-band") {
+      relationLabel = "参照帯を下回る";
+      relationDetail = "単純な正常化を越えた値動きです。市場全体の悪化と信用・変動率の確認を優先します。";
+    }
+    if (currentNode) {
+      var currentText = currentNt === null ? "未確認" : numberTwo.format(currentNt) + "倍";
+      var bandText = lower === null || upper === null ? "未設定" : numberTwo.format(lower) + "〜" + numberTwo.format(upper) + "倍";
+      currentNode.innerHTML = '<div><span>今回の読解（日次価格）</span><strong>' + escapeHtml(relationLabel) + '</strong><small>NT倍率 '+ escapeHtml(currentText) + " / 参照帯 " + escapeHtml(bandText) + " / " + escapeHtml(evidence.currentNtDate || "日付未確認") + '</small></div><p>' + escapeHtml(relationDetail) + '</p>';
+    }
+
+    var regimes = Array.isArray(evidence.regimes) ? evidence.regimes : [];
+    if (regimesNode) {
+      regimesNode.innerHTML = regimes.length ? regimes.map(function (regime) {
+        var low = finite(regime.ntLow);
+        var high = finite(regime.ntHigh);
+        var range = low === null || high === null ? "データ不足" : numberTwo.format(low) + "〜" + numberTwo.format(high) + "倍";
+        var days = finite(regime.observedDays);
+        return '<article class="cycle-regime-card"><span>' + escapeHtml(regime.label || "局面") + '</span><strong>' + escapeHtml(range) + '</strong><small>' + escapeHtml(regime.startDate || "開始日未確認") + "〜" + escapeHtml(regime.endDate || "終了日未確認") + " / " + escapeHtml(days === null ? "観測日数未確認" : nikkeiFormat.format(days) + "取引日") + '</small></article>';
+      }).join("") : '<p class="cycle-empty">局面別のNT倍率を計算できませんでした。</p>';
+    }
+
+    if (scenarioNode) {
+      var inputs = scenario.inputs || {};
+      var outputs = scenario.outputs || {};
+      var topixTarget = finite(outputs.topixTarget);
+      var nikkeiLow = finite(outputs.nikkeiRangeLow);
+      var nikkeiHigh = finite(outputs.nikkeiRangeHigh);
+      var scenarioValue = topixTarget === null || nikkeiLow === null || nikkeiHigh === null
+        ? "試算値を再確認中"
+        : "TOPIX試算 " + nikkeiFormat.format(topixTarget) + "pt → 日経平均 " + nikkeiFormat.format(nikkeiLow) + "〜" + nikkeiFormat.format(nikkeiHigh) + "円";
+      var limitations = Array.isArray(scenario.limitations) ? scenario.limitations.filter(Boolean) : [];
+      var sources = Array.isArray(scenario.sources) ? scenario.sources : [];
+      var sourceLinks = sources.map(function (source) {
+        var href = safeHttpsUrl(source && source.url);
+        var label = String(source && source.label || "出所");
+        return href ? '<a href="' + escapeHtml(href) + '" target="_blank" rel="noopener noreferrer">' + escapeHtml(label) + "</a>" : "<span>" + escapeHtml(label) + "</span>";
+      }).join(" / ");
+      scenarioNode.innerHTML = '<div class="cycle-valuation-heading"><div><span>前提付きの価格シナリオ</span><h4>2026年7月31日基準の参考試算</h4><p>ライブの適正株価・目標価格ではありません。同日・同定義のTOPIX評価指標を接続するまで、現在値との差や売買判断には使いません。</p></div><em>試算のみ</em></div>'
+        + '<div class="cycle-valuation-result"><strong>' + escapeHtml(scenarioValue) + '</strong><p>' + escapeHtml(scenario.formula || "計算式を確認中") + '</p><small>EPS '+ escapeHtml(finite(inputs.nikkeiImpliedEps) === null ? "未確認" : nikkeiFormat.format(inputs.nikkeiImpliedEps) + "円") + " / 目標PER " + escapeHtml(finite(inputs.targetMultiple) === null ? "未確認" : numberOne.format(inputs.targetMultiple) + "倍") + " / NT参照帯 " + escapeHtml(finite(inputs.normalNtLower) === null || finite(inputs.normalNtUpper) === null ? "未確認" : numberTwo.format(inputs.normalNtLower) + "〜" + numberTwo.format(inputs.normalNtUpper) + "倍") + '</small></div>'
+        + (limitations.length ? '<ul>' + limitations.map(function (item) { return "<li>" + escapeHtml(item) + "</li>"; }).join("") + "</ul>" : "")
+        + (sourceLinks ? '<p class="cycle-source-links">出所: ' + sourceLinks + "</p>" : "");
+    }
+
+    var rules = Array.isArray(cycle.falsificationRules) ? cycle.falsificationRules : [];
+    if (falsificationNode) {
+      falsificationNode.innerHTML = '<h4>この仮説が崩れる条件</h4>' + (rules.length ? '<div>' + rules.map(function (rule) {
+        return '<article><strong>' + escapeHtml(rule.title || "再確認条件") + '</strong><p>' + escapeHtml(rule.detail || "") + "</p></article>";
+      }).join("") + "</div>" : "<p>反証条件を確認中です。</p>");
+    }
+  }
   function renderSakakibaraMethod() {
     var analysis = state.data && state.data.market ? state.data.market.sakakibaraAnalysis || {} : {};
     if (!analysis.ntRatio) {
@@ -1946,6 +2017,7 @@
     if (fyReport.periodLabel) byId("sakKioxiaFySource").textContent = fyReport.periodLabel + " 決算資料";
     renderKioxiaLiveOverlay(kioxia);
 
+    renderRotationCycleValidation(analysis);
     renderNtRatioChart(analysis);
     renderSakakibaraFairValue(analysis);
     renderSakakibaraMarketPath(analysis);
@@ -3954,6 +4026,8 @@
   }
 
   function liveQuoteDate(quote) {
+    var officialDate = String(quote && quote.quoteDate || "").trim();
+    if (/^\d{4}-\d{2}-\d{2}$/.test(officialDate)) return officialDate;
     var value = liveQuoteTime(quote);
     var parsed = value ? new Date(value) : null;
     if (!parsed || Number.isNaN(parsed.valueOf())) return "";
@@ -3973,6 +4047,7 @@
   function summaryDateLabel(metric) {
     if (!metric || !metric.date) return "\u65e5\u4ed8\u672a\u78ba\u8a8d";
     if (metric.stale) return metric.date + "\u30fb\u66f4\u65b0\u9045\u5ef6\uff0f\u518d\u78ba\u8a8d\u4e2d";
+    if (metric.live && metric.referenceKind === "official-nikkei-daily-close") return metric.date + "・公式終値";
     return metric.live ? metric.date + "\u30fb" + liveQuoteStateLabel(metric) : metric.date;
   }
 
@@ -4004,6 +4079,8 @@
         change: !liveNeedsReview && live.referenceValidationStatus === "verified" ? finite(live.changePct) : null,
         referenceLabel: live.referenceLabel || "\u524d\u65e5\u6bd4",
         referenceValidationStatus: live.referenceValidationStatus || "unavailable",
+        referenceKind: live.referenceKind || "",
+        quoteDate: String(live.quoteDate || ""),
         sourceUrl: live.sourceUrl || row.sourceUrl || definition.sourceUrl || "",
         live: true,
         liveKey: liveKey,
@@ -4038,8 +4115,14 @@
   function summaryChange(metric, definition) {
     if (metric.stale) return "\u57fa\u6e96\u65e5\u30fb\u53d6\u5f97\u7d4c\u8def\u3092\u518d\u78ba\u8a8d\u4e2d";
     if (metric.live) {
-      var liveTime = metric.quoteTime ? formatLiveTime(metric.quoteTime, "") : "時刻未確認";
-      var liveState = liveQuoteStateLabel({ marketState: metric.marketState });
+      var officialDailyClose = metric.referenceKind === "official-nikkei-daily-close"
+        && /^\d{4}-\d{2}-\d{2}$/.test(metric.quoteDate || "");
+      var liveTime = officialDailyClose
+        ? metric.quoteDate + " 公式終値"
+        : metric.quoteTime ? formatLiveTime(metric.quoteTime, "") : "時刻未確認";
+      var liveState = officialDailyClose
+        ? "公式終値"
+        : liveQuoteStateLabel({ marketState: metric.marketState });
       var referenceLabel = metric.referenceLabel || "前日比";
       if (metric.change === null) {
         return liveState + "・" + referenceLabel + "を再確認中 / " + liveTime;
