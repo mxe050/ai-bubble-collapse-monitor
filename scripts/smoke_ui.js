@@ -143,7 +143,9 @@ assert.match(indexSource, /regionalMarketCards/);
 assert.match(indexSource, /id="copyMonitorButton"/);
 assert.match(indexSource, /サマリーコピー/);
 assert.match(indexSource, /id="nikkei-ai-three-series"/);
-assert.match(indexSource, /3つの円建て値/);
+assert.match(indexSource, /id="cycleValidationHeading"/);
+assert.match(appSource, /function renderRotationCycleValidation\(analysis\)/);
+assert.match(stylesSource, /\.cycle-regime-grid/);assert.match(indexSource, /3つの円建て値/);
 assert.ok(indexSource.indexOf('class="rotation-comparison"') < indexSource.indexOf('id="nikkei-ai-three-series"'));
 assert.ok(indexSource.indexOf('id="nikkei-ai-three-series"') < indexSource.indexOf('class="kioxia-case"'));
 assert.match(appSource, /function renderNikkeiAiThreeSeries\(\)/);
@@ -389,7 +391,7 @@ Object.assign(livePayload.premarket.quotes, {
   CSI300_CASH: { value: 4588.20, previousClose: 4549.72, changePct: 0.8458, currency: "CNY", marketState: "delayed-or-closed", quoteTimeUtc: "2026-07-31T07:00:00Z", referenceValidationStatus: "verified", referenceLabel: "public daily", sourceUrl: "https://gu.qq.com/sh000300", freshnessStatus: "current" },
   DXY: { value: 99.94, changePct: -0.9, currency: "USD", marketState: "updating", quoteTimeUtc: "2026-07-31T15:30:00Z", sourceUrl: "https://finance.yahoo.com/quote/DX-Y.NYB" },
   ACWI_CASH: { value: 141.23, changePct: 0.8, currency: "USD", marketState: "updating", quoteTimeUtc: "2026-07-31T15:30:00Z", sourceUrl: "https://finance.yahoo.com/quote/ACWI" },
-  NIKKEI_CASH: { value: 64362.02, previousClose: 61867.43, changePct: 4.0321539, currency: "JPY", marketState: "delayed-or-closed", quoteTimeUtc: "2026-07-31T06:25:00Z", referenceValidationStatus: "verified", referenceLabel: "official", sourceUrl: "https://indexes.nikkei.co.jp/en/nkave/archives/data?list=daily" },
+  NIKKEI_CASH: { value: 64362.02, previousClose: 61867.43, changePct: 4.0321539, currency: "JPY", marketState: "delayed-or-closed", quoteDate: "2026-08-04", quoteTimeUtc: "2026-07-31T06:25:00Z", referenceKind: "official-nikkei-daily-close", referenceValidationStatus: "verified", referenceLabel: "official", sourceUrl: "https://indexes.nikkei.co.jp/en/nkave/archives/data?list=daily" },
   KIOXIA: { value: 39500, changePct: 3.4, currency: "JPY", marketState: "delayed-or-closed", quoteTimeUtc: "2026-07-31T06:25:00Z", sourceUrl: "https://finance.yahoo.com/quote/285A.T" },
 });
 livePayload.briefing = livePayload.briefing || { items: [] };
@@ -496,7 +498,14 @@ setTimeout(async () => {
   assert.match(elements.get("regionalMarketCards").innerHTML, /data-direction="up|data-direction="down/);
   assert.match(elements.get("regionalMarketCards").innerHTML, /取引中|直近終値/);
   assert.match(elements.get("regionalMarketCards").innerHTML, /is-live/);
-  const regionalMarkup = elements.get("regionalMarketCards").innerHTML;
+  assert.match(elements.get("cycleCurrentReading").innerHTML, /参照帯/);
+  assert.strictEqual((elements.get("cycleRegimeGrid").innerHTML.match(/cycle-regime-card/g) || []).length, 4);
+  assert.match(elements.get("cycleValuationScenario").innerHTML, /試算のみ/);
+  assert.match(elements.get("cycleFalsification").innerHTML, /この仮説が崩れる条件/);  const regionalMarkup = elements.get("regionalMarketCards").innerHTML;
+  const japanMarketCard = (regionalMarkup.match(/<article class="regional-market-card region-japan"[\s\S]*?<\/article>/) || [""])[0];
+  assert.match(japanMarketCard, /2026-08-04・公式終値/);
+  assert.match(japanMarketCard, /公式終値・official/);
+  assert.doesNotMatch(japanMarketCard, /2026-07-31 15:25/);
   assert.match(regionalMarkup, /64,362/);
   assert.match(regionalMarkup, /official/);
   assert.match(regionalMarkup, /\+4%/);

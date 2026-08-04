@@ -24,7 +24,7 @@ import urllib.parse
 import urllib.request
 import xml.etree.ElementTree as ET
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from datetime import date, datetime, timedelta, timezone
+from datetime import date, datetime, time as clock_time, timedelta, timezone
 from difflib import SequenceMatcher
 from email.utils import parsedate_to_datetime
 from pathlib import Path
@@ -64,6 +64,12 @@ DEEPL_BATCH_LIMIT = 50
 MOF_INTERVENTION_URL = "https://www.mof.go.jp/policy/international_policy/reference/feio/index.html"
 NIKKEI_OFFICIAL_DAILY_URL = "https://indexes.nikkei.co.jp/nkave/historical/nikkei_stock_average_daily_en.csv"
 NIKKEI_OFFICIAL_DAILY_PAGE_URL = "https://indexes.nikkei.co.jp/en/nkave/archives/data?list=daily"
+# The official daily file is the close authority for the Japan card.  Do not
+# publish a same-day row as a close before the cash session and the source have
+# had time to settle.  After this point, the newest dated official row wins over
+# a delayed Yahoo intraday timestamp.
+NIKKEI_OFFICIAL_CLOSE_FINALIZATION_JST = clock_time(15, 40)
+BRIEFING_TITLE_LIMIT = 800
 
 # ``chartPreviousClose`` in Yahoo's intraday response is not a reliable
 # previous-session reference.  It has occasionally pointed to an unrelated
@@ -871,16 +877,18 @@ def parse_market_number(value: Any) -> float | None:
     return finite(re.sub(r"[^0-9.+\-]", "", str(value or "")))
 
 
-def fetch_nikkei_official_reference(quote_date: date) -> dict[str, Any]:
-    """Return official Nikkei cash close and its preceding official close."""
+def nikkei_official_close_cutoff(as_of: datetime) -> date:
+    """Latest session date that may safely be labelled an official close."""
 
-    raw, _ = request(
-        NIKKEI_OFFICIAL_DAILY_URL,
-        headers={
-            "Accept": "text/csv,*/*;q=0.8",
-            "Accept-Language": "en-US,en;q=0.8",
-        },
-    )
+    local = as_of.astimezone(JST)
+    if local.time() < NIKKEI_OFFICIAL_CLOSE_FINALIZATION_JST:
+        return local.date() - timedelta(days=1)
+    return local.date()
+
+
+def parse_nikkei_official_daily_rows(raw: bytes) -> list[dict[str, Any]]:
+    """Parse the dated public Nikkei daily-close CSV without provider timestamps."""
+
     rows: list[dict[str, Any]] = []
     for row in csv.DictReader(io.StringIO(raw.decode("cp932", errors="replace"))):
         raw_date = str(row.get("Date of Data") or "").strip()
@@ -891,14 +899,28 @@ def fetch_nikkei_official_reference(quote_date: date) -> dict[str, Any]:
         close = parse_market_number(row.get("Close"))
         if close is not None and close > 0:
             rows.append({"date": row_date, "close": close})
-    rows.sort(key=lambda row: row["date"])
-    current = next((row for row in reversed(rows) if row["date"] == quote_date), None)
+    return sorted(rows, key=lambda row: row["date"])
+
+
+def select_nikkei_official_reference(
+    rows: list[dict[str, Any]],
+    as_of: datetime,
+) -> dict[str, Any]:
+    """Select the latest finalized official close and its preceding close.
+
+    Yahoo's intraday series can lag the official close by one session.  The
+    selector deliberately uses only the official row date and a JST finalization
+    cutoff, rather than requiring the row date to equal Yahoo's last timestamp.
+    """
+
+    cutoff = nikkei_official_close_cutoff(as_of)
+    eligible = [row for row in rows if row["date"] <= cutoff]
+    current = eligible[-1] if eligible else None
     if current is None:
-        raise RuntimeError(f"Nikkei official close is unavailable for {quote_date.isoformat()}")
-    previous = next(
-        (row for row in reversed(rows) if row["date"] < current["date"]),
-        None,
-    )
+        raise RuntimeError(
+            f"Nikkei official close is unavailable through {cutoff.isoformat()}"
+        )
+    previous = next((row for row in reversed(rows) if row["date"] < current["date"]), None)
     if previous is None:
         raise RuntimeError("Nikkei official previous close is unavailable")
     return {
@@ -910,6 +932,21 @@ def fetch_nikkei_official_reference(quote_date: date) -> dict[str, Any]:
         "referenceSourceUrl": NIKKEI_OFFICIAL_DAILY_PAGE_URL,
         "sourceUrl": NIKKEI_OFFICIAL_DAILY_PAGE_URL,
     }
+
+
+def fetch_nikkei_official_reference(as_of: datetime) -> dict[str, Any]:
+    """Return the newest finalized official Nikkei close and its predecessor."""
+
+    raw, _ = request(
+        NIKKEI_OFFICIAL_DAILY_URL,
+        headers={
+            "Accept": "text/csv,*/*;q=0.8",
+            "Accept-Language": "en-US,en;q=0.8",
+        },
+    )
+    return select_nikkei_official_reference(
+        parse_nikkei_official_daily_rows(raw), as_of
+    )
 
 
 def fetch_yahoo_daily_reference(
@@ -1010,6 +1047,15 @@ def build_quote_reference(
 def clean_text(value: Any) -> str:
     text = re.sub(r"<[^>]+>", " ", str(value or ""))
     return re.sub(r"\s+", " ", html.unescape(text)).strip()
+
+
+def bounded_text(value: Any, limit: int) -> str:
+    """Normalize untrusted feed text and preserve a visible truncation marker."""
+
+    text = clean_text(value)
+    if len(text) <= limit:
+        return text
+    return text[: max(1, limit - 1)].rstrip() + "…"
 
 
 def has_japanese(value: str) -> bool:
@@ -1479,7 +1525,7 @@ def build_item(
     discovery_provider: str = "direct",
     source_country: str = "",
 ) -> dict[str, Any]:
-    clean_title = clean_text(title)
+    clean_title = bounded_text(title, BRIEFING_TITLE_LIMIT)
     clean_summary = clean_text(summary)
     topic_key, topic_label = classify_topic(clean_title + " " + clean_summary, topic_hint)
     published_at = iso_or_none(published)
@@ -1925,7 +1971,21 @@ def fetch_intraday_quote(key: str, profile: dict[str, str], now: datetime) -> di
     reference_error: str | None = None
     try:
         if key == "NIKKEI_CASH":
-            official_reference = fetch_nikkei_official_reference(quote_date)
+            official_reference = fetch_nikkei_official_reference(now)
+            official_date = date.fromisoformat(str(official_reference["quoteDate"]))
+            if official_date < quote_date:
+                # Before today's official close is final, retain the current
+                # intraday observation and compare it with the latest official
+                # close.  Once the official row reaches the same (or a newer)
+                # date, it becomes the displayed close below.
+                daily_reference = {
+                    "previousClose": official_reference["currentValue"],
+                    "previousCloseDate": official_reference["quoteDate"],
+                    "referenceKind": "official-nikkei-prior-daily-close",
+                    "referenceSourceUrl": official_reference["referenceSourceUrl"],
+                    "sourceUrl": official_reference["sourceUrl"],
+                }
+                official_reference = None
         else:
             daily_reference = fetch_yahoo_daily_reference(
                 symbol, quote_date, exchange_timezone
@@ -1944,17 +2004,41 @@ def fetch_intraday_quote(key: str, profile: dict[str, str], now: datetime) -> di
         official_reference=official_reference,
     )
     display_value = finite(reference.get("value")) or latest["value"]
-    recent_cutoff = max(
-        int((now - timedelta(hours=30)).timestamp()),
-        points[0]["timestamp"],
+    official_quote_date = str(reference.get("quoteDate") or "")
+    official_close_dt: datetime | None = None
+    if key == "NIKKEI_CASH" and reference.get("referenceKind") == "official-nikkei-daily-close":
+        try:
+            official_day = date.fromisoformat(official_quote_date)
+            official_close_dt = datetime.combine(
+                official_day, clock_time(15, 30), tzinfo=JST
+            ).astimezone(timezone.utc)
+        except ValueError:
+            official_close_dt = None
+    reference_uses_newer_official_day = bool(
+        official_close_dt and official_quote_date != quote_date.isoformat()
     )
-    recent_points = [row for row in points if row["timestamp"] >= recent_cutoff]
-    if len(recent_points) < 2:
-        recent_points = points[-2:]
-    recent_values = [row["value"] for row in recent_points]
-    stale_minutes = max(0.0, (now - latest_dt).total_seconds() / 60.0)
+    display_quote_dt = official_close_dt or latest_dt
+    if reference_uses_newer_official_day:
+        # Never show yesterday's intraday range as if it were today's official
+        # session.  The official close is still useful; the intraday-only range
+        # and short-window moves are intentionally withheld until a same-day
+        # provider series arrives.
+        recent_points: list[dict[str, Any]] = []
+        recent_values = [display_value]
+        short_term_points: list[dict[str, Any]] = []
+    else:
+        recent_cutoff = max(
+            int((now - timedelta(hours=30)).timestamp()),
+            points[0]["timestamp"],
+        )
+        recent_points = [row for row in points if row["timestamp"] >= recent_cutoff]
+        if len(recent_points) < 2:
+            recent_points = points[-2:]
+        recent_values = [row["value"] for row in recent_points]
+        stale_minutes_for_windows = max(0.0, (now - latest_dt).total_seconds() / 60.0)
+        short_term_points = recent_points if stale_minutes_for_windows <= 30 * 60 else []
+    stale_minutes = max(0.0, (now - display_quote_dt).total_seconds() / 60.0)
     market_state = "updating" if stale_minutes <= 25 else "delayed-or-closed"
-    short_term_points = recent_points if stale_minutes <= 30 * 60 else []
     spark = _sample_weekly_sparkline(
         _latest_trading_days(points, exchange_timezone)
     )
@@ -1965,7 +2049,18 @@ def fetch_intraday_quote(key: str, profile: dict[str, str], now: datetime) -> di
         }
         for row in spark
     ]
-    if spark_rows:
+    if official_close_dt:
+        # An official close replaces the provider's last bar.  Drop any
+        # provider bars after the official close and append one canonical
+        # endpoint so quoteTime, quoteDate, displayed value, and sparkline
+        # all describe the same market observation.
+        spark_rows = [
+            row for row in spark_rows
+            if datetime.fromisoformat(row["timeUtc"]) < official_close_dt
+        ]
+        spark_rows.append({"timeUtc": official_close_dt.isoformat(), "value": display_value})
+        spark_rows = spark_rows[-168:]
+    elif spark_rows:
         spark_rows[-1]["value"] = display_value
 
     return {
@@ -1994,8 +2089,8 @@ def fetch_intraday_quote(key: str, profile: dict[str, str], now: datetime) -> di
             max(max(recent_values), display_value),
             min(min(recent_values), display_value),
         ),
-        "quoteTimeUtc": latest_dt.isoformat(),
-        "quoteTimeJst": latest_dt.astimezone(JST).isoformat(),
+        "quoteTimeUtc": display_quote_dt.isoformat(),
+        "quoteTimeJst": display_quote_dt.astimezone(JST).isoformat(),
         "staleMinutes": round(stale_minutes, 1),
         "marketState": market_state,
         "exchangeName": meta.get("exchangeName"),
@@ -5104,7 +5199,7 @@ def upgrade_previous_item(
 
     if not isinstance(row, dict):
         return None
-    title = clean_text(row.get("title"))
+    title = bounded_text(row.get("title"), BRIEFING_TITLE_LIMIT)
     url = normalize_url(str(row.get("url") or ""))
     source = clean_text(row.get("source"))
     if (
@@ -5136,7 +5231,7 @@ def upgrade_previous_item(
         "sourceCountry",
         "discoveryProvider",
     }
-    if current_required.issubset(row):
+    if current_required.issubset(row) and title == str(row.get("title") or ""):
         upgraded = dict(row)
         effective = item_effective_datetime(upgraded)
         first_seen = (

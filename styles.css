@@ -11442,3 +11442,43 @@ main .band .label { font-size: 0.76rem; line-height: 1.45; }
   .nikkei-ai-details > summary { padding: 13px 12px; }
   .nikkei-ai-quality-notes { padding: 13px 12px; }
 }
+
+/* Repeatable NT/TOPIX cycle validation */
+.rotation-cycle-validation{margin:42px 0 28px;padding:31px 0 0;border-top:2px solid #496d82}
+.cycle-current-reading{display:grid;grid-template-columns:minmax(260px,.78fr) minmax(0,1.22fr);margin:20px 0;border:1px solid #8ba6b6;background:#eff8f8}
+.cycle-current-reading>div{padding:19px 22px;border-left:7px solid #087b73}
+.cycle-current-reading span,.cycle-current-reading strong,.cycle-current-reading small{display:block}
+.cycle-current-reading span{color:#31616b;font-size:.78rem;font-weight:900}
+.cycle-current-reading strong{margin:4px 0;color:#123b50;font-size:1.24rem}
+.cycle-current-reading small{color:#4d6877;font-size:.84rem;line-height:1.55}
+.cycle-current-reading>p{margin:0;padding:19px 22px;border-left:1px solid #bfd0d6;color:#3c5869;font-size:.92rem;line-height:1.7}
+.cycle-regime-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));margin:18px 0;border:1px solid #b9cad3;background:#fff}
+.cycle-regime-card{min-width:0;padding:17px 18px;border-right:1px solid #d3dfe5}
+.cycle-regime-card:last-child{border-right:0}
+.cycle-regime-card span,.cycle-regime-card strong,.cycle-regime-card small{display:block}
+.cycle-regime-card span{color:#406276;font-size:.76rem;font-weight:900}
+.cycle-regime-card strong{margin:5px 0;color:#133c58;font-size:1.08rem}
+.cycle-regime-card small{color:#5c707e;font-size:.8rem;line-height:1.55}
+.cycle-valuation-scenario{margin:24px 0;border:1px solid #b8a46f;background:#fffdf6}
+.cycle-valuation-heading{display:flex;gap:18px;justify-content:space-between;align-items:flex-start;padding:20px 22px;border-bottom:1px solid #dfd4ae}
+.cycle-valuation-heading span{display:block;color:#876719;font-size:.76rem;font-weight:900}
+.cycle-valuation-heading h4{margin:4px 0 7px;color:#4d3c0b;font-size:1.12rem}
+.cycle-valuation-heading p{max-width:780px;margin:0;color:#66592c;font-size:.9rem;line-height:1.68}
+.cycle-valuation-heading em{flex:0 0 auto;padding:4px 9px;color:#765510;background:#fff3c9;font-size:.78rem;font-style:normal;font-weight:900}
+.cycle-valuation-result{padding:19px 22px;border-left:7px solid #bb8b1d}
+.cycle-valuation-result strong{display:block;color:#413507;font-size:1.18rem}
+.cycle-valuation-result p{margin:7px 0;color:#655d3e;font-size:.9rem;line-height:1.65}
+.cycle-valuation-result small{color:#6e6a55;font-size:.82rem}
+.cycle-valuation-scenario ul{margin:0;padding:16px 40px 18px;color:#665f49;font-size:.86rem;line-height:1.66}
+.cycle-source-links{margin:0;padding:0 22px 18px;color:#5d6b75;font-size:.82rem}
+.cycle-source-links a{color:#206485}
+.cycle-falsification{margin-top:18px;padding:20px 22px;border:1px solid #d7a79f;background:#fff7f5}
+.cycle-falsification h4{margin:0 0 14px;color:#823629;font-size:1.04rem}
+.cycle-falsification>div{display:grid;grid-template-columns:repeat(3,minmax(0,1fr))}
+.cycle-falsification article{min-width:0;padding:0 18px;border-left:1px solid #e4c8c2}
+.cycle-falsification article:first-child{padding-left:0;border-left:0}
+.cycle-falsification strong{display:block;color:#6f3026;font-size:.92rem}
+.cycle-falsification p{margin:7px 0 0;color:#704f49;font-size:.85rem;line-height:1.65}
+.cycle-empty{margin:0;padding:16px;color:#5d7180}
+@media(max-width:1080px){.cycle-regime-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.cycle-regime-card:nth-child(2){border-right:0}.cycle-regime-card:nth-child(-n+2){border-bottom:1px solid #d3dfe5}.cycle-falsification>div{grid-template-columns:1fr}.cycle-falsification article,.cycle-falsification article:first-child{padding:14px 0;border-top:1px solid #e4c8c2;border-left:0}.cycle-falsification article:first-child{padding-top:0;border-top:0}}
+@media(max-width:760px){.cycle-current-reading{grid-template-columns:1fr}.cycle-current-reading>p{border-top:1px solid #bfd0d6;border-left:0}.cycle-regime-grid{grid-template-columns:1fr}.cycle-regime-card,.cycle-regime-card:nth-child(2){border-right:0;border-bottom:1px solid #d3dfe5}.cycle-regime-card:last-child{border-bottom:0}.cycle-valuation-heading{display:block}.cycle-valuation-heading em{display:inline-block;margin-top:12px}.cycle-valuation-result{padding:17px}.cycle-valuation-scenario ul{padding-right:24px;padding-left:34px}.cycle-falsification{padding:18px}}

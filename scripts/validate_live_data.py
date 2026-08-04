@@ -3229,6 +3229,49 @@ def run_quote_reference_regressions() -> None:
         "Nikkei metadata close changed the published direction",
     )
 
+    nikkei_intraday = producer.build_quote_reference(
+        key="NIKKEI_CASH",
+        current_value=64010.0,
+        quote_date=date(2026, 8, 4),
+        raw_meta_previous_close=63754.90,
+        daily_reference={
+            "previousClose": 63754.90,
+            "previousCloseDate": "2026-08-03",
+            "referenceKind": "official-nikkei-prior-daily-close",
+            "referenceSourceUrl": "https://indexes.nikkei.co.jp/en/nkave/archives/data?list=daily",
+            "sourceUrl": "https://indexes.nikkei.co.jp/en/nkave/archives/data?list=daily",
+        },
+    )
+    require(
+        nikkei_intraday["quoteDate"] == "2026-08-04"
+        and nikkei_intraday["previousCloseDate"] == "2026-08-03"
+        and nikkei_intraday["value"] == 64010.0
+        and nikkei_intraday["referenceKind"] == "official-nikkei-prior-daily-close",
+        "Nikkei pre-close quote must retain the current session and use the prior official close",
+    )
+
+    official_rows = [
+        {"date": date(2026, 7, 30), "close": 61867.43},
+        {"date": date(2026, 7, 31), "close": 63754.90},
+        {"date": date(2026, 8, 4), "close": 63957.53},
+    ]
+    official_after_close = producer.select_nikkei_official_reference(
+        official_rows, datetime(2026, 8, 4, 11, 0, tzinfo=timezone.utc)
+    )
+    require(
+        official_after_close["quoteDate"] == "2026-08-04"
+        and official_after_close["previousCloseDate"] == "2026-07-31"
+        and close_enough(official_after_close["currentValue"], 63957.53),
+        "Nikkei post-close official row was not selected over a delayed intraday date",
+    )
+    official_before_close = producer.select_nikkei_official_reference(
+        official_rows, datetime(2026, 8, 4, 1, 0, tzinfo=timezone.utc)
+    )
+    require(
+        official_before_close["quoteDate"] == "2026-07-31" and official_before_close["previousCloseDate"] == "2026-07-30",
+        "Nikkei same-day official row was labelled as a close before finalization",
+    )
+
     kioxia = verified("KIOXIA", 39420.0, 38380.0, 67100.0, "2026-07-30", "2026-07-29")
     require(
         close_enough(kioxia["changePct"], 2.709744658676394, absolute=1e-9),
@@ -3324,6 +3367,22 @@ def run_localization_freshness_regressions() -> None:
             item["original"]["title"], item["original"]["excerpt"]
         ),
         "localization source hash regression failed",
+    )
+
+    long_title_item = producer.build_item(
+        title="Breaking market update " + ("x" * 1200),
+        summary="Feed title length must not prevent the live Pages deployment.",
+        url="https://example.com/long-title",
+        source="Example News",
+        source_kind="news",
+        published=now.isoformat(),
+        retrieved_at=now,
+    )
+    require(
+        len(long_title_item["title"]) == producer.BRIEFING_TITLE_LIMIT
+        and long_title_item["title"] == long_title_item["original"]["title"]
+        and long_title_item["title"].endswith("…"),
+        "overlong briefing title was not bounded before it entered the snapshot",
     )
 
     editorial = producer.build_item(
