@@ -381,6 +381,39 @@ def main() -> None:
     require(len(falsification) >= 3, "cycle falsification rules are incomplete")
     require(all(isinstance(rule, dict) and rule.get("title") and rule.get("detail") for rule in falsification), "cycle falsification rule is incomplete")
 
+    submitted_outlook = sakakibara.get("submittedOutlook") or {}
+    require(submitted_outlook.get("version") == "submitted-outlook-2026-08-17-v1", "submitted outlook version changed")
+    require(submitted_outlook.get("status") == "submitted-reference-not-live-input", "submitted outlook must not become a live input")
+    require(submitted_outlook.get("asOfDate") == "2026-08-17" and submitted_outlook.get("baselineDate") == "2025-08-18", "submitted outlook dates changed")
+    submitted_baseline = submitted_outlook.get("baseline") or {}
+    submitted_current = submitted_outlook.get("submitted") or {}
+    require(submitted_baseline.get("nikkei") == 43714.0 and submitted_current.get("nikkei") == 68220.0, "submitted Nikkei values changed")
+    require(submitted_baseline.get("topix") == 3120.0 and submitted_current.get("topix") == 4184.0, "submitted TOPIX values changed")
+    comparisons = submitted_outlook.get("comparisons") or []
+    require(len(comparisons) == 6, "submitted outlook comparison count changed")
+    for comparison in comparisons:
+        item_id = comparison.get("id")
+        require(item_id in submitted_baseline and item_id in submitted_current, f"submitted comparison key is invalid: {item_id}")
+        expected_change = (submitted_current[item_id] / submitted_baseline[item_id] - 1) * 100
+        require(close_enough(comparison.get("changePct"), expected_change), f"submitted comparison identity failed: {item_id}")
+    valuation_checks = submitted_outlook.get("valuationChecks") or []
+    require(len(valuation_checks) == 4, "submitted outlook valuation check count changed")
+    for check in valuation_checks:
+        snapshot = submitted_baseline if check.get("date") == "2025-08-18" else submitted_current if check.get("date") == "2026-08-17" else None
+        require(snapshot is not None, "submitted valuation check date is invalid")
+        denominator = snapshot.get("forecastEps") if check.get("label") == "株価÷予想EPS" else snapshot.get("bps") if check.get("label") == "株価÷BPS" else None
+        require(denominator and denominator > 0, "submitted valuation denominator is invalid")
+        calculated = snapshot["nikkei"] / denominator
+        require(close_enough(check.get("calculated"), calculated), "submitted valuation calculation failed")
+        require(close_enough(check.get("difference"), calculated - check.get("reported")), "submitted valuation difference failed")
+    source = submitted_outlook.get("source") or {}
+    require("ライブ" in source.get("handling", ""), "submitted outlook live-input boundary is missing")
+    technical = submitted_outlook.get("technicalReview") or {}
+    require("単一" in technical.get("summary", ""), "submitted outlook technical warning is missing")
+    products = submitted_outlook.get("leveragedProducts") or []
+    require([product.get("code") for product in products] == ["1570", "1568"], "submitted leveraged products changed")
+    require(all(str(product.get("officialUrl", "")).startswith("https://") and product.get("risk") for product in products), "submitted leveraged product disclosure is incomplete")
+
     gates = sakakibara.get("gates") or {}
     for key in ("distortion", "ntReversal", "broadOutperformance", "basketRotation", "breadthConfirmation"):
         require(isinstance(gates.get(key), bool), f"Sakakibara gate is not boolean: {key}")

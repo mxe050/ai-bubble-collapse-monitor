@@ -1907,6 +1907,31 @@
       }).join("") + "</div>" : "<p>反証条件を確認中です。</p>");
     }
   }
+  function renderSubmittedOutlook(analysis) {
+    var outlook = analysis && analysis.submittedOutlook ? analysis.submittedOutlook : {};
+    var baseline = outlook.baseline || {};
+    var submitted = outlook.submitted || {};
+    var source = outlook.source || {};
+    var statusNode = byId("submittedOutlookStatus");
+    var comparisonNode = byId("submittedOutlookComparison");
+    var interpretationNode = byId("submittedOutlookInterpretation");
+    var diagnosticsNode = byId("submittedOutlookDiagnostics");
+    var technicalNode = byId("submittedOutlookTechnical");
+    var productsNode = byId("submittedOutlookProducts");
+    if (statusNode) statusNode.innerHTML = '<div><span>扱い</span><strong>資料記載・参照用（ライブ判定には不使用）</strong><small>' + escapeHtml(source.handling || "資料の扱いを確認中です。") + '</small></div><p><b>基準日：</b>' + escapeHtml(outlook.baselineDate || "未確認") + ' → ' + escapeHtml(outlook.asOfDate || "未確認") + '<br>' + escapeHtml(source.label || "資料の出所情報を確認中です。") + '</p>';
+    function valueText(row, value) { var numeric = finite(value); if (numeric === null) return "未確認"; return (row.format === "two-decimal" ? numberTwo.format(numeric) : nikkeiFormat.format(numeric)) + (row.unit || ""); }
+    var comparisons = Array.isArray(outlook.comparisons) ? outlook.comparisons : [];
+    if (comparisonNode) comparisonNode.innerHTML = '<h4>資料記載値の1年比較</h4><p class="submitted-outlook-caption">TOPIXの単位は円ではなくポイント（pt）です。増減率は、この二つの資料記載値だけから計算しています。</p>' + (comparisons.length ? '<div>' + comparisons.map(function (row) { var change = finite(row.changePct); var direction = change === null ? "flat" : change > 0 ? "up" : change < 0 ? "down" : "flat"; return '<article data-direction="' + direction + '"><span>' + escapeHtml(row.label || "項目") + '</span><strong>' + escapeHtml(valueText(row, row.submitted)) + '</strong><small>' + escapeHtml(outlook.baselineDate || "前年") + ' ' + escapeHtml(valueText(row, row.baseline)) + ' → ' + escapeHtml(outlook.asOfDate || "今回") + '</small><em>' + (change === null ? "増減未確認" : "前年比 " + formatPercent(change, true)) + '</em></article>'; }).join("") + '</div>' : '<p class="submitted-outlook-empty">資料記載値を確認できませんでした。</p>');
+    var interpretation = Array.isArray(outlook.interpretation) ? outlook.interpretation : [];
+    if (interpretationNode) interpretationNode.innerHTML = '<h4>この比較から言えること / 言えないこと</h4>' + (interpretation.length ? '<div>' + interpretation.map(function (item) { return '<article><strong>' + escapeHtml(item.title || "確認ポイント") + '</strong><p>' + escapeHtml(item.detail || "") + '</p></article>'; }).join("") + '</div>' : '<p class="submitted-outlook-empty">解釈メモを確認中です。</p>');
+    var checks = Array.isArray(outlook.valuationChecks) ? outlook.valuationChecks : [];
+    if (diagnosticsNode) diagnosticsNode.innerHTML = '<h4>予想指標の整合性を先に確認する</h4><p>同じ日・同じ定義なら「株価÷予想EPS＝PER」「株価÷BPS＝PBR」です。資料には予想の出所・時点・指数定義が添付されていないため、差がある値を目標価格やライブ判定に使いません。</p>' + (checks.length ? '<div class="submitted-outlook-check-grid">' + checks.map(function (check) { var d = finite(check.difference); return '<article class="' + (d !== null && Math.abs(d) >= 0.01 ? "has-difference" : "") + '"><span>' + escapeHtml(check.date || "日付") + ' / ' + escapeHtml(check.label || "比率") + '</span><strong>資料 ' + numberTwo.format(finite(check.reported) || 0) + '倍</strong><small>単純計算 ' + numberTwo.format(finite(check.calculated) || 0) + '倍 / 差 ' + (d === null ? "未確認" : formatPctPoints(d, true)) + '</small></article>'; }).join("") + '</div>' : '<p class="submitted-outlook-empty">整合性を計算できませんでした。</p>');
+    var technical = outlook.technicalReview || {}; var t = submitted.technical || {};
+    if (technicalNode) technicalNode.innerHTML = '<div><h4>テクニカル指標は「一つの結論」にしない</h4><p>' + escapeHtml(technical.summary || "確認中です。") + '</p><p class="submitted-outlook-limit">' + escapeHtml(technical.limitations || "") + '</p></div><dl><div><dt>日足 RSI</dt><dd>' + (finite(t.dailyRsi) === null ? "未確認" : numberTwo.format(t.dailyRsi)) + '</dd></div><div><dt>日足 Stochastic</dt><dd>' + (finite(t.dailyStochastic) === null ? "未確認" : numberTwo.format(t.dailyStochastic)) + '</dd></div><div><dt>週足 RSI</dt><dd>' + (finite(t.weeklyRsi) === null ? "未確認" : numberTwo.format(t.weeklyRsi)) + '</dd></div><div><dt>週足 Stochastic</dt><dd>' + (finite(t.weeklyStochastic) === null ? "未確認" : numberTwo.format(t.weeklyStochastic)) + '</dd></div></dl>';
+    var products = Array.isArray(outlook.leveragedProducts) ? outlook.leveragedProducts : [];
+    if (productsNode) productsNode.innerHTML = '<h4>レバレッジ型ETFは、商品仕様と日次リスクを先に確認する</h4><p>' + escapeHtml(outlook.productNote || "") + '</p>' + (products.length ? '<div>' + products.map(function (product) { var url = safeHttpsUrl(product.officialUrl); var title = product.code + " " + (product.name || "商品"); return '<article><span>公式商品情報</span><strong>' + (url ? '<a href="' + escapeHtml(url) + '" target="_blank" rel="noopener noreferrer">' + escapeHtml(title) + '</a>' : escapeHtml(title)) + '</strong><small>対象：' + escapeHtml(product.underlying || "未確認") + '</small><p><b>日次の目標：</b>' + escapeHtml(product.dailyTarget || "") + '</p><p class="submitted-outlook-risk">' + escapeHtml(product.risk || "") + '</p></article>'; }).join("") + '</div>' : '<p class="submitted-outlook-empty">商品情報を確認できませんでした。</p>');
+  }
+
   function renderSakakibaraMethod() {
     var analysis = state.data && state.data.market ? state.data.market.sakakibaraAnalysis || {} : {};
     if (!analysis.ntRatio) {
@@ -2018,6 +2043,7 @@
     renderKioxiaLiveOverlay(kioxia);
 
     renderRotationCycleValidation(analysis);
+    renderSubmittedOutlook(analysis);
     renderNtRatioChart(analysis);
     renderSakakibaraFairValue(analysis);
     renderSakakibaraMarketPath(analysis);
