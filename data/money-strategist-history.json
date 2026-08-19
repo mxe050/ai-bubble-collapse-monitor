@@ -9153,6 +9153,12 @@
         "x": 2026.578082,
         "value": 7489.7202,
         "sourceType": "S&P 500 live close appended by the local data update"
+      },
+      {
+        "date": "2026-08-18",
+        "x": 2026.627397,
+        "value": 7691.7598,
+        "sourceType": "S&P 500 live close appended by the local data update"
       }
     ],
     "boundaryNotes": [
@@ -9160,8 +9166,8 @@
       "1928年～1957年3月3日はS&P 500の正式開始前で、後から整備された歴史・バックテスト系列。",
       "1957年3月4日以降が正式なS&P 500。価格指数であり配当を含まない。"
     ],
-    "latestDate": "2026-07-31",
-    "latestValue": 7489.72
+    "latestDate": "2026-08-18",
+    "latestValue": 7691.76
   },
   "crashes": [
     {
@@ -9521,8 +9527,8 @@
     "units": "Index 1982-1984=100",
     "frequency": "Monthly, not seasonally adjusted",
     "comparisonBaseDate": "1913-01-01",
-    "latestDate": "2026-06-01",
-    "latestValue": 333.952,
+    "latestDate": "2026-07-01",
+    "latestValue": 333.918,
     "history": [
       {
         "date": "1913-01-01",
@@ -16328,6 +16334,11 @@
         "date": "2026-06-01",
         "x": 2026.413699,
         "value": 333.952
+      },
+      {
+        "date": "2026-07-01",
+        "x": 2026.49589,
+        "value": 333.918
       }
     ],
     "sourceUrl": "https://fred.stlouisfed.org/series/CPIAUCNS",

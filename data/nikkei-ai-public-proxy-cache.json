@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "updated_at": "2026-08-04T21:02:58+09:00",
+  "updated_at": "2026-08-19T21:53:23+09:00",
   "official_daily_summaries": {
     "2023-07-26": {
       "date": "2023-07-26",
@@ -13303,6 +13303,186 @@
       "divisor": 29.83110217,
       "weight_source": "official_daily_summary_top10",
       "source_url": "https://indexes.nikkei.co.jp/en/nkave/archives/summary?dt=08042026&idx=nk225"
+    },
+    "2026-08-05": {
+      "date": "2026-08-05",
+      "weights": {
+        "6857": 0.12279999999999999,
+        "9983": 0.0933,
+        "8035": 0.0888,
+        "9984": 0.0723,
+        "6762": 0.0239,
+        "4062": 0.0206,
+        "6098": 0.019299999999999998,
+        "285A": 0.0192,
+        "9433": 0.0173,
+        "6954": 0.0163
+      },
+      "divisor": 29.83110217,
+      "weight_source": "official_daily_summary_top10",
+      "source_url": "https://indexes.nikkei.co.jp/en/nkave/archives/summary?dt=08052026&idx=nk225"
+    },
+    "2026-08-06": {
+      "date": "2026-08-06",
+      "weights": {
+        "6857": 0.121,
+        "9983": 0.0966,
+        "8035": 0.08470000000000001,
+        "9984": 0.0698,
+        "6762": 0.0231,
+        "6098": 0.0197,
+        "4062": 0.0194,
+        "9433": 0.0178,
+        "285A": 0.0174,
+        "6954": 0.016399999999999998
+      },
+      "divisor": 29.83110217,
+      "weight_source": "official_daily_summary_top10",
+      "source_url": "https://indexes.nikkei.co.jp/en/nkave/archives/summary?dt=08062026&idx=nk225"
+    },
+    "2026-08-07": {
+      "date": "2026-08-07",
+      "weights": {
+        "6857": 0.1184,
+        "9983": 0.0973,
+        "8035": 0.08349999999999999,
+        "9984": 0.0681,
+        "6762": 0.0229,
+        "6098": 0.0202,
+        "4062": 0.0195,
+        "9433": 0.0183,
+        "285A": 0.0171,
+        "6954": 0.0167
+      },
+      "divisor": 29.83110217,
+      "weight_source": "official_daily_summary_top10",
+      "source_url": "https://indexes.nikkei.co.jp/en/nkave/archives/summary?dt=08072026&idx=nk225"
+    },
+    "2026-08-10": {
+      "date": "2026-08-10",
+      "weights": {
+        "6857": 0.1235,
+        "9983": 0.0946,
+        "8035": 0.0852,
+        "9984": 0.0659,
+        "6098": 0.024300000000000002,
+        "6762": 0.0229,
+        "4062": 0.0199,
+        "9433": 0.017,
+        "5803": 0.0168,
+        "285A": 0.0168
+      },
+      "divisor": 29.83110217,
+      "weight_source": "official_daily_summary_top10",
+      "source_url": "https://indexes.nikkei.co.jp/en/nkave/archives/summary?dt=08102026&idx=nk225"
+    },
+    "2026-08-12": {
+      "date": "2026-08-12",
+      "weights": {
+        "6857": 0.1235,
+        "9983": 0.09300000000000001,
+        "8035": 0.0867,
+        "9984": 0.0658,
+        "6098": 0.0248,
+        "6762": 0.0232,
+        "4062": 0.0203,
+        "5803": 0.0173,
+        "285A": 0.0173,
+        "9433": 0.0169
+      },
+      "divisor": 29.83110217,
+      "weight_source": "official_daily_summary_top10",
+      "source_url": "https://indexes.nikkei.co.jp/en/nkave/archives/summary?dt=08122026&idx=nk225"
+    },
+    "2026-08-13": {
+      "date": "2026-08-13",
+      "weights": {
+        "6857": 0.127,
+        "9983": 0.0911,
+        "8035": 0.0876,
+        "9984": 0.06570000000000001,
+        "6098": 0.024700000000000003,
+        "6762": 0.023799999999999998,
+        "4062": 0.0212,
+        "285A": 0.0178,
+        "5803": 0.017,
+        "9433": 0.0167
+      },
+      "divisor": 29.83110217,
+      "weight_source": "official_daily_summary_top10",
+      "source_url": "https://indexes.nikkei.co.jp/en/nkave/archives/summary?dt=08132026&idx=nk225"
+    },
+    "2026-08-14": {
+      "date": "2026-08-14",
+      "weights": {
+        "6857": 0.1295,
+        "9983": 0.09029999999999999,
+        "8035": 0.08650000000000001,
+        "9984": 0.0672,
+        "6098": 0.0241,
+        "6762": 0.0235,
+        "4062": 0.0203,
+        "285A": 0.0184,
+        "9433": 0.0168,
+        "5803": 0.0166
+      },
+      "divisor": 29.83110217,
+      "weight_source": "official_daily_summary_top10",
+      "source_url": "https://indexes.nikkei.co.jp/en/nkave/archives/summary?dt=08142026&idx=nk225"
+    },
+    "2026-08-17": {
+      "date": "2026-08-17",
+      "weights": {
+        "6857": 0.1317,
+        "9983": 0.08929999999999999,
+        "8035": 0.0873,
+        "9984": 0.0684,
+        "6098": 0.023799999999999998,
+        "6762": 0.0236,
+        "285A": 0.021,
+        "4062": 0.0209,
+        "5803": 0.0177,
+        "9433": 0.0165
+      },
+      "divisor": 29.83110217,
+      "weight_source": "official_daily_summary_top10",
+      "source_url": "https://indexes.nikkei.co.jp/en/nkave/archives/summary?dt=08172026&idx=nk225"
+    },
+    "2026-08-18": {
+      "date": "2026-08-18",
+      "weights": {
+        "6857": 0.1283,
+        "9983": 0.0895,
+        "8035": 0.084,
+        "9984": 0.0695,
+        "6098": 0.0239,
+        "6762": 0.023399999999999997,
+        "4062": 0.0207,
+        "285A": 0.0199,
+        "5803": 0.0176,
+        "9433": 0.017
+      },
+      "divisor": 29.83110217,
+      "weight_source": "official_daily_summary_top10",
+      "source_url": "https://indexes.nikkei.co.jp/en/nkave/archives/summary?dt=08182026&idx=nk225"
+    },
+    "2026-08-19": {
+      "date": "2026-08-19",
+      "weights": {
+        "6857": 0.1294,
+        "9983": 0.09230000000000001,
+        "8035": 0.08410000000000001,
+        "9984": 0.0644,
+        "6098": 0.0242,
+        "6762": 0.0231,
+        "4062": 0.0202,
+        "285A": 0.0179,
+        "9433": 0.0175,
+        "5803": 0.016399999999999998
+      },
+      "divisor": 29.83110217,
+      "weight_source": "official_daily_summary_top10",
+      "source_url": "https://indexes.nikkei.co.jp/en/nkave/archives/summary?dt=08192026&idx=nk225"
     }
   }
 }

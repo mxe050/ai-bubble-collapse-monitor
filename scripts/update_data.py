@@ -2127,6 +2127,30 @@ def build_market_path_indicator(
     }
 
 
+def build_submitted_market_outlook() -> dict[str, Any]:
+    """Keep supplied August outlook values separate from live model inputs."""
+    baseline = {"date": "2025-08-18", "nikkei": 43714.0, "topix": 3120.0, "ntRatio": 14.0, "usdJpy": 147.86, "usdNikkei": 296.46, "forecastEps": 2438.0, "reportedPer": 17.93, "bps": 27493.0, "reportedPbr": 1.59, "roePct": 8.9, "technical": {"dailyRsi": 71.86, "dailyStochastic": 85.22, "weeklyRsi": 73.28, "weeklyStochastic": 86.09}}
+    submitted = {"date": "2026-08-17", "nikkei": 68220.0, "topix": 4184.0, "ntRatio": 16.4, "usdJpy": 159.03, "usdNikkei": 428.56, "forecastEps": 3920.0, "reportedPer": 17.66, "bps": 35865.0, "reportedPbr": 1.93, "roePct": 10.9, "technical": {"dailyRsi": 65.45, "dailyStochastic": 86.21, "weeklyRsi": 65.99, "weeklyStochastic": 78.55}}
+    def pct(current: float, previous: float) -> float:
+        return (current / previous - 1.0) * 100.0
+    specs = (("nikkei", "日経平均", "円", "number"), ("topix", "TOPIX", "pt", "number"), ("ntRatio", "NT倍率", "倍", "two-decimal"), ("usdNikkei", "ドル建て日経平均", "ドル", "two-decimal"), ("usdJpy", "ドル円", "円/ドル", "two-decimal"), ("forecastEps", "予想EPS（資料記載）", "円", "number"))
+    comparisons = [{"id": key, "label": label, "unit": unit, "format": fmt, "baseline": baseline[key], "submitted": submitted[key], "changePct": pct(submitted[key], baseline[key])} for key, label, unit, fmt in specs]
+    checks = []
+    for point, snapshot in ((baseline["date"], baseline), (submitted["date"], submitted)):
+        for label, denominator_key, reported_key in (("株価÷予想EPS", "forecastEps", "reportedPer"), ("株価÷BPS", "bps", "reportedPbr")):
+            calculated = snapshot["nikkei"] / snapshot[denominator_key]
+            checks.append({"date": point, "label": label, "reported": snapshot[reported_key], "calculated": calculated, "difference": calculated - snapshot[reported_key]})
+    return {
+        "version": "submitted-outlook-2026-08-17-v1", "status": "submitted-reference-not-live-input", "title": "8月17日市況展望を、日々の判定と分けて照合する", "authoredAt": "2026-08-18T01:00:00+09:00", "asOfDate": submitted["date"], "baselineDate": baseline["date"],
+        "source": {"label": "ユーザー提供の市況展望（原典URL・指数計算定義は添付されていません）", "handling": "数値は資料記載のまま保存し、ライブの資金循環判定・評価試算・アラートには使用しません。"},
+        "baseline": baseline, "submitted": submitted, "comparisons": comparisons, "valuationChecks": checks,
+        "interpretation": [{"title": "指数間の開きは確認できるが、原因は確定しない", "detail": "資料記載値では日経平均の上昇率がTOPIXを上回ります。AI・半導体の寄与を含む集中と整合する一方、価格加重・構成銘柄・為替・業績なども影響するため、これだけでAI資金集中や資金移動を証明しません。"}, {"title": "予想EPSの増加は、予想の定義を確認してから読む", "detail": "予想EPSは実績ではなく、採用する予想期間、構成銘柄、更新時点で変わります。AI・半導体の利益寄与を切り分けるには、同一提供元・同一日付の銘柄別予想が必要です。"}, {"title": "ドル建ての収益は株価と為替の両方で変わる", "detail": "ドル建て日経平均の上昇は円建て指数とドル円の双方を反映します。為替ヘッジの有無、投資家の基準通貨、受取配当を含むかで結果が異なるため、『割安』とは単独では結論づけません。"}, {"title": "Non-AIは自動的に割安ではない", "detail": "AI・半導体以外という分類だけでは価値判断になりません。利益、財務、バリュエーション、需給、決算の変化を個別に確認するためのスクリーニング視点として扱います。"}],
+        "technicalReview": {"summary": "資料記載のRSIは65前後で一般的な70の高水準目安を下回る一方、ストキャスティクスは日足86.21、週足78.55です。期間・平滑化・出所が未添付のため、単一の『過熱ではない』判定には使いません。", "limitations": "RSIやストキャスティクスは計算期間、平滑化、終値・日中値の選択で値が変わり、将来の方向を保証しません。"},
+        "leveragedProducts": [{"code": "1570", "name": "NEXT FUNDS 日経平均レバレッジ・インデックス連動型上場投信", "underlying": "日経平均レバレッジ・インデックス", "dailyTarget": "日々の騰落率が日経平均株価の日々の騰落率の2倍程度となることを目指す商品です。", "risk": "日次で目標倍率をリセットするため、複数日にわたる値動きでは指数の累積騰落率の単純な2倍になりません。公式も中長期の保有には向かない旨を示しています。", "officialUrl": "https://nextfunds.jp/lineup/1570/"}, {"code": "1568", "name": "TOPIXブル2倍上場投信", "underlying": "TOPIXレバレッジ（2倍）指数", "dailyTarget": "日々の騰落率がTOPIXの日々の騰落率の2倍となることを目指す商品です。", "risk": "日次で目標倍率をリセットするため、複数日にわたる値動きでは指数の累積騰落率の単純な2倍になりません。JPXは中長期の投資に適さない商品として注意を促しています。", "officialUrl": "https://www.jpx.co.jp/equities/products/etfs/leveraged-inverse/files/1568-j.pdf"}],
+        "productNote": "商品仕様の確認用であり、銘柄選択、売買タイミング、比較優位を示すものではありません。レバレッジ型ETFの価格は原指数だけでなく、日々の変動順序と変動率にも左右されます。",
+    }
+
+
 def build_sakakibara_analysis(
     prices: dict[str, dict[str, Any]],
     companies: list[dict[str, Any]],
@@ -2366,6 +2390,7 @@ def build_sakakibara_analysis(
             ],
         },
         "cycleValidation": cycle_validation,
+        "submittedOutlook": build_submitted_market_outlook(),
         "relativeMarket": {
             "nikkei": {
                 "change5dPct": nikkei.get("change5dPct"),

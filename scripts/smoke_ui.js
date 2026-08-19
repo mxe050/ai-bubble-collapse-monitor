@@ -144,7 +144,9 @@ assert.match(indexSource, /id="copyMonitorButton"/);
 assert.match(indexSource, /サマリーコピー/);
 assert.match(indexSource, /id="nikkei-ai-three-series"/);
 assert.match(indexSource, /id="cycleValidationHeading"/);
+assert.match(indexSource, /id="submittedOutlookHeading"/);
 assert.match(appSource, /function renderRotationCycleValidation\(analysis\)/);
+assert.match(appSource, /function renderSubmittedOutlook\(analysis\)/);
 assert.match(stylesSource, /\.cycle-regime-grid/);assert.match(indexSource, /3つの円建て値/);
 assert.ok(indexSource.indexOf('class="rotation-comparison"') < indexSource.indexOf('id="nikkei-ai-three-series"'));
 assert.ok(indexSource.indexOf('id="nikkei-ai-three-series"') < indexSource.indexOf('class="kioxia-case"'));
@@ -376,6 +378,8 @@ Object.defineProperty(global.navigator, "clipboard", {
   configurable: true, value: { writeText: async (value) => { copiedMonitorText = String(value); } },
 });
 const payload = JSON.parse(fs.readFileSync("data/latest.json", "utf8"));
+// Freeze only the comparison-button fixture; saved snapshots are intentionally dated.
+payload.generatedAtJst = "2026-08-05T12:00:00+09:00";
 const moneyPayload = JSON.parse(fs.readFileSync("data/money-strategist-history.json", "utf8"));
 const marginPayload = JSON.parse(fs.readFileSync("data/margin-debt-history.json", "utf8"));
 const globalComparisonPayload = JSON.parse(fs.readFileSync("data/global-market-value-comparison.json", "utf8"));
@@ -501,7 +505,11 @@ setTimeout(async () => {
   assert.match(elements.get("cycleCurrentReading").innerHTML, /参照帯/);
   assert.strictEqual((elements.get("cycleRegimeGrid").innerHTML.match(/cycle-regime-card/g) || []).length, 4);
   assert.match(elements.get("cycleValuationScenario").innerHTML, /試算のみ/);
-  assert.match(elements.get("cycleFalsification").innerHTML, /この仮説が崩れる条件/);  const regionalMarkup = elements.get("regionalMarketCards").innerHTML;
+  assert.match(elements.get("cycleFalsification").innerHTML, /この仮説が崩れる条件/);
+  assert.match(elements.get("submittedOutlookStatus").innerHTML, /ライブ判定には不使用/);
+  assert.match(elements.get("submittedOutlookComparison").innerHTML, /TOPIXの単位は円ではなくポイント/);
+  assert.match(elements.get("submittedOutlookDiagnostics").innerHTML, /17\.66倍/);
+  assert.match(elements.get("submittedOutlookProducts").innerHTML, /1570/);  const regionalMarkup = elements.get("regionalMarketCards").innerHTML;
   const japanMarketCard = (regionalMarkup.match(/<article class="regional-market-card region-japan"[\s\S]*?<\/article>/) || [""])[0];
   assert.match(japanMarketCard, /2026-08-04・公式終値/);
   assert.match(japanMarketCard, /公式終値・official/);
@@ -794,7 +802,7 @@ setTimeout(async () => {
   assert.match(elements.get("msTop10Weight").textContent, /36\.4/);
   assert.match(elements.get("msNyFedProbability").textContent, /16\.1/);
   assert.match(elements.get("msChartLimit").textContent, /正式予測線ではない/);
-  assert.match(elements.get("msCpiLatest").textContent, /333.952/);
+  assert.strictEqual(elements.get("msCpiLatest").textContent, moneyPayload.inflation.history.at(-1).value.toFixed(3));
   assert.match(elements.get("msCpiMultiple").textContent, /倍/);
   assert.match(elements.get("msStockMultiple").textContent, /倍/);
   assert.match(elements.get("msRealStockMultiple").textContent, /倍/);
