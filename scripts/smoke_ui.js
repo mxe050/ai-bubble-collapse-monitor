@@ -172,6 +172,7 @@ assert.match(appSource, /直近1週間の価格推移/);
 assert.match(appSource, /1週間の推移（直近5取引日）/);
 assert.match(appSource, /LIVE_SNAPSHOT_REFRESH_INTERVAL_MS = 60000/);
 assert.match(appSource, /data\/live-intelligence\.json\?ts=/);
+assert.match(appSource, /staleWarningMinutes/);
 assert.match(appSource, /sourceKind === "official-company"/);
 assert.match(appSource, /issuerNewsMentionCount/);
 assert.match(appSource, /issuerIndependentNewsSourceCount/);
@@ -685,11 +686,58 @@ setTimeout(async () => {
   const nonCompanyPayload = JSON.parse(JSON.stringify(nextCompanyPayload));
   nonCompanyPayload.generatedAtUtc = new Date(currentGeneratedAt + 240000).toISOString();
   nonCompanyPayload.briefing.checkedAtUtc = nonCompanyPayload.generatedAtUtc;
-  nonCompanyPayload.briefing.items = [Object.assign({}, companyDisclosureItems[0], {
-    id: "smoke-general-news",
-    source: "Example News",
-    sourceKind: "news",
-  })];
+  nonCompanyPayload.briefing.items = [
+    Object.assign({}, companyDisclosureItems[0], {
+      id: "smoke-global-fx-intervention",
+      title: "US Treasury confirms coordinated foreign exchange intervention to support yen",
+      summary: "Officials confirmed a coordinated foreign exchange operation.",
+      source: "Reuters",
+      sourceKind: "news-wire",
+      sourceCountry: "US",
+      verification: "reported",
+      topic: "為替・金利",
+      topicKey: "fx-rates",
+      url: "https://www.reuters.com/markets/currencies/example",
+      original: { title: "US Treasury confirms coordinated foreign exchange intervention to support yen", excerpt: "Officials confirmed a coordinated foreign exchange operation.", language: "en" },
+      japanese: { title: "米財務省、協調為替介入を確認", summary: "為替介入の確認経路を検証するテスト項目です。", mode: "structured-gist" },
+    }),
+    Object.assign({}, companyDisclosureItems[0], {
+      id: "smoke-japan-only-news",
+      title: "Japan domestic company results",
+      source: "Domestic Example",
+      sourceKind: "news",
+      sourceCountry: "JP",
+      verification: "reported",
+      topic: "日本株",
+      topicKey: "japan-stocks",
+      japanese: { title: "国内企業決算テスト", summary: "海外情報から除外するテスト項目です。", mode: "source-japanese" },
+    }),
+    Object.assign({}, companyDisclosureItems[0], {
+      id: "smoke-verified-primary-statement",
+      title: "Federal Reserve chair says policy remains data dependent",
+      source: "Federal Reserve chair",
+      sourceKind: "primary-statement",
+      sourceCountry: "US",
+      verification: "primary-statement",
+      materialityScore: 60,
+      topic: "為替・金利",
+      topicKey: "fx-rates",
+      japanese: { title: "FRB議長、政策はデータ次第と発言", summary: "本人発言区分を検証するテスト項目です。", mode: "structured-gist" },
+    }),
+    Object.assign({}, companyDisclosureItems[0], {
+      id: "smoke-unverified-social-index",
+      title: "Unverified social post about markets",
+      source: "X public index",
+      sourceKind: "x-index",
+      sourceCountry: "US",
+      verification: "public-indexed",
+      materialityScore: 100,
+      independentSourceCount: 3,
+      topic: "政策・政府",
+      topicKey: "policy",
+      japanese: { title: "未検証SNS索引テスト", summary: "本人発言として扱わないテスト項目です。", mode: "structured-gist" },
+    }),
+  ];
   briefingRadios.forEach((radio) => { radio.checked = radio.value === "all"; });
   nextLiveResponse = nonCompanyPayload;
   await dispatchWindowEvent("focus");
@@ -851,8 +899,20 @@ setTimeout(async () => {
   assert.match(elements.get("berkshireCommentatorSource").textContent, /Finance Bureauの解説/);
   assert.match(elements.get("berkshireCommentatorSource").href, /Y8fJNR_xsnI/);
   assert.match(elements.get("berkshireContextSources").innerHTML, /Finance Bureau/);
-  assert.match(elements.get("overseasTakeaway").textContent, /今すぐ見る候補|ライブ候補/);
+  assert.match(elements.get("overseasTakeaway").textContent, /確認・学習候補|ライブ候補/);
   assert.match(elements.get("overseasNewsList").innerHTML, /overseas-live-card/);
+  assert.match(elements.get("overseasNewsList").innerHTML, /次に見る数字/);
+  assert.match(elements.get("overseasNewsList").innerHTML, /投資の勉強/);
+  assert.match(elements.get("overseasNewsList").innerHTML, /売買方向ではありません/);
+  assert.match(elements.get("overseasCrossAssetGrid").innerHTML, /米10年国債利回り/);
+  assert.match(elements.get("overseasLensChips").innerHTML, /為替・介入/);
+  assert.match(elements.get("overseasNewsList").innerHTML, /証拠の状態/);
+  assert.match(elements.get("overseasNewsList").innerHTML, /米財務省、協調為替介入を確認/);
+  assert.doesNotMatch(elements.get("overseasNewsList").innerHTML, /国内企業決算テスト/);
+  assert.match(elements.get("overseasNewsList").innerHTML, /本人発言を確認/);
+  assert.match(elements.get("overseasNewsList").innerHTML, /FRB議長、政策はデータ次第と発言/);
+  assert.doesNotMatch(elements.get("overseasNewsList").innerHTML, /未検証SNS索引テスト/);
+  assert.notStrictEqual(elements.get("overseasLensChips").innerHTML, "");
   assert.notStrictEqual(elements.get("overseasArchiveList").innerHTML, "");
   const purchasingPowerRender = renderedCharts.find((chart) => chart.target.id === "purchasingPowerChart");
   assert.ok(purchasingPowerRender, "purchasing power chart should be constructed");

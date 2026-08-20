@@ -3716,68 +3716,354 @@
     byId("berkshireSells").innerHTML = changeRows(filing.sells);
   }
 
+  var overseasInvestmentLenses = {
+    "monetary-policy": {
+      label: "金融政策・金利",
+      why: "政策金利の見通しは、債券利回りと割引率を通じて株式の評価倍率、ドル、資金調達コストへ伝わります。",
+      chain: "物価・雇用 → 政策金利予想 → 2年・10年・実質金利 → ドルと株価評価",
+      indicators: ["米2年・10年金利", "実質金利と期待インフレ", "DXY・USD/JPY", "FOMC声明と金利見通し"],
+      counter: "金利上昇と株高が同時なら、引き締め懸念だけでなく成長期待の改善も候補です。1日の値動きだけで原因を確定しません。",
+      lesson: "金利の水準より「何が予想から変わったか」を見ます。名目金利上昇を、実質金利と期待インフレに分けると株価への経路が明確になります。"
+    },
+    "inflation-labor": {
+      label: "物価・雇用",
+      why: "物価と雇用は中央銀行の反応関数を変え、金利・景気・企業利益の三方向から市場へ影響します。",
+      chain: "物価・雇用の予想差 → 利下げ・利上げ確率 → 金利とドル → 売上・利益・評価倍率",
+      indicators: ["コアCPI・コアPCE", "雇用者数・失業率・賃金", "市場予想との差", "発表後の2年金利"],
+      counter: "単月値は改定や季節要因で振れます。3か月傾向と内訳が同じ方向でなければ、持続的変化とは扱いません。",
+      lesson: "市場は良い数字・悪い数字そのものより、予想との差と政策への含意に反応します。"
+    },
+    "earnings": {
+      label: "利益・キャッシュフロー",
+      why: "株価を長く支えるのは売上だけでなく、利益率、現金化、会社の次期見通しです。",
+      chain: "売上数量・価格 → 粗利率・営業利益 → FCF → EPS予想と評価倍率",
+      indicators: ["売上・EPSの予想差", "営業利益率", "FCFとCapEx", "次期ガイダンスとアナリスト修正"],
+      counter: "一時費用、税効果、自社株買いでEPSだけが上振れた場合、事業の改善とは限りません。",
+      lesson: "決算は「結果・会社予想・市場予想」の3つを分けます。株価は好決算でも、期待を下回れば下がり得ます。"
+    },
+    "ai-capex": {
+      label: "AI投資回収",
+      why: "AI需要が本物でも、設備投資、減価償却、電力、価格競争を上回る現金収益が必要です。",
+      chain: "AI需要 → GPU・データセンター投資 → 稼働率と価格 → 減価償却 → FCF・投下資本利益率",
+      indicators: ["ハイパースケーラーCapEx", "AI関連売上と受注", "減価償却・FCFマージン", "GPU価格・在庫・リードタイム"],
+      counter: "CapEx増加だけでは強気でも弱気でもありません。増分売上、稼働率、FCFが投資負担を上回るかを確認します。",
+      lesson: "優れた技術と割安な証券は別です。逆DCFで、現在価格が要求する成長率を確認します。"
+    },
+    "credit-liquidity": {
+      label: "信用・流動性",
+      why: "信用スプレッドと流動性は、企業の借換え条件と投資家のリスク許容度を通じて株式へ波及します。",
+      chain: "資金供給・信用不安 → 借入金利・HY OAS → 借換えと投資 → 利益・デフォルト → 株価",
+      indicators: ["米HY OAS", "NFCI・金融環境", "社債発行と借換え", "デフォルト率・銀行貸出態度"],
+      counter: "株価下落だけで信用収縮とは言えません。スプレッド、発行市場、借換え条件の悪化が同時に必要です。",
+      lesson: "国債金利と社債利回りの差が信用スプレッドです。株価より先に資金調達の傷みを示すことがあります。"
+    },
+    "trade-policy": {
+      label: "政策・通商",
+      why: "政策見出しは、法的発効、対象品目、期間、企業の価格転嫁によって利益への影響が大きく変わります。",
+      chain: "発表 → 法的手続・実施時期 → 調達価格・販売数量 → 利益率 → インフレと金融政策",
+      indicators: ["一次資料の対象・発効日", "関税率と対象金額", "企業の価格転嫁", "利益率・サプライチェーン変更"],
+      counter: "提案、交渉、署名、発効を混同しません。免除や延期があれば最初の見出しどおりの影響にはなりません。",
+      lesson: "政策ニュースは「発言」ではなく、実施条件とキャッシュフローへの変換まで追います。"
+    },
+    "fx-intervention": {
+      label: "為替・介入",
+      why: "為替介入の見出しは、実施主体、公式確認、規模、単独か協調かで市場への意味が大きく変わります。",
+      chain: "当局の発言・実施 → 通貨需給 → USD/JPY → 輸入物価・企業利益 → 金融政策期待",
+      indicators: ["財務省・NY連銀等の公式発表", "USD/JPYの時刻別反応", "日米2年金利差", "介入実績・外貨準備"],
+      counter: "急な円高だけでは介入を証明できません。公式確認、取引時刻、金利差、ポジション解消を分けます。",
+      lesson: "価格変化は介入の証拠ではありません。発言、観測、実施確認、後日公表の4段階で確度を上げます。"
+    },
+    "positioning-flows": {
+      label: "需給・ポジショニング",
+      why: "資金フローやポジションは短期の価格変動を増幅しますが、企業価値そのものとは別です。",
+      chain: "ポジション偏り → ニュース・価格変化 → 損切り・ヘッジ → フロー増幅 → ボラティリティ",
+      indicators: ["ファンドフロー", "先物建玉・CFTC", "オプション・スキュー", "市場幅・出来高"],
+      counter: "フロー推計は対象範囲と集計頻度が異なります。単一業者の数字を市場全体へ外挿しません。",
+      lesson: "需給は方向の持続性ではなく、値動きが大きくなる条件として使います。"
+    },
+    "corporate-finance": {
+      label: "企業金融・IPO",
+      why: "資金調達は成長投資を可能にする一方、希薄化、利払い、投資回収の条件も変えます。",
+      chain: "株式・社債発行 → 資金調達コスト・希薄化 → 投資 → 売上・FCF → 企業価値",
+      indicators: ["発行額・条件", "希薄化率", "利回り・満期", "調達資金の用途とROIC"],
+      counter: "調達成功だけで事業成功とは言えません。用途、資本コスト、投資後の現金収益を確認します。",
+      lesson: "成長率だけでなく、成長1単位を得るために必要な追加資本を見ます。"
+    },
+    "general-policy": {
+      label: "政策・制度",
+      why: "政府方針は発言から法制化、施行、予算執行まで段階があり、各段階で実現確率が変わります。",
+      chain: "方針・法案 → 成立・施行条件 → 企業行動・家計需要 → 利益・物価 → 市場価格",
+      indicators: ["一次資料と法的段階", "施行日・対象範囲", "予算規模", "企業の費用・需要への影響"],
+      counter: "提案や観測を確定政策として扱いません。対象外、延期、司法判断も確認します。",
+      lesson: "政策ニュースは『誰が言ったか』だけでなく、『何が成立し、いつ現金収支へ効くか』まで追います。"
+    },
+    "valuation": {
+      label: "評価・期待",
+      why: "高い評価は下落の時期を示しませんが、金利上昇や利益未達に対する感応度を高めます。",
+      chain: "成長期待・割引率 → PER・FCF利回り → 期待修正 → 株価変動",
+      indicators: ["予想PER・FCF利回り", "利益予想の改定幅", "実質金利", "逆DCFの暗黙成長率"],
+      counter: "倍率だけで売買時点は決まりません。利益成長が期待を上回れば、高い倍率が維持される場合があります。",
+      lesson: "「高い」と「崩れた」を分けます。評価は脆弱性、価格・利益・信用の同時悪化は崩壊確認です。"
+    },
+    "market-move": {
+      label: "価格・市場の広がり",
+      why: "指数の値動きは結果であり、原因ではありません。銘柄の広がりと他資産の反応で仮説を絞ります。",
+      chain: "新情報 → 金利・為替・利益予想 → 指数 → 業種・小型株・信用への広がり",
+      indicators: ["Nasdaq対Russell", "上昇・下落銘柄数", "VIX", "出来高・信用スプレッド"],
+      counter: "少数の大型株だけで指数が動く場合、市場全体の景気判断とは一致しないことがあります。",
+      lesson: "指数、均等加重、業種、小型株を分けると「市場の広がり」が見えます。"
+    },
+    "generic": {
+      label: "複合材料",
+      why: "見出しだけでは利益、金利、信用のどの経路が主か確定できません。一次資料と市場価格を照合します。",
+      chain: "公表・報道 → 直接影響の特定 → 確認指標 → 利益・割引率・リスク許容度",
+      indicators: ["一次資料の数値と対象期間", "市場予想との差", "関連する金利・為替", "企業利益・信用の確認値"],
+      counter: "単一記事やSNSの反応数は、事実の正しさ、代表性、将来リターンを保証しません。",
+      lesson: "事実、解釈、予測を別々に記録すると、ニュースに追随するだけの判断を避けやすくなります。"
+    }
+  };
+
+  function overseasEventKey(item) {
+    var text = [
+      item && item.title, item && item.summary, item && item.topicKey,
+      item && item.topic, item && item.disclosureCategory
+    ].filter(Boolean).join(" ").toLowerCase();
+    if (/credit spread|high[- ]yield|default|refinanc|funding|liquidity|repo|bank stress|oas\b/.test(text)) return "credit-liquidity";
+    if (/intervention|foreign exchange|\bfx\b|usd.?jpy|yen|currency (?:support|defend)|exchange rate/.test(text)) return "fx-intervention";
+    if (/positioning|fund flows?|options? skew|put.?call|dealer gamma|short interest|futures? positions?/.test(text)) return "positioning-flows";
+    if (/\bipo\b|public offering|capital rais|convertible|debt offering|share issuance|venture funding/.test(text)) return "corporate-finance";
+    if (/capex|data ?center|depreciation|gpu|hyperscaler|hbm|semiconductor (?:inventory|capacity)|ai spending/.test(text)) return "ai-capex";
+    if (/earnings?|results?|revenue|sales|guidance|margin|free cash flow|\bfcf\b|\beps\b|outlook/.test(text)) return "earnings";
+    if (/\bcpi\b|\bpce\b|inflation|payroll|employment|unemployment|wages?|labor market|jobs report/.test(text)) return "inflation-labor";
+    if (/fomc|federal reserve|central bank|rate cut|rate hike|policy rate|treasury yield|treasury auction|bank of japan|\bboj\b/.test(text)) return "monetary-policy";
+    if (/tariffs?|sanctions?|trade policy|export controls?|regulation|antitrust/.test(text)) return "trade-policy";
+    if (/executive order|legislation|government policy|subsid|tax credit|fiscal|budget/.test(text)) return "general-policy";
+    if (/valuation|multiple|priced in|\bcape\b|p\/e|pe ratio|bubble/.test(text)) return "valuation";
+    if (/rally|selloff|surge|plunge|slump|stocks? (?:rise|fall|swing)|market breadth/.test(text)) return "market-move";
+    if (String(item && item.topicKey) === "ai-bubble") return "ai-capex";
+    if (String(item && item.topicKey) === "us-stocks") return "market-move";
+    if (String(item && item.topicKey) === "policy") return "general-policy";
+    return "generic";
+  }
+
+  function overseasEvidence(item) {
+    var verification = String(item && item.verification || "").toLowerCase();
+    var sourceKind = String(item && item.sourceKind || "").toLowerCase();
+    var statement = verification === "primary-statement" || verification === "archived-statement";
+    var official = !statement && (/^official/.test(sourceKind) || verification === "primary");
+    var reported = /^reported/.test(verification);
+    var independent = Math.max(1, Number(item && item.independentSourceCount) || 1);
+    var clusterSize = Math.max(1, Number(item && (item.rankingClusterSize || item.clusterSize)) || 1);
+    var bucket = official ? "official" : statement ? "statement" : reported ? "reported" : "observation";
+    return {
+      bucket: bucket,
+      label: official ? "公式公表・一次データ" : statement ? "本人発言を確認" : reported ? "報道・一次資料待ち" : "発見候補・原文待ち",
+      boundary: official
+        ? "公表主体の資料または一次データへの導線です。数値の定義、対象期間、例外条件は原文で再確認します。"
+        : statement
+        ? "本人または本人名義の公開発言への導線です。発言したことと、内容の真偽・政策実施は分けて確認します。"
+        : reported
+        ? "媒体の見出し・提供メタデータを確認した段階です。確認済み事実や売買方向へ直接変換せず、一次資料を探します。"
+        : "SNSまたは公開索引で見つけた候補です。本人性、全文、代表性が未確認のため、投資判断の根拠にはしません。",
+      independent: independent,
+      clusterSize: clusterSize
+    };
+  }
+
+  function overseasTrustedSource(item) {
+    var evidence = overseasEvidence(item);
+    var sourceKind = String(item && item.sourceKind || "").toLowerCase();
+    if (evidence.bucket === "official" || evidence.bucket === "statement" || sourceKind === "news-wire") return true;
+    var identity = [item && item.source, item && item.publisher, item && item.url].filter(Boolean).join(" ").toLowerCase();
+    return /reuters|bloomberg|associated press|ap news|financial times|wall street journal|wsj|cnbc|bbc|nikkei asia|the economist|new york times|washington post|marketwatch|barron/.test(identity);
+  }
+
+  function overseasDeepDiveEligible(item) {
+    var evidence = overseasEvidence(item);
+    if (evidence.bucket === "observation") return false;
+    if (evidence.bucket === "statement" && (finite(item && item.materialityScore) === null || Number(item.materialityScore) < 20)) return false;
+    return overseasTrustedSource(item) || evidence.independent >= 2;
+  }
+
+  function overseasPriority(item) {
+    var evidence = overseasEvidence(item);
+    var freshness = String(item && item.freshness && item.freshness.bucket || "");
+    var freshnessBonus = freshness === "breaking" ? 20 : freshness === "developing" ? 14 : freshness === "today" ? 8 : 0;
+    var evidenceBonus = evidence.bucket === "official" ? 80 : evidence.bucket === "statement" ? 55 : evidence.bucket === "reported" ? 50 : 0;
+    return evidenceBonus + freshnessBonus
+      + Math.min(30, Math.max(0, evidence.independent - 1) * 15)
+      + Math.min(30, Number(item && item.materialityScore) || 0) / 3;
+  }
+
+  function selectOverseasDeepDiveItems(items) {
+    var candidates = (items || []).filter(function (item) {
+      if (!item || typeof item !== "object") return false;
+      var country = String(item.sourceCountry || "").toUpperCase();
+      var topicKey = String(item.topicKey || "").toLowerCase();
+      return country !== "JP"
+        && topicKey !== "japan-stocks"
+        && String(item.sourceKind || "").toLowerCase() !== "official-japan"
+        && overseasDeepDiveEligible(item);
+    });
+    var ranked = candidates.slice().sort(function (left, right) {
+      return overseasPriority(right) - overseasPriority(left)
+        || (briefingTimestamp(right) || 0) - (briefingTimestamp(left) || 0);
+    });
+    var selected = [];
+    var selectedIds = {};
+    var lensCounts = {};
+    var topicCounts = {};
+    function add(item) {
+      if (!item || typeof item !== "object") return false;
+      var id = String(item.id || item.url || item.title || "");
+      var lens = overseasEventKey(item);
+      var topic = String(item.topicKey || "other");
+      if (!id || selectedIds[id] || lensCounts[lens] >= 2 || topicCounts[topic] >= 3) return false;
+      selected.push(item);
+      selectedIds[id] = true;
+      lensCounts[lens] = (lensCounts[lens] || 0) + 1;
+      topicCounts[topic] = (topicCounts[topic] || 0) + 1;
+      return true;
+    }
+    ranked.forEach(function (item) { if (selected.length < 8) add(item); });
+    return selected.sort(function (left, right) {
+      return overseasPriority(right) - overseasPriority(left)
+        || (briefingTimestamp(right) || 0) - (briefingTimestamp(left) || 0);
+    });
+  }
+
+  function overseasCrossAssetCard(label, value, change, note, tone, references) {
+    var rows = (references || []).filter(Boolean);
+    var timestamps = rows.map(function (row) { return row.quoteTimeUtc; }).filter(Boolean);
+    var timeLabel = timestamps.length ? "価格時刻 " + formatLiveTime(timestamps[0], "未確認") + " JST" : "価格時刻は未確認";
+    if (rows.length > 1) timeLabel += "（比較する各系列は個別時刻）";
+    var delayed = rows.some(function (row) { return row.marketState && row.marketState !== "updating"; });
+    var seenUrls = {};
+    var sourceLinks = rows.map(function (row, index) {
+      var url = String(row.sourceUrl || "");
+      if (!url || seenUrls[url]) return "";
+      seenUrls[url] = true;
+      return liveSourceLink(url, rows.length > 1 ? "原データ" + (index + 1) : "原データ", "overseas-cross-asset-source");
+    }).join("");
+    return '<article class="' + escapeHtml(tone || "neutral") + '"><span>' + escapeHtml(label)
+      + '</span><strong>' + escapeHtml(value) + '</strong><small>' + escapeHtml(change)
+      + '</small><small class="overseas-cross-asset-time">' + escapeHtml(timeLabel)
+      + (delayed ? " / 遅延または休場" : "") + '</small><p>' + escapeHtml(note) + '</p>'
+      + sourceLinks + '</article>';
+  }
+
+  function renderOverseasCrossAsset(live) {
+    var quotes = ((live || {}).premarket || {}).quotes || {};
+    var fmt = new Intl.NumberFormat("ja-JP", { maximumFractionDigits: 2 });
+    function q(key) { return quotes[key] && finite(quotes[key].value) !== null ? quotes[key] : null; }
+    function pct(row) {
+      var value = finite(row && row.changePct);
+      return value === null ? "前営業日比は未確認" : "前営業日比 " + (value > 0 ? "+" : "") + fmt.format(value) + "%";
+    }
+    var us10y = q("US10Y");
+    var vix = q("VIX");
+    var nasdaq = q("NASDAQ100_FUTURES");
+    var russell = q("RUSSELL2000_FUTURES");
+    var usdJpy = q("USDJPY");
+    var breadth = finite(nasdaq && nasdaq.changePct) !== null && finite(russell && russell.changePct) !== null
+      ? Number(nasdaq.changePct) - Number(russell.changePct) : null;
+    byId("overseasCrossAssetGrid").innerHTML = [
+      overseasCrossAssetCard("長期金利｜米10年国債利回り", us10y ? fmt.format(us10y.value) + "%" : "未確認", pct(us10y), "株式の割引率を構成する一要素です。上昇は成長期待の改善でも起こるため、原因を別に確認します。", "rates", [us10y]),
+      overseasCrossAssetCard("30日予想変動率｜VIX", vix ? fmt.format(vix.value) : "未確認", pct(vix), "オプション価格から計算される予想変動率で、株価の上げ下げを直接示す指数ではありません。", "volatility", [vix]),
+      overseasCrossAssetCard("相対パフォーマンス｜Nasdaq－Russell", breadth === null ? "未確認" : (breadth > 0 ? "+" : "") + fmt.format(breadth) + "pt", breadth === null ? "両先物の比較不可" : "前営業日比の差", "大型グロースと小型株の相対反応です。市場幅そのものは上昇銘柄数や均等加重指数で別に確認します。", "breadth", [nasdaq, russell]),
+      overseasCrossAssetCard("為替経路｜USD/JPY", usdJpy ? fmt.format(usdJpy.value) : "未確認", pct(usdJpy), "日本企業の円換算利益と海外投資家の円建て収益に影響します。原因は金利差等で別に確認します。", "fx", [usdJpy])
+    ].join("");
+  }
+
+  function overseasRelatedLinks(item) {
+    var links = Array.isArray(item && item.relatedLinks) ? item.relatedLinks : [];
+    if (!links.length) return "";
+    return '<div class="overseas-related-links"><strong>同じ論点を報じた別経路</strong>'
+      + links.slice(0, 4).map(function (row) {
+        return liveSourceLink(row.url, row.source || "関連原文", "overseas-related-link");
+      }).join("") + '</div>';
+  }
+
   function renderOverseasIntelligence() {
     var intelligence = state.data.overseasIntelligence || {};
     var xWatch = intelligence.x || {};
     var live = state.liveIntelligence || {};
     var briefing = live.briefing || {};
     var allLiveItems = Array.isArray(briefing.items) ? briefing.items : [];
-    var liveItems = allLiveItems.filter(function (item) {
-      if (!item || typeof item !== "object") return false;
-      var country = String(item.sourceCountry || "").toUpperCase();
-      var topic = String(item.topicKey || "") + " " + String(item.topic || "");
-      return country !== "JP" && !/japan|日本/.test(topic);
-    }).sort(function (left, right) {
-      return (briefingTimestamp(right) || 0) - (briefingTimestamp(left) || 0);
-    }).slice(0, 8);
+    var liveItems = selectOverseasDeepDiveItems(allLiveItems);
     var checkedAt = live.generatedAtUtc || live.generatedAtJst || intelligence.checkedAtUtc || "";
     var checked = checkedAt ? new Date(checkedAt) : null;
-    var counts = { official: 0, reported: 0, observation: 0 };
+    var counts = { official: 0, statement: 0, reported: 0, observation: 0 };
     liveItems.forEach(function (item) {
-      var verification = String(item.verification || "").toLowerCase();
-      var kind = String(item.sourceKind || "").toLowerCase();
-      var bucket = /^primary/.test(verification) || /^official/.test(kind) ? "official"
-        : /^reported/.test(verification) ? "reported" : "observation";
-      counts[bucket] += 1;
+      counts[overseasEvidence(item).bucket] += 1;
     });
+    var ageMinutes = checked && !Number.isNaN(checked.valueOf())
+      ? Math.max(0, (Date.now() - checked.valueOf()) / 60000) : null;
+    var stale = ageMinutes !== null && ageMinutes > 180;
     byId("overseasSummary").textContent = liveItems.length
-      ? "海外の新着候補を" + formatLiveTime(checkedAt, "") + " JSTに再確認。上段は新しい順に、公式資料と主要報道を優先して表示します。"
+      ? (stale ? "最後に成功した海外候補を" : "海外候補を") + formatLiveTime(checkedAt, "")
+        + " JST時点で整理。表示優先度、裏付け、鮮度、論点の多様性を合わせ、最大8件を投資の確認手順に沿って整理します。"
       : (intelligence.summary || "海外情報の更新結果がありません。");
     byId("overseasTakeaway").textContent = liveItems.length
-      ? "今すぐ見る候補 " + liveItems.length + "件：公式確認 " + counts.official + "件 / 主要報道・公式確認待ち " + counts.reported + "件 / 観測・原文確認待ち " + counts.observation + "件"
+      ? "確認・学習候補 " + liveItems.length + "件：公式公表・一次データ " + counts.official + "件 / 本人発言 " + counts.statement + "件 / 報道・一次資料待ち " + counts.reported + "件"
       : "ライブ候補を取得できなかったため、下の保存済み背景記事を表示します。";
-    byId("overseasVerificationPath").textContent = "「公式確認」は中央銀行・政府・企業IRなどの一次資料です。「主要報道」は原文を開いて公式資料へ進みます。「観測」はSNSや索引の発見段階で、投資判断の根拠にしません。";
+    byId("overseasVerificationPath").textContent = "公式公表・本人発言・報道・発見候補を分けます。見出しの強気・弱気は文章の語調であって、売買方向ではありません。";
     byId("overseasCheckedAt").textContent = checked && !Number.isNaN(checked.valueOf())
-      ? "ライブ確認 " + new Intl.DateTimeFormat("ja-JP", { dateStyle: "medium", timeStyle: "short", timeZone: "Asia/Tokyo" }).format(checked)
+      ? (stale ? "更新停止・最終成功 " : "ライブ確認 ") + new Intl.DateTimeFormat("ja-JP", { dateStyle: "medium", timeStyle: "short", timeZone: "Asia/Tokyo" }).format(checked)
       : "ライブ確認時刻なし";
     byId("overseasXStatus").textContent = "SNS・投稿は観測扱い。公式資料と主要報道を優先して照合";
+    renderOverseasCrossAsset(live);
     var topicCounts = {};
+    var lensCounts = {};
     liveItems.forEach(function (item) {
       var topic = item.topic || item.topicKey || "海外材料";
+      var lensKey = overseasEventKey(item);
       topicCounts[topic] = (topicCounts[topic] || 0) + 1;
+      lensCounts[lensKey] = (lensCounts[lensKey] || 0) + 1;
     });
     var topics = Object.keys(topicCounts).map(function (key) { return [key, topicCounts[key]]; })
       .sort(function (left, right) { return right[1] - left[1]; });
     byId("overseasTopicChips").innerHTML = topics.map(function (row) {
       return "<span>" + escapeHtml(row[0]) + " <strong>" + nikkeiFormat.format(row[1]) + "</strong></span>";
     }).join("");
+    byId("overseasLensChips").innerHTML = Object.keys(lensCounts).sort(function (left, right) {
+      return lensCounts[right] - lensCounts[left];
+    }).map(function (key) {
+      return "<span>" + escapeHtml((overseasInvestmentLenses[key] || overseasInvestmentLenses.generic).label)
+        + " <strong>" + nikkeiFormat.format(lensCounts[key]) + "</strong></span>";
+    }).join("");
     byId("overseasNewsList").innerHTML = liveItems.map(function (item) {
       var copy = briefingCopy(item);
-      var verification = String(item.verification || "").toLowerCase();
-      var sourceKind = String(item.sourceKind || "").toLowerCase();
-      var bucket = /^primary/.test(verification) || /^official/.test(sourceKind) ? "official"
-        : /^reported/.test(verification) ? "reported" : "observation";
-      var bucketLabel = bucket === "official" ? "公式確認" : bucket === "reported" ? "主要報道・公式確認待ち" : "観測・原文確認待ち";
+      var evidence = overseasEvidence(item);
+      var lensKey = overseasEventKey(item);
+      var lens = overseasInvestmentLenses[lensKey] || overseasInvestmentLenses.generic;
       var japaneseTitle = copy.japaneseTitle || item.title || "海外の最新材料";
       var japaneseSummary = copy.japaneseSummary || "日本語要旨は未取得です。原文を直接確認してください。";
       var originalTitle = copy.originalTitle || item.title || "";
       var originalSummary = copy.originalSummary || item.summary || "";
-      return '<article class="overseas-live-card" data-verification="' + escapeHtml(bucket) + '">'
-        + '<div class="overseas-live-meta"><span>' + escapeHtml(bucketLabel) + '</span><span>' + escapeHtml(briefingPublicationLabel(item)) + '</span><span>' + escapeHtml(item.source || item.publisher || "情報源未確認") + '</span></div>'
-        + '<h4>' + escapeHtml(japaneseTitle) + '</h4><p>' + escapeHtml(japaneseSummary) + '</p>'
+      var rawEffect = Array.isArray(item.effect) ? item.effect[0] : null;
+      var direction = String(rawEffect && rawEffect.direction || "neutral");
+      var toneLabels = { positive: "強気語調", bullish: "強気語調", negative: "弱気語調", bearish: "弱気語調", mixed: "強弱混在", neutral: "中立語調" };
+      var indicatorList = lens.indicators.map(function (indicator) {
+        return "<li>" + escapeHtml(indicator) + "</li>";
+      }).join("");
+      return '<article class="overseas-live-card overseas-deep-card" data-verification="' + escapeHtml(evidence.bucket) + '">'
+        + '<div class="overseas-live-meta"><span>' + escapeHtml(evidence.label) + '</span><span>' + escapeHtml(lens.label) + '</span><span>' + escapeHtml(briefingPublicationLabel(item)) + '</span><span>' + escapeHtml(item.source || item.publisher || "情報源未確認") + '</span><span>独立出所 ' + nikkeiFormat.format(evidence.independent) + '</span>'
+        + (evidence.clusterSize > 1 ? '<span>関連記事 ' + nikkeiFormat.format(evidence.clusterSize) + '</span>' : '') + '</div>'
+        + '<h4>' + escapeHtml(japaneseTitle) + '</h4>'
+        + '<div class="overseas-headline-tone"><span>' + escapeHtml(toneLabels[direction] || toneLabels.neutral) + '</span><small>見出しの語調であり、売買方向ではありません</small></div>'
+        + '<div class="overseas-item-summary"><strong>見出し・提供メタデータからの要旨</strong><p>' + escapeHtml(japaneseSummary) + '</p></div>'
+        + '<div class="overseas-analysis-grid">'
+        + '<section class="fact"><span>証拠の状態</span><p>' + escapeHtml(evidence.boundary) + '</p></section>'
+        + '<section><span>このテーマが一般に重要な理由</span><p>' + escapeHtml(lens.why) + '</p></section>'
+        + '<section class="chain"><span>一般に想定される経路</span><p>' + escapeHtml(lens.chain) + '</p></section>'
+        + '<section><span>次に見る数字</span><ul>' + indicatorList + '</ul></section>'
+        + '<section class="counter"><span>反証・注意</span><p>' + escapeHtml(lens.counter) + '</p></section>'
+        + '<section class="lesson"><span>投資の勉強</span><p>' + escapeHtml(lens.lesson) + '</p></section></div>'
         + '<details><summary>原文と掲載情報を確認</summary><p lang="' + escapeHtml(copy.originalLanguage || "en") + '">' + escapeHtml(originalTitle) + (originalSummary ? " — " + escapeHtml(originalSummary) : "") + '</p></details>'
+        + overseasRelatedLinks(item)
         + liveSourceLink(item.url, originalSourceLinkLabel(item.url), "overseas-live-link") + '</article>';
-    }).join("") || "<p>今回のライブ取得では海外の新着候補を確認できませんでした。保存済み記事は下から確認できます。</p>";
+    }).join("") || "<p>今回のライブ取得では、深掘り条件を満たす海外候補を確認できませんでした。保存済み記事は下から確認できます。</p>";
     var archiveItems = (intelligence.newsItems || []).slice(0, 12).concat((xWatch.items || []).slice(0, 6));
     byId("overseasArchiveCount").textContent = archiveItems.length + "件";
     byId("overseasArchiveList").innerHTML = archiveItems.map(function (row) {
@@ -3785,7 +4071,7 @@
       return '<div>' + liveSourceLink(row.url, label, "overseas-archive-link")
         + '<small>' + escapeHtml(row.source || "") + " / " + escapeHtml(row.topic || row.evidenceLevel || "背景情報") + '</small></div>';
     }).join("") || "<p>保存済みの背景記事はありません。</p>";
-    byId("overseasReadingRule").textContent = (intelligence.readingRule || "") + " 上段の原文リンクから一次資料・記事の詳細を直接確認できます。";
+    byId("overseasReadingRule").textContent = (intelligence.readingRule || "") + " 原文リンクから詳細を確認できます。記事本文を取得していない要旨は見出し段階と表示し、証拠の状態と一般的な解釈・学びを分けています。";
   }
 
   function renderUsMarketIntelligence() {
@@ -4844,10 +5130,12 @@
     var generated = live.generatedAtUtc ? new Date(live.generatedAtUtc) : null;
     var ageMinutes = generated && !Number.isNaN(generated.valueOf()) ? (Date.now() - generated.valueOf()) / 60000 : null;
     var warnings = [];
+    var targetRefreshMinutes = finite((live.refreshPolicy || {}).targetIntervalMinutes);
+    var staleWarningMinutes = Math.max(35, (targetRefreshMinutes === null ? 60 : targetRefreshMinutes) + 30);
     if (!hasLiveSnapshot) warnings.push("速報スナップショットを取得できませんでした。前回値ではなく未確認として表示します。");
     if (health.status && health.status !== "ok") warnings.push(health.message || "一部取得経路が限定または失敗しています。");
     if (xApi && xApi.status === "not-configured") warnings.push("X APIは未接続です。公開ウェブ索引とXの直接検索リンクを表示し、欠測を中立・弱気とは扱いません。");
-    if (ageMinutes !== null && ageMinutes > 35) warnings.push("スナップショットは" + Math.round(ageMinutes) + "分前です。カードの取得時刻を確認してください。");
+    if (ageMinutes !== null && ageMinutes > staleWarningMinutes) warnings.push("スナップショットは" + Math.round(ageMinutes) + "分前です。カードの取得時刻を確認してください。");
     var translationStatus = briefing.translationStatus || {};
     if (translationStatus.status === "not-configured") {
       warnings.push("日本語欄はDeepL未接続のため、英単語の置換ではなく日本語の構造化要旨を表示します。翻訳ではない項目はカード内で明記しています。");

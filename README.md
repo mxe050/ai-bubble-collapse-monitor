@@ -216,9 +216,9 @@ SOXの35%下落は2021～22年NASDAQ総合の約36.4%下落を丸めた歴史的
 
 ## データ更新と自動監査
 
-長期の市場・財務・企業データは `scripts/update_data.py`、東証休場中の先物・為替急変・海外速報は `scripts/live_intelligence.py` が更新します。6時間ごとの既存監査は長期データを読み取り専用で再取得・検証します。別のGitHub Pages workflowは5分間隔を目標に軽量速報を再生成し、`scripts/validate_live_data.py` の検証後にPages artifactを配信します。生成JSONはリポジトリへ自動コミットしません。
+長期の市場・財務・企業データは `scripts/update_data.py`、東証休場中の先物・為替急変・海外速報は `scripts/live_intelligence.py` が更新します。6時間ごとの既存監査は長期データを読み取り専用で再取得・検証します。別のGitHub Pages workflowは1時間間隔を目標に軽量速報を再生成し、`scripts/validate_live_data.py` の検証後にPages artifactを配信します。生成JSONはリポジトリへ自動コミットしません。
 
-公開版は、画面を開いたままでも1分ごとに配信済み速報JSONの更新を確認し、更新ボタンでは同じスナップショットをキャッシュなしで再読込します。ただし、上流の5分間隔はGitHub Actionsのスケジュール目標であり、速報反映時間を保証するSLAではありません。Actionsの開始、取得元、検証・ビルド、Pagesへの配信やCDNキャッシュの遅延により、5分を超えることがあります。ローカルサーバーの更新ボタンは長期データと速報を並列取得し、双方の検証に成功した場合だけ画面を更新します。
+公開版は、画面を開いたままでも1分ごとに配信済み速報JSONの更新を確認し、更新ボタンでは同じスナップショットをキャッシュなしで再読込します。ただし、上流の1時間間隔はGitHub Actionsのスケジュール目標であり、速報反映時間を保証するSLAではありません。Actionsの開始、取得元、検証・ビルド、Pagesへの配信やCDNキャッシュの遅延により、1時間を超えることがあります。ローカルサーバーの更新ボタンは長期データと速報を並列取得し、双方の検証に成功した場合だけ画面を更新します。
 
 速報は、CME日経225円建て・ドル建て先物、S&P 500・Nasdaq 100・Dow・Russell 2000先物、USD/JPY、米10年金利、VIXの5分足を監視します。各カードのミニチャートは、直近1週間（最大5取引日）の推移が分かるように表示します。ニュースはGDELT DOC 2.0、Google News、Bing Newsを独立した発見経路として使います。FRB、米財務省、ホワイトハウス、BLS、SEC、日銀、財務省に加え、JPX/TDnetの公式会社開示を一次資料として優先します。X API、X公開索引、LinkedIn公開索引、Bluesky、Truth Socialも接続状態を個別表示し、未接続・取得失敗を中立材料や成功件数へ変換しません。
 
@@ -294,7 +294,7 @@ Mark Mossの動画「The Last 3 Crashes All Had An Exit. This One Doesn't.」か
 ## Method v4.4: 最新取得ボタンと米国株の崩壊進行度
 
 - ローカル閲覧は `scripts/local_server.py` で起動します。画面上部の「最新データを取得・再計算」は、長期市場・企業データと、日経・米国先物、USD/JPY、金利、VIX、海外速報を並列取得し、双方の検証後に画面を更新します。
-- GitHub Pagesなどの静的ホストでは、ブラウザにAPI鍵を置かないため、5分間隔を目標に配信された最新速報JSONを1分ごとに確認し、ボタンはそのJSONのキャッシュなし再読込へ切り替わります。5分はGitHub ActionsとPages配信の目標で、反映時間を保証するSLAではありません。
+- GitHub Pagesなどの静的ホストでは、ブラウザにAPI鍵を置かないため、1時間間隔を目標に配信された最新速報JSONを1分ごとに確認し、ボタンはそのJSONのキャッシュなし再読込へ切り替わります。1時間はGitHub ActionsとPages配信の目標で、反映時間を保証するSLAではありません。
 - 米国株の「崩壊進行度」は暴落確率ではありません。S&Pの価格30点、半導体・AI市場幅20点、VIX・信用25点、企業の売上・FCF15点、NFCI10点を合成し、期待相場の崩れが市場全体へ広がった程度を示します。
 - Berkshireの純流動性は、現金・現金同等物＋米国短期国債－未決済の短期国債購入債務で再計算します。13Fは時価ではなく株数を前四半期と比較します。
 - Berkshireの長期文脈は、2022年10–12月期から2026年1–3月期までの14四半期連続純売却と、累計約1,948億ドルを10-Q・10-Kの株式購入額と売却額から確認します。最近のAI相場を見て突然始めた現金化とは扱いませんが、AIバブル崩壊予測とも断定せず、Finance Bureauの解釈を崩壊スコアへは加えません。
@@ -366,7 +366,7 @@ Mark Mossの動画「The Last 3 Crashes All Had An Exit. This One Doesn't.」か
 
 上部の「最新データを取得・再計算」は、既存データと同時に `data/global-market-value-comparison.json` を再生成します。取得元の生データは2時間キャッシュし、ライブ取得失敗時には前回成功キャッシュへ戻します。日経PERは初回だけ2004年9月以降を取得し、その後は未取得月と直近2か月だけを再確認します。
 
-GitHubリポジトリとGitHub Pagesは公開されています。6時間ごとの長期監査は読み取り専用で、生成JSONを自動コミットしません。5分間隔を目標とする速報workflowは、先物・為替・会社開示・海外情報の検証済みJSONをPages artifactへ含めて配信します。これはbest-effortの目標であり、GitHub Actionsの開始、取得元、検証・ビルド、Pages配信やCDNの遅延により5分を超えることがあります。長期データの保存更新は引き続きローカルサーバーで行います。
+GitHubリポジトリとGitHub Pagesは公開されています。6時間ごとの長期監査は読み取り専用で、生成JSONを自動コミットしません。1時間間隔を目標とする速報workflowは、先物・為替・会社開示・海外情報の検証済みJSONをPages artifactへ含めて配信します。これはbest-effortの目標であり、GitHub Actionsの開始、取得元、検証・ビルド、Pages配信やCDNの遅延により1時間を超えることがあります。長期データの保存更新は引き続きローカルサーバーで行います。
 
 ```powershell
 & "C:\Users\yuasa\.cache\codex-runtimes\codex-primary-runtime\dependencies\python\python.exe" scripts\global_comparison.py

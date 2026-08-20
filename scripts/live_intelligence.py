@@ -208,6 +208,10 @@ PREMARKET_DISPLAY_KEYS = (
     "SP500_FUTURES", "NASDAQ100_FUTURES", "DOW_FUTURES", "RUSSELL2000_FUTURES",
     "USDJPY", "US10Y", "VIX",
 )
+CME_SESSION_KEYS = frozenset({
+    "NIKKEI_FUTURES_YEN", "NIKKEI_FUTURES_USD", "SP500_FUTURES",
+    "NASDAQ100_FUTURES", "DOW_FUTURES", "RUSSELL2000_FUTURES",
+})
 MARKET_SUMMARY_OVERLAY_KEYS = (
     "NIKKEI_CASH", "SP500_CASH", "CSI300_CASH", "DXY", "ACWI_CASH", "KIOXIA",
 )
@@ -343,6 +347,53 @@ NEWS_QUERIES = (
     {
         "key": "policy",
         "query": '("Federal Reserve" OR FOMC OR Treasury OR "White House") (markets OR rates OR tariffs)',
+    },
+    {
+        "key": "fx-rates",
+        "name": "Global rates, liquidity and credit",
+        "query": (
+            '("real yield" OR "term premium" OR "Treasury auction" OR '
+            '"credit spread" OR liquidity OR "quantitative tightening") '
+            '(stocks OR dollar OR valuation)'
+        ),
+        "providers": ("google", "bing"),
+        "requiredAnyTerms": (
+            "real yield", "term premium", "treasury auction", "credit spread",
+            "liquidity", "quantitative tightening",
+        ),
+        "maxAgeHours": 48,
+        "acceptedLimit": 12,
+    },
+    {
+        "key": "ai-bubble",
+        "name": "AI investment economics",
+        "query": (
+            '(hyperscaler OR "AI data center" OR GPU OR semiconductor) '
+            '(capex OR depreciation OR utilization OR "free cash flow" OR '
+            'pricing OR inventory)'
+        ),
+        "providers": ("google", "bing"),
+        "requiredAnyTerms": (
+            "hyperscaler", "ai data center", "gpu", "semiconductor", "capex",
+            "depreciation", "utilization", "free cash flow", "inventory",
+        ),
+        "maxAgeHours": 48,
+        "acceptedLimit": 12,
+    },
+    {
+        "key": "us-stocks",
+        "name": "Market breadth and positioning",
+        "query": (
+            '("market breadth" OR "earnings revisions" OR "options skew" OR '
+            'positioning OR "fund flows") ("S&P 500" OR Nasdaq OR stocks)'
+        ),
+        "providers": ("google", "bing"),
+        "requiredAnyTerms": (
+            "market breadth", "earnings revisions", "options skew", "positioning",
+            "fund flows",
+        ),
+        "maxAgeHours": 48,
+        "acceptedLimit": 12,
     },
     {
         "key": "economists",
@@ -1720,10 +1771,21 @@ def _sample_weekly_sparkline(
     return [points[index] for index in sorted(selected)]
 
 
+def _market_session_date(
+    timestamp: int, market_timezone: timezone | ZoneInfo, session_roll_hour: int | None
+) -> date:
+    local_time = datetime.fromtimestamp(timestamp, timezone.utc).astimezone(market_timezone)
+    market_date = local_time.date()
+    if session_roll_hour is not None and local_time.hour >= session_roll_hour:
+        market_date += timedelta(days=1)
+    return market_date
+
+
 def _latest_trading_days(
-    points: list[dict[str, Any]], exchange_timezone: str | None, days: int = 5
+    points: list[dict[str, Any]], exchange_timezone: str | None, days: int = 5,
+    session_roll_hour: int | None = None,
 ) -> list[dict[str, Any]]:
-    """Return the newest market-calendar days that have intraday prices."""
+    """Return the newest exchange sessions that have intraday prices."""
     try:
         market_timezone = ZoneInfo(exchange_timezone) if exchange_timezone else timezone.utc
     except ZoneInfoNotFoundError:
@@ -1731,9 +1793,9 @@ def _latest_trading_days(
 
     dates: set[Any] = set()
     for row in reversed(points):
-        market_date = datetime.fromtimestamp(
-            row["timestamp"], timezone.utc
-        ).astimezone(market_timezone).date()
+        market_date = _market_session_date(
+            row["timestamp"], market_timezone, session_roll_hour
+        )
         dates.add(market_date)
         if len(dates) == days:
             break
@@ -1741,9 +1803,8 @@ def _latest_trading_days(
     return [
         row
         for row in points
-        if datetime.fromtimestamp(
-            row["timestamp"], timezone.utc
-        ).astimezone(market_timezone).date() in dates
+        if _market_session_date(row["timestamp"], market_timezone, session_roll_hour)
+        in dates
     ]
 
 
@@ -2040,7 +2101,10 @@ def fetch_intraday_quote(key: str, profile: dict[str, str], now: datetime) -> di
     stale_minutes = max(0.0, (now - display_quote_dt).total_seconds() / 60.0)
     market_state = "updating" if stale_minutes <= 25 else "delayed-or-closed"
     spark = _sample_weekly_sparkline(
-        _latest_trading_days(points, exchange_timezone)
+        _latest_trading_days(
+            points, exchange_timezone,
+            session_roll_hour=18 if key in CME_SESSION_KEYS else None,
+        )
     )
     spark_rows = [
         {
@@ -5645,11 +5709,11 @@ def build_live_package(previous: dict[str, Any] | None = None) -> dict[str, Any]
         "generatedAtUtc": now.isoformat(),
         "generatedAtJst": now.astimezone(JST).isoformat(),
         "refreshPolicy": {
-            "targetIntervalMinutes": 5,
+            "targetIntervalMinutes": 60,
             "delivery": "GitHub Actions scheduled snapshot",
             "buttonBehavior": "公開版の更新ボタンは最後に配信済みのスナップショットを再読込",
             "warning": (
-                "5分間隔を目標にしますが、GitHub Actionsの開始時刻と配信時刻は保証されず、"
+                "1時間間隔を目標にしますが、GitHub Actionsの開始時刻と配信時刻は保証されず、"
                 "混雑・取得元障害・CDNキャッシュにより遅延する場合があります。"
             ),
         },

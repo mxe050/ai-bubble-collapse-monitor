@@ -20,6 +20,7 @@ from collections import Counter
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Iterable
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -27,6 +28,12 @@ DEFAULT_INPUT = ROOT / "data" / "live-intelligence.json"
 JST = timezone(timedelta(hours=9))
 BRIEFING_ITEM_LIMIT = 24
 LATEST_ITEM_RESERVE = 10
+CME_SESSION_KEYS = frozenset({
+    "NIKKEI_FUTURES_YEN", "NIKKEI_FUTURES_USD", "SP500_FUTURES",
+    "NASDAQ100_FUTURES", "DOW_FUTURES", "RUSSELL2000_FUTURES",
+})
+QUOTE_CAPTURE_TOLERANCE = timedelta(minutes=5)
+
 
 TOPIC_LABELS = {
     "fx-rates": "為替・金利",
@@ -935,8 +942,8 @@ def validate_refresh_policy(data: dict[str, Any]) -> None:
         high=60,
     )
     require(
-        target_interval == 5,
-        "refreshPolicy.targetIntervalMinutes must match the five-minute workflow target",
+        target_interval == 60,
+        "refreshPolicy.targetIntervalMinutes must match the hourly workflow target",
     )
     for key in ("delivery", "buttonBehavior", "warning"):
         require_string(policy[key], f"refreshPolicy.{key}")
@@ -947,7 +954,7 @@ def validate_refresh_policy(data: dict[str, Any]) -> None:
     require(
         "保証" in policy["warning"]
         and re.search(r"遅延|ずれ|超える", policy["warning"]),
-        "refreshPolicy.warning must disclose that the five-minute target is not guaranteed",
+        "refreshPolicy.warning must disclose that the hourly target is not guaranteed",
     )
 
 
@@ -1217,6 +1224,34 @@ def validate_move(
         )
 
 
+def quote_time_within_capture_window(quote_time: datetime, generated: datetime) -> bool:
+    """Allow the provider bar to close while the snapshot request is still running."""
+
+    return quote_time <= generated + QUOTE_CAPTURE_TOLERANCE
+
+
+def sparkline_covers_latest_market_week(
+    times: list[datetime], exchange_timezone: str | None,
+    session_roll_hour: int | None = None,
+) -> bool:
+    """Require five exchange sessions; CME sessions roll at 18:00 New York time."""
+
+    if len(times) < 2:
+        return False
+    try:
+        market_tz = ZoneInfo(exchange_timezone) if exchange_timezone else timezone.utc
+    except ZoneInfoNotFoundError:
+        market_tz = timezone.utc
+    market_dates: set[date] = set()
+    for point in times:
+        local_time = point.astimezone(market_tz)
+        market_date = local_time.date()
+        if session_roll_hour is not None and local_time.hour >= session_roll_hour:
+            market_date += timedelta(days=1)
+        market_dates.add(market_date)
+    return len(market_dates) >= 5
+
+
 def validate_quote(
     key: str,
     raw: Any,
@@ -1389,7 +1424,7 @@ def validate_quote(
         quote["quoteTimeJst"], f"{context}.quoteTimeJst", expected_offset=timedelta(hours=9)
     )
     require(same_instant(quote_utc, quote_jst), f"{context} UTC/JST quote times differ")
-    require(quote_utc <= generated + timedelta(minutes=2), f"{context} quote is future-dated")
+    require(quote_time_within_capture_window(quote_utc, generated), f"{context} quote is future-dated")
     require(generated - quote_utc <= timedelta(days=5), f"{context} quote is older than five days")
     stale = number(quote["staleMinutes"], f"{context}.staleMinutes")
     expected_stale = round(max(0.0, (generated - quote_utc).total_seconds() / 60.0), 1)
@@ -1413,6 +1448,7 @@ def validate_quote(
     spark = require_list(quote["sparkline"], f"{context}.sparkline")
     require(1 <= len(spark) <= 168, f"{context}.sparkline must contain 1..168 points")
     spark_by_time: dict[str, float] = {}
+    spark_times: list[datetime] = []
     first_time: datetime | None = None
     previous_time: datetime | None = None
     for index, raw_point in enumerate(spark):
@@ -1422,6 +1458,7 @@ def validate_quote(
         point_time = parse_timestamp(
             point["timeUtc"], f"{point_context}.timeUtc", expected_offset=timedelta(0)
         )
+        spark_times.append(point_time)
         if first_time is None:
             first_time = point_time
         point_value = number(point["value"], f"{point_context}.value")
@@ -1433,8 +1470,11 @@ def validate_quote(
         spark_by_time[point["timeUtc"]] = point_value
     if first_time is not None and previous_time is not None and len(spark) >= 2:
         require(
-            previous_time - first_time >= timedelta(hours=96),
-            f"{context}.sparkline must cover the latest trading week",
+            sparkline_covers_latest_market_week(
+                spark_times, quote.get("exchangeTimezone"),
+                session_roll_hour=18 if key in CME_SESSION_KEYS else None,
+            ),
+            f"{context}.sparkline must cover five exchange sessions",
         )
     require(
         same_instant(previous_time or quote_utc, quote_utc),
@@ -3309,6 +3349,66 @@ def run_quote_reference_regressions() -> None:
         and unavailable["referenceValidationStatus"] == "unavailable",
         "unverified metadata close was published as a daily comparison",
     )
+
+    short_calendar_fixture = [
+        datetime(2026, 8, 16, 22, 10, tzinfo=timezone.utc),
+        datetime(2026, 8, 17, 12, 0, tzinfo=timezone.utc),
+        datetime(2026, 8, 18, 12, 0, tzinfo=timezone.utc),
+        datetime(2026, 8, 19, 12, 0, tzinfo=timezone.utc),
+        datetime(2026, 8, 20, 12, 0, tzinfo=timezone.utc),
+    ]
+    require(
+        short_calendar_fixture[-1] - short_calendar_fixture[0] < timedelta(hours=96),
+        "CME Thursday regression fixture no longer reproduces the short elapsed span",
+    )
+    require(
+        not sparkline_covers_latest_market_week(
+            short_calendar_fixture, "America/New_York", session_roll_hour=18
+        ),
+        "five calendar dates were incorrectly accepted as five CME sessions",
+    )
+
+    raw_session_points = [
+        {"timestamp": int(datetime(2026, 8, 14, 16, 0, tzinfo=timezone.utc).timestamp()), "value": 100.0},
+        *[
+            {"timestamp": int(point.timestamp()), "value": 101.0 + index}
+            for index, point in enumerate(short_calendar_fixture)
+        ],
+    ]
+    selected_session_points = producer._latest_trading_days(
+        raw_session_points, "America/New_York", session_roll_hour=18
+    )
+    selected_session_times = [
+        datetime.fromtimestamp(row["timestamp"], timezone.utc)
+        for row in selected_session_points
+    ]
+    require(
+        selected_session_points[0]["timestamp"] == raw_session_points[0]["timestamp"],
+        "CME producer dropped the prior Friday and returned fewer than five sessions",
+    )
+    require(
+        sparkline_covers_latest_market_week(
+            selected_session_times, "America/New_York", session_roll_hour=18
+        ),
+        "producer and validator disagree on the latest five CME sessions",
+    )
+
+    capture_started = datetime(2026, 8, 20, 12, 0, tzinfo=timezone.utc)
+    require(
+        quote_time_within_capture_window(
+            capture_started + QUOTE_CAPTURE_TOLERANCE, capture_started
+        ),
+        "quote capture tolerance rejected its exact boundary",
+    )
+    require(
+        not quote_time_within_capture_window(
+            capture_started + QUOTE_CAPTURE_TOLERANCE + timedelta(microseconds=1),
+            capture_started,
+        ),
+        "quote capture tolerance accepted a timestamp beyond its boundary",
+    )
+
+
 def run_localization_freshness_regressions() -> None:
     """Exercise bilingual fallbacks and freshness boundaries without network access."""
 
